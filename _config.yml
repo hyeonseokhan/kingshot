@@ -1,7 +1,7 @@
 title: "킹샷 가이드"
 description: "킹샷 서버 커뮤니티 가이드"
-url: ""
-baseurl: "/kingshot"
+url: "https://kingshot.wooju-home.org"
+baseurl: ""
 
 markdown: kramdown
 kramdown:
