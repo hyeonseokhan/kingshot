@@ -14,7 +14,7 @@
 <!-- 헤더 -->
 <header class="app-header">
   <div class="header-left">
-    <div class="logo">K</div>
+    <div class="logo">PNX</div>
     <span class="header-title">{{ site.title }}</span>
   </div>
   <div class="tab-bar">
@@ -22,7 +22,22 @@
     <button class="tab{% if forloop.first %} active{% endif %}" data-tab="{{ tab.id }}">{{ tab.title }}</button>
     {% endfor %}
   </div>
+  <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="메뉴">&#9776;</button>
 </header>
+
+<!-- 모바일 네비게이션 -->
+<div class="mobile-nav-overlay" id="mobile-nav-overlay"></div>
+<div class="mobile-nav-panel" id="mobile-nav-panel">
+  <div class="mobile-nav-close"><button id="mobile-nav-close">&times;</button></div>
+  {% for tab in site.data.navigation.tabs %}
+  <div class="mobile-nav-tab{% if forloop.first %} active{% endif %}" data-tab="{{ tab.id }}">{{ tab.title }}</div>
+  {% assign guides = site.guides | where: "category", tab.id | sort: "order" %}
+  {% for guide in guides %}
+  <div class="mobile-nav-section{% if forloop.first %} active{% endif %}" data-tab="{{ tab.id }}" data-section="{{ forloop.index0 }}">{{ guide.title }}</div>
+  {% endfor %}
+  {% unless forloop.last %}<div class="mobile-nav-divider"></div>{% endunless %}
+  {% endfor %}
+</div>
 
 <!-- 탭별 콘텐츠 영역 -->
 {% for tab in site.data.navigation.tabs %}
@@ -42,7 +57,6 @@
     {% assign guides = site.guides | where: "category", tab.id | sort: "order" %}
     {% for guide in guides %}
     <div class="section-content" data-section="{{ forloop.index0 }}" data-tab="{{ tab.id }}"{% unless forloop.first %} style="display:none"{% endunless %}>
-      <h1>{{ guide.title }}</h1>
       {{ guide.content }}
     </div>
     {% endfor %}
