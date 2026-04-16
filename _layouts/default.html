@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ site.title }}</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+</head>
+<body>
+
+<!-- 헤더 -->
+<header class="app-header">
+  <div class="header-left">
+    <div class="logo">K</div>
+    <span class="header-title">{{ site.title }}</span>
+  </div>
+  <div class="tab-bar">
+    {% for tab in site.data.navigation.tabs %}
+    <button class="tab{% if forloop.first %} active{% endif %}" data-tab="{{ tab.id }}">{{ tab.title }}</button>
+    {% endfor %}
+  </div>
+</header>
+
+<!-- 탭별 콘텐츠 영역 -->
+{% for tab in site.data.navigation.tabs %}
+<div id="tab-{{ tab.id }}" class="tab-content{% if forloop.first %} active{% endif %}">
+  <nav class="left-nav">
+    <div class="left-nav-header">목차</div>
+    <div class="left-nav-items" data-tab="{{ tab.id }}">
+      {% assign guides = site.guides | where: "category", tab.id | sort: "order" %}
+      {% for guide in guides %}
+      <div class="left-nav-item{% if forloop.first %} active{% endif %}" data-section="{{ forloop.index0 }}" data-tab="{{ tab.id }}">
+        <span class="step-label">{{ guide.title }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </nav>
+  <main class="center-content" data-tab="{{ tab.id }}">
+    {% assign guides = site.guides | where: "category", tab.id | sort: "order" %}
+    {% for guide in guides %}
+    <div class="section-content" data-section="{{ forloop.index0 }}" data-tab="{{ tab.id }}"{% unless forloop.first %} style="display:none"{% endunless %}>
+      <h1>{{ guide.title }}</h1>
+      {{ guide.content }}
+    </div>
+    {% endfor %}
+  </main>
+  <aside class="right-toc">
+    <div class="right-toc-header">ON THIS PAGE</div>
+    <div class="right-toc-items" data-tab="{{ tab.id }}"></div>
+  </aside>
+</div>
+{% endfor %}
+
+<script src="{{ '/assets/js/app.js' | relative_url }}"></script>
+</body>
+</html>

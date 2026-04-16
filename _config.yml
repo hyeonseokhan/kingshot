@@ -1,0 +1,32 @@
+title: "킹샷 가이드"
+description: "킹샷 서버 커뮤니티 가이드"
+url: ""
+baseurl: "/kingshot"
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+
+permalink: pretty
+
+collections:
+  guides:
+    output: false
+
+defaults:
+  - scope:
+      path: "_guides/beginner"
+    values:
+      category: beginner
+  - scope:
+      path: "_guides/events"
+    values:
+      category: events
+
+exclude:
+  - document
+  - Gemfile.lock
+  - README.md
+  - node_modules
