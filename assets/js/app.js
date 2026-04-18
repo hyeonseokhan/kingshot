@@ -161,6 +161,13 @@
   }
 
   function restoreFromHash() {
+    // ?auto-redeem=true 파라미터가 있으면 연맹관리 탭으로 자동 전환
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('auto-redeem') === 'true') {
+      switchTab('manage');
+      return;
+    }
+
     var hash = location.hash.slice(1);
     if (!hash) {
       var firstTab = document.querySelector('.tab');

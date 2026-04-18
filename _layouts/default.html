@@ -128,14 +128,25 @@
         </div>
       </div>
 
+      <!-- 입력 가능한 쿠폰 -->
+      <div class="coupon-section">
+        <h3 class="coupon-title">입력 가능한 쿠폰</h3>
+        <div class="coupon-list" id="coupon-list">
+          <div class="empty-cell">로딩 중...</div>
+        </div>
+      </div>
+
       <!-- 필터 & 카운트 -->
       <div class="members-toolbar">
         <div class="member-count" id="member-count"></div>
-        <div class="members-filter">
-          <label for="filter-level">최소 레벨</label>
-          <select id="filter-level">
-            <option value="0">전체</option>
-          </select>
+        <div class="members-toolbar-right">
+          <button class="btn btn-secondary btn-sm" id="btn-redeem-all">🎁 전체 수령</button>
+          <div class="members-filter">
+            <label for="filter-level">최소 레벨</label>
+            <select id="filter-level">
+              <option value="0">전체</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="members-list" id="members-list">
@@ -186,5 +197,6 @@
 </script>
 <script src="{{ '/assets/js/app.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/members.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/coupons.js' | relative_url }}"></script>
 </body>
 </html>

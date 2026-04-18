@@ -131,7 +131,12 @@
             '<div class="mc-level">Lv.' + (lvl || '?') + '</div>' +
             '<div class="mc-kingdom">' + (m.kingdom || '?') + '</div>' +
             '<div class="mc-memo-cell">' + memoDisplay + '</div>' +
-            '<button class="mc-manage-btn" onclick="Members.openDialog(\'' + m.id + '\')" title="관리">⋮</button>' +
+            '<div class="mc-actions-cell">' +
+              (window.Coupons && window.Coupons.getGiftButtonHtml
+                ? window.Coupons.getGiftButtonHtml(m.kingshot_id, m.nickname)
+                : '<button class="mc-gift-btn" onclick="Coupons.redeemOne(\'' + esc(m.kingshot_id) + '\',\'' + esc(m.nickname) + '\')" title="쿠폰 수령">🎁</button>') +
+              '<button class="mc-manage-btn" onclick="Members.openDialog(\'' + m.id + '\')" title="관리">⋮</button>' +
+            '</div>' +
           '</div>';
         }).join('');
 
@@ -340,7 +345,8 @@
 
   window.Members = {
     openDialog: openDialog,
-    reload: loadMembers
+    reload: loadMembers,
+    _getAllData: function() { return membersData; }
   };
 
 })();

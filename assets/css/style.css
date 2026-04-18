@@ -286,7 +286,8 @@ a:hover{text-decoration:underline}
   .memo-pc{display:none !important}
   .memo-mb{display:inline !important}
   .mc-row-body{flex:1;min-width:0}
-  .mc-manage-btn{margin-left:auto}
+  .mc-actions-cell{display:flex;gap:2px;margin-left:auto}
+  .mc-manage-btn,.mc-gift-btn{width:28px;height:28px;font-size:15px}
   .modal{width:95%;margin:20px auto;max-height:90vh}
   .manage-dialog{width:92%;max-width:380px}
   /* 모바일 메뉴 토글 */
@@ -333,6 +334,8 @@ a:hover{text-decoration:underline}
   margin-bottom:8px;
 }
 .member-count{font-size:12px;color:var(--text3);font-weight:500}
+.members-toolbar-right{display:flex;align-items:center;gap:12px}
+.btn-sm{padding:5px 12px;font-size:12px}
 .members-filter{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)}
 .members-filter select{
   padding:4px 8px;border:1px solid var(--border);border-radius:5px;
@@ -412,9 +415,10 @@ a:hover{text-decoration:underline}
 }
 /* PC 테이블 헤더 */
 .members-thead,.member-row{
-  display:grid;grid-template-columns:44px 1.5fr 50px 60px 60px 1fr 40px;
+  display:grid;grid-template-columns:44px 1.5fr 50px 60px 60px 1fr 72px;
   align-items:center;gap:10px;padding:10px 16px;
 }
+.mc-actions-cell{display:flex;gap:2px;justify-content:flex-end}
 .members-thead{
   font-size:11px;font-weight:600;text-transform:uppercase;
   letter-spacing:0.04em;color:var(--text3);
@@ -533,6 +537,64 @@ a:hover{text-decoration:underline}
 .manage-dialog-actions .btn{flex:1;text-align:center;padding:9px 0}
 .btn-danger{background:none;color:var(--red);border:1px solid var(--red)}
 .btn-danger:hover{background:var(--red);color:#fff}
+
+/* ===== 쿠폰 섹션 ===== */
+.coupon-section{margin-top:8px;margin-bottom:24px}
+.coupon-title{font-size:0.85rem;font-weight:600;margin-bottom:8px;color:var(--text2)}
+.coupon-list{
+  display:flex;flex-wrap:wrap;gap:8px;
+}
+.coupon-card{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border:1px solid var(--border2);
+  border-radius:8px;background:var(--bg);font-size:13px;
+}
+.coupon-code{font-weight:700;color:var(--text);font-family:var(--mono);font-size:13px}
+.coupon-expires{font-size:11px;color:var(--text3)}
+.coupon-badge-active{
+  display:inline-block;padding:1px 6px;border-radius:3px;
+  font-size:10px;font-weight:600;background:rgba(16,185,129,0.12);color:#059669;
+}
+/* 캡차 다이얼로그 */
+.captcha-dialog-overlay{
+  display:none;position:fixed;inset:0;z-index:310;
+  background:rgba(0,0,0,0.4);align-items:center;justify-content:center;
+}
+.captcha-dialog-overlay.open{display:flex}
+.captcha-img-wrap{text-align:center;margin:12px 0}
+.captcha-img{max-width:100%;border-radius:6px;border:1px solid var(--border2)}
+.captcha-status{font-size:13px;color:var(--text2);margin-bottom:8px}
+/* 선물 버튼 */
+.mc-gift-btn{
+  width:32px;height:32px;border-radius:6px;border:none;
+  background:none;cursor:pointer;color:var(--text2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;transition:all 0.12s;
+}
+.mc-gift-btn:hover{background:var(--bg3);color:var(--accent)}
+.mc-gift-done{opacity:0.7;cursor:default}
+.mc-gift-done:hover{background:none;color:inherit}
+/* 수령 진행 상태 */
+.redeem-progress{
+  padding:10px 16px;margin-bottom:8px;
+  border:1px solid var(--border2);border-radius:8px;
+  background:var(--bg);
+}
+.redeem-progress-text{font-size:12px;color:var(--text2);margin-bottom:6px}
+.redeem-progress-bar{
+  height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;
+}
+.redeem-progress-fill{
+  height:100%;background:linear-gradient(90deg,#f59e0b,#ef4444);
+  border-radius:2px;transition:width 0.3s ease;
+}
+.redeem-progress-count{font-size:11px;color:var(--text3);margin-top:4px;text-align:right}
+.redeem-summary{
+  display:flex;gap:16px;font-size:13px;font-weight:600;
+}
+.redeem-summary span{display:flex;align-items:center;gap:4px}
+.summary-ok{color:var(--green)}
+.summary-warn{color:var(--text)}
 
 /* 모달 */
 .modal-overlay{
