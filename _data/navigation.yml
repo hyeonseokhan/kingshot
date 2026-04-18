@@ -3,3 +3,8 @@ tabs:
     title: "입문 가이드"
   - id: events
     title: "이벤트"
+  - id: manage
+    title: "연맹관리"
+    submenus:
+      - id: members
+        title: "연맹원"

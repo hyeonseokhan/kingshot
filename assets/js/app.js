@@ -229,23 +229,35 @@
     overlay.addEventListener('click', closeMenu);
     closeBtn.addEventListener('click', closeMenu);
 
-    // 탭 클릭
+    // 탭 클릭 → 토글 펼치기/접기
     panel.querySelectorAll('.mobile-nav-tab').forEach(function(tab) {
-      tab.addEventListener('click', function() {
-        panel.querySelectorAll('.mobile-nav-tab').forEach(function(t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        switchTab(tab.dataset.tab);
-        closeMenu();
+      tab.addEventListener('click', function(e) {
+        var children = panel.querySelector('.mobile-nav-children[data-parent="' + tab.dataset.tab + '"]');
+        if (!children) return;
+
+        var isOpen = children.classList.contains('open');
+
+        // 다른 탭 모두 닫기
+        panel.querySelectorAll('.mobile-nav-children').forEach(function(c) { c.classList.remove('open'); });
+        panel.querySelectorAll('.mobile-nav-tab').forEach(function(t) { t.classList.remove('expanded'); });
+
+        // 토글
+        if (!isOpen) {
+          children.classList.add('open');
+          tab.classList.add('expanded');
+        }
       });
     });
 
     // 섹션 클릭
     panel.querySelectorAll('.mobile-nav-section').forEach(function(item) {
       item.addEventListener('click', function() {
-        panel.querySelectorAll('.mobile-nav-section').forEach(function(s) { s.classList.remove('active'); });
-        item.classList.add('active');
-        switchTab(item.dataset.tab);
-        switchSection(item.dataset.tab, parseInt(item.dataset.section, 10));
+        var tabId = item.dataset.tab;
+        switchTab(tabId);
+        // 서브메뉴가 있는 탭(연맹관리 등)은 섹션 전환 불필요
+        if (item.dataset.section !== undefined) {
+          switchSection(tabId, parseInt(item.dataset.section, 10));
+        }
         closeMenu();
       });
     });

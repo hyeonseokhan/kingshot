@@ -30,17 +30,28 @@
 <div class="mobile-nav-panel" id="mobile-nav-panel">
   <div class="mobile-nav-close"><button id="mobile-nav-close">&times;</button></div>
   {% for tab in site.data.navigation.tabs %}
-  <div class="mobile-nav-tab{% if forloop.first %} active{% endif %}" data-tab="{{ tab.id }}">{{ tab.title }}</div>
-  {% assign guides = site.guides | where: "category", tab.id | sort: "order" %}
-  {% for guide in guides %}
-  <div class="mobile-nav-section{% if forloop.first %} active{% endif %}" data-tab="{{ tab.id }}" data-section="{{ forloop.index0 }}">{{ guide.title }}</div>
-  {% endfor %}
-  {% unless forloop.last %}<div class="mobile-nav-divider"></div>{% endunless %}
+  <div class="mobile-nav-tab" data-tab="{{ tab.id }}">
+    <span>{{ tab.title }}</span>
+    <span class="mobile-nav-toggle">▸</span>
+  </div>
+  <div class="mobile-nav-children" data-parent="{{ tab.id }}">
+    {% if tab.submenus %}
+      {% for sub in tab.submenus %}
+      <div class="mobile-nav-section" data-tab="{{ tab.id }}" data-submenu="{{ sub.id }}">{{ sub.title }}</div>
+      {% endfor %}
+    {% else %}
+      {% assign guides = site.guides | where: "category", tab.id | sort: "order" %}
+      {% for guide in guides %}
+      <div class="mobile-nav-section" data-tab="{{ tab.id }}" data-section="{{ forloop.index0 }}">{{ guide.title }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
   {% endfor %}
 </div>
 
-<!-- 탭별 콘텐츠 영역 -->
-{% for tab in site.data.navigation.tabs %}
+<!-- 가이드 탭 (마크다운 기반) -->
+{% assign guide_tabs = site.data.navigation.tabs | where_exp: "t", "t.submenus == nil" %}
+{% for tab in guide_tabs %}
 <div id="tab-{{ tab.id }}" class="tab-content{% if forloop.first %} active{% endif %}">
   <nav class="left-nav">
     <div class="left-nav-header">목차</div>
@@ -68,6 +79,80 @@
 </div>
 {% endfor %}
 
+<!-- 연맹관리 탭 -->
+<div id="tab-manage" class="tab-content">
+  <nav class="left-nav">
+    <div class="left-nav-header">연맹관리</div>
+    <div class="left-nav-items" data-tab="manage">
+      <div class="left-nav-item active" data-tab="manage" data-submenu="members">
+        <span class="step-label">연맹원</span>
+      </div>
+    </div>
+  </nav>
+  <main class="center-content manage-content" data-tab="manage">
+    <!-- 연맹원 관리 페이지 -->
+    <div class="members-page">
+      <div class="members-header">
+        <h1>연맹원 관리</h1>
+        <button class="btn btn-primary" id="btn-add-member">+ 연맹원 등록</button>
+      </div>
+
+      <!-- 등록 모달 -->
+      <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>연맹원 등록</h3>
+            <button class="modal-close" id="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <label>킹샷 ID</label>
+            <div class="input-row">
+              <input type="text" id="input-kingshot-id" placeholder="킹샷 아이디 입력">
+              <button class="btn btn-secondary" id="btn-search-id">조회</button>
+            </div>
+            <div id="search-result" class="search-result" style="display:none">
+              <div class="result-row"><span>닉네임</span><span id="res-nickname">-</span></div>
+              <div class="result-row"><span>레벨</span><span id="res-level">-</span></div>
+              <div class="result-row"><span>서버</span><span id="res-power">-</span></div>
+            </div>
+            <label>메모 (선택)</label>
+            <input type="text" id="input-memo" placeholder="메모 입력">
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="btn-modal-cancel">취소</button>
+            <button class="btn btn-primary" id="btn-modal-save">저장</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 연맹원 목록 테이블 -->
+      <div class="members-table-wrap">
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>닉네임</th>
+              <th>레벨</th>
+              <th>서버</th>
+              <th>전투력</th>
+              <th>메모</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="members-tbody">
+            <tr><td colspan="6" class="empty-cell">로딩 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  var SUPABASE_URL = 'https://cbzgmugtsustsxuqpznv.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNiemdtdWd0c3VzdHN4dXFwem52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NDMzNjcsImV4cCI6MjA5MjAxOTM2N30.3xAzF_S1eLTwuZcBCPCRPbi2ToJYqOC3ObDLTUVDjbY';
+</script>
 <script src="{{ '/assets/js/app.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/members.js' | relative_url }}"></script>
 </body>
 </html>
