@@ -110,10 +110,13 @@
               <input type="text" id="input-kingshot-id" placeholder="킹샷 아이디 입력">
               <button class="btn btn-secondary" id="btn-search-id">조회</button>
             </div>
-            <div id="search-result" class="search-result" style="display:none">
-              <div class="result-row"><span>닉네임</span><span id="res-nickname">-</span></div>
-              <div class="result-row"><span>레벨</span><span id="res-level">-</span></div>
-              <div class="result-row"><span>서버</span><span id="res-power">-</span></div>
+            <div id="search-result" class="player-card" style="display:none">
+              <img id="res-photo" class="player-card-photo" src="" alt="">
+              <div class="player-card-info">
+                <div class="player-card-name" id="res-nickname">-</div>
+                <div class="player-card-detail">도시 센터 레벨: <strong id="res-level">-</strong></div>
+                <div class="player-card-detail">소속 왕국: <strong id="res-kingdom">-</strong></div>
+              </div>
             </div>
             <label>메모 (선택)</label>
             <input type="text" id="input-memo" placeholder="메모 입력">
@@ -125,23 +128,36 @@
         </div>
       </div>
 
-      <!-- 연맹원 목록 테이블 -->
-      <div class="members-table-wrap">
-        <table class="members-table">
-          <thead>
-            <tr>
-              <th>닉네임</th>
-              <th>레벨</th>
-              <th>서버</th>
-              <th>전투력</th>
-              <th>메모</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody id="members-tbody">
-            <tr><td colspan="6" class="empty-cell">로딩 중...</td></tr>
-          </tbody>
-        </table>
+      <!-- 연맹원 목록 -->
+      <div class="member-count" id="member-count"></div>
+      <div class="members-list" id="members-list">
+        <div class="empty-cell">로딩 중...</div>
+      </div>
+
+      <!-- 관리 다이얼로그 -->
+      <div class="manage-dialog-overlay" id="manage-dialog-overlay">
+        <div class="manage-dialog">
+          <button class="md-close-btn" id="md-close">&times;</button>
+          <div class="md-profile">
+            <div id="md-avatar"></div>
+            <div class="md-profile-center">
+              <div class="md-profile-name" id="md-name">-</div>
+              <div class="md-profile-id" id="md-id">-</div>
+              <div class="md-profile-meta" id="md-meta">-</div>
+            </div>
+            <button class="btn btn-secondary md-refresh-btn" id="md-refresh" title="정보 갱신">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </button>
+          </div>
+          <div class="manage-dialog-body">
+            <label>메모</label>
+            <input type="text" id="md-memo" placeholder="메모 입력">
+          </div>
+          <div class="manage-dialog-actions">
+            <button class="btn btn-primary" id="md-save">저장</button>
+            <button class="btn btn-danger" id="md-delete">삭제</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>

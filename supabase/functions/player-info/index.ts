@@ -3,7 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const KINGSHOT_API = "https://kingshot.net/api/player-info";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://kingshot.wooju-home.org",
+  // TODO: 테스트 완료 후 "https://kingshot.wooju-home.org" 로 복원
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
 };
