@@ -52,10 +52,22 @@
       });
   }
 
+  // ===== 필터 초기화 =====
+  var filterSelect = document.getElementById('filter-level');
+  for (var i = 30; i >= 1; i--) {
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = 'Lv.' + i;
+    filterSelect.appendChild(opt);
+  }
+  filterSelect.addEventListener('change', function() { renderMembers(); });
+
+  var allMembers = [];
+
   // ===== 목록 조회 =====
   function loadMembers() {
     listEl.innerHTML = '<div class="empty-cell">로딩 중...</div>';
-    sb.from('members').select('*').order('created_at', { ascending: true })
+    sb.from('members').select('*').order('alliance_rank', { ascending: false }).order('level', { ascending: false })
       .then(function(res) {
         if (res.error) {
           listEl.innerHTML = '<div class="empty-cell">오류: ' + res.error.message + '</div>';
@@ -67,31 +79,56 @@
           return;
         }
 
-        document.getElementById('member-count').textContent = '전체 ' + res.data.length + '명';
+        allMembers = res.data;
+        membersData = {};
+        res.data.forEach(function(m) { membersData[m.id] = m; });
+        renderMembers();
+      });
+  }
 
-        var thead = '<div class="members-thead">' +
-          '<div></div><div>닉네임</div><div>레벨</div><div>서버</div><div>메모</div><div></div>' +
-          '</div>';
+  function renderMembers() {
+    var minLevel = parseInt(filterSelect.value, 10) || 0;
+    var filtered = allMembers.filter(function(m) { return (m.level || 0) >= minLevel; });
 
-        var rows = res.data.map(function(m) {
-          var avatar = m.profile_photo
+    document.getElementById('member-count').textContent = '전체 ' + filtered.length + '명' +
+      (minLevel > 0 ? ' (Lv.' + minLevel + ' 이상)' : '');
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="empty-cell">조건에 맞는 연맹원이 없습니다</div>';
+      return;
+    }
+
+    var thead = '<div class="members-thead">' +
+      '<div></div><div>닉네임</div><div>등급</div><div>레벨</div><div>서버</div><div>메모</div><div></div>' +
+      '</div>';
+
+        var rows = filtered.map(function(m) {
+          var rank = m.alliance_rank || 'R1';
+          var lvl = m.level || 0;
+
+          // 프로필 이미지 (레벨별 테두리 래퍼)
+          var lvClass = lvl >= 30 ? ' lv-30' : lvl === 29 ? ' lv-29' : lvl === 28 ? ' lv-28' : '';
+          var avatarInner = m.profile_photo
             ? '<img src="' + esc(m.profile_photo) + '" class="mc-photo">'
             : '<div class="mc-photo-empty">' + esc(m.nickname).charAt(0) + '</div>';
+          var avatar = '<div class="mc-photo-wrap' + lvClass + '">' + avatarInner + '</div>';
 
-          var memoDisplay = m.memo
-            ? esc(m.memo)
-            : '<span class="mc-memo-empty">-</span>';
+          var memoFull = m.memo ? esc(m.memo) : '';
+          var memoPc = memoFull.length > 20 ? memoFull.slice(0, 20) + '…' : (memoFull || '<span class="mc-memo-empty">-</span>');
+          var memoMb = memoFull.length > 10 ? memoFull.slice(0, 10) + '…' : memoFull;
+          var memoDisplay = '<span class="memo-pc">' + memoPc + '</span><span class="memo-mb">' + memoMb + '</span>';
 
-          var sub = 'Lv.' + (m.level || '?') + ' · ' + (m.kingdom || '?');
-          if (m.memo) sub += ' · ' + esc(m.memo);
+          var sub = rank + ' · Lv.' + (lvl || '?') + ' · ' + (m.kingdom || '?');
+          if (memoMb) sub += ' · ' + memoMb;
 
-          return '<div class="member-row" data-id="' + m.id + '">' +
+          return '<div class="member-row rank-' + rank + '" data-id="' + m.id + '">' +
             avatar +
             '<div class="mc-row-body">' +
               '<div class="mc-name">' + esc(m.nickname) + '</div>' +
               '<div class="mc-sub">' + sub + '</div>' +
             '</div>' +
-            '<div class="mc-level">Lv.' + (m.level || '?') + '</div>' +
+            '<div class="mc-rank-cell">' + rank + '</div>' +
+            '<div class="mc-level">Lv.' + (lvl || '?') + '</div>' +
             '<div class="mc-kingdom">' + (m.kingdom || '?') + '</div>' +
             '<div class="mc-memo-cell">' + memoDisplay + '</div>' +
             '<button class="mc-manage-btn" onclick="Members.openDialog(\'' + m.id + '\')" title="관리">⋮</button>' +
@@ -99,11 +136,6 @@
         }).join('');
 
         listEl.innerHTML = thead + rows;
-
-        // 멤버 데이터 저장 (다이얼로그에서 사용)
-        membersData = {};
-        res.data.forEach(function(m) { membersData[m.id] = m; });
-      });
   }
 
   var membersData = {};
@@ -118,15 +150,27 @@
     currentDialogId = id;
 
     // 프로필 세팅
+    var rank = m.alliance_rank || 'R1';
+    var lvl = m.level || 0;
+    var lvClass = lvl >= 30 ? ' lv-30' : lvl === 29 ? ' lv-29' : lvl === 28 ? ' lv-28' : '';
+
+    // 프로필 영역에 등급 배경 적용
+    var profileEl = document.querySelector('.md-profile');
+    profileEl.className = 'md-profile rank-' + rank;
+
+    // 아바타에 레벨 테두리 적용
     var avatarEl = document.getElementById('md-avatar');
     if (m.profile_photo) {
+      avatarEl.className = 'md-photo-wrap' + lvClass;
       avatarEl.innerHTML = '<img src="' + esc(m.profile_photo) + '">';
     } else {
+      avatarEl.className = 'md-photo-wrap' + lvClass;
       avatarEl.innerHTML = '<div class="md-avatar-empty">' + esc(m.nickname).charAt(0) + '</div>';
     }
     document.getElementById('md-name').textContent = m.nickname;
     document.getElementById('md-id').textContent = 'ID: ' + m.kingshot_id;
-    document.getElementById('md-meta').textContent = 'Lv.' + (m.level || '?') + ' · ' + (m.kingdom || '?');
+    document.getElementById('md-meta').textContent = 'Lv.' + (lvl || '?') + ' · ' + (m.kingdom || '?');
+    document.getElementById('md-rank').value = m.alliance_rank || 'R1';
     document.getElementById('md-memo').value = m.memo || '';
 
     dialogOverlay.classList.add('open');
@@ -146,7 +190,8 @@
   document.getElementById('md-save').addEventListener('click', function() {
     if (!currentDialogId) return;
     var memo = document.getElementById('md-memo').value.trim();
-    sb.from('members').update({ memo: memo || null }).eq('id', currentDialogId)
+    var rank = document.getElementById('md-rank').value;
+    sb.from('members').update({ memo: memo || null, alliance_rank: rank }).eq('id', currentDialogId)
       .then(function(res) {
         if (res.error) { alert('저장 실패: ' + res.error.message); return; }
         closeDialog();

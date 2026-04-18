@@ -128,8 +128,16 @@
         </div>
       </div>
 
-      <!-- 연맹원 목록 -->
-      <div class="member-count" id="member-count"></div>
+      <!-- 필터 & 카운트 -->
+      <div class="members-toolbar">
+        <div class="member-count" id="member-count"></div>
+        <div class="members-filter">
+          <label for="filter-level">최소 레벨</label>
+          <select id="filter-level">
+            <option value="0">전체</option>
+          </select>
+        </div>
+      </div>
       <div class="members-list" id="members-list">
         <div class="empty-cell">로딩 중...</div>
       </div>
@@ -137,7 +145,6 @@
       <!-- 관리 다이얼로그 -->
       <div class="manage-dialog-overlay" id="manage-dialog-overlay">
         <div class="manage-dialog">
-          <button class="md-close-btn" id="md-close">&times;</button>
           <div class="md-profile">
             <div id="md-avatar"></div>
             <div class="md-profile-center">
@@ -150,12 +157,21 @@
             </button>
           </div>
           <div class="manage-dialog-body">
+            <label>연맹 등급</label>
+            <select id="md-rank" class="md-select">
+              <option value="R5">R5</option>
+              <option value="R4">R4</option>
+              <option value="R3">R3</option>
+              <option value="R2">R2</option>
+              <option value="R1">R1</option>
+            </select>
             <label>메모</label>
             <input type="text" id="md-memo" placeholder="메모 입력">
           </div>
           <div class="manage-dialog-actions">
             <button class="btn btn-primary" id="md-save">저장</button>
             <button class="btn btn-danger" id="md-delete">삭제</button>
+            <button class="btn btn-secondary" id="md-close">닫기</button>
           </div>
         </div>
       </div>
