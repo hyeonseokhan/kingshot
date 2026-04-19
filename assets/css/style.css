@@ -406,12 +406,58 @@ a:hover{text-decoration:underline}
 .mc-photo-wrap.lv-30{
   background-image:linear-gradient(135deg,#ef4444,#f97316,#eab308,#ef4444);
   animation-duration:2s;
-  box-shadow:0 0 6px rgba(239,68,68,0.35),0 0 12px rgba(249,115,22,0.15);
 }
 @keyframes gradientMove{
   0%{background-position:0% 50%}
   50%{background-position:100% 50%}
   100%{background-position:0% 50%}
+}
+/* 아지랑이(heat haze) 효과 - 불꽃이 피어오르는 듯한 glow */
+.mc-photo-wrap.lv-28::before,
+.mc-photo-wrap.lv-29::before,
+.mc-photo-wrap.lv-30::before,
+.mc-photo-wrap.lv-30::after{
+  content:'';position:absolute;border-radius:10px;z-index:0;
+  pointer-events:none;
+}
+/* Lv.28: 은은한 금빛 아지랑이 */
+.mc-photo-wrap.lv-28::before{
+  inset:-1px;
+  background:linear-gradient(135deg,#b8860b,#f0c040,#daa520,#b8860b);
+  background-size:300% 300%;
+  animation:gradientMove 4s ease infinite, haze 3s ease-in-out infinite;
+  filter:blur(3px);opacity:0.4;
+}
+/* Lv.29: 오로라 아지랑이 */
+.mc-photo-wrap.lv-29::before{
+  inset:-2px;
+  background:linear-gradient(135deg,#8b5cf6,#06b6d4,#a855f7,#8b5cf6);
+  background-size:300% 300%;
+  animation:gradientMove 3s ease infinite, haze 2.5s ease-in-out infinite;
+  filter:blur(4px);opacity:0.45;
+}
+/* Lv.30: 용암 아지랑이 (이중 레이어) */
+.mc-photo-wrap.lv-30::before{
+  inset:-2px;
+  background:linear-gradient(135deg,#ef4444,#f97316,#eab308,#ef4444);
+  background-size:300% 300%;
+  animation:gradientMove 2s ease infinite, haze 2s ease-in-out infinite;
+  filter:blur(4px);opacity:0.5;
+}
+.mc-photo-wrap.lv-30::after{
+  inset:-3px;
+  background:radial-gradient(circle,rgba(249,115,22,0.3),rgba(239,68,68,0.15),transparent 70%);
+  animation:hazeOuter 3s ease-in-out infinite;
+  filter:blur(6px);opacity:0.4;
+}
+@keyframes haze{
+  0%,100%{transform:scale(1);opacity:0.35}
+  50%{transform:scale(1.08);opacity:0.55}
+}
+@keyframes hazeOuter{
+  0%,100%{transform:scale(1);opacity:0.25}
+  33%{transform:scale(1.12);opacity:0.45}
+  66%{transform:scale(0.95);opacity:0.3}
 }
 /* PC 테이블 헤더 */
 .members-thead,.member-row{
