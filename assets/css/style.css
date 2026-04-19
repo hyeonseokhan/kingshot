@@ -415,10 +415,9 @@ a:hover{text-decoration:underline}
 }
 /* PC 테이블 헤더 */
 .members-thead,.member-row{
-  display:grid;grid-template-columns:44px 1.5fr 50px 60px 60px 1fr 72px;
+  display:grid;grid-template-columns:44px 1.5fr 50px 60px 60px 1fr 40px;
   align-items:center;gap:10px;padding:10px 16px;
 }
-.mc-actions-cell{display:flex;gap:2px;justify-content:flex-end}
 .members-thead{
   font-size:11px;font-weight:600;text-transform:uppercase;
   letter-spacing:0.04em;color:var(--text3);
@@ -459,41 +458,41 @@ a:hover{text-decoration:underline}
 }
 .manage-dialog-overlay.open{display:flex}
 .manage-dialog{
-  background:var(--bg);border-radius:12px;width:380px;
-  box-shadow:0 8px 32px rgba(0,0,0,0.15);overflow:hidden;
-  position:relative;
+  background:var(--bg);border-radius:10px;width:360px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.12),0 0 0 1px var(--border2);
+  overflow:hidden;position:relative;
 }
-/* 프로필 영역 */
+/* 프로필 영역 - Notion 스타일 */
 .md-profile{
   display:flex;align-items:center;gap:14px;
-  padding:20px 20px 16px;
+  padding:24px 20px;
 }
 .md-profile img,.md-profile .md-avatar-empty{
   width:56px;height:56px;border-radius:12px;object-fit:cover;flex-shrink:0;
 }
 .md-avatar-empty{
-  background:linear-gradient(135deg,var(--accent-bg),var(--bg3));
+  background:var(--bg3);
   display:flex;align-items:center;justify-content:center;
-  font-size:20px;font-weight:700;color:var(--accent);
+  font-size:20px;font-weight:600;color:var(--text3);
 }
 .md-profile-center{flex:1;min-width:0}
-.md-profile-name{font-size:16px;font-weight:700;color:var(--text);line-height:1.3}
-.md-profile-id{font-size:12px;color:var(--text3);margin-top:1px}
-.md-profile-meta{font-size:12px;color:var(--text2);margin-top:1px}
+.md-profile-name{font-size:16px;font-weight:600;color:var(--text);line-height:1.3}
+.md-profile-id{font-size:12px;color:var(--text3);margin-top:2px;line-height:1.4}
+.md-profile-meta{font-size:12px;color:var(--text3);line-height:1.4}
 /* 다이얼로그 프로필 등급 배경 */
-.md-profile.rank-R1{background:linear-gradient(135deg,rgba(16,185,129,0.02) 0%,rgba(52,211,153,0.10) 100%);border-radius:12px 12px 0 0}
-.md-profile.rank-R2{background:linear-gradient(135deg,rgba(59,130,246,0.02) 0%,rgba(96,165,250,0.12) 100%);border-radius:12px 12px 0 0}
-.md-profile.rank-R3{background:linear-gradient(135deg,rgba(139,92,246,0.02) 0%,rgba(167,139,250,0.12) 100%);border-radius:12px 12px 0 0}
-.md-profile.rank-R4{background:linear-gradient(135deg,rgba(180,140,20,0.04) 0%,rgba(245,215,120,0.28) 100%);border-radius:12px 12px 0 0}
-.md-profile.rank-R5{background:linear-gradient(135deg,rgba(139,0,0,0.04) 0%,rgba(205,70,70,0.25) 100%);border-radius:12px 12px 0 0}
+.md-profile.rank-R1{background:linear-gradient(135deg,rgba(16,185,129,0.02) 0%,rgba(52,211,153,0.08) 100%);border-radius:10px 10px 0 0}
+.md-profile.rank-R2{background:linear-gradient(135deg,rgba(59,130,246,0.02) 0%,rgba(96,165,250,0.08) 100%);border-radius:10px 10px 0 0}
+.md-profile.rank-R3{background:linear-gradient(135deg,rgba(139,92,246,0.02) 0%,rgba(167,139,250,0.08) 100%);border-radius:10px 10px 0 0}
+.md-profile.rank-R4{background:linear-gradient(135deg,rgba(180,140,20,0.03) 0%,rgba(245,215,120,0.18) 100%);border-radius:10px 10px 0 0}
+.md-profile.rank-R5{background:linear-gradient(135deg,rgba(139,0,0,0.03) 0%,rgba(205,70,70,0.16) 100%);border-radius:10px 10px 0 0}
 /* 다이얼로그 프로필 레벨 테두리 */
 .md-profile .md-photo-wrap{
   position:relative;flex-shrink:0;
-  width:56px;height:56px;border-radius:12px;
+  width:60px;height:60px;border-radius:14px;
   display:flex;align-items:center;justify-content:center;
 }
 .md-profile .md-photo-wrap img{
-  width:48px;height:48px;border-radius:10px;
+  width:52px;height:52px;border-radius:10px;
   position:relative;z-index:1;object-fit:cover;
 }
 .md-profile .md-photo-wrap.lv-28{
@@ -507,34 +506,73 @@ a:hover{text-decoration:underline}
 .md-profile .md-photo-wrap.lv-30{
   background-image:linear-gradient(135deg,#ef4444,#f97316,#eab308,#ef4444);
   background-size:300% 300%;animation:gradientMove 2s ease infinite;
-  box-shadow:0 0 6px rgba(239,68,68,0.35),0 0 12px rgba(249,115,22,0.15);
+  box-shadow:0 0 4px rgba(239,68,68,0.3);
 }
 .md-refresh-btn{
-  padding:8px;border-radius:8px;flex-shrink:0;
+  padding:6px;border-radius:6px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
+  border:none;background:none;color:var(--text3);
 }
-.md-refresh-btn:hover{color:var(--accent);border-color:var(--accent)}
-/* 본문 */
-.manage-dialog-body{padding:16px 20px;border-top:1px solid var(--border2)}
-.manage-dialog-body label{
-  display:block;font-size:11px;font-weight:600;
-  color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.03em;
+.md-refresh-btn:hover{color:var(--text)}
+/* 본문 - Notion 폼 스타일 */
+.manage-dialog-body{padding:0}
+.md-form-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 20px;border-top:1px solid var(--border2);
+  font-size:13px;
 }
-.manage-dialog-body input{
-  width:100%;padding:8px 12px;border:1px solid var(--border);
-  border-radius:6px;font-size:14px;font-family:var(--font);margin-bottom:12px;
+.md-form-row:first-child{border-top:none}
+.md-form-label{color:var(--text3);font-size:13px;font-weight:400}
+.md-form-value{display:flex;justify-content:flex-end;align-items:center;flex:1;margin-left:16px}
+.md-form-value input[type="text"]{
+  width:100%;padding:4px 0;border:none;
+  font-size:13px;font-family:var(--font);color:var(--text);
+  text-align:right;background:none;
 }
-.manage-dialog-body input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.md-form-value input[type="text"]:focus{outline:none}
+.md-form-value input[type="text"]::placeholder{color:var(--border)}
 .md-select{
-  width:100%;padding:8px 12px;border:1px solid var(--border);
-  border-radius:6px;font-size:14px;font-family:var(--font);
-  color:var(--text);background:var(--bg);cursor:pointer;margin-bottom:12px;
+  padding:3px 22px 3px 8px;border:1px solid var(--border2);
+  border-radius:4px;font-size:13px;font-family:var(--font);
+  color:var(--text);background:var(--bg);cursor:pointer;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238b949e'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;
 }
-.md-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.md-select:focus{outline:none;border-color:var(--accent)}
+/* 토글 스위치 */
+.md-toggle{position:relative;width:34px;height:18px;flex-shrink:0}
+.md-toggle input{opacity:0;width:0;height:0}
+.md-toggle-slider{
+  position:absolute;cursor:pointer;inset:0;
+  background:var(--border);border-radius:9px;transition:0.2s;
+}
+.md-toggle-slider::before{
+  content:'';position:absolute;width:14px;height:14px;
+  left:2px;bottom:2px;background:#fff;border-radius:50%;
+  transition:0.2s;box-shadow:0 1px 2px rgba(0,0,0,0.12);
+}
+.md-toggle input:checked+.md-toggle-slider{background:var(--accent)}
+.md-toggle input:checked+.md-toggle-slider::before{transform:translateX(16px)}
+.manage-page{max-width:900px;margin:0 auto}
+/* 하단 액션 - Notion 스타일 */
 .manage-dialog-actions{
-  display:flex;gap:8px;padding:0 20px 16px;
+  display:flex;align-items:center;padding:10px 20px;
+  border-top:1px solid var(--border2);
 }
-.manage-dialog-actions .btn{flex:1;text-align:center;padding:9px 0}
+.md-action-save{
+  padding:5px 16px;border-radius:4px;border:none;
+  background:var(--accent);color:#fff;font-size:13px;
+  font-weight:500;cursor:pointer;font-family:var(--font);
+  transition:background 0.12s;
+}
+.md-action-save:hover{background:#0757b5}
+.md-action-delete{
+  margin-left:auto;padding:5px 12px;border:none;background:none;
+  color:var(--text3);font-size:12px;cursor:pointer;
+  font-family:var(--font);transition:color 0.12s;
+}
+.md-action-delete:hover{color:var(--red)}
 .btn-danger{background:none;color:var(--red);border:1px solid var(--red)}
 .btn-danger:hover{background:var(--red);color:#fff}
 
@@ -572,6 +610,31 @@ a:hover{text-decoration:underline}
   font-size:18px;transition:all 0.12s;
 }
 .mc-gift-btn:hover{background:var(--bg3);color:var(--accent)}
+/* 쿠폰 받기 계정 행 - 그리드 */
+.coupon-account-row{
+  display:grid;grid-template-columns:40px 1fr 80px;
+  align-items:center;gap:10px;
+  padding:10px 16px;border-bottom:1px solid var(--border2);
+}
+.coupon-account-row:last-child{border-bottom:none}
+.coupon-row-actions{display:flex;gap:4px;justify-content:flex-end}
+.coupon-group-label{
+  padding:8px 16px;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.04em;
+  color:var(--text3);background:var(--bg2);
+  border-bottom:1px solid var(--border2);
+}
+/* 쿠폰 액션 버튼 - SVG 아이콘 */
+.cp-btn{
+  width:30px;height:30px;border-radius:6px;
+  border:1px solid var(--border2);background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text3);transition:all 0.12s;
+}
+.cp-btn:hover{background:var(--bg2);color:var(--text);border-color:var(--border)}
+.cp-btn-redeem:hover{color:var(--accent);border-color:var(--accent)}
+.cp-btn-done{color:var(--green);border-color:var(--green-bg);background:var(--green-bg);cursor:default}
+.cp-btn-delete:hover{color:var(--red);border-color:var(--red)}
 .mc-gift-done{opacity:0.7;cursor:default}
 .mc-gift-done:hover{background:none;color:inherit}
 /* 수령 진행 상태 */

@@ -8,3 +8,5 @@ tabs:
     submenus:
       - id: members
         title: "연맹원"
+      - id: coupons
+        title: "쿠폰 받기"

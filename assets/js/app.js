@@ -42,9 +42,31 @@
   function initNavItems() {
     document.querySelectorAll('.left-nav-item').forEach(function(item) {
       item.addEventListener('click', function() {
+        // 서브메뉴 전환 (연맹관리 탭)
+        if (item.dataset.submenu) {
+          switchSubmenu(item.dataset.tab, item.dataset.submenu);
+          return;
+        }
         switchSection(item.dataset.tab, parseInt(item.dataset.section, 10));
       });
     });
+  }
+
+  function switchSubmenu(tabId, submenuId) {
+    // 좌측 nav 활성화
+    document.querySelectorAll('.left-nav-item[data-tab="' + tabId + '"]').forEach(function(el) {
+      el.classList.toggle('active', el.dataset.submenu === submenuId);
+    });
+    // 페이지 전환
+    document.querySelectorAll('#tab-' + tabId + ' .manage-page').forEach(function(el) {
+      el.style.display = el.id === 'page-' + submenuId ? '' : 'none';
+    });
+    // URL 해시 업데이트
+    history.replaceState(null, '', '#' + tabId + '-' + submenuId);
+    // 쿠폰 페이지 초기화
+    if (submenuId === 'coupons' && window.Coupons && window.Coupons.initPage) {
+      window.Coupons.initPage();
+    }
   }
 
   function switchSection(tabId, idx) {
@@ -161,10 +183,11 @@
   }
 
   function restoreFromHash() {
-    // ?auto-redeem=true 파라미터가 있으면 연맹관리 탭으로 자동 전환
+    // ?auto-redeem=true 파라미터가 있으면 쿠폰 받기 페이지로 자동 전환
     var params = new URLSearchParams(window.location.search);
     if (params.get('auto-redeem') === 'true') {
       switchTab('manage');
+      switchSubmenu('manage', 'coupons');
       return;
     }
 
@@ -185,7 +208,7 @@
 
     var parts = hash.split('-');
     var tabId = parts[0];
-    var sectionIdx = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+    var secondPart = parts.length > 1 ? parts[1] : null;
 
     var tabEl = document.getElementById('tab-' + tabId);
     if (!tabEl) {
@@ -195,7 +218,14 @@
     }
 
     switchTab(tabId);
-    if (sectionIdx > 0) switchSection(tabId, sectionIdx);
+
+    // 서브메뉴 (manage-coupons, manage-members)
+    if (secondPart && document.getElementById('page-' + secondPart)) {
+      switchSubmenu(tabId, secondPart);
+    } else if (secondPart) {
+      var sectionIdx = parseInt(secondPart, 10) || 0;
+      if (sectionIdx > 0) switchSection(tabId, sectionIdx);
+    }
 
     // slug가 있으면 해당 heading으로 스크롤 (렌더링 완료 대기)
     if (slug) {
@@ -261,8 +291,9 @@
       item.addEventListener('click', function() {
         var tabId = item.dataset.tab;
         switchTab(tabId);
-        // 서브메뉴가 있는 탭(연맹관리 등)은 섹션 전환 불필요
-        if (item.dataset.section !== undefined) {
+        if (item.dataset.submenu) {
+          switchSubmenu(tabId, item.dataset.submenu);
+        } else if (item.dataset.section !== undefined) {
           switchSection(tabId, parseInt(item.dataset.section, 10));
         }
         closeMenu();

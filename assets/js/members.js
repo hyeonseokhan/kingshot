@@ -5,50 +5,33 @@
 
   if (typeof SUPABASE_URL === 'undefined') return;
 
-  var PLAYER_API = SUPABASE_URL + '/functions/v1/player-info';
+  var REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
   var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var listEl = document.getElementById('members-list');
 
-  // ===== 킹샷 API 호출 (캐싱) =====
-  var CACHE_TTL = 10 * 60 * 1000;
-
-  function getCached(playerId) {
-    try {
-      var raw = sessionStorage.getItem('player_' + playerId);
-      if (!raw) return null;
-      var cached = JSON.parse(raw);
-      if (Date.now() - cached.ts > CACHE_TTL) {
-        sessionStorage.removeItem('player_' + playerId);
-        return null;
-      }
-      return cached.data;
-    } catch(e) { return null; }
-  }
-
-  function setCache(playerId, data) {
-    try {
-      sessionStorage.setItem('player_' + playerId, JSON.stringify({ data: data, ts: Date.now() }));
-    } catch(e) {}
-  }
-
-  function fetchPlayerInfo(playerId, skipCache) {
-    if (!skipCache) {
-      var cached = getCached(playerId);
-      if (cached) return Promise.resolve(cached);
-    }
-    return fetch(PLAYER_API + '?playerId=' + encodeURIComponent(playerId))
+  // ===== 플레이어 조회 (centurygame API) =====
+  function fetchPlayerInfo(playerId) {
+    return fetch(REDEEM_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'player', fid: playerId })
+    })
       .then(function(r) {
-        if (r.status === 429) throw new Error('API 요청 제한 (분당 6회). 잠시 후 다시 시도하세요.');
-        if (r.status === 400) throw new Error('유효하지 않은 Player ID입니다.');
         if (!r.ok) throw new Error('API 오류 (' + r.status + ')');
         return r.json();
       })
       .then(function(json) {
-        if (json.status !== 'success' || !json.data) {
-          throw new Error(json.message || 'API 조회 실패');
+        if (json.code !== 0 || !json.data) {
+          throw new Error(json.msg || 'API 조회 실패');
         }
-        setCache(playerId, json.data);
-        return json.data;
+        var data = {
+          playerId: String(json.data.fid),
+          name: json.data.nickname,
+          level: json.data.stove_lv || json.data.stove_lv_content || 0,
+          kingdom: json.data.kid || null,
+          profilePhoto: json.data.avatar_image || null
+        };
+        return data;
       });
   }
 
@@ -131,12 +114,7 @@
             '<div class="mc-level">Lv.' + (lvl || '?') + '</div>' +
             '<div class="mc-kingdom">' + (m.kingdom || '?') + '</div>' +
             '<div class="mc-memo-cell">' + memoDisplay + '</div>' +
-            '<div class="mc-actions-cell">' +
-              (window.Coupons && window.Coupons.getGiftButtonHtml
-                ? window.Coupons.getGiftButtonHtml(m.kingshot_id, m.nickname)
-                : '<button class="mc-gift-btn" onclick="Coupons.redeemOne(\'' + esc(m.kingshot_id) + '\',\'' + esc(m.nickname) + '\')" title="쿠폰 수령">🎁</button>') +
-              '<button class="mc-manage-btn" onclick="Members.openDialog(\'' + m.id + '\')" title="관리">⋮</button>' +
-            '</div>' +
+            '<button class="mc-manage-btn" onclick="Members.openDialog(\'' + m.id + '\')" title="관리">⋮</button>' +
           '</div>';
         }).join('');
 
@@ -176,6 +154,7 @@
     document.getElementById('md-id').textContent = 'ID: ' + m.kingshot_id;
     document.getElementById('md-meta').textContent = 'Lv.' + (lvl || '?') + ' · ' + (m.kingdom || '?');
     document.getElementById('md-rank').value = m.alliance_rank || 'R1';
+    document.getElementById('md-auto-coupon').checked = m.auto_coupon !== false;
     document.getElementById('md-memo').value = m.memo || '';
 
     dialogOverlay.classList.add('open');
@@ -186,49 +165,56 @@
     currentDialogId = null;
   }
 
-  document.getElementById('md-close').addEventListener('click', closeDialog);
   dialogOverlay.addEventListener('click', function(e) {
     if (e.target === dialogOverlay) closeDialog();
   });
 
-  // 저장 (메모)
-  document.getElementById('md-save').addEventListener('click', function() {
-    if (!currentDialogId) return;
-    var memo = document.getElementById('md-memo').value.trim();
-    var rank = document.getElementById('md-rank').value;
-    sb.from('members').update({ memo: memo || null, alliance_rank: rank }).eq('id', currentDialogId)
-      .then(function(res) {
-        if (res.error) { alert('저장 실패: ' + res.error.message); return; }
-        closeDialog();
-        loadMembers();
-      });
-  });
-
-  // 갱신 (API 재조회)
+  // 갱신 (프로필 즉시 DB 저장)
   document.getElementById('md-refresh').addEventListener('click', function() {
     if (!currentDialogId) return;
     var m = membersData[currentDialogId];
     if (!m) return;
     var btn = document.getElementById('md-refresh');
-    btn.textContent = '갱신 중...';
     btn.disabled = true;
 
-    fetchPlayerInfo(m.kingshot_id, true)
+    fetchPlayerInfo(m.kingshot_id)
       .then(function(data) {
         return sb.from('members').update({
           nickname: data.name,
           level: parseInt(data.level, 10) || 0,
           kingdom: data.kingdom || null,
           profile_photo: data.profilePhoto || null
-        }).eq('id', currentDialogId);
-      })
-      .then(function(res) {
-        if (res.error) { alert('갱신 실패: ' + res.error.message); return; }
-        closeDialog();
-        loadMembers();
+        }).eq('id', currentDialogId).then(function(res) {
+          if (res.error) throw new Error(res.error.message);
+          // 다이얼로그 프리뷰 업데이트
+          document.getElementById('md-name').textContent = data.name;
+          document.getElementById('md-meta').textContent = 'Lv.' + (data.level || '?') + ' · ' + (data.kingdom || '?');
+          var avatarEl = document.getElementById('md-avatar');
+          if (data.profilePhoto) avatarEl.innerHTML = '<img src="' + esc(data.profilePhoto) + '">';
+          // 체크 아이콘 피드백
+          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
+          setTimeout(function() {
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+          }, 1500);
+        });
       })
       .catch(function(err) { alert('갱신 실패: ' + err.message); })
-      .finally(function() { btn.textContent = '정보 갱신'; btn.disabled = false; });
+      .finally(function() { btn.disabled = false; });
+  });
+
+  // 저장 (등급 + 쿠폰자동 + 메모)
+  document.getElementById('md-save').addEventListener('click', function() {
+    if (!currentDialogId) return;
+    sb.from('members').update({
+      alliance_rank: document.getElementById('md-rank').value,
+      auto_coupon: document.getElementById('md-auto-coupon').checked,
+      memo: document.getElementById('md-memo').value.trim() || null
+    }).eq('id', currentDialogId)
+      .then(function(res) {
+        if (res.error) { alert('저장 실패: ' + res.error.message); return; }
+        closeDialog();
+        loadMembers();
+      });
   });
 
   // 삭제
