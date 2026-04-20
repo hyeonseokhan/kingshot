@@ -136,6 +136,7 @@
       <div class="members-toolbar">
         <div class="member-count" id="member-count"></div>
         <div class="members-toolbar-right">
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-all">전체 갱신</button>
           <div class="members-filter">
             <label for="filter-level">최소 레벨</label>
             <select id="filter-level">
@@ -193,7 +194,8 @@
           </div>
           <div class="manage-dialog-actions">
             <button class="md-action-save" id="md-save">저장</button>
-            <button class="md-action-delete" id="md-delete">삭제</button>
+            <button class="md-action-delete-btn" id="md-delete">삭제</button>
+            <button class="md-action-close" id="md-close">닫기</button>
           </div>
         </div>
       </div>
@@ -248,10 +250,30 @@
         <div class="member-count" id="coupon-member-count"></div>
         <div class="members-toolbar-right">
           <button class="btn btn-secondary btn-sm" id="btn-redeem-all">🎁 전체 수령</button>
+          <button class="btn-icon-only" id="btn-history" title="수령 이력">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          </button>
         </div>
       </div>
       <div class="members-list" id="coupon-members-list">
         <div class="empty-cell">로딩 중...</div>
+      </div>
+
+      <!-- 수령 이력 다이얼로그 -->
+      <div class="manage-dialog-overlay" id="history-dialog-overlay">
+        <div class="manage-dialog history-dialog">
+          <div class="history-header">
+            <div class="history-title">
+              <h3>수령 이력</h3>
+              <span class="history-total" id="history-total"></span>
+            </div>
+            <button class="md-close-btn" id="history-close">&times;</button>
+          </div>
+          <div class="history-body" id="history-body">
+            <div class="empty-cell">로딩 중...</div>
+          </div>
+          <div class="history-pagination" id="history-pagination"></div>
+        </div>
       </div>
     </div>
 

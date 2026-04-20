@@ -327,26 +327,36 @@
     .finally(function() { btn.textContent = '조회'; btn.disabled = false; });
   });
 
-  /** 조회된 플레이어를 추가 계정으로 등록합니다. */
+  /** 조회된 플레이어를 추가 계정으로 등록합니다. (연맹원 중복 방지) */
   document.getElementById('coupon-modal-save').addEventListener('click', function() {
     if (!couponSearchData) return;
-    sb.from('coupon_accounts').insert({
-      kingshot_id: couponSearchData.kingshot_id,
-      nickname: couponSearchData.nickname,
-      level: couponSearchData.level,
-      kingdom: couponSearchData.kingdom,
-      profile_photo: couponSearchData.profile_photo
-    }).then(function(res) {
-      if (res.error) {
-        if (res.error.message.indexOf('duplicate') !== -1 || res.error.message.indexOf('unique') !== -1) {
-          alert('이미 등록된 계정입니다.');
-        } else { alert('저장 실패: ' + res.error.message); }
-        return;
-      }
-      couponSearchData = null;
-      closeCouponModal();
-      initPage();
-    });
+
+    // 연맹원 테이블에 이미 존재하는지 먼저 확인
+    sb.from('members').select('kingshot_id').eq('kingshot_id', couponSearchData.kingshot_id)
+      .then(function(res) {
+        if (res.data && res.data.length > 0) {
+          alert('이 계정은 이미 연맹원으로 등록되어 있습니다.\n연맹원 관리 페이지에서 "쿠폰 자동 받기"를 활성화하세요.');
+          return;
+        }
+        // 추가 계정으로 저장
+        sb.from('coupon_accounts').insert({
+          kingshot_id: couponSearchData.kingshot_id,
+          nickname: couponSearchData.nickname,
+          level: couponSearchData.level,
+          kingdom: couponSearchData.kingdom,
+          profile_photo: couponSearchData.profile_photo
+        }).then(function(res) {
+          if (res.error) {
+            if (res.error.message.indexOf('duplicate') !== -1 || res.error.message.indexOf('unique') !== -1) {
+              alert('이미 등록된 계정입니다.');
+            } else { alert('저장 실패: ' + res.error.message); }
+            return;
+          }
+          couponSearchData = null;
+          closeCouponModal();
+          initPage();
+        });
+      });
   });
 
   // ===== 계정 삭제 =====
@@ -525,6 +535,167 @@
       alert('실패 상세:\n' + redeemStats.errors.join('\n'));
     }
   }
+
+  // ===== 수령 이력 다이얼로그 =====
+
+  var HISTORY_PAGE_SIZE = 5;
+  var historyCurrentPage = 1;
+  var historyTotalCount = 0;
+  var nicknameMap = {};
+
+  /**
+   * kingshot_id → nickname 매핑을 구성합니다.
+   * members + coupon_accounts에 없는 ID는 kingshot_id를 그대로 표시합니다.
+   */
+  function buildNicknameMap() {
+    nicknameMap = {};
+    allAccounts.forEach(function(a) { nicknameMap[a.kingshot_id] = a.nickname; });
+  }
+
+  /**
+   * 수령 이력 다이얼로그를 엽니다.
+   */
+  function openHistoryDialog() {
+    buildNicknameMap();
+    historyCurrentPage = 1;
+    Utils.toggleOverlay('history-dialog-overlay', true);
+    loadHistoryPage();
+  }
+
+  /**
+   * 현재 페이지의 수령 이력을 로드하여 렌더링합니다.
+   */
+  function loadHistoryPage() {
+    var body = document.getElementById('history-body');
+    body.innerHTML = '<div class="empty-cell">로딩 중...</div>';
+
+    var from = (historyCurrentPage - 1) * HISTORY_PAGE_SIZE;
+    var to = from + HISTORY_PAGE_SIZE - 1;
+
+    sb.from('coupon_history')
+      .select('kingshot_id,coupon_code,redeemed_at', { count: 'exact' })
+      .eq('status', Utils.REDEEM_STATUS.SUCCESS)
+      .order('redeemed_at', { ascending: false })
+      .range(from, to)
+      .then(function(res) {
+        if (res.error) {
+          body.innerHTML = '<div class="empty-cell">조회 실패: ' + res.error.message + '</div>';
+          return;
+        }
+        historyTotalCount = res.count || 0;
+        document.getElementById('history-total').textContent = '전체 ' + historyTotalCount + '건';
+        renderHistoryTable(res.data || []);
+        renderHistoryPagination();
+      });
+  }
+
+  /**
+   * 이력 테이블을 렌더링합니다.
+   * @param {Array} rows - 이력 데이터
+   */
+  function renderHistoryTable(rows) {
+    var body = document.getElementById('history-body');
+    if (rows.length === 0) {
+      body.innerHTML = '<div class="empty-cell">수령 이력이 없습니다</div>';
+      return;
+    }
+    var html = '<table class="history-table">' +
+      '<thead><tr><th>계정</th><th>쿠폰</th><th>수령일시</th></tr></thead><tbody>';
+    html += rows.map(function(r) {
+      var nick = nicknameMap[r.kingshot_id] || r.kingshot_id;
+      return '<tr title="' + formatDateTime(r.redeemed_at) + '">' +
+        '<td>' + Utils.esc(nick) + '</td>' +
+        '<td class="col-code">' + Utils.esc(r.coupon_code) + '</td>' +
+        '<td class="col-date">' + formatRelativeTime(r.redeemed_at) + '</td>' +
+      '</tr>';
+    }).join('');
+    html += '</tbody></table>';
+    body.innerHTML = html;
+  }
+
+  /**
+   * ISO 날짜를 상대 시간 문자열로 변환합니다 (3분 전, 어제, 3일 전 등).
+   * @param {string} iso
+   * @returns {string}
+   */
+  function formatRelativeTime(iso) {
+    if (!iso) return '-';
+    var now = Date.now();
+    var then = new Date(iso).getTime();
+    var diffSec = Math.floor((now - then) / 1000);
+    if (diffSec < 60) return '방금 전';
+    if (diffSec < 3600) return Math.floor(diffSec / 60) + '분 전';
+    if (diffSec < 86400) return Math.floor(diffSec / 3600) + '시간 전';
+
+    // 어제/그제 구분을 위해 날짜 기준 계산
+    var nowDate = new Date(now);
+    var thenDate = new Date(then);
+    var diffDays = Math.floor(
+      (Date.UTC(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()) -
+       Date.UTC(thenDate.getFullYear(), thenDate.getMonth(), thenDate.getDate())) / 86400000
+    );
+    if (diffDays === 1) return '어제';
+    if (diffDays === 2) return '그제';
+    if (diffDays < 7) return diffDays + '일 전';
+    if (diffDays < 30) return Math.floor(diffDays / 7) + '주 전';
+    if (diffDays < 365) return Math.floor(diffDays / 30) + '개월 전';
+    return Math.floor(diffDays / 365) + '년 전';
+  }
+
+  /**
+   * 페이지네이션 버튼을 렌더링합니다.
+   */
+  function renderHistoryPagination() {
+    var el = document.getElementById('history-pagination');
+    var totalPages = Math.max(1, Math.ceil(historyTotalCount / HISTORY_PAGE_SIZE));
+
+    var html = '';
+    // 이전
+    html += '<button ' + (historyCurrentPage === 1 ? 'disabled' : '') + ' data-page="' + (historyCurrentPage - 1) + '">&lsaquo;</button>';
+
+    // 페이지 번호 (최대 5개 표시)
+    var start = Math.max(1, historyCurrentPage - 2);
+    var end = Math.min(totalPages, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+    for (var i = start; i <= end; i++) {
+      html += '<button class="' + (i === historyCurrentPage ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
+    }
+
+    // 다음
+    html += '<button ' + (historyCurrentPage >= totalPages ? 'disabled' : '') + ' data-page="' + (historyCurrentPage + 1) + '">&rsaquo;</button>';
+
+    el.innerHTML = html;
+    el.querySelectorAll('button[data-page]').forEach(function(btn) {
+      if (btn.disabled) return;
+      btn.addEventListener('click', function() {
+        historyCurrentPage = parseInt(btn.dataset.page, 10);
+        loadHistoryPage();
+      });
+    });
+  }
+
+  /**
+   * ISO 날짜를 'YYYY-MM-DD HH:MM' 형식으로 변환합니다.
+   * @param {string} iso
+   * @returns {string}
+   */
+  function formatDateTime(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0') + ' ' +
+      String(d.getHours()).padStart(2, '0') + ':' +
+      String(d.getMinutes()).padStart(2, '0');
+  }
+
+  document.getElementById('btn-history').addEventListener('click', openHistoryDialog);
+  document.getElementById('history-close').addEventListener('click', function() {
+    Utils.toggleOverlay('history-dialog-overlay', false);
+  });
+  document.getElementById('history-dialog-overlay').addEventListener('click', function(e) {
+    if (e.target === this) Utils.toggleOverlay('history-dialog-overlay', false);
+  });
 
   // ===== 초기화 =====
 

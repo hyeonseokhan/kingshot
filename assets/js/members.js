@@ -186,6 +186,7 @@
   dialogOverlay.addEventListener('click', function(e) {
     if (e.target === dialogOverlay) closeDialog();
   });
+  document.getElementById('md-close').addEventListener('click', closeDialog);
 
   // ===== 다이얼로그 액션 =====
 
@@ -328,6 +329,84 @@
       loadMembers();
     });
   });
+
+  // ===== 전체 갱신 (5명 병렬 배치) =====
+
+  var BATCH_SIZE = 5;
+  var DELAY_BETWEEN_BATCHES = 500;
+
+  /**
+   * 모든 연맹원의 프로필 정보를 centurygame API에서 조회하여 DB에 갱신합니다.
+   * 5명씩 병렬 배치로 처리합니다.
+   */
+  function refreshAllMembers() {
+    if (allMembers.length === 0) { alert('갱신할 연맹원이 없습니다.'); return; }
+    if (!confirm(allMembers.length + '명의 프로필을 모두 갱신하시겠습니까?')) return;
+
+    var btn = document.getElementById('btn-refresh-all');
+    var originalText = btn.textContent;
+    btn.disabled = true;
+
+    var stats = { success: 0, failed: 0, errors: [] };
+    var total = allMembers.length;
+    var done = 0;
+
+    function updateBtnText() {
+      btn.textContent = '갱신 중 (' + done + '/' + total + ')';
+    }
+    updateBtnText();
+
+    var batches = [];
+    for (var i = 0; i < allMembers.length; i += BATCH_SIZE) {
+      batches.push(allMembers.slice(i, i + BATCH_SIZE));
+    }
+
+    var chain = Promise.resolve();
+    batches.forEach(function(batch, idx) {
+      chain = chain.then(function() {
+        return Promise.all(batch.map(function(m) { return refreshSingleMember(m, stats); }))
+          .then(function() { done += batch.length; updateBtnText(); });
+      }).then(function() {
+        if (idx < batches.length - 1) return Utils.delay(DELAY_BETWEEN_BATCHES);
+      });
+    });
+
+    chain.then(function() {
+      btn.textContent = originalText;
+      btn.disabled = false;
+      var msg = '갱신 완료!\n성공: ' + stats.success + '건';
+      if (stats.failed > 0) msg += '\n실패: ' + stats.failed + '건\n\n' + stats.errors.join('\n');
+      alert(msg);
+      loadMembers();
+    });
+  }
+
+  /**
+   * 한 연맹원의 프로필 정보를 조회하여 DB에 업데이트합니다.
+   * @param {Object} m - 연맹원 데이터
+   * @param {Object} stats - 통계 객체 (success/failed/errors)
+   * @returns {Promise<void>}
+   */
+  function refreshSingleMember(m, stats) {
+    return fetchPlayerInfo(m.kingshot_id)
+      .then(function(data) {
+        return sb.from('members').update({
+          nickname: data.name,
+          level: parseInt(data.level, 10) || 0,
+          kingdom: data.kingdom || null,
+          profile_photo: data.profilePhoto || null
+        }).eq('id', m.id).then(function(res) {
+          if (res.error) throw new Error(res.error.message);
+          stats.success++;
+        });
+      })
+      .catch(function(err) {
+        stats.failed++;
+        stats.errors.push(m.nickname + ': ' + err.message);
+      });
+  }
+
+  document.getElementById('btn-refresh-all').addEventListener('click', refreshAllMembers);
 
   // ===== 초기화 =====
 

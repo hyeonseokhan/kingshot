@@ -254,9 +254,47 @@
     if (!btn || !panel) return;
 
     function openMenu() {
+      syncActiveState();
       overlay.classList.add('open');
       panel.classList.add('open');
     }
+
+    // 현재 활성 탭/서브메뉴를 모바일 메뉴에 반영
+    function syncActiveState() {
+      if (!activeTab) return;
+      // 탭 펼침 상태 초기화
+      panel.querySelectorAll('.mobile-nav-children').forEach(function(c) { c.classList.remove('open'); });
+      panel.querySelectorAll('.mobile-nav-tab').forEach(function(t) { t.classList.remove('expanded'); });
+      panel.querySelectorAll('.mobile-nav-section').forEach(function(s) { s.classList.remove('active'); });
+
+      // 현재 탭 펼침
+      var currentTab = panel.querySelector('.mobile-nav-tab[data-tab="' + activeTab + '"]');
+      var currentChildren = panel.querySelector('.mobile-nav-children[data-parent="' + activeTab + '"]');
+      if (currentTab && currentChildren) {
+        currentTab.classList.add('expanded');
+        currentChildren.classList.add('open');
+      }
+
+      // 서브메뉴 활성 표시 (연맹관리 탭)
+      if (activeTab === 'manage') {
+        var activeSubmenuId = null;
+        document.querySelectorAll('#tab-manage .manage-page').forEach(function(p) {
+          if (p.style.display !== 'none') {
+            activeSubmenuId = p.id.replace('page-', '');
+          }
+        });
+        if (activeSubmenuId) {
+          var activeSection = panel.querySelector('.mobile-nav-section[data-tab="manage"][data-submenu="' + activeSubmenuId + '"]');
+          if (activeSection) activeSection.classList.add('active');
+        }
+      } else {
+        // 가이드 탭: 현재 섹션 인덱스 기반
+        var secIdx = sectionState[activeTab] || 0;
+        var activeSection = panel.querySelector('.mobile-nav-section[data-tab="' + activeTab + '"][data-section="' + secIdx + '"]');
+        if (activeSection) activeSection.classList.add('active');
+      }
+    }
+
     function closeMenu() {
       overlay.classList.remove('open');
       panel.classList.remove('open');
