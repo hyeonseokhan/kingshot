@@ -207,6 +207,7 @@
           profile_photo: data.profilePhoto || null
         }).eq('id', currentDialogId).then(function(res) {
           if (res.error) throw new Error(res.error.message);
+          if (window.Coupons) window.Coupons.invalidateAccountsCache();
           document.getElementById('md-name').textContent = data.name;
           document.getElementById('md-meta').textContent = 'Lv.' + (data.level || '?') + ' · ' + (data.kingdom || '?');
           if (data.profilePhoto) {
@@ -232,6 +233,7 @@
     }).eq('id', currentDialogId)
       .then(function(res) {
         if (res.error) { alert('저장 실패: ' + res.error.message); return; }
+        if (window.Coupons) window.Coupons.invalidateAccountsCache();
         closeDialog();
         loadMembers();
       });
@@ -245,6 +247,7 @@
     sb.from('members').delete().eq('id', currentDialogId)
       .then(function(res) {
         if (res.error) { alert('삭제 실패: ' + res.error.message); return; }
+        if (window.Coupons) window.Coupons.invalidateAccountsCache();
         closeDialog();
         loadMembers();
       });
@@ -307,11 +310,12 @@
       .finally(function() { btn.textContent = '조회'; btn.disabled = false; });
   });
 
-  /** 조회된 플레이어를 연맹원으로 등록합니다. */
+  /** 조회된 플레이어를 연맹원으로 등록합니다. coupon_accounts에 있으면 자동 삭제. */
   document.getElementById('btn-modal-save').addEventListener('click', function() {
     if (!searchData) { alert('먼저 킹샷 ID를 조회하세요.'); return; }
+    var kingshotId = searchData.kingshot_id;
     sb.from('members').insert({
-      kingshot_id: searchData.kingshot_id,
+      kingshot_id: kingshotId,
       nickname: searchData.nickname,
       level: searchData.level,
       kingdom: searchData.kingdom,
@@ -324,9 +328,13 @@
         } else { alert('저장 실패: ' + res.error.message); }
         return;
       }
-      searchData = null;
-      closeModal();
-      loadMembers();
+      // coupon_accounts에 동일 계정이 있으면 자동 정리 (연맹원 우선)
+      sb.from('coupon_accounts').delete().eq('kingshot_id', kingshotId).then(function() {
+        if (window.Coupons) window.Coupons.invalidateAccountsCache();
+        searchData = null;
+        closeModal();
+        loadMembers();
+      });
     });
   });
 
@@ -377,6 +385,7 @@
       var msg = '갱신 완료!\n성공: ' + stats.success + '건';
       if (stats.failed > 0) msg += '\n실패: ' + stats.failed + '건\n\n' + stats.errors.join('\n');
       alert(msg);
+      if (window.Coupons) window.Coupons.invalidateAccountsCache();
       loadMembers();
     });
   }
@@ -407,6 +416,17 @@
   }
 
   document.getElementById('btn-refresh-all').addEventListener('click', refreshAllMembers);
+
+  // ===== 키보드 단축키 =====
+  // Esc: 열려있는 모달/다이얼로그 닫기
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    var overlays = ['modal-overlay', 'manage-dialog-overlay'];
+    overlays.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.classList.contains('open')) el.classList.remove('open');
+    });
+  });
 
   // ===== 초기화 =====
 

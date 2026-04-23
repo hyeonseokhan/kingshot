@@ -681,6 +681,46 @@ a:hover{text-decoration:underline}
 .md-toggle input:checked+.md-toggle-slider{background:var(--accent)}
 .md-toggle input:checked+.md-toggle-slider::before{transform:translateX(16px)}
 .manage-page{max-width:900px;margin:0 auto}
+
+/* 페이지 설명 박스 */
+.page-intro{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:10px;padding:16px 20px;margin-bottom:16px;
+  font-size:13px;line-height:1.6;color:var(--text);
+}
+.page-intro p{margin:0}
+.page-intro ul{margin:8px 0 10px;padding-left:20px}
+.page-intro li{margin:3px 0;color:var(--text2)}
+.page-intro li strong{color:var(--text);font-weight:600}
+.page-intro-hint{
+  padding-top:10px;border-top:1px solid var(--border2);
+  color:var(--text3);font-size:12px;
+}
+
+/* 쿠폰 검색 */
+.coupon-search-input{
+  padding:5px 10px;border:1px solid var(--border2);border-radius:6px;
+  font-size:12px;font-family:var(--font);color:var(--text);
+  background:var(--bg);width:140px;transition:border-color 0.15s;
+}
+.coupon-search-input:focus{outline:none;border-color:var(--accent)}
+.coupon-search-input::placeholder{color:var(--text3)}
+
+/* 만료 임박 쿠폰 */
+.coupon-card.coupon-expiring{border-color:#f59e0b;background:rgba(245,158,11,0.05)}
+.coupon-badge-expiring{
+  display:inline-block;padding:1px 6px;border-radius:3px;
+  font-size:10px;font-weight:600;background:rgba(245,158,11,0.15);color:#b45309;
+  margin-left:4px;
+}
+
+/* 수령 완료 피드백 애니메이션 */
+@keyframes giftDone{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.15)}
+  100%{transform:scale(1)}
+}
+.cp-btn-just-done{animation:giftDone 0.4s ease}
 /* 하단 액션 - Notion 스타일 */
 .manage-dialog-actions{
   display:flex;align-items:center;gap:4px;padding:10px 20px;
@@ -815,6 +855,14 @@ a:hover{text-decoration:underline}
   color:var(--text3);cursor:pointer;padding:0 4px;
 }
 .modal-body{padding:16px 20px}
+.modal-notice{
+  background:var(--accent-bg);border:1px solid var(--accent-light);
+  border-radius:8px;padding:12px 14px;margin-bottom:16px;
+  font-size:12.5px;color:var(--text);line-height:1.6;
+}
+.modal-notice strong{font-weight:600}
+.modal-notice p{margin:4px 0 0 0}
+.modal-notice p:first-of-type{margin-top:6px}
 .modal-body label{
   display:block;font-size:12px;font-weight:600;
   color:var(--text2);margin:12px 0 6px;text-transform:uppercase;

@@ -18,7 +18,6 @@
   var CACHE_KEY = 'gift_codes_cache';
   var CACHE_REFRESH_MS = 60 * 60 * 1000;
   var BATCH_SIZE = 5;
-  var DELAY_BETWEEN_CODES = 300;
   var DELAY_BETWEEN_BATCHES = 1000;
   var SUMMARY_DISPLAY_MS = 10000;
 
@@ -95,7 +94,30 @@
       .finally(function() { if (callback) callback(); });
   }
 
-  /** 액티브 쿠폰 카드를 렌더링합니다. */
+  var SVG_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>';
+
+  /**
+   * 해당 계정의 모든 쿠폰을 수령했으면 행의 버튼을 체크 아이콘으로 즉시 변경합니다.
+   * @param {string} kingshotId
+   */
+  function updateAccountRowStatus(kingshotId) {
+    if (getRedeemStatus(kingshotId) !== 'done') return;
+    document.querySelectorAll('.coupon-account-row').forEach(function(row) {
+      var btn = row.querySelector('.cp-btn-redeem[onclick*="' + kingshotId + '"]');
+      if (btn) {
+        btn.outerHTML = '<button class="cp-btn cp-btn-done cp-btn-just-done" disabled title="수령 완료">' + SVG_CHECK + '</button>';
+      }
+    });
+  }
+
+  /** 만료까지 남은 일수를 반환 (무기한이면 null) */
+  function daysUntilExpire(isoStr) {
+    if (!isoStr) return null;
+    var diff = new Date(isoStr).getTime() - Date.now();
+    return Math.floor(diff / (24 * 60 * 60 * 1000));
+  }
+
+  /** 액티브 쿠폰 카드를 렌더링합니다. 만료 3일 이내는 강조 표시. */
   function renderCoupons() {
     var el = document.getElementById('coupon-list');
     if (!el) return;
@@ -104,22 +126,53 @@
       return;
     }
     el.innerHTML = activeCoupons.map(function(c) {
-      return '<div class="coupon-card">' +
+      var days = daysUntilExpire(c.expiresAt);
+      var expiring = days !== null && days <= 3;
+      var badge = expiring ? '<span class="coupon-badge-expiring">' + (days <= 0 ? '곧 만료' : 'D-' + days) + '</span>' : '';
+      return '<div class="coupon-card' + (expiring ? ' coupon-expiring' : '') + '">' +
         '<span class="coupon-badge-active">ACTIVE</span>' +
         '<span class="coupon-code">' + Utils.esc(c.code) + '</span>' +
-        '<span class="coupon-expires">만료: ' + (c.expiresAt ? Utils.formatDate(c.expiresAt) : '무기한') + '</span>' +
+        '<span class="coupon-expires">만료: ' + (c.expiresAt ? Utils.formatDate(c.expiresAt) : '무기한') + badge + '</span>' +
       '</div>';
     }).join('');
   }
 
   // ===== 대상 계정 =====
 
+  var ACCOUNTS_CACHE_KEY = 'coupon_accounts_cache';
+
+  /** sessionStorage에서 계정 목록 캐시 조회 */
+  function getAccountsCache() {
+    try {
+      var raw = sessionStorage.getItem(ACCOUNTS_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+  }
+
+  /** 계정 목록을 sessionStorage에 캐시 */
+  function setAccountsCache(accounts) {
+    try { sessionStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(accounts)); } catch(e) {}
+  }
+
+  /** 계정 캐시 무효화 (등록/삭제/연맹원 변경 시 호출) */
+  function invalidateAccountsCache() {
+    try { sessionStorage.removeItem(ACCOUNTS_CACHE_KEY); } catch(e) {}
+  }
+
   /**
    * 쿠폰 수령 대상 계정을 로드합니다.
    * auto_coupon=true인 연맹원 + coupon_accounts 외부 계정을 통합하여 가나다순 정렬.
+   * sessionStorage 캐시 우선 사용.
    * @param {Function} [callback] - 완료 후 콜백
    */
   function loadAccounts(callback) {
+    var cached = getAccountsCache();
+    if (cached) {
+      allAccounts = cached;
+      if (callback) callback();
+      return;
+    }
+
     Promise.all([
       sb.from('members').select('kingshot_id,nickname,level,kingdom,profile_photo').eq('auto_coupon', true),
       sb.from('coupon_accounts').select('*')
@@ -144,6 +197,7 @@
       allAccounts.sort(function(a, b) {
         return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
       });
+      setAccountsCache(allAccounts);
       if (callback) callback();
     });
   }
@@ -213,19 +267,35 @@
 
   // ===== 계정 목록 렌더링 =====
 
-  /** 쿠폰 수령 대상 목록을 렌더링합니다 (연맹원 + 추가 계정 그룹). */
+  var searchKeyword = '';
+
+  /** 쿠폰 수령 대상 목록을 렌더링합니다 (연맹원 + 추가 계정 그룹). 검색 필터 적용. */
   function renderAccounts() {
     var listEl = document.getElementById('coupon-members-list');
     if (!listEl) return;
 
-    var members = allAccounts.filter(function(a) { return a.source === 'member'; });
-    var extras = allAccounts.filter(function(a) { return a.source === 'extra'; });
+    var kw = searchKeyword.trim().toLowerCase();
+    var filterFn = function(a) {
+      if (!kw) return true;
+      return (a.nickname || '').toLowerCase().indexOf(kw) !== -1;
+    };
+
+    var members = allAccounts.filter(function(a) { return a.source === 'member'; }).filter(filterFn);
+    var extras = allAccounts.filter(function(a) { return a.source === 'extra'; }).filter(filterFn);
     var total = members.length + extras.length;
+    var totalAll = allAccounts.length;
 
-    document.getElementById('coupon-member-count').textContent = '전체 ' + total + '명';
+    var countText = kw
+      ? '검색 ' + total + ' / 전체 ' + totalAll + '명'
+      : '전체 ' + totalAll + '명';
+    document.getElementById('coupon-member-count').textContent = countText;
 
-    if (total === 0) {
+    if (totalAll === 0) {
       listEl.innerHTML = '<div class="empty-cell">쿠폰 수령 대상이 없습니다</div>';
+      return;
+    }
+    if (total === 0) {
+      listEl.innerHTML = '<div class="empty-cell">검색 결과가 없습니다</div>';
       return;
     }
 
@@ -239,6 +309,18 @@
       html += extras.map(function(a) { return renderAccountRow(a, true); }).join('');
     }
     listEl.innerHTML = html;
+  }
+
+  // 검색 input 이벤트
+  var searchInput = document.getElementById('coupon-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      searchKeyword = this.value;
+      renderAccounts();
+    });
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { this.value = ''; searchKeyword = ''; renderAccounts(); }
+    });
   }
 
   /**
@@ -353,6 +435,7 @@
             return;
           }
           couponSearchData = null;
+          invalidateAccountsCache();
           closeCouponModal();
           initPage();
         });
@@ -369,6 +452,7 @@
     if (!confirm('이 계정을 삭제하시겠습니까?')) return;
     sb.from('coupon_accounts').delete().eq('id', id).then(function(res) {
       if (res.error) { alert('삭제 실패: ' + res.error.message); return; }
+      invalidateAccountsCache();
       initPage();
     });
   }
@@ -391,7 +475,8 @@
   }
 
   /**
-   * 한 계정의 미수령 쿠폰을 순차적으로 교환합니다.
+   * 한 계정의 미수령 쿠폰을 벌크 엔드포인트로 한번에 교환합니다.
+   * player 1회 + redeem N회를 단일 HTTP 요청으로 처리하여 속도 최적화.
    * @param {string} fid - 킹샷 플레이어 ID
    * @param {string} nickname - 닉네임
    * @returns {Promise<void>}
@@ -399,50 +484,52 @@
   function redeemForMember(fid, nickname) {
     var codes = getUnredeemedCodes(fid);
     if (codes.length === 0) return Promise.resolve();
-    var chain = Promise.resolve();
-    codes.forEach(function(code) {
-      chain = chain
-        .then(function() { return redeemSingleCode(fid, nickname, code); })
-        .then(function() { return Utils.delay(DELAY_BETWEEN_CODES); });
-    });
-    return chain;
-  }
 
-  /**
-   * 단일 쿠폰 코드를 교환하고 결과를 기록합니다.
-   * @param {string} fid - 킹샷 플레이어 ID
-   * @param {string} nickname - 닉네임
-   * @param {string} code - 쿠폰 코드
-   * @returns {Promise<void>}
-   */
-  function redeemSingleCode(fid, nickname, code) {
     return fetch(REDEEM_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'redeem', fid: fid, cdk: code, captcha_code: 'none' })
+      body: JSON.stringify({ action: 'redeem_batch', fid: fid, cdks: codes, captcha_code: 'none' })
     })
     .then(function(r) { return r.json(); })
     .then(function(json) {
-      completedRedeemTasks++;
-      if (json.code === 0) {
-        redeemStats.success++;
-        saveHistory(fid, code, Utils.REDEEM_STATUS.SUCCESS, json.msg);
-        showProgress('✅ ' + nickname + ' — ' + code + ' 수령 완료');
-      } else if (Utils.isAlreadyRedeemed(json)) {
-        redeemStats.already++;
-        saveHistory(fid, code, Utils.REDEEM_STATUS.ALREADY, json.msg);
-        showProgress('✅ ' + nickname + ' — ' + code + ' 이미 수령됨');
-      } else {
-        redeemStats.failed++;
-        redeemStats.errors.push(nickname + ' — ' + code + ': ' + (json.msg || '실패'));
-        showProgress('⚠️ ' + nickname + ' — ' + code + ': ' + (json.msg || '실패'));
+      // 최상위 에러 (player 로그인 실패 등) — 전체 실패 처리
+      if (json.code !== 0 || !Array.isArray(json.results)) {
+        codes.forEach(function(code) {
+          completedRedeemTasks++;
+          redeemStats.failed++;
+          redeemStats.errors.push(nickname + ' — ' + code + ': ' + (json.msg || '실패'));
+        });
+        showProgress('⚠️ ' + nickname + ' 오류: ' + (json.msg || '실패'));
+        return;
       }
+      // 쿠폰별 결과 처리
+      json.results.forEach(function(r) {
+        completedRedeemTasks++;
+        var code = r.cdk;
+        var fakeJson = { code: r.code, msg: r.msg, err_code: r.err_code };
+        if (r.code === 0) {
+          redeemStats.success++;
+          saveHistory(fid, code, Utils.REDEEM_STATUS.SUCCESS, r.msg);
+          showProgress('✅ ' + nickname + ' — ' + code + ' 수령 완료');
+        } else if (Utils.isAlreadyRedeemed(fakeJson)) {
+          redeemStats.already++;
+          saveHistory(fid, code, Utils.REDEEM_STATUS.ALREADY, r.msg);
+          showProgress('✅ ' + nickname + ' — ' + code + ' 이미 수령됨');
+        } else {
+          redeemStats.failed++;
+          redeemStats.errors.push(nickname + ' — ' + code + ': ' + (r.msg || '실패'));
+          showProgress('⚠️ ' + nickname + ' — ' + code + ': ' + (r.msg || '실패'));
+        }
+      });
+      updateAccountRowStatus(fid);
     })
     .catch(function(err) {
-      completedRedeemTasks++;
-      redeemStats.failed++;
-      redeemStats.errors.push(nickname + ' — ' + code + ': ' + err.message);
-      showProgress('⚠️ ' + nickname + ' 오류');
+      codes.forEach(function(code) {
+        completedRedeemTasks++;
+        redeemStats.failed++;
+        redeemStats.errors.push(nickname + ' — ' + code + ': ' + err.message);
+      });
+      showProgress('⚠️ ' + nickname + ' 네트워크 오류');
     });
   }
 
@@ -734,11 +821,23 @@
     if (couponPage && couponPage.style.display !== 'none') initPage();
   });
 
+  // ===== 키보드 단축키 =====
+  // Esc: 열려있는 모달/다이얼로그 닫기
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    var overlays = ['coupon-modal-overlay', 'history-dialog-overlay'];
+    overlays.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.classList.contains('open')) el.classList.remove('open');
+    });
+  });
+
   /** @global 쿠폰 받기 Public API */
   window.Coupons = {
     redeemOne: redeemOne,
     removeAccount: removeAccount,
-    initPage: initPage
+    initPage: initPage,
+    invalidateAccountsCache: invalidateAccountsCache
   };
 
 })();

@@ -101,6 +101,18 @@
         <button class="btn btn-primary" id="btn-add-member">+ 연맹원 등록</button>
       </div>
 
+      <!-- 페이지 설명 -->
+      <div class="page-intro">
+        <p><strong>PNX 연맹원 정보</strong>를 한눈에 관리하는 페이지입니다.</p>
+        <ul>
+          <li><strong>연맹원 등록</strong>: 킹샷 ID로 조회하면 닉네임/레벨/서버가 자동 입력됩니다</li>
+          <li><strong>⋮ 관리 버튼</strong>: 등급, 쿠폰 자동 받기, 메모를 편집할 수 있어요</li>
+          <li><strong>전체 갱신</strong>: 등록된 모든 연맹원의 프로필을 최신으로 업데이트합니다</li>
+          <li><strong>쿠폰 자동 받기</strong>가 켜져 있으면 <strong>쿠폰 받기 페이지</strong>에 자동 포함됩니다</li>
+        </ul>
+        <p class="page-intro-hint">등급이 높고 레벨이 높은 순으로 정렬되며, 레벨 28~30 연맹원은 프로필에 특별한 효과가 적용됩니다.</p>
+      </div>
+
       <!-- 등록 모달 -->
       <div class="modal-overlay" id="modal-overlay">
         <div class="modal">
@@ -208,6 +220,19 @@
         <button class="btn btn-primary" id="btn-add-coupon-account">+ 계정 등록</button>
       </div>
 
+      <!-- 페이지 설명 -->
+      <div class="page-intro">
+        <p>PNX 연맹원 여러분의 <strong>쿠폰 수령을 자동화</strong>하는 페이지입니다.</p>
+        <ul>
+          <li><strong>전체 수령</strong> 버튼 한 번이면 등록된 모든 계정이 자동으로 쿠폰을 받습니다</li>
+          <li><strong>수령 이력</strong>(
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+            )에서 언제 누가 받았는지 확인할 수 있어요</li>
+          <li><strong>농장 계정, 지인</strong> 등 PNX 외부 계정도 등록 가능합니다</li>
+        </ul>
+        <p class="page-intro-hint">연맹원 본인은 별도 등록이 필요 없어요. 연맹원 페이지에서 "쿠폰 자동 받기"가 켜져 있으면 자동으로 목록에 포함됩니다.</p>
+      </div>
+
       <!-- 계정 등록 모달 -->
       <div class="modal-overlay" id="coupon-modal-overlay">
         <div class="modal">
@@ -216,6 +241,11 @@
             <button class="modal-close" id="coupon-modal-close">&times;</button>
           </div>
           <div class="modal-body">
+            <div class="modal-notice">
+              <strong>안내</strong>
+              <p><strong>PNX 연맹원</strong>은 <strong>연맹원 페이지</strong>에서 등록하면 자동으로 추가됩니다.</p>
+              <p>이 페이지는 <strong>농장 계정, 지인 등 추가 인원</strong> 등록용입니다.</p>
+            </div>
             <label>킹샷 ID</label>
             <div class="input-row">
               <input type="text" id="coupon-input-id" placeholder="킹샷 아이디 입력">
@@ -249,6 +279,7 @@
       <div class="members-toolbar">
         <div class="member-count" id="coupon-member-count"></div>
         <div class="members-toolbar-right">
+          <input type="text" id="coupon-search" class="coupon-search-input" placeholder="닉네임 검색...">
           <button class="btn btn-secondary btn-sm" id="btn-redeem-all">🎁 전체 수령</button>
           <button class="btn-icon-only" id="btn-history" title="수령 이력">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>

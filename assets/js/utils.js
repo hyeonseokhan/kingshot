@@ -103,7 +103,6 @@ var Utils = (function() {
    * @returns {boolean}
    */
   function isAlreadyRedeemed(json) {
-    if (json.code === 1) return true;
     if (!json.msg) return false;
     return ALREADY_REDEEMED_KEYWORDS.some(function(kw) {
       return json.msg.indexOf(kw) !== -1;
