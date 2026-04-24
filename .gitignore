@@ -9,3 +9,10 @@ Gemfile.lock
 
 # Claude Code local state
 .claude/
+
+# Supabase CLI 로컬 상태 (DB 연결정보 포함)
+supabase/.temp/
+
+# 로컬 작업 파일
+api-1.json
+coupon.md
