@@ -8,5 +8,7 @@ tabs:
     submenus:
       - id: members
         title: "연맹원"
+      - id: troops
+        title: "병과 분석"
       - id: coupons
         title: "쿠폰 받기"

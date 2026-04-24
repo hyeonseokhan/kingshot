@@ -16,3 +16,7 @@ supabase/.temp/
 # 로컬 작업 파일
 api-1.json
 coupon.md
+
+# Ruby / Bundler 로컬 설정
+.bundle/
+vendor/

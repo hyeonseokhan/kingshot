@@ -67,6 +67,10 @@
     if (submenuId === 'coupons' && window.Coupons && window.Coupons.initPage) {
       window.Coupons.initPage();
     }
+    // 병과 분석 페이지 초기화
+    if (submenuId === 'troops' && window.Troops && window.Troops.initPage) {
+      window.Troops.initPage();
+    }
   }
 
   function switchSection(tabId, idx) {
