@@ -58,11 +58,6 @@
   }
   filterSelect.addEventListener('change', function() { renderMembers(); });
 
-  var sortSelect = document.getElementById('sort-members');
-  if (sortSelect) {
-    sortSelect.addEventListener('change', function() { renderMembers(); });
-  }
-
   /**
    * 전투력을 표시용 문자열로 변환. 1M 이상은 "XX.XM" 형태.
    */
@@ -115,20 +110,17 @@
    */
   function renderMembers() {
     var minLevel = parseInt(filterSelect.value, 10) || 0;
-    var sortMode = (sortSelect && sortSelect.value) || 'power';
 
     var filtered = allMembers.filter(function(m) { return (m.level || 0) >= minLevel; });
 
-    if (sortMode === 'rank_level') {
-      filtered.sort(function(a, b) {
-        var ra = RANK_WEIGHT[a.alliance_rank] || 0;
-        var rb = RANK_WEIGHT[b.alliance_rank] || 0;
-        if (ra !== rb) return rb - ra;
-        return (b.level || 0) - (a.level || 0);
-      });
-    } else {
-      filtered.sort(function(a, b) { return (b.power || 0) - (a.power || 0); });
-    }
+    // 고정 우선순위 정렬: 등급 → 전투력 → 레벨 (모두 내림차순)
+    filtered.sort(function(a, b) {
+      var ra = RANK_WEIGHT[a.alliance_rank] || 0;
+      var rb = RANK_WEIGHT[b.alliance_rank] || 0;
+      if (ra !== rb) return rb - ra;
+      if ((b.power || 0) !== (a.power || 0)) return (b.power || 0) - (a.power || 0);
+      return (b.level || 0) - (a.level || 0);
+    });
 
     document.getElementById('member-count').textContent = '전체 ' + filtered.length + '명' +
       (minLevel > 0 ? ' (Lv.' + minLevel + ' 이상)' : '');
@@ -139,8 +131,8 @@
     }
 
     var thead = '<div class="members-thead">' +
-      '<div>#</div><div></div><div>닉네임</div><div>등급</div><div>레벨</div>' +
-      '<div>전투력</div><div>서버</div><div></div>' +
+      '<div></div><div>닉네임</div><div>등급</div><div>레벨</div>' +
+      '<div>랭킹</div><div>전투력</div><div></div>' +
       '</div>';
 
     var rows = filtered.map(function(m) {
@@ -158,7 +150,6 @@
       var sub = rank + ' · Lv.' + (lvl || '?') + ' · ⚔ ' + powerStr + ' · ' + (m.kingdom || '?');
 
       return '<div class="member-row rank-' + rank + '" data-id="' + m.id + '">' +
-        '<div class="mc-pos">' + pos + '</div>' +
         avatar +
         '<div class="mc-row-body">' +
           '<div class="mc-name">' + Utils.esc(m.nickname) + '</div>' +
@@ -166,8 +157,8 @@
         '</div>' +
         '<div class="mc-rank-cell">' + rank + '</div>' +
         '<div class="mc-level">Lv.' + (lvl || '?') + '</div>' +
+        '<div class="mc-pos">' + pos + '</div>' +
         '<div class="mc-power">' + powerStr + '</div>' +
-        '<div class="mc-kingdom">' + (m.kingdom || '?') + '</div>' +
         '<button class="mc-manage-btn" onclick="Members.openDialog(\'' + m.id + '\')" title="관리">⋮</button>' +
       '</div>';
     }).join('');
