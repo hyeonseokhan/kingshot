@@ -106,7 +106,7 @@
         <p><strong>PNX 연맹원 정보</strong>를 한눈에 관리하는 페이지입니다.</p>
         <ul>
           <li><strong>연맹원 등록</strong>: 킹샷 ID로 조회하면 닉네임/레벨/서버가 자동 입력됩니다</li>
-          <li><strong>⋮ 관리 버튼</strong>: 등급, 쿠폰 자동 받기, 메모를 편집할 수 있어요</li>
+          <li><strong>⋮ 관리 버튼</strong>: 등급, 쿠폰 자동 받기를 편집할 수 있어요</li>
           <li><strong>전체 갱신</strong>: 등록된 모든 연맹원의 프로필을 최신으로 업데이트합니다</li>
           <li><strong>쿠폰 자동 받기</strong>가 켜져 있으면 <strong>쿠폰 받기 페이지</strong>에 자동 포함됩니다</li>
         </ul>
@@ -134,8 +134,6 @@
                 <div class="player-card-detail">소속 왕국: <strong id="res-kingdom">-</strong></div>
               </div>
             </div>
-            <label>메모 (선택)</label>
-            <input type="text" id="input-memo" placeholder="메모 입력">
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" id="btn-modal-cancel">취소</button>
@@ -149,6 +147,13 @@
         <div class="member-count" id="member-count"></div>
         <div class="members-toolbar-right">
           <button class="btn btn-secondary btn-sm" id="btn-refresh-all">전체 갱신</button>
+          <div class="members-filter">
+            <label for="sort-members">정렬</label>
+            <select id="sort-members">
+              <option value="power">전투력 ↓</option>
+              <option value="rank_level">등급 → 레벨</option>
+            </select>
+          </div>
           <div class="members-filter">
             <label for="filter-level">최소 레벨</label>
             <select id="filter-level">
@@ -195,12 +200,6 @@
                   <input type="checkbox" id="md-auto-coupon" checked>
                   <span class="md-toggle-slider"></span>
                 </label>
-              </div>
-            </div>
-            <div class="md-form-row">
-              <span class="md-form-label">메모</span>
-              <div class="md-form-value">
-                <input type="text" id="md-memo" placeholder="입력하세요">
               </div>
             </div>
           </div>

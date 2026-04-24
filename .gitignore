@@ -6,3 +6,6 @@ Gemfile.lock
 .DS_Store
 *.swp
 .env
+
+# Claude Code local state
+.claude/

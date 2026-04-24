@@ -1,0 +1,13 @@
+# Python venv — machine-specific, huge
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+
+# Scraped data & debug artifacts — may contain sensitive member IDs/power
+output/
+_probe/
+*.log
+.scrape.lock

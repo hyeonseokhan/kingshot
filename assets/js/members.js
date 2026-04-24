@@ -47,7 +47,7 @@
     });
   }
 
-  // ===== 필터 초기화 =====
+  // ===== 필터 / 정렬 초기화 =====
 
   var filterSelect = document.getElementById('filter-level');
   for (var i = 30; i >= 1; i--) {
@@ -58,6 +58,26 @@
   }
   filterSelect.addEventListener('change', function() { renderMembers(); });
 
+  var sortSelect = document.getElementById('sort-members');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', function() { renderMembers(); });
+  }
+
+  /**
+   * 전투력을 표시용 문자열로 변환. 1M 이상은 "XX.XM" 형태.
+   */
+  function formatPower(n) {
+    n = Number(n) || 0;
+    if (n >= 1000000) {
+      var m = n / 1000000;
+      return (m >= 100 ? m.toFixed(1) : m.toFixed(2)).replace(/\.?0+$/, '') + 'M';
+    }
+    return n.toLocaleString('ko-KR');
+  }
+
+  // 연맹 랭크 가중치 (정렬용)
+  var RANK_WEIGHT = { R5: 5, R4: 4, R3: 3, R2: 2, R1: 1 };
+
   // ===== 목록 =====
 
   /**
@@ -67,8 +87,7 @@
   function loadMembers() {
     listEl.innerHTML = '<div class="empty-cell">로딩 중...</div>';
     sb.from('members').select('*')
-      .order('alliance_rank', { ascending: false })
-      .order('level', { ascending: false })
+      .order('power', { ascending: false })
       .then(function(res) {
         if (res.error) {
           listEl.innerHTML = '<div class="empty-cell">오류: ' + res.error.message + '</div>';
@@ -81,7 +100,11 @@
         }
         allMembers = res.data;
         membersData = {};
-        res.data.forEach(function(m) { membersData[m.id] = m; });
+        // Power-desc ordering defines alliance-internal rank (1..N)
+        res.data.forEach(function(m, idx) {
+          m.alliance_rank_pos = idx + 1;
+          membersData[m.id] = m;
+        });
         renderMembers();
       });
   }
@@ -92,7 +115,20 @@
    */
   function renderMembers() {
     var minLevel = parseInt(filterSelect.value, 10) || 0;
+    var sortMode = (sortSelect && sortSelect.value) || 'power';
+
     var filtered = allMembers.filter(function(m) { return (m.level || 0) >= minLevel; });
+
+    if (sortMode === 'rank_level') {
+      filtered.sort(function(a, b) {
+        var ra = RANK_WEIGHT[a.alliance_rank] || 0;
+        var rb = RANK_WEIGHT[b.alliance_rank] || 0;
+        if (ra !== rb) return rb - ra;
+        return (b.level || 0) - (a.level || 0);
+      });
+    } else {
+      filtered.sort(function(a, b) { return (b.power || 0) - (a.power || 0); });
+    }
 
     document.getElementById('member-count').textContent = '전체 ' + filtered.length + '명' +
       (minLevel > 0 ? ' (Lv.' + minLevel + ' 이상)' : '');
@@ -103,28 +139,26 @@
     }
 
     var thead = '<div class="members-thead">' +
-      '<div></div><div>닉네임</div><div>등급</div><div>레벨</div><div>서버</div><div>메모</div><div></div>' +
+      '<div>#</div><div></div><div>닉네임</div><div>등급</div><div>레벨</div>' +
+      '<div>전투력</div><div>서버</div><div></div>' +
       '</div>';
 
     var rows = filtered.map(function(m) {
       var rank = m.alliance_rank || 'R1';
       var lvl = m.level || 0;
       var lvClass = Utils.getLevelClass(lvl);
+      var pos = m.alliance_rank_pos || '-';
+      var powerStr = m.power ? formatPower(m.power) : '-';
 
       var avatarInner = m.profile_photo
         ? '<img src="' + Utils.esc(m.profile_photo) + '" class="mc-photo">'
         : '<div class="mc-photo-empty">' + Utils.esc(m.nickname).charAt(0) + '</div>';
       var avatar = '<div class="mc-photo-wrap' + lvClass + '">' + avatarInner + '</div>';
 
-      var memoFull = m.memo ? Utils.esc(m.memo) : '';
-      var memoPc = Utils.truncate(memoFull, Utils.MEMO_LIMIT.pc) || '<span class="mc-memo-empty">-</span>';
-      var memoMb = Utils.truncate(memoFull, Utils.MEMO_LIMIT.mobile);
-      var memoDisplay = '<span class="memo-pc">' + memoPc + '</span><span class="memo-mb">' + memoMb + '</span>';
-
-      var sub = rank + ' · Lv.' + (lvl || '?') + ' · ' + (m.kingdom || '?');
-      if (memoMb) sub += ' · ' + memoMb;
+      var sub = rank + ' · Lv.' + (lvl || '?') + ' · ⚔ ' + powerStr + ' · ' + (m.kingdom || '?');
 
       return '<div class="member-row rank-' + rank + '" data-id="' + m.id + '">' +
+        '<div class="mc-pos">' + pos + '</div>' +
         avatar +
         '<div class="mc-row-body">' +
           '<div class="mc-name">' + Utils.esc(m.nickname) + '</div>' +
@@ -132,8 +166,8 @@
         '</div>' +
         '<div class="mc-rank-cell">' + rank + '</div>' +
         '<div class="mc-level">Lv.' + (lvl || '?') + '</div>' +
+        '<div class="mc-power">' + powerStr + '</div>' +
         '<div class="mc-kingdom">' + (m.kingdom || '?') + '</div>' +
-        '<div class="mc-memo-cell">' + memoDisplay + '</div>' +
         '<button class="mc-manage-btn" onclick="Members.openDialog(\'' + m.id + '\')" title="관리">⋮</button>' +
       '</div>';
     }).join('');
@@ -169,10 +203,13 @@
 
     document.getElementById('md-name').textContent = m.nickname;
     document.getElementById('md-id').textContent = 'ID: ' + m.kingshot_id;
-    document.getElementById('md-meta').textContent = 'Lv.' + (lvl || '?') + ' · ' + (m.kingdom || '?');
+    var metaParts = ['Lv.' + (lvl || '?')];
+    if (m.power) metaParts.push('⚔ ' + formatPower(m.power));
+    if (m.alliance_rank_pos) metaParts.push('연맹 ' + m.alliance_rank_pos + '위');
+    if (m.kingdom) metaParts.push('서버 ' + m.kingdom);
+    document.getElementById('md-meta').textContent = metaParts.join(' · ');
     document.getElementById('md-rank').value = rank;
     document.getElementById('md-auto-coupon').checked = m.auto_coupon !== false;
-    document.getElementById('md-memo').value = m.memo || '';
 
     Utils.toggleOverlay('manage-dialog-overlay', true);
   }
@@ -223,13 +260,12 @@
       .finally(function() { btn.disabled = false; });
   });
 
-  /** 폼 저장: 등급, 쿠폰 자동 받기, 메모를 DB에 저장합니다. */
+  /** 폼 저장: 등급, 쿠폰 자동 받기를 DB에 저장합니다. */
   document.getElementById('md-save').addEventListener('click', function() {
     if (!currentDialogId) return;
     sb.from('members').update({
       alliance_rank: document.getElementById('md-rank').value,
-      auto_coupon: document.getElementById('md-auto-coupon').checked,
-      memo: document.getElementById('md-memo').value.trim() || null
+      auto_coupon: document.getElementById('md-auto-coupon').checked
     }).eq('id', currentDialogId)
       .then(function(res) {
         if (res.error) { alert('저장 실패: ' + res.error.message); return; }
@@ -260,7 +296,6 @@
   /** 연맹원 등록 모달을 엽니다. */
   document.getElementById('btn-add-member').addEventListener('click', function() {
     document.getElementById('input-kingshot-id').value = '';
-    document.getElementById('input-memo').value = '';
     document.getElementById('search-result').style.display = 'none';
     document.getElementById('btn-modal-save').disabled = true;
     Utils.toggleOverlay('modal-overlay', true);
@@ -319,8 +354,7 @@
       nickname: searchData.nickname,
       level: searchData.level,
       kingdom: searchData.kingdom,
-      profile_photo: searchData.profile_photo,
-      memo: document.getElementById('input-memo').value.trim() || null
+      profile_photo: searchData.profile_photo
     }).then(function(res) {
       if (res.error) {
         if (res.error.message.indexOf('duplicate') !== -1 || res.error.message.indexOf('unique') !== -1) {

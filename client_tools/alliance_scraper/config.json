@@ -1,0 +1,30 @@
+{
+  "adb_path": "D:/LDPlayer/LDPlayer9/adb.exe",
+  "device_serial": "emulator-5554",
+  "screen_size": [900, 1600],
+  "regions": {
+    "first_row_y": 376,
+    "row_height": 168,
+    "rows_per_screen": 7,
+    "row_half_height": 80,
+    "power_col_x": [640, 840],
+    "avatar_col_x": [135, 270],
+    "pinned_own_y": 1500,
+    "scroll": {
+      "from": [450, 1200],
+      "to": [450, 500],
+      "duration_ms": 800,
+      "approx_rows_per_swipe": 5
+    },
+    "card_height": 150,
+    "card_top_offset": 75,
+    "card_bottom_offset": 75,
+    "popup_flip_threshold_y": 796,
+    "popup_below_offset": 199,
+    "popup_above_offset": -198
+  },
+  "ocr": {
+    "power_min": 100,
+    "min_conf": 0.5
+  }
+}

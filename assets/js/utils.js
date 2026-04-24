@@ -24,9 +24,6 @@ var Utils = (function() {
     { min: 28, cls: ' lv-28' }
   ];
 
-  /** 메모 말줄임 글자 수 */
-  var MEMO_LIMIT = { pc: 20, mobile: 10 };
-
   // ===== 유틸 함수 =====
 
   /**
@@ -142,7 +139,6 @@ var Utils = (function() {
   // ===== Public API =====
   return {
     REDEEM_STATUS: REDEEM_STATUS,
-    MEMO_LIMIT: MEMO_LIMIT,
     esc: esc,
     formatDate: formatDate,
     formatNum: formatNum,
