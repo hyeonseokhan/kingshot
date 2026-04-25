@@ -734,6 +734,20 @@ a:hover{text-decoration:underline}
   margin-left:4px;
 }
 
+/* 쿠폰 선택 모드 */
+.coupon-card{cursor:pointer;transition:transform 0.1s, border-color 0.15s, background 0.15s}
+.coupon-card:hover{transform:translateY(-1px)}
+.coupon-card.coupon-selected{
+  border-color:var(--accent);background:var(--accent-bg);
+  box-shadow:0 0 0 2px rgba(9,105,218,0.15);
+}
+.coupon-card.coupon-selected .coupon-badge-active{background:var(--accent);color:#fff}
+.coupon-select-hint{
+  flex-basis:100%;font-size:12px;color:var(--text2);
+  margin-top:4px;padding:4px 0;line-height:1.5;
+}
+.coupon-select-hint strong{color:var(--accent);font-weight:700}
+
 /* 수령 완료 피드백 애니메이션 */
 @keyframes giftDone{
   0%{transform:scale(1)}

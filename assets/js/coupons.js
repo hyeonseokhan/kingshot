@@ -31,6 +31,26 @@
   var totalRedeemTasks = 0;
   var completedRedeemTasks = 0;
 
+  // 선택된 쿠폰 코드 (null이면 "전체 미수령" 모드 — 기존 동작)
+  var selectedCouponCode = null;
+
+  /** 현재 선택된 쿠폰 객체 또는 null */
+  function getSelectedCoupon() {
+    if (!selectedCouponCode) return null;
+    for (var i = 0; i < activeCoupons.length; i++) {
+      if (activeCoupons[i].code === selectedCouponCode) return activeCoupons[i];
+    }
+    return null;
+  }
+
+  /** 쿠폰 카드 클릭 시 선택 토글. */
+  function selectCoupon(code) {
+    selectedCouponCode = (selectedCouponCode === code) ? null : code;
+    renderCoupons();
+    renderAccounts();
+    updateRedeemAllButton();
+  }
+
   // ===== SVG 아이콘 =====
 
   var SVG = {
@@ -77,7 +97,9 @@
     var cached = getCache();
     if (cached && (Date.now() - cached.fetchedAt < CACHE_REFRESH_MS)) {
       activeCoupons = cached.codes;
+      pruneSelectedCoupon();
       renderCoupons();
+      updateRedeemAllButton();
       if (callback) callback();
       return;
     }
@@ -88,10 +110,19 @@
           activeCoupons = json.data.giftCodes || [];
           setCache(activeCoupons);
         }
+        pruneSelectedCoupon();
         renderCoupons();
+        updateRedeemAllButton();
       })
-      .catch(function() { renderCoupons(); })
+      .catch(function() { renderCoupons(); updateRedeemAllButton(); })
       .finally(function() { if (callback) callback(); });
+  }
+
+  /** 활성 쿠폰 목록이 변경되어 선택된 코드가 사라졌으면 선택 해제. */
+  function pruneSelectedCoupon() {
+    if (!selectedCouponCode) return;
+    var exists = activeCoupons.some(function(c) { return c.code === selectedCouponCode; });
+    if (!exists) selectedCouponCode = null;
   }
 
   var SVG_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>';
@@ -117,7 +148,9 @@
     return Math.floor(diff / (24 * 60 * 60 * 1000));
   }
 
-  /** 액티브 쿠폰 카드를 렌더링합니다. 만료 3일 이내는 강조 표시. */
+  /** 액티브 쿠폰 카드를 렌더링합니다. 만료 3일 이내는 강조 표시.
+   *  카드 클릭 시 해당 쿠폰만 대상으로 수령하도록 필터링합니다.
+   */
   function renderCoupons() {
     var el = document.getElementById('coupon-list');
     if (!el) return;
@@ -125,16 +158,39 @@
       el.innerHTML = '<div class="empty-cell">현재 사용 가능한 쿠폰이 없습니다</div>';
       return;
     }
-    el.innerHTML = activeCoupons.map(function(c) {
+    var cardsHtml = activeCoupons.map(function(c) {
       var days = daysUntilExpire(c.expiresAt);
       var expiring = days !== null && days <= 3;
       var badge = expiring ? '<span class="coupon-badge-expiring">' + (days <= 0 ? '곧 만료' : 'D-' + days) + '</span>' : '';
-      return '<div class="coupon-card' + (expiring ? ' coupon-expiring' : '') + '">' +
-        '<span class="coupon-badge-active">ACTIVE</span>' +
+      var selected = selectedCouponCode === c.code;
+      var classNames = 'coupon-card' + (expiring ? ' coupon-expiring' : '') + (selected ? ' coupon-selected' : '');
+      return '<div class="' + classNames + '" data-code="' + Utils.esc(c.code) + '" role="button" tabindex="0">' +
+        '<span class="coupon-badge-active">' + (selected ? '선택됨' : 'ACTIVE') + '</span>' +
         '<span class="coupon-code">' + Utils.esc(c.code) + '</span>' +
         '<span class="coupon-expires">만료: ' + (c.expiresAt ? Utils.formatDate(c.expiresAt) : '무기한') + badge + '</span>' +
       '</div>';
     }).join('');
+    el.innerHTML = cardsHtml +
+      '<div class="coupon-select-hint">' +
+        (selectedCouponCode
+          ? '<strong>' + Utils.esc(selectedCouponCode) + '</strong> 만 수령합니다. 다시 클릭하면 전체 모드로 돌아갑니다.'
+          : '쿠폰 카드를 클릭하면 해당 쿠폰만 받게 됩니다 (자격 미달 쿠폰 분리 수령용).') +
+      '</div>';
+
+    // 카드 클릭 핸들러 (이벤트 위임)
+    el.querySelectorAll('.coupon-card').forEach(function(card) {
+      card.addEventListener('click', function() {
+        var code = card.getAttribute('data-code');
+        if (code) selectCoupon(code);
+      });
+      card.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          var code = card.getAttribute('data-code');
+          if (code) selectCoupon(code);
+        }
+      });
+    });
   }
 
   // ===== 대상 계정 =====
@@ -243,6 +299,36 @@
    * @param {string} kingshotId - 킹샷 플레이어 ID
    * @returns {string[]} 미수령 쿠폰 코드 배열
    */
+  /**
+   * 선택 모드 인지하여 해당 계정에 보낼 쿠폰 코드 배열을 반환합니다.
+   * 선택된 쿠폰이 있으면 그 하나만 (이미 수령했으면 빈 배열).
+   * @param {string} kingshotId
+   * @returns {string[]}
+   */
+  function getCodesToRedeem(kingshotId) {
+    var sel = getSelectedCoupon();
+    if (sel) {
+      var s = couponHistory[kingshotId + ':' + sel.code];
+      if (s === Utils.REDEEM_STATUS.SUCCESS || s === Utils.REDEEM_STATUS.ALREADY) return [];
+      return [sel.code];
+    }
+    return getUnredeemedCodes(kingshotId);
+  }
+
+  /**
+   * 선택 모드 인지하여 해당 계정의 수령 상태를 반환합니다.
+   * @param {string} kingshotId
+   * @returns {string} 'done' | 'pending' | 'none'
+   */
+  function getEffectiveStatus(kingshotId) {
+    var sel = getSelectedCoupon();
+    if (sel) {
+      var s = couponHistory[kingshotId + ':' + sel.code];
+      return (s === Utils.REDEEM_STATUS.SUCCESS || s === Utils.REDEEM_STATUS.ALREADY) ? 'done' : 'pending';
+    }
+    return getRedeemStatus(kingshotId);
+  }
+
   function getUnredeemedCodes(kingshotId) {
     return activeCoupons.filter(function(c) {
       var s = couponHistory[kingshotId + ':' + c.code];
@@ -330,7 +416,7 @@
    * @returns {string} HTML 문자열
    */
   function renderAccountRow(a, canDelete) {
-    var status = getRedeemStatus(a.kingshot_id);
+    var status = getEffectiveStatus(a.kingshot_id);
     var avatar = a.profile_photo
       ? '<img src="' + Utils.esc(a.profile_photo) + '" class="mc-photo">'
       : '<div class="mc-photo-empty">' + Utils.esc(a.nickname).charAt(0) + '</div>';
@@ -465,8 +551,12 @@
    * @param {string} nickname - 닉네임 (진행 표시용)
    */
   function redeemOne(fid, nickname) {
-    var codes = getUnredeemedCodes(fid);
-    if (codes.length === 0) { alert(nickname + ': 모든 쿠폰이 이미 수령되었습니다.'); return; }
+    var codes = getCodesToRedeem(fid);
+    if (codes.length === 0) {
+      var sel = getSelectedCoupon();
+      alert(nickname + ': ' + (sel ? sel.code + ' 쿠폰을 이미 수령했습니다.' : '모든 쿠폰이 이미 수령되었습니다.'));
+      return;
+    }
     redeemStats = { success: 0, already: 0, failed: 0, errors: [] };
     totalRedeemTasks = codes.length;
     completedRedeemTasks = 0;
@@ -482,7 +572,7 @@
    * @returns {Promise<void>}
    */
   function redeemForMember(fid, nickname) {
-    var codes = getUnredeemedCodes(fid);
+    var codes = getCodesToRedeem(fid);
     if (codes.length === 0) return Promise.resolve();
 
     return fetch(REDEEM_API, {
@@ -537,6 +627,14 @@
 
   // ===== 전체 수령 =====
 
+  /** 전체 수령 버튼 라벨을 선택 상태에 맞게 업데이트합니다. */
+  function updateRedeemAllButton() {
+    var btn = document.getElementById('btn-redeem-all');
+    if (!btn) return;
+    var sel = getSelectedCoupon();
+    btn.textContent = sel ? '🎁 ' + sel.code + ' 수령' : '🎁 전체 수령';
+  }
+
   document.getElementById('btn-redeem-all').addEventListener('click', function() {
     startBulkRedeem(false);
   });
@@ -550,21 +648,30 @@
       if (!skipConfirm) alert('사용 가능한 쿠폰이 없습니다.');
       return;
     }
+    var sel = getSelectedCoupon();
     var pending = allAccounts.filter(function(a) {
-      return getUnredeemedCodes(a.kingshot_id).length > 0;
+      return getCodesToRedeem(a.kingshot_id).length > 0;
     });
     if (pending.length === 0) {
-      if (!skipConfirm) alert('모든 계정이 이미 쿠폰을 수령했습니다.');
+      if (!skipConfirm) {
+        alert(sel ? sel.code + ' 쿠폰을 모든 계정이 이미 수령했습니다.' : '모든 계정이 이미 쿠폰을 수령했습니다.');
+      }
       return;
     }
-    if (!skipConfirm && !confirm(pending.length + '명에게 미수령 쿠폰을 수령하시겠습니까?')) return;
+    var confirmMsg = sel
+      ? pending.length + '명에게 ' + sel.code + ' 쿠폰을 수령하시겠습니까?'
+      : pending.length + '명에게 미수령 쿠폰을 수령하시겠습니까?';
+    if (!skipConfirm && !confirm(confirmMsg)) return;
 
     redeemStats = { success: 0, already: 0, failed: 0, errors: [] };
     totalRedeemTasks = pending.reduce(function(sum, a) {
-      return sum + getUnredeemedCodes(a.kingshot_id).length;
+      return sum + getCodesToRedeem(a.kingshot_id).length;
     }, 0);
     completedRedeemTasks = 0;
-    showProgress('전체 수령 시작 (' + pending.length + '명, ' + totalRedeemTasks + '건)...');
+    var startMsg = sel
+      ? sel.code + ' 수령 시작 (' + pending.length + '명)...'
+      : '전체 수령 시작 (' + pending.length + '명, ' + totalRedeemTasks + '건)...';
+    showProgress(startMsg);
 
     var batches = [];
     for (var i = 0; i < pending.length; i += BATCH_SIZE) {
