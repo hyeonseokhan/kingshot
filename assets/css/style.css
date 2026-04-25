@@ -297,7 +297,11 @@ a:hover{text-decoration:underline}
   .member-count{font-size:13px;color:var(--text2);font-weight:600}
   .members-toolbar-right{
     display:flex;align-items:center;justify-content:space-between;
-    gap:10px;width:100%;
+    gap:8px;width:100%;flex-wrap:wrap;
+  }
+  /* 모바일에서 쿠폰 검색창은 별도 줄을 차지해서 긴 버튼 라벨로 인한 가로 넘침 방지 */
+  .members-toolbar-right .coupon-search-input{
+    flex:1 1 100%;min-width:0;order:-1;
   }
   .members-filter{
     flex:1;min-width:0;gap:8px;font-size:13px;
@@ -354,7 +358,7 @@ a:hover{text-decoration:underline}
   margin-bottom:8px;
 }
 .member-count{font-size:12px;color:var(--text3);font-weight:500}
-.members-toolbar-right{display:flex;align-items:center;gap:12px}
+.members-toolbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .btn-sm{padding:5px 12px;font-size:12px}
 .btn-icon-only{
   width:30px;height:30px;border-radius:6px;
