@@ -467,7 +467,7 @@ a:hover{text-decoration:underline}
   animation:gradientMove 4s ease infinite;
 }
 .mc-photo-wrap.lv-28{
-  background-image:linear-gradient(135deg,#b8860b,#f0c040,#daa520,#b8860b);
+  background-image:linear-gradient(135deg,#15803d,#34d399,#10b981,#15803d);
 }
 .mc-photo-wrap.lv-29{
   background-image:linear-gradient(135deg,#8b5cf6,#06b6d4,#a855f7,#8b5cf6);
@@ -490,10 +490,10 @@ a:hover{text-decoration:underline}
   content:'';position:absolute;border-radius:10px;z-index:0;
   pointer-events:none;
 }
-/* Lv.28: 은은한 금빛 아지랑이 */
+/* Lv.28: 에메랄드 그린 아지랑이 */
 .mc-photo-wrap.lv-28::before{
   inset:-1px;
-  background:linear-gradient(135deg,#b8860b,#f0c040,#daa520,#b8860b);
+  background:linear-gradient(135deg,#15803d,#34d399,#10b981,#15803d);
   background-size:300% 300%;
   animation:gradientMove 4s ease infinite, haze 3s ease-in-out infinite;
   filter:blur(3px);opacity:0.4;
@@ -647,7 +647,7 @@ a:hover{text-decoration:underline}
   position:relative;z-index:1;object-fit:cover;
 }
 .md-profile .md-photo-wrap.lv-28{
-  background-image:linear-gradient(135deg,#b8860b,#f0c040,#daa520,#b8860b);
+  background-image:linear-gradient(135deg,#15803d,#34d399,#10b981,#15803d);
   background-size:300% 300%;animation:gradientMove 4s ease infinite;
 }
 .md-profile .md-photo-wrap.lv-29{
@@ -668,7 +668,7 @@ a:hover{text-decoration:underline}
 }
 .md-profile .md-photo-wrap.lv-28::before{
   inset:-2px;
-  background:linear-gradient(135deg,#b8860b,#f0c040,#daa520,#b8860b);
+  background:linear-gradient(135deg,#15803d,#34d399,#10b981,#15803d);
   background-size:300% 300%;
   animation:gradientMove 4s ease infinite, haze 3s ease-in-out infinite;
   filter:blur(4px);opacity:0.4;
