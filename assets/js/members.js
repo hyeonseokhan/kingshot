@@ -110,6 +110,11 @@
    */
   function renderMembers() {
     var minLevel = parseInt(filterSelect.value, 10) || 0;
+    var failedData = getFailedRefresh();
+    var failedSet = {};
+    if (failedData && failedData.ids) {
+      failedData.ids.forEach(function(id) { failedSet[id] = true; });
+    }
 
     var filtered = allMembers.filter(function(m) { return (m.level || 0) >= minLevel; });
 
@@ -148,11 +153,14 @@
       var avatar = '<div class="mc-photo-wrap' + lvClass + '">' + avatarInner + '</div>';
 
       var sub = rank + ' · Lv.' + (lvl || '?') + ' · ⚔ ' + powerStr + ' · ' + (m.kingdom || '?');
+      var isFailed = !!failedSet[m.id];
+      var failedClass = isFailed ? ' member-row-failed' : '';
+      var failBadge = isFailed ? '<span class="mc-fail-badge" title="갱신 실패 — 재시도 필요">⚠</span>' : '';
 
-      return '<div class="member-row rank-' + rank + '" data-id="' + m.id + '">' +
+      return '<div class="member-row rank-' + rank + failedClass + '" data-id="' + m.id + '">' +
         avatar +
         '<div class="mc-row-body">' +
-          '<div class="mc-name">' + Utils.esc(m.nickname) + '</div>' +
+          '<div class="mc-name">' + Utils.esc(m.nickname) + failBadge + '</div>' +
           '<div class="mc-sub">' + sub + '</div>' +
         '</div>' +
         '<div class="mc-rank-cell">' + rank + '</div>' +
@@ -164,6 +172,7 @@
     }).join('');
 
     listEl.innerHTML = thead + rows;
+    syncRefreshBanner();
   }
 
   // ===== 관리 다이얼로그 =====
@@ -368,37 +377,80 @@
   var BATCH_SIZE = 5;
   var DELAY_BETWEEN_BATCHES = 500;
 
+  // ===== 실패 갱신 상태 관리 (sessionStorage) =====
+
+  var FAILED_REFRESH_KEY = 'members_failed_refresh_v1';
+
+  /** 마지막 갱신에서 실패한 멤버 정보 ({ ids, names, ts }) 또는 null */
+  function getFailedRefresh() {
+    try {
+      var raw = sessionStorage.getItem(FAILED_REFRESH_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function saveFailedRefresh(ids, names) {
+    try {
+      sessionStorage.setItem(FAILED_REFRESH_KEY, JSON.stringify({
+        ids: ids, names: names, ts: Date.now()
+      }));
+    } catch (e) {}
+  }
+
+  function clearFailedRefresh() {
+    try { sessionStorage.removeItem(FAILED_REFRESH_KEY); } catch (e) {}
+  }
+
   /**
-   * 모든 연맹원의 프로필 정보를 centurygame API에서 조회하여 DB에 갱신합니다.
-   * 5명씩 병렬 배치로 처리합니다.
+   * 모든 연맹원의 프로필을 갱신합니다.
+   * 사용자가 "전체 갱신" 버튼을 클릭할 때 호출됩니다.
    */
   function refreshAllMembers() {
     if (allMembers.length === 0) { alert('갱신할 연맹원이 없습니다.'); return; }
     if (!confirm(allMembers.length + '명의 프로필을 모두 갱신하시겠습니까?')) return;
+    refreshMembersByIds(allMembers.map(function(m) { return m.id; }));
+  }
+
+  /**
+   * 지정된 ID 의 연맹원만 갱신합니다 (5명씩 병렬 배치).
+   * 실패하면 sessionStorage에 저장하고 상단 배너로 표시합니다.
+   * @param {string[]} memberIds - 갱신할 연맹원의 DB ID 배열
+   */
+  function refreshMembersByIds(memberIds) {
+    if (!memberIds || memberIds.length === 0) return;
+    var idSet = {};
+    memberIds.forEach(function(id) { idSet[id] = true; });
+    var targets = allMembers.filter(function(m) { return idSet[m.id]; });
+    if (targets.length === 0) return;
 
     var btn = document.getElementById('btn-refresh-all');
     var originalText = btn.textContent;
     btn.disabled = true;
 
-    var stats = { success: 0, failed: 0, errors: [] };
-    var total = allMembers.length;
+    var stats = { success: 0, failed: 0, errors: [], failedIds: [], failedNames: [] };
+    var total = targets.length;
     var done = 0;
 
     function updateBtnText() {
       btn.textContent = '갱신 중 (' + done + '/' + total + ')';
     }
     updateBtnText();
+    setBannerStatus('progress', done, total);
 
     var batches = [];
-    for (var i = 0; i < allMembers.length; i += BATCH_SIZE) {
-      batches.push(allMembers.slice(i, i + BATCH_SIZE));
+    for (var i = 0; i < targets.length; i += BATCH_SIZE) {
+      batches.push(targets.slice(i, i + BATCH_SIZE));
     }
 
     var chain = Promise.resolve();
     batches.forEach(function(batch, idx) {
       chain = chain.then(function() {
         return Promise.all(batch.map(function(m) { return refreshSingleMember(m, stats); }))
-          .then(function() { done += batch.length; updateBtnText(); });
+          .then(function() {
+            done += batch.length;
+            updateBtnText();
+            setBannerStatus('progress', done, total);
+          });
       }).then(function() {
         if (idx < batches.length - 1) return Utils.delay(DELAY_BETWEEN_BATCHES);
       });
@@ -407,18 +459,21 @@
     chain.then(function() {
       btn.textContent = originalText;
       btn.disabled = false;
-      var msg = '갱신 완료!\n성공: ' + stats.success + '건';
-      if (stats.failed > 0) msg += '\n실패: ' + stats.failed + '건\n\n' + stats.errors.join('\n');
-      alert(msg);
+      if (stats.failed > 0) {
+        saveFailedRefresh(stats.failedIds, stats.failedNames);
+      } else {
+        clearFailedRefresh();
+      }
       if (window.Coupons) window.Coupons.invalidateAccountsCache();
-      loadMembers();
+      loadMembers();  // re-renders with fail badges + restores banner via syncRefreshBanner()
     });
   }
 
   /**
    * 한 연맹원의 프로필 정보를 조회하여 DB에 업데이트합니다.
+   * 실패 시 stats.failedIds / failedNames 에 누적합니다.
    * @param {Object} m - 연맹원 데이터
-   * @param {Object} stats - 통계 객체 (success/failed/errors)
+   * @param {Object} stats - 통계 객체 (success/failed/errors/failedIds/failedNames)
    * @returns {Promise<void>}
    */
   function refreshSingleMember(m, stats) {
@@ -437,7 +492,76 @@
       .catch(function(err) {
         stats.failed++;
         stats.errors.push(m.nickname + ': ' + err.message);
+        stats.failedIds.push(m.id);
+        stats.failedNames.push(m.nickname);
       });
+  }
+
+  // ===== 갱신 실패 배너 =====
+
+  function getBannerEl() {
+    var el = document.getElementById('refresh-fail-banner');
+    if (el) return el;
+    var listEl = document.getElementById('members-list');
+    if (!listEl) return null;
+    el = document.createElement('div');
+    el.id = 'refresh-fail-banner';
+    el.className = 'refresh-fail-banner';
+    listEl.parentNode.insertBefore(el, listEl);
+    return el;
+  }
+
+  /**
+   * 배너 상태를 업데이트합니다.
+   * @param {string} mode - 'idle' | 'progress' | 'failure'
+   * @param {number} [done] - 진행 중일 때 처리 완료 건수
+   * @param {number} [total] - 진행 중일 때 총 건수
+   */
+  function setBannerStatus(mode, done, total) {
+    if (mode === 'progress') {
+      var data = getFailedRefresh();
+      if (!data || !data.ids || data.ids.length === 0) return;  // 실패 정보 없으면 진행 표시 안 함
+      var el = getBannerEl();
+      if (!el) return;
+      el.innerHTML =
+        '<div class="rfb-icon">↻</div>' +
+        '<div class="rfb-text"><strong>재시도 중</strong> (' + done + '/' + total + ')...</div>';
+    } else if (mode === 'failure') {
+      var d = getFailedRefresh();
+      if (!d || !d.ids || d.ids.length === 0) {
+        var existing = document.getElementById('refresh-fail-banner');
+        if (existing) existing.remove();
+        return;
+      }
+      var el2 = getBannerEl();
+      if (!el2) return;
+      var preview = d.names.slice(0, 3).map(Utils.esc).join(', ');
+      if (d.names.length > 3) preview += ' 외 ' + (d.names.length - 3) + '명';
+      el2.innerHTML =
+        '<div class="rfb-icon">⚠</div>' +
+        '<div class="rfb-text"><strong>갱신 실패 ' + d.names.length + '명</strong>: ' + preview + '</div>' +
+        '<div class="rfb-actions">' +
+          '<button class="btn btn-primary btn-sm" id="rfb-retry">↻ 실패한 멤버만 다시 갱신</button>' +
+          '<button class="btn btn-secondary btn-sm" id="rfb-close">닫기</button>' +
+        '</div>';
+      document.getElementById('rfb-retry').addEventListener('click', function() {
+        var data = getFailedRefresh();
+        if (data && data.ids.length > 0) refreshMembersByIds(data.ids);
+      });
+      document.getElementById('rfb-close').addEventListener('click', function() {
+        clearFailedRefresh();
+        syncRefreshBanner();
+        renderMembers();  // 실패 표시 제거
+      });
+    } else {
+      var existingIdle = document.getElementById('refresh-fail-banner');
+      if (existingIdle) existingIdle.remove();
+    }
+  }
+
+  /** 페이지 로드/멤버 렌더링 시 sessionStorage 상태에 맞춰 배너 표시. */
+  function syncRefreshBanner() {
+    setBannerStatus('failure');
   }
 
   document.getElementById('btn-refresh-all').addEventListener('click', refreshAllMembers);

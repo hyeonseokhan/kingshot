@@ -558,6 +558,41 @@ a:hover{text-decoration:underline}
 .mc-level{text-align:center;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums}
 .mc-power{text-align:center;font-size:13px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
 .mc-pos{text-align:center;font-size:12px;font-weight:700;color:var(--text2);font-variant-numeric:tabular-nums}
+
+/* 갱신 실패 표시 */
+.member-row.member-row-failed{
+  background:linear-gradient(to right, rgba(245,158,11,0.08), transparent 60%);
+  box-shadow:inset 3px 0 0 #f59e0b;
+}
+.mc-fail-badge{
+  display:inline-block;margin-left:6px;color:#b45309;font-size:13px;font-weight:700;
+  vertical-align:middle;cursor:help;
+}
+
+/* 갱신 실패 배너 */
+.refresh-fail-banner{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:10px 14px;margin:0 0 10px;
+  background:#fff8e1;border:1px solid #f59e0b;border-radius:8px;
+}
+.rfb-icon{
+  font-size:20px;color:#b45309;line-height:1;flex-shrink:0;
+}
+.rfb-text{
+  flex:1;min-width:200px;font-size:13px;color:#78350f;line-height:1.4;
+  word-break:keep-all;
+}
+.rfb-text strong{color:#92400e;font-weight:700}
+.rfb-actions{display:flex;gap:6px;flex-wrap:wrap}
+.rfb-actions .btn{white-space:nowrap}
+
+@media (max-width:720px){
+  .refresh-fail-banner{padding:10px 12px;gap:8px}
+  .rfb-text{flex-basis:100%;min-width:0;font-size:12.5px}
+  .rfb-actions{flex-basis:100%;justify-content:flex-end}
+  .rfb-actions .btn{flex:1;font-size:12px}
+}
+
 /* 관리 버튼 (⋮) */
 .mc-manage-btn{
   width:32px;height:32px;border-radius:6px;border:none;
