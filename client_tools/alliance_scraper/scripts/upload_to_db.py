@@ -40,44 +40,70 @@ SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 PLAYER_API = f"{SUPABASE_URL}/functions/v1/redeem-coupon"
 
 
-def fetch_player_info(player_id: str, timeout: float = 10.0) -> dict[str, Any] | None:
-    """Call the edge function (which proxies centurygame API) for one player."""
-    try:
-        resp = requests.post(
-            PLAYER_API,
-            json={"action": "player", "fid": player_id},
-            headers={
-                "Content-Type": "application/json",
-                "apikey": SUPABASE_ANON_KEY,
-                "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
-            },
-            timeout=timeout,
-        )
-    except requests.RequestException as e:
-        print(f"  [!] network error: {e}")
-        return None
+def fetch_player_info(
+    player_id: str,
+    timeout: float = 10.0,
+    max_retries: int = 3,
+    retry_delay: float = 1.5,
+) -> dict[str, Any] | None:
+    """Call the edge function (which proxies centurygame API) for one player.
 
-    if resp.status_code != 200:
-        print(f"  [!] HTTP {resp.status_code}: {resp.text[:200]}")
-        return None
+    Auto-retries on 5xx errors (Supabase edge cold start / temporary outage)
+    and on network errors with exponential backoff.
+    """
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(
+                PLAYER_API,
+                json={"action": "player", "fid": player_id},
+                headers={
+                    "Content-Type": "application/json",
+                    "apikey": SUPABASE_ANON_KEY,
+                    "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+                },
+                timeout=timeout,
+            )
+        except requests.RequestException as e:
+            last_err = f"network error: {e}"
+            if attempt < max_retries - 1:
+                print(f"  [retry {attempt+1}/{max_retries}] {last_err}")
+                time.sleep(retry_delay * (2 ** attempt))
+                continue
+            print(f"  [!] {last_err} (gave up after {max_retries} tries)")
+            return None
 
-    try:
-        data = resp.json()
-    except ValueError:
-        print(f"  [!] non-JSON response: {resp.text[:200]}")
-        return None
+        if 500 <= resp.status_code < 600:
+            last_err = f"HTTP {resp.status_code}: {resp.text[:120]}"
+            if attempt < max_retries - 1:
+                print(f"  [retry {attempt+1}/{max_retries}] {last_err}")
+                time.sleep(retry_delay * (2 ** attempt))
+                continue
+            print(f"  [!] {last_err} (gave up after {max_retries} tries)")
+            return None
 
-    if data.get("code") != 0 or not data.get("data"):
-        print(f"  [!] API error code={data.get('code')}: {data.get('msg')}")
-        return None
+        if resp.status_code != 200:
+            print(f"  [!] HTTP {resp.status_code}: {resp.text[:200]}")
+            return None
 
-    d = data["data"]
-    return {
-        "nickname": d.get("nickname") or str(player_id),
-        "level": d.get("stove_lv") or d.get("stove_lv_content") or 0,
-        "kingdom": d.get("kid"),
-        "profile_photo": d.get("avatar_image"),
-    }
+        try:
+            data = resp.json()
+        except ValueError:
+            print(f"  [!] non-JSON response: {resp.text[:200]}")
+            return None
+
+        if data.get("code") != 0 or not data.get("data"):
+            print(f"  [!] API error code={data.get('code')}: {data.get('msg')}")
+            return None
+
+        d = data["data"]
+        return {
+            "nickname": d.get("nickname") or str(player_id),
+            "level": d.get("stove_lv") or d.get("stove_lv_content") or 0,
+            "kingdom": d.get("kid"),
+            "profile_photo": d.get("avatar_image"),
+        }
+    return None
 
 
 def pick_latest_output() -> Path:
