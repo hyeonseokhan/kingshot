@@ -627,12 +627,9 @@
 
   // ===== 전체 수령 =====
 
-  /** 전체 수령 버튼 라벨을 선택 상태에 맞게 업데이트합니다. */
+  /** 버튼 라벨은 고정. 선택 상태는 쿠폰 카드 강조 + 힌트 텍스트로만 표시. */
   function updateRedeemAllButton() {
-    var btn = document.getElementById('btn-redeem-all');
-    if (!btn) return;
-    var sel = getSelectedCoupon();
-    btn.textContent = sel ? '🎁 ' + sel.code + ' 수령' : '🎁 전체 수령';
+    /* no-op (legacy hook 유지) */
   }
 
   document.getElementById('btn-redeem-all').addEventListener('click', function() {
