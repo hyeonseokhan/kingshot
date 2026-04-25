@@ -17,6 +17,16 @@ var Utils = (function() {
   /** 쿠폰 교환 응답에서 "이미 수령" 판별 키워드 */
   var ALREADY_REDEEMED_KEYWORDS = ['RECEIVED', 'redeemed once'];
 
+  /** centurygame 쿠폰 교환 err_code → 사용자용 한글 라벨 매핑 */
+  var REDEEM_ERR_CODES = {
+    40004: '인증코드 불일치',
+    40005: '존재하지 않는 쿠폰 코드',
+    40007: '만료된 쿠폰 코드',
+    40008: '이미 수령된 쿠폰',
+    40014: '서버 시간 오류',
+    40017: '상담원 서비스 활성화 계정만 사용 가능'
+  };
+
   /** 레벨별 프로필 테두리 CSS 클래스 매핑 (임계값 내림차순) */
   var LEVEL_CLASSES = [
     { min: 30, cls: ' lv-30' },
@@ -107,6 +117,21 @@ var Utils = (function() {
   }
 
   /**
+   * 쿠폰 교환 응답을 사람이 이해할 수 있는 라벨로 변환합니다.
+   * err_code 매핑이 우선, 그 다음 keyword 검사, 마지막은 raw msg.
+   * @param {Object} resp - {code, msg, err_code}
+   * @returns {string} 한글 라벨 또는 원본 메시지
+   */
+  function describeRedeemError(resp) {
+    if (!resp) return '실패';
+    if (resp.err_code != null && REDEEM_ERR_CODES[resp.err_code]) {
+      return REDEEM_ERR_CODES[resp.err_code];
+    }
+    if (isAlreadyRedeemed(resp)) return '이미 수령됨';
+    return resp.msg || '실패';
+  }
+
+  /**
    * 모달/다이얼로그 오버레이를 열거나 닫습니다.
    * @param {string} overlayId - 오버레이 요소의 ID
    * @param {boolean} open - true면 열기, false면 닫기
@@ -146,6 +171,7 @@ var Utils = (function() {
     getLevelClass: getLevelClass,
     truncate: truncate,
     isAlreadyRedeemed: isAlreadyRedeemed,
+    describeRedeemError: describeRedeemError,
     toggleOverlay: toggleOverlay,
     onTabActive: onTabActive
   };

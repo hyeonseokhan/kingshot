@@ -494,12 +494,13 @@
     .then(function(json) {
       // 최상위 에러 (player 로그인 실패 등) — 전체 실패 처리
       if (json.code !== 0 || !Array.isArray(json.results)) {
+        var topLabel = Utils.describeRedeemError(json);
         codes.forEach(function(code) {
           completedRedeemTasks++;
           redeemStats.failed++;
-          redeemStats.errors.push(nickname + ' — ' + code + ': ' + (json.msg || '실패'));
+          redeemStats.errors.push(nickname + ' — ' + code + ': ' + topLabel);
         });
-        showProgress('⚠️ ' + nickname + ' 오류: ' + (json.msg || '실패'));
+        showProgress('⚠️ ' + nickname + ' 오류: ' + topLabel);
         return;
       }
       // 쿠폰별 결과 처리
@@ -516,9 +517,10 @@
           saveHistory(fid, code, Utils.REDEEM_STATUS.ALREADY, r.msg);
           showProgress('✅ ' + nickname + ' — ' + code + ' 이미 수령됨');
         } else {
+          var label = Utils.describeRedeemError(fakeJson);
           redeemStats.failed++;
-          redeemStats.errors.push(nickname + ' — ' + code + ': ' + (r.msg || '실패'));
-          showProgress('⚠️ ' + nickname + ' — ' + code + ': ' + (r.msg || '실패'));
+          redeemStats.errors.push(nickname + ' — ' + code + ': ' + label);
+          showProgress('⚠️ ' + nickname + ' — ' + code + ': ' + label);
         }
       });
       updateAccountRowStatus(fid);
@@ -527,7 +529,7 @@
       codes.forEach(function(code) {
         completedRedeemTasks++;
         redeemStats.failed++;
-        redeemStats.errors.push(nickname + ' — ' + code + ': ' + err.message);
+        redeemStats.errors.push(nickname + ' — ' + code + ': ' + (err.message || '네트워크 오류'));
       });
       showProgress('⚠️ ' + nickname + ' 네트워크 오류');
     });
