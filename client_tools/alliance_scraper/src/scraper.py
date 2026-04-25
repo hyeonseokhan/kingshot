@@ -444,19 +444,8 @@ class AllianceScraper:
             if visible_ranks:
                 max_rank_seen_global = max(max_rank_seen_global, max(visible_ranks))
 
-            # Early termination: next_rank past all known ranks + all visible already visited
-            if self.state.members:
-                known_max_rank = max(
-                    (m.rank_at_scan for m in self.state.members.values() if m.rank_at_scan is not None),
-                    default=0,
-                )
-                if next_rank > known_max_rank:
-                    visible_powers = {o.power for _r, o in ranked}
-                    if visible_powers and visible_powers.issubset(self.state.visited_powers):
-                        if verbose:
-                            print(f"[end] all known ranks collected "
-                                  f"(next_rank={next_rank} > max_known={known_max_rank})")
-                        break
+            # 조기 종료 로직 제거 (resume 모드에서 잘못 트리거됨).
+            # 진짜 종료는 _scroll_small() 실패 또는 consecutive_skips 누적으로 감지됨.
 
             # Find the row matching our target rank (with gap-fill fallback)
             target = self._find_row_for_rank(ranked, next_rank)
