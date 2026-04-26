@@ -403,62 +403,92 @@
     <div class="manage-page" id="page-tile-match">
       <div class="members-header">
         <h1>타일 매치</h1>
-        <button class="btn btn-secondary btn-sm" id="tm-restart">↻ 새 게임</button>
       </div>
       <div class="page-intro">
         <p><strong>3매치 마작</strong> — 같은 타일 3개를 모으면 사라집니다.</p>
-        <ul>
-          <li>화면 하단의 <strong>쌓인 타일</strong>을 탭하면 위쪽 <strong>슬롯</strong>으로 이동</li>
-          <li>슬롯에 <strong>같은 모양 3개</strong>가 모이면 자동 소거</li>
-          <li>위에 다른 타일이 덮인 타일은 흐리게 표시되어 클릭 불가</li>
-          <li>슬롯이 가득 차면 <strong>실패</strong>, 모든 타일을 비우면 <strong>성공</strong></li>
-        </ul>
       </div>
 
-      <div class="tm-status">
-        <span class="tm-status-label">남은 타일</span>
-        <strong id="tm-remaining">0</strong>
-        <span class="tm-status-sep">·</span>
-        <span class="tm-status-label">전체</span>
-        <span id="tm-total">0</span>
-      </div>
-
-      <div class="tm-buffer" id="tm-buffer"></div>
-
-      <div class="tm-board-wrap">
-        <div class="tm-board" id="tm-board"></div>
-      </div>
-
-      <!-- 제거 큐 (제거 아이템 사용 시 표시) -->
-      <div class="tm-remove-queue" id="tm-remove-queue" style="display:none">
-        <span class="tm-remove-queue-label">제거됨</span>
-        <div class="tm-remove-slots" id="tm-remove-slots"></div>
-      </div>
-
-      <!-- 아이템 버튼 -->
-      <div class="tm-items">
-        <button class="tm-item" id="tm-item-remove" type="button">
-          <span class="tm-item-badge" id="tm-item-remove-badge">Free ×1</span>
-          <span class="tm-item-icon">🧹</span>
-          <span class="tm-item-label">제거</span>
-        </button>
-        <button class="tm-item" id="tm-item-undo" type="button">
-          <span class="tm-item-badge" id="tm-item-undo-badge">Free ×1</span>
-          <span class="tm-item-icon">↩️</span>
-          <span class="tm-item-label">되돌리기</span>
-        </button>
-        <button class="tm-item" id="tm-item-shuffle" type="button">
-          <span class="tm-item-badge" id="tm-item-shuffle-badge">Free ×1</span>
-          <span class="tm-item-icon">🔀</span>
-          <span class="tm-item-label">재배치</span>
+      <!-- 게임 시작 카드 -->
+      <div class="tm-launch-card">
+        <div class="tm-launch-title">다음 스테이지</div>
+        <div class="tm-launch-meta">Stage <span id="tm-launch-stage">1</span></div>
+        <button class="tm-launch-btn" id="tm-launch-btn" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          게임 시작
         </button>
       </div>
 
-      <div class="tm-overlay" id="tm-overlay" style="display:none">
-        <div class="tm-overlay-card">
-          <div class="tm-overlay-icon" id="tm-overlay-icon"></div>
-          <div class="tm-overlay-msg" id="tm-overlay-msg"></div>
-          <button class="btn btn-primary" id="tm-overlay-restart">다시 도전</button>
+      <!-- 향후 랭킹 -->
+      <div class="tm-ranking-placeholder">
+        <strong>랭킹</strong> · 곧 공개됩니다
+      </div>
+
+      <!-- 게임 다이얼로그 -->
+      <div class="tm-dialog-overlay" id="tm-dialog-overlay" style="display:none">
+        <div class="tm-dialog">
+          <div class="tm-dlg-bar">
+            <div class="tm-dlg-stage">
+              Stage <span id="tm-dlg-stage">1</span>
+            </div>
+            <button class="tm-dlg-close-btn" id="tm-dlg-close" type="button" aria-label="나가기">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                <line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/>
+              </svg>
+            </button>
+          </div>
+          <div class="tm-dlg-body">
+            <div class="tm-status">
+              <span class="tm-status-label">남은 타일</span>
+              <strong id="tm-remaining">0</strong>
+              <span class="tm-status-sep">·</span>
+              <span class="tm-status-label">전체</span>
+              <span id="tm-total">0</span>
+            </div>
+
+            <div class="tm-board-area">
+              <div class="tm-board" id="tm-board"></div>
+            </div>
+
+            <!-- 제거 큐 (제거 아이템 사용 시 표시) — 클릭하면 버퍼로 복귀 -->
+            <div class="tm-remove-queue" id="tm-remove-queue" style="display:none">
+              <span class="tm-remove-queue-label">제거됨</span>
+              <div class="tm-remove-slots" id="tm-remove-slots"></div>
+              <span class="tm-remove-queue-hint">탭하면 다시 슬롯으로</span>
+            </div>
+
+            <!-- 선택 슬롯 (버퍼) -->
+            <div class="tm-buffer" id="tm-buffer"></div>
+
+            <!-- 아이템 버튼 -->
+            <div class="tm-items">
+              <button class="tm-item" id="tm-item-remove" type="button">
+                <span class="tm-item-badge" id="tm-item-remove-badge">Free ×1</span>
+                <span class="tm-item-icon">🧹</span>
+                <span class="tm-item-label">제거</span>
+              </button>
+              <button class="tm-item" id="tm-item-undo" type="button">
+                <span class="tm-item-badge" id="tm-item-undo-badge">Free ×1</span>
+                <span class="tm-item-icon">↩️</span>
+                <span class="tm-item-label">되돌리기</span>
+              </button>
+              <button class="tm-item" id="tm-item-shuffle" type="button">
+                <span class="tm-item-badge" id="tm-item-shuffle-badge">Free ×1</span>
+                <span class="tm-item-icon">🔀</span>
+                <span class="tm-item-label">재배치</span>
+              </button>
+            </div>
+
+            <div class="tm-overlay" id="tm-overlay" style="display:none">
+              <div class="tm-overlay-card">
+                <div class="tm-overlay-icon" id="tm-overlay-icon"></div>
+                <div class="tm-overlay-msg" id="tm-overlay-msg"></div>
+                <div class="tm-overlay-actions">
+                  <button class="btn btn-primary" id="tm-overlay-restart">다시 도전</button>
+                  <button class="btn btn-secondary" id="tm-overlay-quit">닫기</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -27,9 +27,9 @@
     '🐵', '🐔', '🐧', '🐦', '🐢', '🐍', '🐠', '🐳'
   ];
 
-  var CELL_W = 18;
-  var CELL_H = 22;
-  var CELL_DEPTH = 6;
+  var CELL_W = 22;
+  var CELL_H = 27;
+  var CELL_DEPTH = 7;
   var BUFFER_SIZE = 7;
   var MATCH_COUNT = 3;
   var REMOVE_QUEUE_SIZE = 3;
@@ -48,6 +48,7 @@
   var freeUses = { remove: 0, undo: 0, shuffle: 0 };
   var lastPick = null;       // 직전에 클릭된 타일 (되돌리기 대상)
   var canUndo = false;       // 매치 발생 시 false 로 초기화
+  var gameOver = false;      // 클리어/실패 시 true
 
   // ===== DOM refs =====
 
@@ -58,35 +59,126 @@
   function initPage() {
     if (initialized) return;
     initialized = true;
-    $('tm-restart').addEventListener('click', startNewGame);
+    $('tm-launch-btn').addEventListener('click', openDialog);
+    $('tm-dlg-close').addEventListener('click', requestClose);
     $('tm-overlay-restart').addEventListener('click', startNewGame);
+    $('tm-overlay-quit').addEventListener('click', forceClose);
     $('tm-item-remove').addEventListener('click', useRemove);
     $('tm-item-undo').addEventListener('click', useUndo);
     $('tm-item-shuffle').addEventListener('click', useShuffle);
-    startNewGame();
+    window.addEventListener('resize', fitBoardToArea);
+  }
+
+  // ===== 다이얼로그 open/close =====
+
+  function openDialog() {
+    $('tm-dialog-overlay').style.display = '';
+    document.body.style.overflow = 'hidden';
+    // 다이얼로그가 화면에 표시된 후 layout 이 잡힌 시점에 게임 시작 (보드 영역 측정 필요)
+    requestAnimationFrame(function() { startNewGame(); });
+  }
+
+  function requestClose() {
+    if (isGameInProgress()) {
+      if (!window.confirm('정말 나가시겠습니까? 진행 상황이 사라집니다.')) return;
+    }
+    forceClose();
+  }
+
+  function forceClose() {
+    $('tm-dialog-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+    hideOverlay();
+  }
+
+  function isGameInProgress() {
+    if (gameOver) return false;
+    if (!tiles || tiles.length === 0) return false;
+    return tiles.some(function(t) { return !t.removed; });
   }
 
   function startNewGame() {
     if (loading) return;
     hideOverlay();
-    if (level) {
-      buildBoard();
-      return;
+    // 매 시작마다 새 레벨 절차 생성 (sample.json 사용 안 함)
+    level = generateLevel(currentDifficulty);
+    buildBoard();
+  }
+
+  // ===== 절차 생성 =====
+  // 난이도별 파라미터 (UI 에 노출하지 않음 — 사용자가 "난이도는 숨겨야 재미있다" 고 명시)
+  var DIFFICULTY_PARAMS = {
+    1: { cols: 10, rows: 7,  layers: 3, sets: 5  },  // 15 tiles
+    2: { cols: 11, rows: 8,  layers: 4, sets: 8  },  // 24 tiles
+    3: { cols: 12, rows: 9,  layers: 5, sets: 12 },  // 36 tiles
+    4: { cols: 14, rows: 10, layers: 6, sets: 16 },  // 48 tiles
+    5: { cols: 16, rows: 11, layers: 7, sets: 20 }   // 60 tiles
+  };
+  var currentDifficulty = 3;
+
+  function generateLevel(difficulty) {
+    var d = DIFFICULTY_PARAMS[difficulty] || DIFFICULTY_PARAMS[3];
+    var cols = d.cols, rows = d.rows, layerCount = d.layers, setCount = d.sets;
+    var totalTiles = setCount * 3;
+
+    // 레이어별 weight: top 적게, bottom 많게. weights[0]=top 의 weight.
+    var weights = [];
+    var weightSum = 0;
+    for (var w = 0; w < layerCount; w++) {
+      weights.push(w + 1);
+      weightSum += w + 1;
     }
-    loading = true;
-    fetch(LEVEL_URL_ABS)
-      .then(function(r) {
-        if (!r.ok) throw new Error('레벨 로드 실패: HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function(data) {
-        level = data;
-        buildBoard();
-      })
-      .catch(function(err) {
-        $('tm-board').innerHTML = '<div class="empty-cell">레벨 로드 실패: ' + (err.message || err) + '</div>';
-      })
-      .finally(function() { loading = false; });
+    var layerTileCounts = [];
+    var sum = 0;
+    for (var i = 0; i < layerCount; i++) {
+      layerTileCounts[i] = Math.floor(totalTiles * weights[i] / weightSum);
+      sum += layerTileCounts[i];
+    }
+    // 합계 보정 — 부족분을 가장 큰 weight 쪽(=bottom)에 +1
+    var diff = totalTiles - sum;
+    var pad = 0;
+    while (diff > 0) {
+      layerTileCounts[layerCount - 1 - (pad % layerCount)]++;
+      diff--; pad++;
+    }
+
+    // 각 레이어에 위치 생성 (l=0 이 가장 아래; weightIdx 매핑)
+    var stageLayers = [];
+    for (var l = 0; l < layerCount; l++) {
+      var weightIdx = layerCount - 1 - l;
+      var n = layerTileCounts[weightIdx];
+      var positions = generateLayerPositions(cols, rows, n, l);
+      stageLayers.push({ layer: l, tiles: positions });
+    }
+
+    return { cols: cols, rows: rows, stageLayers: stageLayers, _generated: true };
+  }
+
+  function generateLayerPositions(cols, rows, n, layerIdx) {
+    var positions = [];
+    var maxAttempts = n * 300;
+    var attempts = 0;
+    while (positions.length < n && attempts < maxAttempts) {
+      attempts++;
+      // 타일은 2 cell 차지 → 마지막 위치는 cols-2
+      var c = Math.floor(Math.random() * (cols - 1));
+      var r = Math.floor(Math.random() * (rows - 1));
+      var ok = true;
+      for (var i = 0; i < positions.length; i++) {
+        if (Math.abs(positions[i].colIndex - c) <= 1 && Math.abs(positions[i].rowIndex - r) <= 1) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) positions.push({ colIndex: c, rowIndex: r, layer: layerIdx });
+    }
+    // 시도 횟수 초과로 채우지 못한 경우 fallback (충돌 무시하고 채움)
+    while (positions.length < n) {
+      var c2 = Math.floor(Math.random() * (cols - 1));
+      var r2 = Math.floor(Math.random() * (rows - 1));
+      positions.push({ colIndex: c2, rowIndex: r2, layer: layerIdx });
+    }
+    return positions;
   }
 
   // ===== 보드 생성 + 타일 배치 =====
@@ -148,12 +240,31 @@
     freeUses = { remove: INITIAL_FREE_USES.remove, undo: INITIAL_FREE_USES.undo, shuffle: INITIAL_FREE_USES.shuffle };
     lastPick = null;
     canUndo = false;
+    gameOver = false;
 
     renderBoard();
     renderBuffer();
     renderRemoveQueue();
     updateItemButtons();
     updateStatus();
+    // 보드 영역 layout 이 잡힌 다음 fit
+    requestAnimationFrame(fitBoardToArea);
+  }
+
+  // ===== 보드 영역에 맞춰 가로/세로 모두 fit =====
+
+  function fitBoardToArea() {
+    var area = document.querySelector('.tm-board-area');
+    var board = $('tm-board');
+    if (!area || !board || !level) return;
+    var availW = area.clientWidth;
+    var availH = area.clientHeight;
+    if (availW <= 0 || availH <= 0) return;
+    var pad = 8;
+    var boardW = parseFloat(board.style.width) || 1;
+    var boardH = parseFloat(board.style.height) || 1;
+    var scale = Math.min((availW - pad) / boardW, (availH - pad) / boardH, 1);
+    board.style.transform = 'translate(-50%,-50%) scale(' + scale + ')';
   }
 
   // ===== 활성(active) 판정 =====
@@ -177,11 +288,22 @@
   function renderBoard() {
     var board = $('tm-board');
     board.innerHTML = '';
-    var cols = level.cols || 40;
-    var rows = level.rows || 25;
     var layerCount = (level.stageLayers || []).length || 7;
-    var w = (cols + 2) * CELL_W;
-    var h = (rows + 2) * CELL_H + layerCount * CELL_DEPTH;
+
+    // 실제 타일 bounding box (양옆/위아래 빈 셀 제거)
+    var minCol = Infinity, maxCol = -Infinity, minRow = Infinity, maxRow = -Infinity;
+    tiles.forEach(function(t) {
+      if (t.col < minCol) minCol = t.col;
+      if (t.col > maxCol) maxCol = t.col;
+      if (t.row < minRow) minRow = t.row;
+      if (t.row > maxRow) maxRow = t.row;
+    });
+    if (!isFinite(minCol)) { minCol = 0; maxCol = 0; minRow = 0; maxRow = 0; }
+
+    var bboxCols = (maxCol - minCol) + 2;       // 타일 폭(2 cell) 보정
+    var bboxRows = (maxRow - minRow) + 2;
+    var w = bboxCols * CELL_W;
+    var h = bboxRows * CELL_H + layerCount * CELL_DEPTH;
     board.style.width = w + 'px';
     board.style.height = h + 'px';
 
@@ -192,8 +314,8 @@
       el.dataset.id = tile.id;
       el.style.width = (CELL_W * 2) + 'px';
       el.style.height = (CELL_H * 2 + CELL_DEPTH) + 'px';
-      el.style.left = (tile.col * CELL_W) + 'px';
-      el.style.top = ((layerCount - tile.layer - 1) * CELL_DEPTH + tile.row * CELL_H) + 'px';
+      el.style.left = ((tile.col - minCol) * CELL_W) + 'px';
+      el.style.top = ((layerCount - tile.layer - 1) * CELL_DEPTH + (tile.row - minRow) * CELL_H) + 'px';
       el.style.zIndex = tile.layer + 1;
       el.innerHTML = '<span class="tm-tile-glyph">' + TILE_SHAPES[tile.value] + '</span>';
       el.addEventListener('click', function() { onTileClick(tile); });
@@ -252,9 +374,32 @@
       if (entry) {
         slot.classList.add('tm-slot-filled');
         slot.innerHTML = '<span class="tm-tile-glyph">' + TILE_SHAPES[entry.value] + '</span>';
+        (function(idx) {
+          slot.addEventListener('click', function() { onRemoveSlotClick(idx); });
+        })(i);
       }
       slots.appendChild(slot);
     }
+  }
+
+  // 제거 큐의 슬롯 클릭 → 해당 타일을 다시 버퍼로 가져옴
+  function onRemoveSlotClick(idx) {
+    if (idx < 0 || idx >= removedQueue.length) return;
+    if (buffer.length >= BUFFER_SIZE) return;
+    var entry = removedQueue[idx];
+    if (!entry) return;
+    removedQueue.splice(idx, 1);
+    buffer.push({ value: entry.value });
+    buffer.sort(function(a, b) { return a.value - b.value; });
+    eliminateMatches();
+    // 제거 큐에서 가져온 동작 후엔 되돌리기 차단 (대상 타일이 다름)
+    lastPick = null;
+    canUndo = false;
+    renderBuffer();
+    renderRemoveQueue();
+    updateItemButtons();
+    updateStatus();
+    checkEnd();
   }
 
   // ===== 타일 클릭 =====
@@ -390,10 +535,12 @@
   function checkEnd() {
     var remaining = tiles.filter(function(t) { return !t.removed; }).length;
     if (remaining === 0 && buffer.length === 0) {
+      gameOver = true;
       showOverlay('🎉', '클리어! ' + totalTiles + '개의 타일을 모두 비웠습니다.');
       return;
     }
     if (buffer.length >= BUFFER_SIZE) {
+      gameOver = true;
       showOverlay('💥', '슬롯이 가득 찼습니다. 다시 도전해 보세요.');
     }
   }
@@ -421,6 +568,18 @@
 
   // ===== Public API =====
 
-  window.TileMatch = { initPage: initPage };
+  window.TileMatch = {
+    initPage: initPage,
+    // 디버그/캡처용 — 특정 난이도로 다이얼로그 안에서 새 게임 시작
+    _startWithDifficulty: function(d) {
+      if (loading) return;
+      currentDifficulty = d;
+      $('tm-dialog-overlay').style.display = '';
+      document.body.style.overflow = 'hidden';
+      hideOverlay();
+      level = generateLevel(d);
+      buildBoard();
+    }
+  };
 
 })();

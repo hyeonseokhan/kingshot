@@ -31,4 +31,5 @@ matchjong-master/
 node_modules/
 package.json
 package-lock.json
-scripts/verify-*.js
+# 개발 중 생성한 검증 스크립트/캡처/mock 페이지
+scripts/
