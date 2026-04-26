@@ -389,6 +389,57 @@
   </main>
 </div>
 
+<!-- 미니게임 탭 -->
+<div id="tab-minigame" class="tab-content">
+  <nav class="left-nav">
+    <div class="left-nav-header">미니게임</div>
+    <div class="left-nav-items" data-tab="minigame">
+      <div class="left-nav-item active" data-tab="minigame" data-submenu="tile-match">
+        <span class="step-label">타일 매치</span>
+      </div>
+    </div>
+  </nav>
+  <main class="center-content manage-content" data-tab="minigame">
+    <div class="manage-page" id="page-tile-match">
+      <div class="members-header">
+        <h1>타일 매치</h1>
+        <button class="btn btn-secondary btn-sm" id="tm-restart">↻ 새 게임</button>
+      </div>
+      <div class="page-intro">
+        <p><strong>3매치 마작</strong> — 같은 타일 3개를 모으면 사라집니다.</p>
+        <ul>
+          <li>화면 하단의 <strong>쌓인 타일</strong>을 탭하면 위쪽 <strong>슬롯</strong>으로 이동</li>
+          <li>슬롯에 <strong>같은 모양 3개</strong>가 모이면 자동 소거</li>
+          <li>위에 다른 타일이 덮인 타일은 흐리게 표시되어 클릭 불가</li>
+          <li>슬롯이 가득 차면 <strong>실패</strong>, 모든 타일을 비우면 <strong>성공</strong></li>
+        </ul>
+      </div>
+
+      <div class="tm-status">
+        <span class="tm-status-label">남은 타일</span>
+        <strong id="tm-remaining">0</strong>
+        <span class="tm-status-sep">·</span>
+        <span class="tm-status-label">전체</span>
+        <span id="tm-total">0</span>
+      </div>
+
+      <div class="tm-buffer" id="tm-buffer"></div>
+
+      <div class="tm-board-wrap">
+        <div class="tm-board" id="tm-board"></div>
+      </div>
+
+      <div class="tm-overlay" id="tm-overlay" style="display:none">
+        <div class="tm-overlay-card">
+          <div class="tm-overlay-icon" id="tm-overlay-icon"></div>
+          <div class="tm-overlay-msg" id="tm-overlay-msg"></div>
+          <button class="btn btn-primary" id="tm-overlay-restart">다시 도전</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   var SUPABASE_URL = 'https://cbzgmugtsustsxuqpznv.supabase.co';
@@ -399,5 +450,6 @@
 <script src="{{ '/assets/js/members.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/troops.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/coupons.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/tile-match.js' | relative_url }}"></script>
 </body>
 </html>

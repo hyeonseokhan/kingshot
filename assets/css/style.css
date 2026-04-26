@@ -1156,3 +1156,96 @@ a:hover{text-decoration:underline}
   .troops-chart-wrap{height:220px;padding:6px}
   .ts-recorders{margin-left:0;flex-basis:100%;text-align:right}
 }
+
+/* ================================================================
+   타일 매치 (미니게임)
+   ================================================================ */
+.tm-status{
+  display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);
+  padding:8px 12px;background:var(--bg2);border-radius:8px;margin:8px 0;
+}
+.tm-status strong{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
+.tm-status-label{color:var(--text3);font-size:12px}
+.tm-status-sep{color:var(--text3);margin:0 2px}
+
+/* 버퍼 슬롯 */
+.tm-buffer{
+  display:flex;justify-content:center;gap:6px;padding:10px;
+  background:linear-gradient(180deg,var(--bg2),var(--bg3));
+  border:1px solid var(--border);border-radius:8px;margin:8px 0;
+}
+.tm-slot{
+  width:46px;height:54px;border-radius:7px;
+  background:var(--bg);border:1px dashed var(--border);
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.18s ease;
+}
+.tm-slot-filled{
+  background:#ffffff;border:1px solid #66AAFF;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* 보드 (스크롤 가능) */
+.tm-board-wrap{
+  overflow:auto;background:var(--bg2);border:1px solid var(--border);
+  border-radius:8px;padding:12px;margin:8px 0 16px;
+  -webkit-overflow-scrolling:touch;
+}
+.tm-board{
+  position:relative;margin:0 auto;
+}
+
+/* 타일 */
+.tm-tile{
+  position:absolute;cursor:pointer;
+  background:#66AAFF;
+  border-radius:6px;padding:2px;
+  box-shadow:0 2px 0 rgba(0,0,0,0.15), inset 0 -3px 0 rgba(0,0,0,0.18);
+  transition:transform 0.12s ease, opacity 0.12s ease;
+  user-select:none;-webkit-user-select:none;
+}
+.tm-tile::before{
+  content:'';position:absolute;
+  left:2px;top:2px;right:2px;bottom:8px;
+  background:#ffffff;border-radius:4px;
+}
+.tm-tile-glyph{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:100%;height:calc(100% - 6px);
+  font-size:22px;line-height:1;
+}
+.tm-slot .tm-tile-glyph{height:100%;font-size:24px}
+.tm-tile:hover{transform:translateY(-2px)}
+.tm-tile:active{transform:translateY(0)}
+.tm-tile.tm-inactive{
+  cursor:not-allowed;opacity:0.55;filter:brightness(0.9);
+}
+.tm-tile.tm-inactive:hover{transform:none}
+.tm-tile.tm-removing{
+  opacity:0;transform:scale(0.6) translateY(-12px);
+  pointer-events:none;
+}
+
+/* 종료 오버레이 */
+.tm-overlay{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,0.5);
+  display:flex;align-items:center;justify-content:center;
+  border-radius:8px;z-index:50;
+}
+.tm-overlay-card{
+  background:#ffffff;padding:24px 28px;border-radius:12px;
+  text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2);
+  max-width:320px;
+}
+.tm-overlay-icon{font-size:48px;margin-bottom:8px;line-height:1}
+.tm-overlay-msg{font-size:14px;color:var(--text);margin-bottom:14px;line-height:1.5}
+
+/* 보드 부모(.manage-page) 가 overlay anchor 역할 */
+#page-tile-match{position:relative}
+
+@media (max-width:720px){
+  .tm-slot{width:40px;height:48px}
+  .tm-slot .tm-tile-glyph{font-size:22px}
+  .tm-tile-glyph{font-size:18px}
+}

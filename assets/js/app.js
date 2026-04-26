@@ -71,6 +71,10 @@
     if (submenuId === 'troops' && window.Troops && window.Troops.initPage) {
       window.Troops.initPage();
     }
+    // 타일 매치 페이지 초기화
+    if (submenuId === 'tile-match' && window.TileMatch && window.TileMatch.initPage) {
+      window.TileMatch.initPage();
+    }
   }
 
   function switchSection(tabId, idx) {

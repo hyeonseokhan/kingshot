@@ -12,3 +12,8 @@ tabs:
         title: "병과 분석"
       - id: coupons
         title: "쿠폰 받기"
+  - id: minigame
+    title: "미니게임"
+    submenus:
+      - id: tile-match
+        title: "타일 매치"

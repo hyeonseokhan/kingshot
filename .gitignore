@@ -20,3 +20,9 @@ coupon.md
 # Ruby / Bundler 로컬 설정
 .bundle/
 vendor/
+
+# IDE 로컬 설정
+.vscode/
+
+# 미니게임 원본 Java 프로젝트 (참고용, 배포 무관)
+matchjong-master/
