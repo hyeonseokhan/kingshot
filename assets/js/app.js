@@ -36,6 +36,21 @@
     }
     updateRightToc();
     updateHash();
+    // 서브메뉴를 가진 탭은 활성 서브메뉴의 init 훅도 발동 (탭 버튼 클릭 경로 보강)
+    var activeSub = document.querySelector(
+      '#tab-' + tabId + ' .left-nav-item.active[data-submenu]'
+    );
+    if (activeSub) fireSubmenuInit(activeSub.dataset.submenu);
+  }
+
+  function fireSubmenuInit(submenuId) {
+    if (submenuId === 'coupons' && window.Coupons && window.Coupons.initPage) {
+      window.Coupons.initPage();
+    } else if (submenuId === 'troops' && window.Troops && window.Troops.initPage) {
+      window.Troops.initPage();
+    } else if (submenuId === 'tile-match' && window.TileMatch && window.TileMatch.initPage) {
+      window.TileMatch.initPage();
+    }
   }
 
   // ===== 좌측 네비 섹션 전환 =====
@@ -63,18 +78,7 @@
     });
     // URL 해시 업데이트
     history.replaceState(null, '', '#' + tabId + '-' + submenuId);
-    // 쿠폰 페이지 초기화
-    if (submenuId === 'coupons' && window.Coupons && window.Coupons.initPage) {
-      window.Coupons.initPage();
-    }
-    // 병과 분석 페이지 초기화
-    if (submenuId === 'troops' && window.Troops && window.Troops.initPage) {
-      window.Troops.initPage();
-    }
-    // 타일 매치 페이지 초기화
-    if (submenuId === 'tile-match' && window.TileMatch && window.TileMatch.initPage) {
-      window.TileMatch.initPage();
-    }
+    fireSubmenuInit(submenuId);
   }
 
   function switchSection(tabId, idx) {

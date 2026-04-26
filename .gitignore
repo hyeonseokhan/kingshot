@@ -26,3 +26,9 @@ vendor/
 
 # 미니게임 원본 Java 프로젝트 (참고용, 배포 무관)
 matchjong-master/
+
+# Playwright 로컬 디버깅용 (배포 무관)
+node_modules/
+package.json
+package-lock.json
+scripts/verify-*.js
