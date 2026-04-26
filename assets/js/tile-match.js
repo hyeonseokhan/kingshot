@@ -8,37 +8,46 @@
  *  - 활성 타일 클릭 → 슬롯(buffer)으로 이동
  *  - 슬롯에 같은 모양 3개 모이면 자동 소거
  *  - 슬롯이 가득 차면 게임 오버, 모든 타일 비우면 승리
+ *
+ * 아이템:
+ *  - 제거: 버퍼 앞쪽 3개를 "제거 큐"로 옮김 (영구 제거)
+ *  - 되돌리기: 직전에 클릭한 타일을 보드로 복귀 (단, 매치 발생 직후엔 불가)
+ *  - 재배치: 보드에 남은 타일들의 모양을 다시 셔플
+ *  - 각 아이템은 회당 무료 1회씩 제공
  */
 (function() {
   'use strict';
 
   // ===== 상수 =====
 
-  var LEVEL_URL = (window.location.pathname.replace(/\/[^/]*$/, '') || '') + '/assets/data/tile-match-level.json';
-  // Jekyll baseurl 대응: 단순화. 사실 기본 URL은 / 이므로 절대 경로로 안전 처리.
   var LEVEL_URL_ABS = '/assets/data/tile-match-level.json';
 
-  // 타일 모양 (이모지) — 각 타일은 0..N-1 의 value 를 가짐
   var TILE_SHAPES = [
     '🐶', '🐱', '🐰', '🐻', '🐼', '🦁', '🐯', '🐸',
     '🐵', '🐔', '🐧', '🐦', '🐢', '🐍', '🐠', '🐳'
   ];
 
-  // 셀 크기 (px). 타일 자체는 2x2 셀 = 36x44 + 깊이.
   var CELL_W = 18;
   var CELL_H = 22;
   var CELL_DEPTH = 6;
   var BUFFER_SIZE = 7;
   var MATCH_COUNT = 3;
+  var REMOVE_QUEUE_SIZE = 3;
+  var INITIAL_FREE_USES = { remove: 1, undo: 1, shuffle: 1 };
 
   // ===== 상태 =====
 
-  var level = null;          // { cols, rows, stageLayers, ... }
-  var tiles = [];            // [{ id, value, layer, col, row, removed, el }]
-  var buffer = [];           // [{ value, el }]  (length up to BUFFER_SIZE)
+  var level = null;
+  var tiles = [];
+  var buffer = [];
+  var removedQueue = [];     // 제거 아이템으로 옮겨진 항목들 (최대 3)
   var totalTiles = 0;
   var initialized = false;
   var loading = false;
+
+  var freeUses = { remove: 0, undo: 0, shuffle: 0 };
+  var lastPick = null;       // 직전에 클릭된 타일 (되돌리기 대상)
+  var canUndo = false;       // 매치 발생 시 false 로 초기화
 
   // ===== DOM refs =====
 
@@ -51,6 +60,9 @@
     initialized = true;
     $('tm-restart').addEventListener('click', startNewGame);
     $('tm-overlay-restart').addEventListener('click', startNewGame);
+    $('tm-item-remove').addEventListener('click', useRemove);
+    $('tm-item-undo').addEventListener('click', useUndo);
+    $('tm-item-shuffle').addEventListener('click', useShuffle);
     startNewGame();
   }
 
@@ -58,7 +70,6 @@
     if (loading) return;
     hideOverlay();
     if (level) {
-      // 이미 로드되어 있으면 재배치만
       buildBoard();
       return;
     }
@@ -85,14 +96,12 @@
     var matchCount = level.matchCount || MATCH_COUNT;
     var bufferSize = level.bufferSize || BUFFER_SIZE;
 
-    // 1) 모든 stageTile 수집
     var stageTiles = [];
     stageLayers.forEach(function(layer) {
       (layer.tiles || []).forEach(function(t) { stageTiles.push(t); });
     });
     totalTiles = stageTiles.length;
 
-    // 2) 값(value) 큐 생성: matchCount 묶음씩 같은 value 채우고, TILE_SHAPES 길이 모자라면 순환
     var groupCount = Math.ceil(totalTiles / matchCount);
     var valuePool = [];
     for (var i = 0; i < TILE_SHAPES.length; i++) valuePool.push(i);
@@ -109,12 +118,10 @@
       if (idx % valuePool.length === 0) shuffleInPlace(valuePool);
     }
 
-    // 3) 레이어를 아래→위 순으로, 각 레이어 내 위치 셔플 후 큐에서 값 할당
-    //    GamePlay.fillTiles 와 동일하게 "지나치게 쉬워지는 대신 항상 풀 가능한" 알고리즘
     var sortedLayers = stageLayers.slice().sort(function(a, b) { return a.layer - b.layer; });
     tiles = [];
     var tileId = 0;
-    var bufWindow = bufferSize * 2;  // 큐에서 무작위 선택할 윈도우 크기
+    var bufWindow = bufferSize * 2;
     sortedLayers.forEach(function(layer) {
       var layerTiles = (layer.tiles || []).slice();
       shuffleInPlace(layerTiles);
@@ -135,15 +142,21 @@
       });
     });
 
-    // 4) 버퍼 초기화
+    // 게임 상태 초기화
     buffer = [];
+    removedQueue = [];
+    freeUses = { remove: INITIAL_FREE_USES.remove, undo: INITIAL_FREE_USES.undo, shuffle: INITIAL_FREE_USES.shuffle };
+    lastPick = null;
+    canUndo = false;
 
     renderBoard();
     renderBuffer();
+    renderRemoveQueue();
+    updateItemButtons();
     updateStatus();
   }
 
-  // ===== 활성(active) 판정 — 자기 위 더 높은 레이어에 겹치는 타일이 있으면 비활성 =====
+  // ===== 활성(active) 판정 =====
 
   function isOverlap(t1, t2) {
     return Math.abs(t1.col - t2.col) <= 1 && Math.abs(t1.row - t2.row) <= 1;
@@ -167,14 +180,12 @@
     var cols = level.cols || 40;
     var rows = level.rows || 25;
     var layerCount = (level.stageLayers || []).length || 7;
-    // 보드 크기: tile 은 2 cell 너비/높이, depth 만큼 추가
     var w = (cols + 2) * CELL_W;
     var h = (rows + 2) * CELL_H + layerCount * CELL_DEPTH;
     board.style.width = w + 'px';
     board.style.height = h + 'px';
 
     var fragment = document.createDocumentFragment();
-    // 아래 레이어가 위 레이어에 가려지도록 z-index = layer
     tiles.forEach(function(tile) {
       var el = document.createElement('div');
       el.className = 'tm-tile';
@@ -182,7 +193,6 @@
       el.style.width = (CELL_W * 2) + 'px';
       el.style.height = (CELL_H * 2 + CELL_DEPTH) + 'px';
       el.style.left = (tile.col * CELL_W) + 'px';
-      // 위층일수록 화면 위쪽으로 (layer 가 클수록 작은 y)
       el.style.top = ((layerCount - tile.layer - 1) * CELL_DEPTH + tile.row * CELL_H) + 'px';
       el.style.zIndex = tile.layer + 1;
       el.innerHTML = '<span class="tm-tile-glyph">' + TILE_SHAPES[tile.value] + '</span>';
@@ -199,9 +209,10 @@
     tiles.forEach(function(tile) {
       if (!tile.el) return;
       if (tile.removed) {
-        tile.el.classList.add('tm-removed');
+        tile.el.style.display = 'none';
         return;
       }
+      tile.el.style.display = '';
       tile.el.classList.toggle('tm-inactive', !isActive(tile));
     });
   }
@@ -223,26 +234,61 @@
     }
   }
 
-  // ===== 타일 클릭 처리 =====
+  // ===== 제거 큐 렌더링 =====
+
+  function renderRemoveQueue() {
+    var box = $('tm-remove-queue');
+    var slots = $('tm-remove-slots');
+    if (removedQueue.length === 0) {
+      box.style.display = 'none';
+      return;
+    }
+    box.style.display = '';
+    slots.innerHTML = '';
+    for (var i = 0; i < REMOVE_QUEUE_SIZE; i++) {
+      var slot = document.createElement('div');
+      slot.className = 'tm-slot';
+      var entry = removedQueue[i];
+      if (entry) {
+        slot.classList.add('tm-slot-filled');
+        slot.innerHTML = '<span class="tm-tile-glyph">' + TILE_SHAPES[entry.value] + '</span>';
+      }
+      slots.appendChild(slot);
+    }
+  }
+
+  // ===== 타일 클릭 =====
 
   function onTileClick(tile) {
     if (tile.removed || !isActive(tile)) return;
-    // 1) 보드에서 제거 표시
+
+    var prevBufferLen = buffer.length;
+
     tile.removed = true;
     if (tile.el) tile.el.classList.add('tm-removing');
 
-    // 2) 버퍼에 추가 후 동일 value 그룹 정렬
     buffer.push({ value: tile.value });
     buffer.sort(function(a, b) { return a.value - b.value; });
 
-    // 3) 버퍼에서 연속된 같은 값 MATCH_COUNT 개 제거
     eliminateMatches();
 
-    // 4) UI 갱신
+    // 매치 발생 여부로 되돌리기 가능 여부 결정
+    if (buffer.length > prevBufferLen) {
+      lastPick = tile;
+      canUndo = true;
+    } else {
+      lastPick = null;
+      canUndo = false;
+    }
+
     setTimeout(function() {
-      if (tile.el && tile.el.parentNode) tile.el.parentNode.removeChild(tile.el);
+      if (tile.el) {
+        tile.el.classList.remove('tm-removing');
+        if (tile.removed) tile.el.style.display = 'none';
+      }
       refreshActiveStates();
       renderBuffer();
+      updateItemButtons();
       updateStatus();
       checkEnd();
     }, 120);
@@ -262,6 +308,79 @@
     }
   }
 
+  // ===== 아이템: 제거 =====
+  function useRemove() {
+    if (freeUses.remove <= 0 || buffer.length === 0) return;
+    var n = Math.min(REMOVE_QUEUE_SIZE, buffer.length);
+    var picked = buffer.splice(0, n);
+    removedQueue = picked.slice(0, REMOVE_QUEUE_SIZE);
+    freeUses.remove--;
+    lastPick = null;
+    canUndo = false;
+    renderBuffer();
+    renderRemoveQueue();
+    updateItemButtons();
+    updateStatus();
+  }
+
+  // ===== 아이템: 되돌리기 =====
+  function useUndo() {
+    if (freeUses.undo <= 0 || !canUndo || !lastPick) return;
+    var tile = lastPick;
+    tile.removed = false;
+    if (tile.el) {
+      tile.el.style.display = '';
+      tile.el.classList.remove('tm-removing');
+    }
+    // 버퍼에서 같은 value 항목 하나 제거 (가장 마지막에 들어간 것)
+    for (var i = buffer.length - 1; i >= 0; i--) {
+      if (buffer[i].value === tile.value) {
+        buffer.splice(i, 1);
+        break;
+      }
+    }
+    lastPick = null;
+    canUndo = false;
+    freeUses.undo--;
+    refreshActiveStates();
+    renderBuffer();
+    updateStatus();
+    updateItemButtons();
+  }
+
+  // ===== 아이템: 재배치 =====
+  function useShuffle() {
+    if (freeUses.shuffle <= 0) return;
+    var remaining = tiles.filter(function(t) { return !t.removed; });
+    if (remaining.length <= 1) return;
+    var values = remaining.map(function(t) { return t.value; });
+    shuffleInPlace(values);
+    remaining.forEach(function(t, i) {
+      t.value = values[i];
+      if (t.el) {
+        var glyph = t.el.querySelector('.tm-tile-glyph');
+        if (glyph) glyph.textContent = TILE_SHAPES[t.value];
+      }
+    });
+    freeUses.shuffle--;
+    lastPick = null;
+    canUndo = false;
+    updateItemButtons();
+  }
+
+  // ===== 버튼 상태 / 카운터 =====
+
+  function updateItemButtons() {
+    var rb = $('tm-item-remove'), ub = $('tm-item-undo'), sb = $('tm-item-shuffle');
+    if (!rb || !ub || !sb) return;
+    rb.disabled = (freeUses.remove <= 0 || buffer.length === 0 || removedQueue.length > 0);
+    ub.disabled = (freeUses.undo <= 0 || !canUndo || !lastPick);
+    sb.disabled = (freeUses.shuffle <= 0);
+    $('tm-item-remove-badge').textContent = 'Free ×' + freeUses.remove;
+    $('tm-item-undo-badge').textContent = 'Free ×' + freeUses.undo;
+    $('tm-item-shuffle-badge').textContent = 'Free ×' + freeUses.shuffle;
+  }
+
   function updateStatus() {
     var remaining = tiles.filter(function(t) { return !t.removed; }).length;
     $('tm-remaining').textContent = remaining;
@@ -270,7 +389,7 @@
 
   function checkEnd() {
     var remaining = tiles.filter(function(t) { return !t.removed; }).length;
-    if (remaining === 0) {
+    if (remaining === 0 && buffer.length === 0) {
       showOverlay('🎉', '클리어! ' + totalTiles + '개의 타일을 모두 비웠습니다.');
       return;
     }

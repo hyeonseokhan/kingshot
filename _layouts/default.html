@@ -429,6 +429,31 @@
         <div class="tm-board" id="tm-board"></div>
       </div>
 
+      <!-- 제거 큐 (제거 아이템 사용 시 표시) -->
+      <div class="tm-remove-queue" id="tm-remove-queue" style="display:none">
+        <span class="tm-remove-queue-label">제거됨</span>
+        <div class="tm-remove-slots" id="tm-remove-slots"></div>
+      </div>
+
+      <!-- 아이템 버튼 -->
+      <div class="tm-items">
+        <button class="tm-item" id="tm-item-remove" type="button">
+          <span class="tm-item-badge" id="tm-item-remove-badge">Free ×1</span>
+          <span class="tm-item-icon">🧹</span>
+          <span class="tm-item-label">제거</span>
+        </button>
+        <button class="tm-item" id="tm-item-undo" type="button">
+          <span class="tm-item-badge" id="tm-item-undo-badge">Free ×1</span>
+          <span class="tm-item-icon">↩️</span>
+          <span class="tm-item-label">되돌리기</span>
+        </button>
+        <button class="tm-item" id="tm-item-shuffle" type="button">
+          <span class="tm-item-badge" id="tm-item-shuffle-badge">Free ×1</span>
+          <span class="tm-item-icon">🔀</span>
+          <span class="tm-item-label">재배치</span>
+        </button>
+      </div>
+
       <div class="tm-overlay" id="tm-overlay" style="display:none">
         <div class="tm-overlay-card">
           <div class="tm-overlay-icon" id="tm-overlay-icon"></div>
