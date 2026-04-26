@@ -118,7 +118,10 @@
 
   function generateLevel(difficulty) {
     var d = DIFFICULTY_PARAMS[difficulty] || DIFFICULTY_PARAMS[3];
-    var cols = d.cols, rows = d.rows, layerCount = d.layers, setCount = d.sets;
+    return generateCustomLevel(d.cols, d.rows, d.layers, d.sets);
+  }
+
+  function generateCustomLevel(cols, rows, layerCount, setCount) {
     var totalTiles = setCount * 3;
 
     // 레이어별 weight: top 적게, bottom 많게. weights[0]=top 의 weight.
@@ -143,41 +146,56 @@
     }
 
     // 각 레이어에 위치 생성 (l=0 이 가장 아래; weightIdx 매핑)
+    // 홀수 레이어는 0.5 셀 오프셋 — 위 4개 블록의 정중앙에 1개가 끼어드는 패턴
     var stageLayers = [];
     for (var l = 0; l < layerCount; l++) {
       var weightIdx = layerCount - 1 - l;
       var n = layerTileCounts[weightIdx];
-      var positions = generateLayerPositions(cols, rows, n, l);
+      var offset = (l % 2 === 1) ? 0.5 : 0;
+      var positions = generateLayerPositions(cols, rows, n, l, offset);
       stageLayers.push({ layer: l, tiles: positions });
+    }
+
+    // matchCount(=3) 배수로 보정 — 충돌 회피로 부족분 발생 시 bottom 부터 1개씩 제거
+    var totalGen = stageLayers.reduce(function(s, lyr) { return s + lyr.tiles.length; }, 0);
+    var trim = totalGen % MATCH_COUNT;
+    while (trim > 0) {
+      var trimmedThisRound = false;
+      for (var ll = 0; ll < layerCount && trim > 0; ll++) {
+        if (stageLayers[ll].tiles.length > 0) {
+          stageLayers[ll].tiles.pop();
+          trim--;
+          trimmedThisRound = true;
+        }
+      }
+      if (!trimmedThisRound) break;
     }
 
     return { cols: cols, rows: rows, stageLayers: stageLayers, _generated: true };
   }
 
-  function generateLayerPositions(cols, rows, n, layerIdx) {
+  function generateLayerPositions(cols, rows, n, layerIdx, offset) {
+    offset = offset || 0;
     var positions = [];
+    // 가용 격자: offset 적용 시 한 칸 줄어듦 (0.5..cols-1.5)
+    var colMaxIdx = Math.floor(cols - 1 - offset);
+    var rowMaxIdx = Math.floor(rows - 1 - offset);
     var maxAttempts = n * 300;
     var attempts = 0;
     while (positions.length < n && attempts < maxAttempts) {
       attempts++;
-      // 타일은 2 cell 차지 → 마지막 위치는 cols-2
-      var c = Math.floor(Math.random() * (cols - 1));
-      var r = Math.floor(Math.random() * (rows - 1));
+      var c = Math.floor(Math.random() * (colMaxIdx + 1)) + offset;
+      var r = Math.floor(Math.random() * (rowMaxIdx + 1)) + offset;
       var ok = true;
       for (var i = 0; i < positions.length; i++) {
-        if (Math.abs(positions[i].colIndex - c) <= 1 && Math.abs(positions[i].rowIndex - r) <= 1) {
+        if (Math.abs(positions[i].colIndex - c) < 2 && Math.abs(positions[i].rowIndex - r) < 2) {
           ok = false;
           break;
         }
       }
       if (ok) positions.push({ colIndex: c, rowIndex: r, layer: layerIdx });
     }
-    // 시도 횟수 초과로 채우지 못한 경우 fallback (충돌 무시하고 채움)
-    while (positions.length < n) {
-      var c2 = Math.floor(Math.random() * (cols - 1));
-      var r2 = Math.floor(Math.random() * (rows - 1));
-      positions.push({ colIndex: c2, rowIndex: r2, layer: layerIdx });
-    }
+    // 시도 초과 시에는 더 채우지 않음 (같은 레이어 충돌 방지). 부족분은 무시.
     return positions;
   }
 
@@ -269,8 +287,11 @@
 
   // ===== 활성(active) 판정 =====
 
+  // 두 타일이 픽셀 영역으로 겹치는지 — 타일은 2 cell 차지하므로 차이가 2 미만이면 겹침
+  // 정수 좌표끼리는 ≤1 과 <2 가 동일하지만, 0.5 오프셋 레이어가 들어가면
+  // 차이가 1.5 인 케이스가 발생하므로 strict less than 으로 판정해야 정확함.
   function isOverlap(t1, t2) {
-    return Math.abs(t1.col - t2.col) <= 1 && Math.abs(t1.row - t2.row) <= 1;
+    return Math.abs(t1.col - t2.col) < 2 && Math.abs(t1.row - t2.row) < 2;
   }
 
   function isActive(tile) {
@@ -526,11 +547,8 @@
     $('tm-item-shuffle-badge').textContent = 'Free ×' + freeUses.shuffle;
   }
 
-  function updateStatus() {
-    var remaining = tiles.filter(function(t) { return !t.removed; }).length;
-    $('tm-remaining').textContent = remaining;
-    $('tm-total').textContent = totalTiles;
-  }
+  // 사용자 요청 — 남은 타일 수를 노출하지 않음. 함수는 호출 호환을 위해 유지.
+  function updateStatus() {}
 
   function checkEnd() {
     var remaining = tiles.filter(function(t) { return !t.removed; }).length;
@@ -579,6 +597,28 @@
       hideOverlay();
       level = generateLevel(d);
       buildBoard();
+    },
+    // 디버그/검증용 — 임의 파라미터로 새 게임 시작
+    _startCustom: function(p) {
+      if (loading) return;
+      $('tm-dialog-overlay').style.display = '';
+      document.body.style.overflow = 'hidden';
+      hideOverlay();
+      level = generateCustomLevel(p.cols || 12, p.rows || 9, p.layers || 5, p.sets || 12);
+      buildBoard();
+    },
+    // 검증용 — 현재 보드의 모든 타일 데이터
+    _getTiles: function() {
+      return tiles.map(function(t) {
+        return { id: t.id, col: t.col, row: t.row, layer: t.layer, removed: t.removed };
+      });
+    },
+    // 검증용 — 코드의 isActive 결과
+    _isActive: function(id) {
+      for (var i = 0; i < tiles.length; i++) {
+        if (tiles[i].id === id) return isActive(tiles[i]);
+      }
+      return null;
     }
   };
 
