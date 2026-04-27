@@ -602,8 +602,8 @@ a:hover{text-decoration:underline}
      PIN input 처럼 invisible 처리한 input 도 컴퓨티드 폰트 크기는 16px 이어야 줌인이 안 일어남. */
   input, select, textarea{font-size:16px}
 
-  /* 페이지 마지막 스크롤 여유 — 모바일에서 footer 가 없어 마지막 행이 잘려 보임 */
-  .tab-content{padding-bottom:80px}
+  /* 콘텐츠 끝 여백 — 마지막 행 가독성 위한 작은 패딩 + iOS safe-area 보정 */
+  .tab-content{padding-bottom:max(16px,env(safe-area-inset-bottom))}
 }
 
 /* 관리 버튼 (⋮) */
