@@ -1666,6 +1666,213 @@ a:hover{text-decoration:underline}
   background:#e5e7eb;color:var(--text);
 }
 
+/* ===== 운명의 파트너 ===== */
+
+.pd-card{
+  background:linear-gradient(180deg,#ffffff,#f7f9fc);
+  border:1px solid var(--border);border-radius:12px;
+  padding:20px 18px;margin:16px 0;
+}
+.pd-stepper-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;margin-bottom:16px;
+}
+.pd-stepper-label{font-size:14px;color:var(--text);font-weight:600}
+.pd-stepper{
+  display:inline-flex;align-items:center;gap:0;
+  background:#f1f5f9;border-radius:24px;padding:4px;
+  border:1px solid var(--border2);
+}
+.pd-stepper-btn{
+  width:36px;height:36px;border-radius:50%;
+  border:none;background:#ffffff;color:var(--text);
+  font-size:18px;font-weight:700;cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,0.06);
+  transition:transform 0.12s ease, background 0.12s ease;
+}
+.pd-stepper-btn:hover:not(:disabled){background:var(--accent);color:#fff;transform:translateY(-1px)}
+.pd-stepper-btn:active:not(:disabled){transform:translateY(0)}
+.pd-stepper-btn:disabled{opacity:0.35;cursor:not-allowed}
+.pd-stepper-value{
+  display:inline-block;min-width:36px;text-align:center;
+  font-size:18px;font-weight:700;color:var(--text);
+}
+.pd-draw-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;
+  gap:8px;padding:16px;
+  background:linear-gradient(180deg,#fbbf24,#f59e0b);
+  color:#3b2400;border:none;border-radius:14px;
+  font-size:16px;font-weight:800;letter-spacing:0.02em;cursor:pointer;
+  box-shadow:0 3px 0 rgba(0,0,0,0.18),inset 0 -3px 0 rgba(0,0,0,0.15);
+  transition:transform 0.12s ease, filter 0.12s ease;
+}
+.pd-draw-btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.pd-draw-btn:active{transform:translateY(1px)}
+
+/* 슬롯머신 — N개 세로 reel */
+.pd-slots{
+  display:grid;grid-auto-flow:column;grid-auto-columns:1fr;
+  gap:10px;margin-bottom:16px;position:relative;
+}
+.pd-slot{
+  position:relative;height:140px;overflow:hidden;
+  background:linear-gradient(180deg,#0f172a,#1e293b);
+  border-radius:12px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,0.4),
+             0 2px 6px rgba(0,0,0,0.15);
+  border:2px solid rgba(251,191,36,0.45);
+}
+/* 정착 직전 강조 — 노란색 글로우 펄스 */
+.pd-slot.pd-slot-locked{
+  border-color:#fbbf24;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,0.4),
+             0 0 16px rgba(251,191,36,0.6),
+             0 2px 6px rgba(0,0,0,0.15);
+  animation:pdSlotLock 0.4s ease;
+}
+@keyframes pdSlotLock{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.04)}
+  100%{transform:scale(1)}
+}
+.pd-slot-strip{
+  display:flex;flex-direction:column;
+  will-change:transform;
+}
+.pd-slot-card{
+  flex:0 0 140px;height:140px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:8px 6px;box-sizing:border-box;
+  background:rgba(255,255,255,0.96);
+  border-bottom:1px solid rgba(251,191,36,0.2);
+}
+.pd-slot-card img,
+.pd-slot-card-empty{
+  width:64px;height:64px;border-radius:10px;object-fit:cover;
+  background:linear-gradient(135deg,#dbe6f3,#eef3f9);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#4a6080;font-weight:700;font-size:22px;
+}
+.pd-slot-card-name{
+  font-size:11px;color:var(--text);font-weight:600;
+  width:100%;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pd-slot-card-meta{
+  font-size:10px;color:var(--text3);font-weight:500;
+}
+/* 빈 슬롯 placeholder (시작 전) */
+.pd-slot-empty{
+  display:flex;align-items:center;justify-content:center;
+  height:100%;font-size:32px;color:rgba(251,191,36,0.5);
+}
+/* 위/아래 페이드 마스크 — 회전 중엔 가장자리 흐릿. 정착 후엔 사라짐. */
+.pd-slot::before,
+.pd-slot::after{
+  content:'';position:absolute;left:0;right:0;height:18px;
+  pointer-events:none;z-index:2;
+  transition:opacity 0.4s ease;
+}
+.pd-slot::before{
+  top:0;background:linear-gradient(180deg,rgba(15,23,42,0.55),transparent);
+}
+.pd-slot::after{
+  bottom:0;background:linear-gradient(0deg,rgba(15,23,42,0.55),transparent);
+}
+.pd-slot.pd-slot-locked::before,
+.pd-slot.pd-slot-locked::after{
+  opacity:0;
+}
+
+/* 결과 카드 */
+.pd-result{margin:16px 0}
+.pd-result-card{
+  background:linear-gradient(160deg,#ffffff 0%,#fef3c7 60%,#fde68a 100%);
+  border:2px solid #fbbf24;border-radius:18px;
+  padding:24px 20px 18px;
+  box-shadow:0 8px 24px rgba(251,191,36,0.25);
+  position:relative;overflow:hidden;
+}
+.pd-result-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 20% 0%,rgba(251,191,36,0.18),transparent 60%),
+             radial-gradient(circle at 90% 100%,rgba(245,158,11,0.18),transparent 60%);
+  pointer-events:none;
+}
+.pd-result-header{text-align:center;margin-bottom:16px;position:relative}
+.pd-result-title{
+  font-size:22px;font-weight:800;color:#7c2d12;
+  letter-spacing:0.02em;margin-bottom:4px;
+}
+.pd-result-subtitle{
+  font-size:13px;color:#92400e;font-weight:600;
+}
+.pd-result-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+  gap:12px;margin-bottom:16px;position:relative;
+}
+.pd-result-member{
+  background:rgba(255,255,255,0.85);
+  border:1px solid rgba(251,191,36,0.4);border-radius:12px;
+  padding:12px 8px 10px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  animation:pdPop 0.5s cubic-bezier(0.34,1.56,0.64,1) backwards;
+}
+@keyframes pdPop{
+  0%{opacity:0;transform:translateY(20px) scale(0.7)}
+  60%{opacity:1;transform:translateY(-4px) scale(1.06)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.pd-result-photo{
+  width:60px;height:60px;border-radius:12px;object-fit:cover;
+  background:linear-gradient(135deg,#dbe6f3,#eef3f9);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#4a6080;font-weight:800;font-size:22px;
+  border:2px solid rgba(251,191,36,0.5);
+}
+.pd-result-name{
+  font-size:13px;color:var(--text);font-weight:700;
+  max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pd-result-meta{font-size:11px;color:var(--text3);font-weight:500}
+.pd-result-footer{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:12px;border-top:1px dashed rgba(180,83,9,0.3);
+  font-size:11px;color:#92400e;font-weight:600;position:relative;
+}
+.pd-result-actions{
+  display:flex;gap:8px;justify-content:center;margin-top:12px;
+}
+.pd-result-actions .btn{
+  flex:1 1 0;padding:12px 16px;font-size:14px;font-weight:600;
+  border-radius:10px;cursor:pointer;border:none;
+  transition:transform 0.12s ease, filter 0.12s ease;
+}
+.pd-result-actions .btn-primary{
+  background:linear-gradient(180deg,#6cc26a,#4ca84a);color:#fff;
+  box-shadow:0 2px 0 rgba(0,0,0,0.18),inset 0 -2px 0 rgba(0,0,0,0.15);
+}
+.pd-result-actions .btn-secondary{
+  background:#ffffff;color:var(--text);border:1px solid var(--border);
+}
+.pd-result-actions .btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.pd-result-actions .btn:active{transform:translateY(1px)}
+.pd-result-actions .btn:disabled{opacity:0.6;cursor:not-allowed}
+
+/* 모바일 보정 */
+@media (max-width:720px){
+  .pd-slots{gap:6px}
+  .pd-slot{height:120px}
+  .pd-slot-card{flex-basis:120px;height:120px;padding:6px 4px}
+  .pd-slot-card img,.pd-slot-card-empty{width:54px;height:54px;font-size:20px}
+  .pd-slot-card-name{font-size:10px}
+  .pd-slot-card-meta{font-size:9px}
+  .pd-result-card{padding:20px 14px 14px}
+  .pd-result-title{font-size:20px}
+}
+
 /* 토스트 (셔플 농담 등) — 화면 정중앙에 큼지막하게 */
 .tm-toast{
   position:fixed;left:50%;top:50%;

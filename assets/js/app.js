@@ -50,6 +50,8 @@
       window.Troops.initPage();
     } else if (submenuId === 'tile-match' && window.TileMatch && window.TileMatch.initPage) {
       window.TileMatch.initPage();
+    } else if (submenuId === 'partner-draw' && window.PartnerDraw && window.PartnerDraw.initPage) {
+      window.PartnerDraw.initPage();
     }
   }
 

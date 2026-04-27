@@ -443,6 +443,9 @@
       <div class="left-nav-item active" data-tab="minigame" data-submenu="tile-match">
         <span class="step-label">타일 매치</span>
       </div>
+      <div class="left-nav-item" data-tab="minigame" data-submenu="partner-draw">
+        <span class="step-label">운명의 파트너</span>
+      </div>
     </div>
   </nav>
   <main class="center-content manage-content" data-tab="minigame">
@@ -573,6 +576,58 @@
         </div>
       </div>
     </div>
+
+    <!-- ===== 운명의 파트너 ===== -->
+    <div class="manage-page" id="page-partner-draw" style="display:none">
+      <div class="members-header">
+        <h1>운명의 파트너</h1>
+      </div>
+      <div class="page-intro">
+        <p><strong>너 나랑 깐부할래?</strong></p>
+        <ul>
+          <li>오늘 <strong>바이킹 이벤트</strong>를 함께할 파티원을 무작위로 뽑습니다</li>
+          <li>본인 포함 <strong>2~4명</strong> 중에서 파티 인원을 선택</li>
+          <li>본인은 자동 제외 — 나머지 연맹원 풀에서 무작위 추첨</li>
+        </ul>
+      </div>
+
+      <!-- 인증 뱃지 -->
+      <div class="tm-launch-user" id="pd-user" style="display:none">
+        <span class="tm-launch-user-label">인증됨</span>
+        <strong id="pd-user-name">-</strong>
+        <button class="tm-launch-user-logout" id="pd-user-logout" type="button">전환</button>
+      </div>
+
+      <!-- 추첨 카드 -->
+      <div class="pd-card">
+        <div class="pd-stepper-row">
+          <span class="pd-stepper-label">파티 인원 (본인 포함)</span>
+          <div class="pd-stepper">
+            <button class="pd-stepper-btn" id="pd-stepper-minus" type="button" aria-label="감소">−</button>
+            <span class="pd-stepper-value" id="pd-stepper-value">4</span>
+            <button class="pd-stepper-btn" id="pd-stepper-plus" type="button" aria-label="증가">+</button>
+          </div>
+        </div>
+        <button class="pd-draw-btn" id="pd-draw-btn" type="button">
+          오늘의 운명의 파트너
+        </button>
+      </div>
+
+      <!-- 슬롯머신 결과 카드 (슬롯 자체가 결과) -->
+      <div class="pd-result" id="pd-result" style="display:none">
+        <div class="pd-result-card" id="pd-result-card">
+          <div class="pd-result-header">
+            <div class="pd-result-title">🎉 오늘의 깐부</div>
+            <div class="pd-result-subtitle">바이킹 같이 가요!</div>
+          </div>
+          <div class="pd-slots" id="pd-slots"></div>
+          <div class="pd-result-footer">
+            <span class="pd-result-brand">PNX · Kingshot</span>
+            <span id="pd-result-date"></span>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- 토스트 (셔플 농담 메시지 등) -->
     <div class="tm-toast" id="tm-toast" role="status" aria-live="polite"></div>
   </main>
@@ -590,5 +645,6 @@
 <script src="{{ '/assets/js/coupons.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/tile-match-auth.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/tile-match.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/partner-draw.js' | relative_url }}"></script>
 </body>
 </html>

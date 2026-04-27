@@ -17,3 +17,5 @@ tabs:
     submenus:
       - id: tile-match
         title: "타일 매치"
+      - id: partner-draw
+        title: "운명의 파트너"
