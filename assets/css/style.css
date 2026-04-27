@@ -15,7 +15,13 @@
   --mono:'JetBrains Mono','Fira Code','SF Mono',Consolas,monospace;
 }
 html{font-size:15px;line-height:1.7;color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
-body{background:var(--bg);overflow:hidden;height:100vh;display:flex;flex-direction:column}
+body{
+  background:var(--bg);overflow:hidden;
+  height:100vh;          /* fallback */
+  height:100dvh;         /* dynamic viewport: 모바일 chrome(상/하단) 변화 반영 */
+  height:var(--vh-real,100dvh); /* JS 가 visualViewport 로 동기화하면 우선 적용 */
+  display:flex;flex-direction:column;
+}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
@@ -1339,6 +1345,11 @@ a:hover{text-decoration:underline}
 .tm-dialog-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,0.55);
   z-index:1000;display:flex;align-items:center;justify-content:center;
+  /* 모바일 브라우저 chrome(URL 바/네비게이션 바) 가 펴지거나 접힐 때
+     overlay 가 visual viewport 와 어긋나지 않도록 명시적 height 지정 */
+  height:100vh;
+  height:100dvh;
+  height:var(--vh-real,100dvh);
 }
 .tm-dialog{
   background:#ffffff;box-shadow:0 12px 32px rgba(0,0,0,0.3);
@@ -1655,18 +1666,20 @@ a:hover{text-decoration:underline}
   background:#e5e7eb;color:var(--text);
 }
 
-/* 토스트 (셔플 농담 등) */
+/* 토스트 (셔플 농담 등) — 화면 정중앙에 큼지막하게 */
 .tm-toast{
-  position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);
-  background:rgba(20,20,24,0.92);color:#ffffff;
-  padding:12px 22px;border-radius:24px;
-  font-size:14px;font-weight:500;letter-spacing:0.02em;
-  box-shadow:0 6px 24px rgba(0,0,0,0.32);
+  position:fixed;left:50%;top:50%;
+  transform:translate(-50%,calc(-50% + 12px));
+  background:rgba(20,20,24,0.94);color:#ffffff;
+  padding:18px 32px;border-radius:28px;
+  font-size:18px;font-weight:700;letter-spacing:0.02em;
+  box-shadow:0 10px 36px rgba(0,0,0,0.45);
   z-index:9999;opacity:0;pointer-events:none;
   transition:opacity 0.22s ease, transform 0.22s ease;
+  white-space:nowrap;
 }
 .tm-toast.tm-toast-show{
-  opacity:1;transform:translateX(-50%) translateY(0);
+  opacity:1;transform:translate(-50%,-50%);
 }
 
 @media (max-width:720px){

@@ -81,6 +81,8 @@
       if (qrBtn) qrBtn.addEventListener('click', onShufflePopupAction);
       if (cancelBtn) cancelBtn.addEventListener('click', onShufflePopupAction);
       window.addEventListener('resize', fitBoardToArea);
+      setupViewportSync();
+      setupBoardAreaObserver();
 
       var logoutBtn = $('tm-launch-user-logout');
       if (logoutBtn) logoutBtn.addEventListener('click', function() {
@@ -110,16 +112,17 @@
     loadRanking();
   }
 
-  // 인증된 세션을 받았을 때 — 뱃지 + 서버 기록(best_stage) 조회 후 stage 표시 갱신
+  // 인증된 세션을 받았을 때 — 뱃지 + 서버 기록(best_stage) 조회 후 stage 표시 갱신.
+  // 호출자가 게임 시작 전 await 할 수 있도록 Promise 반환 (최고 기록 동기화 후 시작 보장).
   function onSessionReady(session) {
     renderUserBadge(session);
     if (!session || !session.player_id) {
       bestStage = 0;
       currentStage = 1;
       renderStage();
-      return;
+      return Promise.resolve();
     }
-    callAuth('get-record', { player_id: session.player_id }).then(function(res) {
+    return callAuth('get-record', { player_id: session.player_id }).then(function(res) {
       bestStage = (res && res.ok) ? (res.best_stage || 0) : 0;
       currentStage = bestStage + 1;
       renderStage();
@@ -149,8 +152,9 @@
     if (!window.TileMatchAuth) { openDialog(); return; }
     window.TileMatchAuth.ensureAuth().then(function(session) {
       if (!session) return;  // 사용자가 인증을 취소함
-      onSessionReady(session);
-      openDialog();
+      // 인증 후 서버 기록(best_stage) 동기화 완료된 다음에 다이얼로그 오픈 →
+      // 첫 게임이 stage 1 이 아니라 자신의 best+1 로 시작됨.
+      onSessionReady(session).then(openDialog);
     });
   }
 
@@ -556,6 +560,34 @@
     requestAnimationFrame(fitBoardToArea);
   }
 
+  // ===== 모바일 브라우저 chrome 변화 대응 =====
+  // visualViewport.resize 가 가장 빠르게 잡히는 신호. CSS 변수 --vh-real 동기화.
+  function setupViewportSync() {
+    function sync() {
+      var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      document.documentElement.style.setProperty('--vh-real', h + 'px');
+      // viewport 변화는 보드 영역 크기 변화로도 이어짐 → 즉시 fit
+      fitBoardToArea();
+    }
+    sync();
+    window.addEventListener('resize', sync);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', sync);
+      window.visualViewport.addEventListener('scroll', sync);
+    }
+  }
+
+  // 보드 영역(.tm-board-area) 크기가 어떤 이유로든 변하면 자동 fit.
+  // 제거 큐 토글 / chrome 변화 / orientation 등을 한 번에 커버.
+  var _boardAreaObserver = null;
+  function setupBoardAreaObserver() {
+    if (_boardAreaObserver || typeof ResizeObserver === 'undefined') return;
+    var area = document.querySelector('.tm-board-area');
+    if (!area) return;
+    _boardAreaObserver = new ResizeObserver(function() { fitBoardToArea(); });
+    _boardAreaObserver.observe(area);
+  }
+
   // ===== 보드 영역에 맞춰 가로/세로 모두 fit =====
 
   function fitBoardToArea() {
@@ -708,6 +740,8 @@
     updateItemButtons();
     updateStatus();
     checkEnd();
+    // 제거 큐가 비워져 보드 영역이 다시 커지면 보드도 즉시 확대
+    requestAnimationFrame(fitBoardToArea);
   }
 
   // ===== 타일 클릭 =====
@@ -774,6 +808,8 @@
     renderRemoveQueue();
     updateItemButtons();
     updateStatus();
+    // 제거 큐 노출로 보드 영역이 줄어들면 보드도 즉시 축소 — ResizeObserver 가 잡지만 보수적으로도 호출.
+    requestAnimationFrame(fitBoardToArea);
   }
 
   // ===== 아이템: 되돌리기 =====
@@ -899,13 +935,7 @@
         if (!res || !res.ok) return;
         bestStage = res.best_stage || bestStage;
         lastCleared = { stage: clearedStage, new_record: !!res.new_record, best_stage: bestStage };
-        // 결과 카드 메시지 갱신 (최고 기록 갱신 시 강조)
-        var msg = $('tm-overlay-msg');
-        if (msg) {
-          msg.textContent = res.new_record
-            ? '🏆 Stage ' + clearedStage + ' — 최고 기록 갱신!'
-            : 'Stage ' + clearedStage + ' 클리어! (최고 ' + bestStage + ')';
-        }
+        // 결과 카드 메시지는 'Stage X 클리어!' 로 통일 — 최고기록 갱신 강조 문구는 노출하지 않음.
         // 다음 도전 stage 는 best+1
         currentStage = bestStage + 1;
         renderStage();
