@@ -391,6 +391,52 @@
 
 <!-- 미니게임 탭 -->
 <div id="tab-minigame" class="tab-content">
+
+  <!-- 본인 인증 다이얼로그 (미니게임 탭 진입 시 인증 정보 없으면 표시) -->
+  <div class="tm-auth-overlay" id="tm-auth-overlay" style="display:none">
+    <div class="tm-auth-dialog">
+      <div class="tm-auth-bar">
+        <button class="tm-dlg-close-btn tm-auth-back-btn" id="tm-auth-back" type="button" aria-label="뒤로" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <polyline points="15 6 9 12 15 18"/>
+          </svg>
+        </button>
+        <div class="tm-auth-title">계정 인증</div>
+        <button class="tm-dlg-close-btn" id="tm-auth-close" type="button" aria-label="닫기">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/>
+          </svg>
+        </button>
+      </div>
+      <div class="tm-auth-body">
+        <!-- Step 1: 연맹원 선택 -->
+        <div class="tm-auth-step" id="tm-auth-step-select">
+          <p class="tm-auth-desc">미니게임은 <strong>연맹원 본인 인증</strong> 후 이용할 수 있습니다.</p>
+          <input type="text" class="tm-auth-search" id="tm-auth-search" placeholder="닉네임 또는 ID 검색" autocomplete="off">
+          <div class="tm-auth-list" id="tm-auth-list"></div>
+        </div>
+        <!-- Step 2: PIN 입력 -->
+        <div class="tm-auth-step" id="tm-auth-step-pin" style="display:none">
+          <div class="tm-auth-selected" id="tm-auth-selected"></div>
+          <p class="tm-auth-pin-prompt" id="tm-auth-pin-prompt">PIN 4자리를 입력하세요</p>
+          <div class="tm-pin-wrap" id="tm-pin-wrap">
+            <input class="tm-pin-input" id="tm-pin-input" type="text"
+                   inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                   autocomplete="off" autocapitalize="off" autocorrect="off"
+                   spellcheck="false" aria-label="PIN 4자리 입력">
+            <div class="tm-pin-boxes" id="tm-pin-boxes" aria-hidden="true">
+              <div class="tm-pin-box"></div>
+              <div class="tm-pin-box"></div>
+              <div class="tm-pin-box"></div>
+              <div class="tm-pin-box"></div>
+            </div>
+          </div>
+          <div class="tm-auth-msg" id="tm-auth-msg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <nav class="left-nav">
     <div class="left-nav-header">미니게임</div>
     <div class="left-nav-items" data-tab="minigame">
@@ -408,6 +454,13 @@
         <p><strong>3매치 마작</strong> — 같은 타일 3개를 모으면 사라집니다.</p>
       </div>
 
+      <!-- 인증된 사용자 뱃지 (카드 위) -->
+      <div class="tm-launch-user" id="tm-launch-user" style="display:none">
+        <span class="tm-launch-user-label">인증됨</span>
+        <strong id="tm-launch-user-name">-</strong>
+        <button class="tm-launch-user-logout" id="tm-launch-user-logout" type="button">전환</button>
+      </div>
+
       <!-- 게임 시작 카드 -->
       <div class="tm-launch-card">
         <div class="tm-launch-title">다음 스테이지</div>
@@ -418,9 +471,20 @@
         </button>
       </div>
 
-      <!-- 향후 랭킹 -->
-      <div class="tm-ranking-placeholder">
-        <strong>랭킹</strong> · 곧 공개됩니다
+      <!-- 랭킹 -->
+      <div class="tm-ranking" id="tm-ranking">
+        <div class="tm-ranking-header">
+          <h3>랭킹</h3>
+          <button class="tm-ranking-refresh" id="tm-ranking-refresh" type="button" aria-label="새로고침">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
+        </div>
+        <div class="tm-ranking-list" id="tm-ranking-list">
+          <div class="tm-ranking-empty">로딩 중...</div>
+        </div>
       </div>
 
       <!-- 게임 다이얼로그 -->
@@ -497,6 +561,7 @@
 <script src="{{ '/assets/js/members.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/troops.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/coupons.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/tile-match-auth.js' | relative_url }}"></script>
 <script src="{{ '/assets/js/tile-match.js' | relative_url }}"></script>
 </body>
 </html>

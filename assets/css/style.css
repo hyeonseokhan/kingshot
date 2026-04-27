@@ -1190,7 +1190,21 @@ a:hover{text-decoration:underline}
   background:linear-gradient(180deg,#ffffff,#f7f9fc);
   border:1px solid var(--border);border-radius:12px;
   padding:28px 20px;margin:16px 0;text-align:center;
+  position:relative;
 }
+.tm-launch-user{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#ecfdf5;border:1px solid #a7e9c5;border-radius:18px;
+  padding:6px 10px 6px 12px;font-size:12px;color:#0e6d3a;
+  margin:8px auto 0;align-self:flex-start;
+}
+.tm-launch-user-label{color:#0e6d3a;opacity:0.75;font-size:11px}
+.tm-launch-user strong{color:#0e6d3a;font-weight:700}
+.tm-launch-user-logout{
+  background:#ffffff;border:1px solid #a7e9c5;border-radius:10px;
+  font-size:11px;color:#0e6d3a;padding:3px 10px;cursor:pointer;
+}
+.tm-launch-user-logout:hover{background:#d6f5e3}
 .tm-launch-title{font-size:14px;color:var(--text2);margin-bottom:4px}
 .tm-launch-meta{font-size:12px;color:var(--text3);margin-bottom:16px}
 .tm-launch-meta span{color:var(--text);font-weight:600}
@@ -1205,12 +1219,46 @@ a:hover{text-decoration:underline}
 .tm-launch-btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
 .tm-launch-btn:active{transform:translateY(1px)}
 
-.tm-ranking-placeholder{
-  background:var(--bg2);border:1px dashed var(--border);
-  border-radius:8px;padding:14px;text-align:center;
-  color:var(--text3);font-size:12px;margin-top:8px;
+/* 랭킹 표 */
+.tm-ranking{
+  margin-top:8px;background:#ffffff;
+  border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;
 }
-.tm-ranking-placeholder strong{color:var(--text2)}
+.tm-ranking-header{
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+}
+.tm-ranking-header h3{margin:0;font-size:14px;color:var(--text)}
+.tm-ranking-refresh{
+  background:transparent;border:1px solid var(--border);
+  border-radius:6px;color:var(--text2);padding:4px 8px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.tm-ranking-refresh:hover{background:var(--bg2);color:var(--text)}
+.tm-ranking-list{display:flex;flex-direction:column;gap:4px}
+.tm-ranking-row{
+  display:grid;grid-template-columns:32px 1fr auto auto;
+  gap:10px;align-items:center;
+  padding:7px 10px;border-radius:6px;
+  font-size:12px;background:#fafbfd;
+  border:1px solid transparent;
+}
+.tm-ranking-row.tm-ranking-row-me{
+  background:#ecfdf5;border-color:#a7e9c5;
+}
+.tm-rank-num{font-weight:700;color:var(--text2);text-align:center}
+.tm-rank-num.gold  {color:#d4a017}
+.tm-rank-num.silver{color:#9ca3af}
+.tm-rank-num.bronze{color:#a66021}
+.tm-rank-name{
+  font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
+}
+.tm-rank-name small{color:var(--text3);font-weight:400;font-size:11px;margin-left:6px}
+.tm-rank-stage{font-weight:700;color:var(--text);min-width:60px;text-align:right;white-space:nowrap}
+.tm-rank-stage span{font-size:10px;color:var(--text3);font-weight:400;margin-left:2px}
+.tm-rank-meta{font-size:10px;color:var(--text3);min-width:36px;text-align:right}
+.tm-ranking-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
 
 /* 게임 다이얼로그 */
 .tm-dialog-overlay{
@@ -1263,6 +1311,109 @@ a:hover{text-decoration:underline}
 }
 .tm-overlay-actions{
   display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:4px;
+}
+
+/* ─────────────────────────────────────
+   인증 다이얼로그 (PIN 등록/검증)
+   ───────────────────────────────────── */
+.tm-auth-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.55);
+  z-index:1100;display:flex;align-items:center;justify-content:center;
+}
+.tm-auth-dialog{
+  background:#ffffff;box-shadow:0 12px 32px rgba(0,0,0,0.3);
+  display:flex;flex-direction:column;overflow:hidden;
+  width:100%;height:100%;border-radius:0;
+}
+@media (min-width:720px){
+  .tm-auth-dialog{
+    width:420px;max-width:95vw;
+    height:min(720px,95vh);border-radius:16px;
+  }
+}
+.tm-auth-bar{
+  background:#1f2937;color:#ffffff;flex:0 0 auto;
+  padding:10px 14px;display:flex;align-items:center;gap:8px;
+}
+.tm-auth-bar .tm-auth-title{flex:1;font-weight:700;font-size:14px}
+.tm-auth-back-btn{order:-1}
+.tm-auth-body{
+  flex:1 1 auto;padding:16px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:12px;
+}
+.tm-auth-step{display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-height:0}
+.tm-auth-desc{margin:0;font-size:13px;color:var(--text2);line-height:1.5}
+.tm-auth-search{
+  width:100%;padding:10px 12px;
+  border:1px solid var(--border);border-radius:8px;font-size:14px;
+  background:#ffffff;font-family:var(--font);
+}
+.tm-auth-search:focus{outline:none;border-color:#66AAFF}
+.tm-auth-list{
+  flex:1 1 auto;overflow-y:auto;
+  border:1px solid var(--border);border-radius:8px;background:#fafbfd;
+  display:flex;flex-direction:column;
+}
+.tm-auth-item{
+  display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:center;
+  padding:10px 12px;background:transparent;border:0;border-bottom:1px solid var(--border);
+  font-size:13px;cursor:pointer;text-align:left;
+  font-family:var(--font);color:var(--text);
+}
+.tm-auth-item:last-child{border-bottom:0}
+.tm-auth-item:hover{background:#eef2f7}
+.tm-auth-item-photo,
+.tm-auth-item-photo-empty{
+  width:36px;height:36px;border-radius:8px;flex-shrink:0;object-fit:cover;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#dbe6f3,#eef3f9);
+  color:#4a6080;font-weight:700;font-size:14px;
+}
+.tm-auth-item-text{display:flex;flex-direction:column;min-width:0;gap:2px}
+.tm-auth-item-name{font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-auth-item-id{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-auth-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
+
+/* 선택된 사용자 + PIN 입력 */
+.tm-auth-selected{
+  background:#ecfdf5;border:1px solid #a7e9c5;color:#0e6d3a;
+  border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;text-align:center;
+}
+.tm-auth-pin-prompt{
+  margin:8px 0 0;text-align:center;color:var(--text);font-size:14px;font-weight:600;
+}
+/* PIN: invisible input + 시각용 4 박스 (네이티브 키보드 사용) */
+.tm-pin-wrap{
+  position:relative;display:flex;justify-content:center;
+  margin:4px auto;width:fit-content;cursor:text;
+}
+.tm-pin-input{
+  position:absolute;inset:0;width:100%;height:100%;
+  background:transparent;border:0;outline:none;
+  font-size:1px;color:transparent;caret-color:transparent;
+  text-align:center;letter-spacing:0;
+}
+.tm-pin-boxes{
+  display:flex;gap:10px;pointer-events:none;
+}
+.tm-pin-box{
+  width:48px;height:56px;border:2px solid var(--border);border-radius:10px;
+  background:#fafbfd;display:flex;align-items:center;justify-content:center;
+  font-size:24px;color:var(--text);font-weight:700;
+  transition:border-color 0.15s ease, background 0.15s ease;
+}
+.tm-pin-box.tm-pin-box-filled{border-color:#66AAFF;background:#ffffff;color:#1f2937}
+/* 입력 포커스 시 다음 채워질 박스에 caret 강조 */
+.tm-pin-input:focus + .tm-pin-boxes .tm-pin-box.tm-pin-box-active{
+  border-color:#66AAFF;
+}
+.tm-auth-msg{
+  min-height:18px;text-align:center;font-size:12px;color:#c0392b;line-height:1.4;
+}
+
+@media (max-width:720px){
+  .tm-auth-body{padding:14px;gap:10px}
+  .tm-pin-box{width:44px;height:52px;font-size:22px}
 }
 
 /* 타일 */

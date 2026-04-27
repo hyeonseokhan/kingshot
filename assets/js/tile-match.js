@@ -50,6 +50,12 @@
   var canUndo = false;       // 매치 발생 시 false 로 초기화
   var gameOver = false;      // 클리어/실패 시 true
 
+  // ===== Stage / 기록 =====
+  var FN_AUTH_URL = SUPABASE_URL + '/functions/v1/tile-match-auth';
+  var bestStage = 0;         // 인증된 사용자의 best_stage (서버 기록)
+  var currentStage = 1;      // 이번 시도 stage (= bestStage + 1)
+  var lastCleared = null;    // { stage, new_record, best_stage } — 결과 카드용
+
   // ===== DOM refs =====
 
   function $(id) { return document.getElementById(id); }
@@ -57,16 +63,190 @@
   // ===== 페이지 진입 시 한 번만 호출 =====
 
   function initPage() {
-    if (initialized) return;
-    initialized = true;
-    $('tm-launch-btn').addEventListener('click', openDialog);
-    $('tm-dlg-close').addEventListener('click', requestClose);
-    $('tm-overlay-restart').addEventListener('click', startNewGame);
-    $('tm-overlay-quit').addEventListener('click', forceClose);
-    $('tm-item-remove').addEventListener('click', useRemove);
-    $('tm-item-undo').addEventListener('click', useUndo);
-    $('tm-item-shuffle').addEventListener('click', useShuffle);
-    window.addEventListener('resize', fitBoardToArea);
+    if (!initialized) {
+      initialized = true;
+      $('tm-launch-btn').addEventListener('click', onLaunchClick);
+      $('tm-dlg-close').addEventListener('click', requestClose);
+      $('tm-overlay-restart').addEventListener('click', startNewGame);
+      $('tm-overlay-quit').addEventListener('click', forceClose);
+      $('tm-item-remove').addEventListener('click', useRemove);
+      $('tm-item-undo').addEventListener('click', useUndo);
+      $('tm-item-shuffle').addEventListener('click', useShuffle);
+      window.addEventListener('resize', fitBoardToArea);
+
+      var logoutBtn = $('tm-launch-user-logout');
+      if (logoutBtn) logoutBtn.addEventListener('click', function() {
+        if (window.TileMatchAuth) window.TileMatchAuth.clearSession();
+        renderUserBadge(null);
+        // 즉시 인증 다이얼로그 표시
+        if (window.TileMatchAuth) window.TileMatchAuth.ensureAuth().then(renderUserBadge);
+      });
+
+      if (window.TileMatchAuth) {
+        window.TileMatchAuth.initPage();
+        window.TileMatchAuth.onSessionChange(function(s) {
+          renderUserBadge(s);
+          loadRanking();   // 본인 강조 갱신
+        });
+      }
+
+      var refreshBtn = $('tm-ranking-refresh');
+      if (refreshBtn) refreshBtn.addEventListener('click', loadRanking);
+    }
+
+    // 미니게임 탭 진입 시 인증 강제
+    if (window.TileMatchAuth) {
+      window.TileMatchAuth.ensureAuth().then(onSessionReady);
+    }
+    // 메인 페이지 진입 시 랭킹 로드
+    loadRanking();
+  }
+
+  // 인증된 세션을 받았을 때 — 뱃지 + 서버 기록(best_stage) 조회 후 stage 표시 갱신
+  function onSessionReady(session) {
+    renderUserBadge(session);
+    if (!session || !session.player_id) {
+      bestStage = 0;
+      currentStage = 1;
+      renderStage();
+      return;
+    }
+    callAuth('get-record', { player_id: session.player_id }).then(function(res) {
+      bestStage = (res && res.ok) ? (res.best_stage || 0) : 0;
+      currentStage = bestStage + 1;
+      renderStage();
+    });
+  }
+
+  function renderStage() {
+    var el = $('tm-launch-stage');
+    if (el) el.textContent = String(currentStage);
+    var dlg = $('tm-dlg-stage');
+    if (dlg) dlg.textContent = String(currentStage);
+  }
+
+  function renderUserBadge(session) {
+    var box = $('tm-launch-user');
+    var name = $('tm-launch-user-name');
+    if (!box || !name) return;
+    if (session && session.player_id) {
+      box.style.display = '';
+      name.textContent = session.nickname + ' (' + session.player_id + ')';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+
+  function onLaunchClick() {
+    if (!window.TileMatchAuth) { openDialog(); return; }
+    window.TileMatchAuth.ensureAuth().then(function(session) {
+      if (!session) return;  // 사용자가 인증을 취소함
+      onSessionReady(session);
+      openDialog();
+    });
+  }
+
+  // ===== Edge Function 호출 (auth + record 공용) =====
+  // 503 BOOT_ERROR (cold start) 시 자동 재시도.
+  function callAuth(action, body, retries) {
+    retries = retries === undefined ? 2 : retries;
+    return fetch(FN_AUTH_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify(Object.assign({ action: action }, body))
+    }).then(function(r) {
+      if (r.status === 503 && retries > 0) {
+        return new Promise(function(res) { setTimeout(res, 600); })
+          .then(function() { return callAuth(action, body, retries - 1); });
+      }
+      return r.json();
+    }).catch(function(err) {
+      return { ok: false, error: String(err.message || err) };
+    });
+  }
+
+  // ===== 랭킹 =====
+  function fetchSupa(url) {
+    return fetch(url, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+    }).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  function loadRanking() {
+    var box = $('tm-ranking-list');
+    if (!box) return;
+    box.innerHTML = '<div class="tm-ranking-empty">로딩 중...</div>';
+
+    fetchSupa(SUPABASE_URL + '/rest/v1/tile_match_records?select=player_id,best_stage,total_clears,best_stage_at&order=best_stage.desc,best_stage_at.asc&limit=50')
+      .then(function(records) {
+        if (!records || !records.length) {
+          box.innerHTML = '<div class="tm-ranking-empty">아직 기록이 없습니다 — 첫 클리어의 주인공이 되어보세요!</div>';
+          return;
+        }
+        var ids = records.map(function(r) { return r.player_id; });
+        return fetchSupa(
+          SUPABASE_URL + '/rest/v1/members?kingshot_id=in.(' +
+          ids.map(encodeURIComponent).join(',') + ')&select=kingshot_id,nickname,level'
+        ).then(function(members) {
+          var map = {};
+          members.forEach(function(m) { map[m.kingshot_id] = m; });
+          renderRanking(records, map);
+        });
+      })
+      .catch(function(err) {
+        box.innerHTML = '<div class="tm-ranking-empty">랭킹 조회 실패: ' + (err.message || err) + '</div>';
+      });
+  }
+
+  function renderRanking(records, memberMap) {
+    var box = $('tm-ranking-list');
+    box.innerHTML = '';
+    var session = window.TileMatchAuth && window.TileMatchAuth.getSession();
+    var myId = session ? session.player_id : null;
+
+    var frag = document.createDocumentFragment();
+    records.forEach(function(r, i) {
+      var rank = i + 1;
+      var member = memberMap[r.player_id] || {};
+      var row = document.createElement('div');
+      row.className = 'tm-ranking-row';
+      if (myId && r.player_id === myId) row.classList.add('tm-ranking-row-me');
+
+      var rankClass = '';
+      if (rank === 1) rankClass = 'gold';
+      else if (rank === 2) rankClass = 'silver';
+      else if (rank === 3) rankClass = 'bronze';
+
+      var dateStr = r.best_stage_at ? formatRankingDate(r.best_stage_at) : '-';
+      row.innerHTML =
+        '<span class="tm-rank-num ' + rankClass + '">' + rank + '</span>' +
+        '<span class="tm-rank-name">' + escapeRankingHtml(member.nickname || r.player_id) +
+        (member.level ? '<small>Lv.' + member.level + '</small>' : '') + '</span>' +
+        '<span class="tm-rank-stage">' + r.best_stage + '<span> Stage</span></span>' +
+        '<span class="tm-rank-meta">' + dateStr + '</span>';
+      frag.appendChild(row);
+    });
+    box.appendChild(frag);
+  }
+
+  function formatRankingDate(iso) {
+    var d = new Date(iso);
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    return m + '.' + dd;
+  }
+
+  function escapeRankingHtml(s) {
+    return String(s).replace(/[&<>"]/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
   }
 
   // ===== 다이얼로그 open/close =====
@@ -100,9 +280,19 @@
   function startNewGame() {
     if (loading) return;
     hideOverlay();
-    // 매 시작마다 새 레벨 절차 생성 (sample.json 사용 안 함)
+    // 스테이지별 난이도 정책 (UI 에는 노출 X)
+    //   1~10  : 난이도 1 고정 (입문)
+    //  11~20  : 난이도 2 고정 (적응)
+    //   21+   : 난이도 3~5 랜덤 (도전)
+    currentDifficulty = difficultyForStage(currentStage);
     level = generateLevel(currentDifficulty);
     buildBoard();
+  }
+
+  function difficultyForStage(stage) {
+    if (stage <= 10) return 1;
+    if (stage <= 20) return 2;
+    return 3 + Math.floor(Math.random() * 3);  // 3, 4, 5
   }
 
   // ===== 절차 생성 =====
@@ -554,12 +744,41 @@
     var remaining = tiles.filter(function(t) { return !t.removed; }).length;
     if (remaining === 0 && buffer.length === 0) {
       gameOver = true;
-      showOverlay('🎉', '클리어! ' + totalTiles + '개의 타일을 모두 비웠습니다.');
+      onClear();
       return;
     }
     if (buffer.length >= BUFFER_SIZE) {
       gameOver = true;
       showOverlay('💥', '슬롯이 가득 찼습니다. 다시 도전해 보세요.');
+    }
+  }
+
+  // 클리어 시 — DB 기록 + 결과 카드
+  function onClear() {
+    var session = window.TileMatchAuth && window.TileMatchAuth.getSession();
+    var clearedStage = currentStage;
+    if (session && session.player_id) {
+      // 일단 결과 카드 즉시 표시 (서버 응답 대기 X)
+      showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!');
+      callAuth('record-clear', { player_id: session.player_id, stage: clearedStage }).then(function(res) {
+        if (!res || !res.ok) return;
+        bestStage = res.best_stage || bestStage;
+        lastCleared = { stage: clearedStage, new_record: !!res.new_record, best_stage: bestStage };
+        // 결과 카드 메시지 갱신 (최고 기록 갱신 시 강조)
+        var msg = $('tm-overlay-msg');
+        if (msg) {
+          msg.textContent = res.new_record
+            ? '🏆 Stage ' + clearedStage + ' — 최고 기록 갱신!'
+            : 'Stage ' + clearedStage + ' 클리어! (최고 ' + bestStage + ')';
+        }
+        // 다음 도전 stage 는 best+1
+        currentStage = bestStage + 1;
+        renderStage();
+        // 랭킹 갱신
+        loadRanking();
+      });
+    } else {
+      showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!');
     }
   }
 
@@ -619,6 +838,13 @@
         if (tiles[i].id === id) return isActive(tiles[i]);
       }
       return null;
+    },
+    // 검증용 — 모든 타일 즉시 클리어 (DB 기록 흐름 e2e 테스트)
+    _autoClear: function() {
+      if (!tiles || !tiles.length) return;
+      tiles.forEach(function(t) { t.removed = true; });
+      buffer = [];
+      checkEnd();
     }
   };
 
