@@ -37,6 +37,10 @@
 
   // ===== 상태 =====
 
+  // 매 게임마다 16개 모양 중 하나가 랜덤 연맹원의 아바타로 교체됨 (재미 요소)
+  var avatarTileValue = -1;   // 어떤 인덱스가 아바타로 대체될지 (0~15)
+  var avatarTileUrl = null;   // 그 멤버의 profile_photo URL
+
   var level = null;
   var tiles = [];
   var buffer = [];
@@ -289,8 +293,63 @@
     //  11~20  : 난이도 2 고정 (적응)
     //   21+   : 난이도 3~5 랜덤 (도전)
     currentDifficulty = difficultyForStage(currentStage);
+    // 매 게임마다 16개 타일 모양 중 하나를 랜덤 연맹원 아바타로 대체 (재미 요소)
+    pickAvatarTile();
     level = generateLevel(currentDifficulty);
     buildBoard();
+  }
+
+  function pickAvatarTile() {
+    // 아바타 url 만 미리 결정. avatarTileValue 는 buildBoard 후
+    // "보드에 실제 존재하는 value 중에서" 결정 (set 수가 16 미만이면 일부 value 미사용).
+    avatarTileValue = -1;
+    avatarTileUrl = null;
+    var cached = (window.TileMatchAuth && window.TileMatchAuth._cachedMembers) || null;
+    if (cached && cached.length) {
+      var withPhotoCached = cached.filter(function(m) { return m && m.profile_photo; });
+      if (withPhotoCached.length) {
+        avatarTileUrl = withPhotoCached[Math.floor(Math.random() * withPhotoCached.length)].profile_photo;
+      }
+      return;
+    }
+    // fallback: 직접 fetch
+    fetch(SUPABASE_URL + '/rest/v1/members?select=profile_photo&limit=200', {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+    }).then(function(r) { return r.json(); }).then(function(list) {
+      var withPhoto = (list || []).filter(function(m) { return m && m.profile_photo; });
+      if (!withPhoto.length) return;
+      avatarTileUrl = withPhoto[Math.floor(Math.random() * withPhoto.length)].profile_photo;
+      // 보드가 이미 그려졌고 avatarTileValue 가 결정됐다면 즉시 반영
+      if (avatarTileValue >= 0) refreshAvatarTiles();
+    }).catch(function() {});
+  }
+
+  // buildBoard 끝에 호출 — 보드에 실제 존재하는 unique value 중 하나를 아바타로 마킹
+  function assignAvatarValueFromBoard() {
+    if (!avatarTileUrl || !tiles.length) {
+      avatarTileValue = -1;
+      return;
+    }
+    var seen = {};
+    var values = [];
+    tiles.forEach(function(t) {
+      if (!seen[t.value]) { seen[t.value] = true; values.push(t.value); }
+    });
+    if (!values.length) { avatarTileValue = -1; return; }
+    avatarTileValue = values[Math.floor(Math.random() * values.length)];
+  }
+
+  function refreshAvatarTiles() {
+    if (!avatarTileUrl) return;
+    tiles.forEach(function(t) {
+      if (t.value === avatarTileValue && t.el) {
+        var glyph = t.el.querySelector('.tm-tile-glyph');
+        if (glyph) glyph.outerHTML = renderGlyph(t.value);
+      }
+    });
+    // 버퍼 / 제거 큐 다시 그리기
+    renderBuffer();
+    renderRemoveQueue();
   }
 
   function difficultyForStage(stage) {
@@ -454,6 +513,9 @@
     canUndo = false;
     gameOver = false;
 
+    // 보드에 실제 존재하는 value 중에서 아바타 타일 value 결정
+    assignAvatarValueFromBoard();
+
     renderBoard();
     renderBuffer();
     renderRemoveQueue();
@@ -532,7 +594,7 @@
       el.style.left = ((tile.col - minCol) * CELL_W) + 'px';
       el.style.top = ((layerCount - tile.layer - 1) * CELL_DEPTH + (tile.row - minRow) * CELL_H) + 'px';
       el.style.zIndex = tile.layer + 1;
-      el.innerHTML = '<span class="tm-tile-glyph">' + TILE_SHAPES[tile.value] + '</span>';
+      el.innerHTML = renderGlyph(tile.value);
       el.addEventListener('click', function() { onTileClick(tile); });
       tile.el = el;
       fragment.appendChild(el);
@@ -565,7 +627,7 @@
       var entry = buffer[i];
       if (entry) {
         slot.classList.add('tm-slot-filled');
-        slot.innerHTML = '<span class="tm-tile-glyph">' + TILE_SHAPES[entry.value] + '</span>';
+        slot.innerHTML = renderGlyph(entry.value);
       }
       bufEl.appendChild(slot);
     }
@@ -588,7 +650,7 @@
       var entry = removedQueue[i];
       if (entry) {
         slot.classList.add('tm-slot-filled');
-        slot.innerHTML = '<span class="tm-tile-glyph">' + TILE_SHAPES[entry.value] + '</span>';
+        slot.innerHTML = renderGlyph(entry.value);
         (function(idx) {
           slot.addEventListener('click', function() { onRemoveSlotClick(idx); });
         })(i);
@@ -718,8 +780,9 @@
     remaining.forEach(function(t, i) {
       t.value = values[i];
       if (t.el) {
+        // 아바타 타일과 일반 글리프 모두 안전하게 교체 — 통째로 다시 렌더
         var glyph = t.el.querySelector('.tm-tile-glyph');
-        if (glyph) glyph.textContent = TILE_SHAPES[t.value];
+        if (glyph) glyph.outerHTML = renderGlyph(t.value);
       }
     });
     freeUses.shuffle--;
@@ -801,6 +864,14 @@
 
   // ===== util =====
 
+  function renderGlyph(value) {
+    if (value === avatarTileValue && avatarTileUrl) {
+      // wrapper span 안에 img — 부모 flex container 로 자동 중앙 정렬
+      return '<span class="tm-tile-glyph"><img class="tm-tile-avatar" src="' + avatarTileUrl + '" alt=""></span>';
+    }
+    return '<span class="tm-tile-glyph">' + TILE_SHAPES[value] + '</span>';
+  }
+
   function shuffleInPlace(arr) {
     for (var i = arr.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
@@ -820,6 +891,7 @@
       $('tm-dialog-overlay').style.display = '';
       document.body.style.overflow = 'hidden';
       hideOverlay();
+      pickAvatarTile();
       level = generateLevel(d);
       buildBoard();
     },

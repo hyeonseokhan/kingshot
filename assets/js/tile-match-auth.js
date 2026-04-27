@@ -308,6 +308,9 @@
       var s = $('tm-auth-search'); if (s) s.value = '';
       renderList(members);
     });
+
+    // 미니게임 탭 진입 시 항상 멤버 로드 — 인증된 사용자도 아바타 끼우기 등에 캐시 사용
+    if (!members.length) loadMembers();
   }
 
   // ===== Public API =====
@@ -316,6 +319,8 @@
     ensureAuth: ensureAuth,
     getSession: getSession,
     clearSession: clearSession,
-    onSessionChange: onSessionChange
+    onSessionChange: onSessionChange,
+    // 다른 모듈(예: tile-match 의 아바타 끼워넣기)에서 멤버 캐시 재사용
+    get _cachedMembers() { return members; }
   };
 })();

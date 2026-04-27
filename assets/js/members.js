@@ -152,7 +152,7 @@
         : '<div class="mc-photo-empty">' + Utils.esc(m.nickname).charAt(0) + '</div>';
       var avatar = '<div class="mc-photo-wrap' + lvClass + '">' + avatarInner + '</div>';
 
-      var sub = rank + ' · Lv.' + (lvl || '?') + ' · ⚔ ' + powerStr + ' · ' + (m.kingdom || '?');
+      var sub = rank + ' · Lv.' + (lvl || '?') + ' · ' + powerStr + ' · ' + (m.kingdom || '?');
       var isFailed = !!failedSet[m.id];
       var failedClass = isFailed ? ' member-row-failed' : '';
       var failBadge = isFailed ? '<span class="mc-fail-badge" title="갱신 실패 — 재시도 필요">⚠</span>' : '';
@@ -204,7 +204,7 @@
     document.getElementById('md-name').textContent = m.nickname;
     document.getElementById('md-id').textContent = 'ID: ' + m.kingshot_id;
     var metaParts = ['Lv.' + (lvl || '?')];
-    if (m.power) metaParts.push('⚔ ' + formatPower(m.power));
+    if (m.power) metaParts.push(formatPower(m.power));
     if (m.alliance_rank_pos) metaParts.push('연맹 ' + m.alliance_rank_pos + '위');
     if (m.kingdom) metaParts.push('서버 ' + m.kingdom);
     document.getElementById('md-meta').textContent = metaParts.join(' · ');
