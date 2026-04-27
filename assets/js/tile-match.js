@@ -76,6 +76,10 @@
       $('tm-item-remove').addEventListener('click', useRemove);
       $('tm-item-undo').addEventListener('click', useUndo);
       $('tm-item-shuffle').addEventListener('click', useShuffle);
+      var qrBtn = $('tm-shuffle-popup-qr');
+      var cancelBtn = $('tm-shuffle-popup-cancel');
+      if (qrBtn) qrBtn.addEventListener('click', onShufflePopupAction);
+      if (cancelBtn) cancelBtn.addEventListener('click', onShufflePopupAction);
       window.addEventListener('resize', fitBoardToArea);
 
       var logoutBtn = $('tm-launch-user-logout');
@@ -228,10 +232,17 @@
       else if (rank === 2) rankClass = 'silver';
       else if (rank === 3) rankClass = 'bronze';
 
+      // 1/2/3등 — 멤버 목록의 Lv.30/29/28 테두리 효과 동일 적용
+      var effectClass = '';
+      if (rank === 1) effectClass = ' rank-effect-1';
+      else if (rank === 2) effectClass = ' rank-effect-2';
+      else if (rank === 3) effectClass = ' rank-effect-3';
+
       var dateStr = r.best_stage_at ? formatRankingDate(r.best_stage_at) : '-';
-      var photoHtml = member.profile_photo
+      var photoInner = member.profile_photo
         ? '<img class="tm-rank-photo" src="' + escapeRankingHtml(member.profile_photo) + '" alt="">'
         : '<span class="tm-rank-photo tm-rank-photo-empty">' + escapeRankingHtml((member.nickname || '?').slice(0, 1).toUpperCase()) + '</span>';
+      var photoHtml = '<div class="tm-rank-photo-wrap' + effectClass + '">' + photoInner + '</div>';
       row.innerHTML =
         '<span class="tm-rank-num ' + rankClass + '">' + rank + '</span>' +
         photoHtml +
@@ -245,10 +256,20 @@
   }
 
   function formatRankingDate(iso) {
-    var d = new Date(iso);
-    var m = String(d.getMonth() + 1).padStart(2, '0');
-    var dd = String(d.getDate()).padStart(2, '0');
-    return m + '.' + dd;
+    var t = new Date(iso).getTime();
+    if (isNaN(t)) return '-';
+    var diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (diffSec < 30) return '방금 전';
+    if (diffSec < 60) return diffSec + '초 전';
+    var diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + '분 전';
+    var diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return diffHr + '시간 전';
+    var diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 30) return diffDay + '일 전';
+    var diffMon = Math.floor(diffDay / 30);
+    if (diffMon < 12) return diffMon + '개월 전';
+    return Math.floor(diffMon / 12) + '년 전';
   }
 
   function escapeRankingHtml(s) {
@@ -352,20 +373,30 @@
     renderRemoveQueue();
   }
 
+  // 스테이지 → 난이도 매핑 (UI 에 노출하지 않음 — 사용자가 "난이도는 숨겨야 재미있다" 고 명시).
+  // 5 스테이지마다 난이도 +1, 46 스테이지부터는 최고 난이도(10) 고정.
   function difficultyForStage(stage) {
-    if (stage <= 10) return 1;
-    if (stage <= 20) return 2;
-    return 3 + Math.floor(Math.random() * 3);  // 3, 4, 5
+    if (stage <= 0) return 1;
+    if (stage >= 46) return 10;
+    return Math.min(10, Math.floor((stage - 1) / 5) + 1);
   }
 
   // ===== 절차 생성 =====
-  // 난이도별 파라미터 (UI 에 노출하지 않음 — 사용자가 "난이도는 숨겨야 재미있다" 고 명시)
+  // 난이도별 파라미터 — sets 가 핵심 난이도(타일 수=sets*3). buffer=7 / match=3 고정에서
+  // sets 를 등차 수열 가까이 늘려 체감 난이도가 의미 있게 증가하게 설계.
+  // sets 증가: 5 → 7 → 9 → 12 → 15 → 18 → 22 → 26 → 30 → 34 (1차차분 2,2,3,3,3,4,4,4,4)
+  // layers / cols / rows 도 함께 키워 보드가 단계적으로 풍성해짐.
   var DIFFICULTY_PARAMS = {
-    1: { cols: 10, rows: 7,  layers: 3, sets: 5  },  // 15 tiles
-    2: { cols: 11, rows: 8,  layers: 4, sets: 8  },  // 24 tiles
-    3: { cols: 12, rows: 9,  layers: 5, sets: 12 },  // 36 tiles
-    4: { cols: 14, rows: 10, layers: 6, sets: 16 },  // 48 tiles
-    5: { cols: 16, rows: 11, layers: 7, sets: 20 }   // 60 tiles
+     1: { cols: 10, rows: 7,  layers: 3, sets: 5  },  //  15 tiles
+     2: { cols: 10, rows: 7,  layers: 3, sets: 7  },  //  21 tiles
+     3: { cols: 11, rows: 8,  layers: 4, sets: 9  },  //  27 tiles
+     4: { cols: 12, rows: 9,  layers: 4, sets: 12 },  //  36 tiles
+     5: { cols: 13, rows: 9,  layers: 5, sets: 15 },  //  45 tiles
+     6: { cols: 14, rows: 10, layers: 5, sets: 18 },  //  54 tiles
+     7: { cols: 15, rows: 10, layers: 6, sets: 22 },  //  66 tiles
+     8: { cols: 16, rows: 11, layers: 6, sets: 26 },  //  78 tiles
+     9: { cols: 17, rows: 12, layers: 7, sets: 30 },  //  90 tiles
+    10: { cols: 18, rows: 13, layers: 7, sets: 34 }   // 102 tiles
   };
   var currentDifficulty = 3;
 
@@ -771,7 +802,31 @@
   }
 
   // ===== 아이템: 재배치 =====
+  // 클릭 시 농담 결제 안내 팝업 → 어떤 버튼을 누르든 농담 토스트 + 실제 셔플 실행.
   function useShuffle() {
+    if (freeUses.shuffle <= 0) return;
+    var remaining = tiles.filter(function(t) { return !t.removed; });
+    if (remaining.length <= 1) return;
+    showShufflePopup();
+  }
+
+  function showShufflePopup() {
+    var p = $('tm-shuffle-popup');
+    if (p) p.style.display = '';
+  }
+
+  function hideShufflePopup() {
+    var p = $('tm-shuffle-popup');
+    if (p) p.style.display = 'none';
+  }
+
+  function onShufflePopupAction() {
+    hideShufflePopup();
+    showToast('농담입니다 껄.껄.껄');
+    actuallyShuffle();
+  }
+
+  function actuallyShuffle() {
     if (freeUses.shuffle <= 0) return;
     var remaining = tiles.filter(function(t) { return !t.removed; });
     if (remaining.length <= 1) return;
@@ -789,6 +844,19 @@
     lastPick = null;
     canUndo = false;
     updateItemButtons();
+  }
+
+  var _toastTimer = null;
+  function showToast(msg) {
+    var el = $('tm-toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('tm-toast-show');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function() {
+      el.classList.remove('tm-toast-show');
+      _toastTimer = null;
+    }, 1500);
   }
 
   // ===== 버튼 상태 / 카운터 =====
