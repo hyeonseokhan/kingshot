@@ -1237,9 +1237,9 @@ a:hover{text-decoration:underline}
 .tm-ranking-refresh:hover{background:var(--bg2);color:var(--text)}
 .tm-ranking-list{display:flex;flex-direction:column;gap:4px}
 .tm-ranking-row{
-  display:grid;grid-template-columns:32px 1fr auto auto;
-  gap:10px;align-items:center;
-  padding:7px 10px;border-radius:6px;
+  display:grid;grid-template-columns:24px 28px 1fr auto auto;
+  gap:8px;align-items:center;
+  padding:6px 10px;border-radius:6px;
   font-size:12px;background:#fafbfd;
   border:1px solid transparent;
 }
@@ -1247,6 +1247,13 @@ a:hover{text-decoration:underline}
   background:#ecfdf5;border-color:#a7e9c5;
 }
 .tm-rank-num{font-weight:700;color:var(--text2);text-align:center}
+.tm-rank-photo,
+.tm-rank-photo-empty{
+  width:28px;height:28px;border-radius:6px;object-fit:cover;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#dbe6f3,#eef3f9);
+  color:#4a6080;font-weight:700;font-size:11px;
+}
 .tm-rank-num.gold  {color:#d4a017}
 .tm-rank-num.silver{color:#9ca3af}
 .tm-rank-num.bronze{color:#a66021}

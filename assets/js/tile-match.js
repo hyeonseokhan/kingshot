@@ -193,7 +193,7 @@
         var ids = records.map(function(r) { return r.player_id; });
         return fetchSupa(
           SUPABASE_URL + '/rest/v1/members?kingshot_id=in.(' +
-          ids.map(encodeURIComponent).join(',') + ')&select=kingshot_id,nickname,level'
+          ids.map(encodeURIComponent).join(',') + ')&select=kingshot_id,nickname,level,profile_photo'
         ).then(function(members) {
           var map = {};
           members.forEach(function(m) { map[m.kingshot_id] = m; });
@@ -225,8 +225,12 @@
       else if (rank === 3) rankClass = 'bronze';
 
       var dateStr = r.best_stage_at ? formatRankingDate(r.best_stage_at) : '-';
+      var photoHtml = member.profile_photo
+        ? '<img class="tm-rank-photo" src="' + escapeRankingHtml(member.profile_photo) + '" alt="">'
+        : '<span class="tm-rank-photo tm-rank-photo-empty">' + escapeRankingHtml((member.nickname || '?').slice(0, 1).toUpperCase()) + '</span>';
       row.innerHTML =
         '<span class="tm-rank-num ' + rankClass + '">' + rank + '</span>' +
+        photoHtml +
         '<span class="tm-rank-name">' + escapeRankingHtml(member.nickname || r.player_id) +
         (member.level ? '<small>Lv.' + member.level + '</small>' : '') + '</span>' +
         '<span class="tm-rank-stage">' + r.best_stage + '<span> Stage</span></span>' +
@@ -749,7 +753,7 @@
     }
     if (buffer.length >= BUFFER_SIZE) {
       gameOver = true;
-      showOverlay('💥', '슬롯이 가득 찼습니다. 다시 도전해 보세요.');
+      showOverlay('💥', '슬롯이 가득 찼습니다.', false);
     }
   }
 
@@ -759,7 +763,7 @@
     var clearedStage = currentStage;
     if (session && session.player_id) {
       // 일단 결과 카드 즉시 표시 (서버 응답 대기 X)
-      showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!');
+      showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!', true);
       callAuth('record-clear', { player_id: session.player_id, stage: clearedStage }).then(function(res) {
         if (!res || !res.ok) return;
         bestStage = res.best_stage || bestStage;
@@ -778,14 +782,16 @@
         loadRanking();
       });
     } else {
-      showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!');
+      showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!', true);
     }
   }
 
-  function showOverlay(icon, msg) {
+  function showOverlay(icon, msg, isSuccess) {
     $('tm-overlay-icon').textContent = icon;
     $('tm-overlay-msg').textContent = msg;
     $('tm-overlay').style.display = '';
+    var primaryBtn = $('tm-overlay-restart');
+    if (primaryBtn) primaryBtn.textContent = isSuccess ? '다음 단계' : '다시 하기';
   }
 
   function hideOverlay() {
@@ -844,6 +850,12 @@
       if (!tiles || !tiles.length) return;
       tiles.forEach(function(t) { t.removed = true; });
       buffer = [];
+      checkEnd();
+    },
+    // 검증용 — 버퍼 강제로 가득 채워서 실패 트리거
+    _autoFail: function() {
+      buffer = [];
+      for (var i = 0; i < BUFFER_SIZE; i++) buffer.push({ value: i });
       checkEnd();
     }
   };
