@@ -1,6 +1,0 @@
-# Windows 배치 파일은 항상 CRLF로 체크아웃 (cmd.exe 호환)
-*.bat text eol=crlf
-*.cmd text eol=crlf
-
-# PowerShell 스크립트도 CRLF 권장
-*.ps1 text eol=crlf

@@ -9,13 +9,6 @@ dist/
 .env.local
 .env.*.local
 
-# ===== Jekyll 잔재 (Phase 8에서 폴더 자체 삭제 예정) =====
-_site/
-.sass-cache/
-.jekyll-cache/
-.jekyll-metadata
-Gemfile.lock
-
 # ===== 시스템 / 에디터 =====
 .DS_Store
 *.swp
@@ -30,10 +23,6 @@ supabase/.temp/
 # ===== 로컬 작업 파일 =====
 api-1.json
 coupon.md
-
-# ===== Ruby / Bundler 로컬 설정 =====
-.bundle/
-vendor/
 
 # ===== 미니게임 원본 Java 프로젝트 (참고용, 배포 무관) =====
 matchjong-master/
