@@ -1,0 +1,262 @@
+---
+// 헤더 우측 인증 위젯.
+// 비로그인: "로그인" 버튼.
+// 로그인 (데스크톱): [아바타] [닉네임] [✨ N] [로그아웃] 가로 펼침.
+// 로그인 (모바일): [아바타] [✨ N] ▾ — 클릭 시 닉네임 + 로그아웃 드롭다운.
+//
+// 동작 로직: src/scripts/components/logined-user-info.ts
+// AuthDialog 가 BaseLayout 에 마운트돼있어야 ensureAuth 가 작동함.
+---
+
+<div class="hu" id="hu-root" data-state="loggedout">
+  <button class="hu-login" id="hu-login" type="button">로그인</button>
+
+  <div class="hu-card" id="hu-card">
+    <button
+      class="hu-trigger"
+      id="hu-trigger"
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded="false"
+    >
+      <span class="hu-avatar" id="hu-avatar" aria-hidden="true">
+        <img id="hu-avatar-img" alt="" />
+        <span id="hu-avatar-initial" class="hu-avatar-initial"></span>
+      </span>
+      <span class="hu-name" id="hu-name">-</span>
+      <span class="hu-crystal" aria-label="크리스탈 잔액">
+        <span class="hu-crystal-icon">✨</span>
+        <span class="hu-crystal-value" id="hu-crystal-value">0</span>
+      </span>
+      <svg
+        class="hu-caret"
+        width="10"
+        height="10"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+
+    <button class="hu-logout-desktop" id="hu-logout-desktop" type="button">로그아웃</button>
+
+    <div class="hu-dropdown" id="hu-dropdown" role="menu" hidden>
+      <div class="hu-dropdown-name" id="hu-dropdown-name">-</div>
+      <button class="hu-dropdown-logout" id="hu-logout-mobile" type="button" role="menuitem">
+        로그아웃
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  import '@/scripts/components/logined-user-info';
+</script>
+
+<style>
+  .hu {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+
+  /* === 비로그인: 로그인 버튼 === */
+  .hu-login {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: background 0.15s;
+  }
+  .hu-login:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .hu[data-state='loggedout'] .hu-card {
+    display: none;
+  }
+  .hu[data-state='loggedin'] .hu-login {
+    display: none;
+  }
+
+  /* === 로그인 카드 === */
+  .hu-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hu-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(99, 102, 241, 0.18);
+    border: 1px solid rgba(165, 180, 252, 0.45);
+    color: #fff;
+    padding: 3px 10px 3px 3px;
+    border-radius: 999px;
+    cursor: default;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .hu-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .hu-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  .hu-avatar img.loaded {
+    display: block;
+  }
+  .hu-avatar-initial {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+  .hu-avatar.has-img .hu-avatar-initial {
+    display: none;
+  }
+
+  .hu-name {
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hu-crystal {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 6px;
+    border-left: 1px solid rgba(255, 255, 255, 0.18);
+  }
+  .hu-crystal-icon {
+    font-size: 13px;
+    line-height: 1;
+  }
+  .hu-crystal-value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hu-caret {
+    display: none;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .hu-logout-desktop {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.85);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: all 0.15s;
+  }
+  .hu-logout-desktop:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  /* === 모바일 드롭다운 (기본 숨김) === */
+  .hu-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 180px;
+    background: #2a2f36;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    padding: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 200;
+  }
+  .hu-dropdown[data-open='true'] {
+    display: flex;
+  }
+  .hu-dropdown-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    word-break: break-all;
+  }
+  .hu-dropdown-logout {
+    background: rgba(239, 68, 68, 0.16);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .hu-dropdown-logout:hover {
+    background: rgba(239, 68, 68, 0.28);
+    color: #fff;
+  }
+
+  /* === 모바일 (≤768px): 닉네임/데스크톱 로그아웃 숨김, caret 표시, 트리거 클릭 → 드롭다운 === */
+  @media (max-width: 768px) {
+    .hu-name {
+      display: none;
+    }
+    .hu-logout-desktop {
+      display: none;
+    }
+    .hu-caret {
+      display: inline-block;
+    }
+    .hu-trigger {
+      padding: 2px 8px 2px 2px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .hu-trigger:hover {
+      background: rgba(99, 102, 241, 0.28);
+    }
+    .hu-avatar {
+      width: 24px;
+      height: 24px;
+    }
+    .hu-login {
+      padding: 4px 12px;
+      font-size: 12px;
+    }
+  }
+</style>

@@ -60,118 +60,6 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* 게임 시작 카드 */
-.tm-launch-card {
-  background: linear-gradient(180deg, #ffffff, #f7f9fc);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px 20px;
-  margin: 16px 0;
-  text-align: center;
-  position: relative;
-}
-.tm-launch-user {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #ecfdf5;
-  border: 1px solid #a7e9c5;
-  border-radius: 18px;
-  padding: 6px 10px 6px 12px;
-  font-size: 12px;
-  color: #0e6d3a;
-}
-.tm-launch-user > * {
-  line-height: 1;
-  white-space: nowrap;
-}
-.tm-launch-user-label {
-  color: #0e6d3a;
-  opacity: 0.75;
-  font-size: 11px;
-}
-.tm-launch-user strong {
-  color: #0e6d3a;
-  font-weight: 700;
-  font-size: 12px;
-}
-.tm-launch-user-id {
-  color: #0e6d3a;
-  opacity: 0.65;
-  font-size: 11px;
-}
-.tm-launch-user-logout {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  border: 1px solid #a7e9c5;
-  border-radius: 10px;
-  font-size: 11px;
-  color: #0e6d3a;
-  padding: 5px 10px;
-  cursor: pointer;
-  line-height: 1;
-}
-.tm-launch-user-logout:hover {
-  background: #d6f5e3;
-}
-
-@media (max-width: 720px) {
-  .tm-launch-user-id {
-    display: none;
-  }
-  .tm-launch-user {
-    padding: 5px 8px 5px 10px;
-    gap: 6px;
-  }
-  .tm-launch-user strong {
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-.tm-launch-title {
-  font-size: 14px;
-  color: var(--text2);
-  margin-bottom: 4px;
-}
-.tm-launch-meta {
-  font-size: 12px;
-  color: var(--text3);
-  margin-bottom: 16px;
-}
-.tm-launch-meta span {
-  color: var(--text);
-  font-weight: 600;
-}
-.tm-launch-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(180deg, #6cc26a, #4ca84a);
-  color: #ffffff;
-  border: 0;
-  border-radius: 14px;
-  padding: 14px 36px;
-  font-size: 16px;
-  font-weight: 700;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18), inset 0 -3px 0 rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  transition: transform 0.12s ease, filter 0.12s ease;
-}
-.tm-launch-btn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-}
-.tm-launch-btn:active {
-  transform: translateY(1px);
-}
-.tm-launch-btn svg {
-  margin-right: 2px;
-}
-
 /* 랭킹 표 */
 .tm-ranking {
   margin-top: 8px;
@@ -987,10 +875,8 @@
   max-width: none;
 }
 #page-tile-match > .page-intro,
-#page-tile-match > .tm-launch-card,
 #page-tile-match > .tm-ranking,
 #page-partner-draw > .page-intro,
-#page-partner-draw > .pd-card,
 #page-partner-draw > .pd-result {
   max-width: 900px;
   margin-left: auto;
@@ -1089,52 +975,21 @@
 }
 
 /* ===== 운명의 파트너 ===== */
-.pd-card {
-  background: linear-gradient(180deg, #ffffff, #f7f9fc);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px 20px;
-  margin: 16px 0;
-  text-align: center;
-  position: relative;
-}
-.pd-card-title {
-  font-size: 14px;
-  color: var(--text2);
-  margin-bottom: 4px;
-}
-.pd-card-meta {
-  font-size: 12px;
-  color: var(--text3);
-  margin-bottom: 16px;
-}
-.pd-card-meta span {
-  color: var(--text);
-  font-weight: 700;
-}
-
-/*
- * .pd-stepper: 원본은 inline-flex 였으나 라이브 Jekyll 사이트와 비교 결과
- * 모바일에서 같은 라인에 .pd-draw-btn 과 함께 배치되는 회귀 발생.
- * 부모 .pd-card 가용 폭 차이(32px)로 인해 줄바꿈 임계치를 넘어버림.
- * → flex(block-level) 로 변경해 형제(.pd-draw-btn) 가 항상 다음 줄에 오도록 강제.
- *   시각상 결과는 라이브 사이트와 동일.
- */
+/* 인원 stepper: MinigameLaunchCard 의 controls 슬롯에 주입됨 */
 .pd-stepper {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-bottom: 16px;
 }
 .pd-stepper-btn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 1px solid #4ca84a;
   background: #ffffff;
   color: #4ca84a;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -1145,29 +1000,6 @@
 .pd-stepper-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-}
-
-.pd-draw-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(180deg, #6cc26a, #4ca84a);
-  color: #ffffff;
-  border: 0;
-  border-radius: 14px;
-  padding: 14px 36px;
-  font-size: 16px;
-  font-weight: 700;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18), inset 0 -3px 0 rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  transition: transform 0.12s ease, filter 0.12s ease;
-}
-.pd-draw-btn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-}
-.pd-draw-btn:active {
-  transform: translateY(1px);
 }
 
 /* 슬롯머신 */

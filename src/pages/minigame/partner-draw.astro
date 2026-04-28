@@ -1,6 +1,6 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
-import AuthDialog from '@/components/AuthDialog.astro';
+import MinigameLaunchCard from '@/components/MinigameLaunchCard.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
 // 공통 컴포넌트 스타일은 BaseLayout 에서 자동 import. 게임 전용만 추가.
 import '@/styles/minigame.css';
@@ -20,17 +20,9 @@ const navItems = minigame.submenus!.map((s) => ({
   navHeader="미니게임"
   navItems={navItems}
 >
-  <AuthDialog />
-
   <div class="manage-page" id="page-partner-draw">
     <div class="members-header">
       <h1>운명의 파트너</h1>
-      <div class="tm-launch-user" id="pd-user" style="display:none">
-        <span class="tm-launch-user-label">인증됨</span>
-        <strong id="pd-user-name">-</strong>
-        <span class="tm-launch-user-id" id="pd-user-id"></span>
-        <button class="tm-launch-user-logout" id="pd-user-logout" type="button">전환</button>
-      </div>
     </div>
 
     <div class="page-intro">
@@ -41,16 +33,19 @@ const navItems = minigame.submenus!.map((s) => ({
       </ul>
     </div>
 
-    <!-- 추첨 카드 -->
-    <div class="pd-card">
-      <div class="pd-card-title">파티 인원</div>
-      <div class="pd-card-meta">본인 포함 <span id="pd-stepper-value">4</span>명</div>
-      <div class="pd-stepper">
+    <MinigameLaunchCard
+      label="파티 인원"
+      metaPrefix="본인 포함"
+      metaSuffix="명"
+      ctaLabel="오늘의 운명의 파트너"
+      ctaId="pd-draw-btn"
+    >
+      <span slot="value" id="pd-stepper-value">4</span>
+      <div slot="controls" class="pd-stepper">
         <button class="pd-stepper-btn" id="pd-stepper-minus" type="button" aria-label="감소">−</button>
         <button class="pd-stepper-btn" id="pd-stepper-plus" type="button" aria-label="증가">+</button>
       </div>
-      <button class="pd-draw-btn" id="pd-draw-btn" type="button">오늘의 운명의 파트너</button>
-    </div>
+    </MinigameLaunchCard>
 
     <!-- 슬롯머신 결과 카드 -->
     <div class="pd-result" id="pd-result" style="display:none">

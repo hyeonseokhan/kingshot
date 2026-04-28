@@ -202,16 +202,9 @@ export function initTileMatch(): void {
   setupViewportSync();
   setupBoardAreaObserver();
 
-  $('tm-launch-user-logout')?.addEventListener('click', () => {
-    window.TileMatchAuth?.clearSession();
-    renderUserBadge(null);
-    window.TileMatchAuth?.ensureAuth().then(renderUserBadge);
-  });
-
   if (window.TileMatchAuth) {
     window.TileMatchAuth.initPage();
-    window.TileMatchAuth.onSessionChange((s) => {
-      renderUserBadge(s);
+    window.TileMatchAuth.onSessionChange(() => {
       loadRanking();
     });
   }
@@ -230,17 +223,12 @@ interface Session {
 }
 
 function onSessionReady(session: Session | null): Promise<void> {
-  renderUserBadge(session);
   if (!session?.player_id) {
     bestStage = 0;
     currentStage = 1;
     renderStage();
     return Promise.resolve();
   }
-  // get-record (스테이지 기록) 와 get-balance (크리스탈 잔액) 을 병렬 fetch
-  callEconomy('get-balance', { player_id: session.player_id }).then((res) => {
-    if (res?.ok && typeof res.balance === 'number') broadcastCrystalBalance(res.balance);
-  });
   return callAuth('get-record', { player_id: session.player_id }).then((res) => {
     bestStage = res?.ok ? res.best_stage || 0 : 0;
     currentStage = bestStage + 1;
@@ -253,20 +241,6 @@ function renderStage(): void {
   if (el) el.textContent = String(currentStage);
   const dlg = $('tm-dlg-stage');
   if (dlg) dlg.textContent = String(currentStage);
-}
-
-function renderUserBadge(session: Session | null): void {
-  const box = $('tm-launch-user');
-  const name = $('tm-launch-user-name');
-  const idEl = $('tm-launch-user-id');
-  if (!box || !name) return;
-  if (session?.player_id) {
-    box.style.display = '';
-    name.textContent = session.nickname;
-    if (idEl) idEl.textContent = '(' + session.player_id + ')';
-  } else {
-    box.style.display = 'none';
-  }
 }
 
 function onLaunchClick(): void {

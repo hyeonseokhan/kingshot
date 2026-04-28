@@ -37,12 +37,6 @@ export function initPartnerDraw(): void {
     $('pd-stepper-minus')?.addEventListener('click', () => setPartySize(partySize - 1));
     $('pd-stepper-plus')?.addEventListener('click', () => setPartySize(partySize + 1));
     $('pd-draw-btn')?.addEventListener('click', onDrawClick);
-
-    $('pd-user-logout')?.addEventListener('click', () => {
-      window.TileMatchAuth?.clearSession();
-      renderUserBadge(null);
-      window.TileMatchAuth?.ensureAuth().then(onSessionReady);
-    });
   }
 
   setPartySize(partySize);
@@ -53,7 +47,6 @@ export function initPartnerDraw(): void {
 }
 
 function onSessionReady(session: Session | null): void {
-  renderUserBadge(session);
   if (!session?.player_id) {
     selfId = null;
     members = [];
@@ -84,20 +77,6 @@ function refreshMemberPool(): void {
     .catch(() => {
       members = [];
     });
-}
-
-function renderUserBadge(session: Session | null): void {
-  const box = $('pd-user');
-  const name = $('pd-user-name');
-  const idEl = $('pd-user-id');
-  if (!box || !name) return;
-  if (session?.player_id) {
-    box.style.display = '';
-    name.textContent = session.nickname;
-    if (idEl) idEl.textContent = '(' + session.player_id + ')';
-  } else {
-    box.style.display = 'none';
-  }
 }
 
 function setPartySize(n: number): void {

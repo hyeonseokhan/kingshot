@@ -1,6 +1,6 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
-import AuthDialog from '@/components/AuthDialog.astro';
+import MinigameLaunchCard from '@/components/MinigameLaunchCard.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
 // 공통 컴포넌트 스타일은 BaseLayout 에서 자동 import. 게임 전용만 추가.
 import '@/styles/minigame.css';
@@ -20,17 +20,9 @@ const navItems = minigame.submenus!.map((s) => ({
   navHeader="미니게임"
   navItems={navItems}
 >
-  <AuthDialog />
-
   <div class="manage-page" id="page-tile-match">
     <div class="members-header">
       <h1>타일 매치</h1>
-      <div class="tm-launch-user" id="tm-launch-user" style="display:none">
-        <span class="tm-launch-user-label">인증됨</span>
-        <strong id="tm-launch-user-name">-</strong>
-        <span class="tm-launch-user-id" id="tm-launch-user-id"></span>
-        <button class="tm-launch-user-logout" id="tm-launch-user-logout" type="button">전환</button>
-      </div>
     </div>
 
     <div class="page-intro">
@@ -43,12 +35,13 @@ const navItems = minigame.submenus!.map((s) => ({
       <p class="page-intro-hint">스테이지를 클리어할수록 보드가 커집니다.</p>
     </div>
 
-    <!-- 게임 시작 카드 -->
-    <div class="tm-launch-card">
-      <div class="tm-launch-title">다음 스테이지</div>
-      <div class="tm-launch-meta">Stage <span id="tm-launch-stage">1</span></div>
-      <button class="tm-launch-btn" id="tm-launch-btn" type="button">게임 시작</button>
-    </div>
+    <MinigameLaunchCard
+      label="다음 스테이지"
+      ctaLabel="게임 시작"
+      ctaId="tm-launch-btn"
+    >
+      <span slot="value" id="tm-launch-stage">1</span>
+    </MinigameLaunchCard>
 
     <!-- 랭킹 -->
     <div class="tm-ranking" id="tm-ranking">

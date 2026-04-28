@@ -6,6 +6,7 @@ import '@/styles/global.css';
 import '@/styles/components.css';
 import Header from '@/components/Header.astro';
 import MobileNav from '@/components/MobileNav.astro';
+import AuthDialog from '@/components/AuthDialog.astro';
 
 interface Props {
   title?: string;
@@ -38,6 +39,7 @@ const { title = '연맹 가이드', description = 'PNX 연맹 가이드' } = Ast
   <body>
     <Header />
     <MobileNav />
+    <AuthDialog />
     <slot />
   </body>
 </html>
