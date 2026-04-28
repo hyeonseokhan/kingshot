@@ -1005,174 +1005,6 @@ a:hover{text-decoration:underline}
   background:var(--bg3);color:var(--text2);border-radius:4px;margin-left:4px;
 }
 
-.troops-section{
-  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
-  padding:14px 14px 16px;margin:12px 0;
-}
-.troops-section-title{
-  font-size:13px;font-weight:700;color:var(--text2);
-  margin:0 0 10px;letter-spacing:0.02em;
-}
-
-/* --- 멤버 선택 --- */
-.troops-member-picker input[type=text]{
-  width:100%;padding:10px 12px;border:1px solid var(--border);
-  border-radius:6px;background:var(--bg);color:var(--text);
-  font-size:14px;margin-bottom:8px;box-sizing:border-box;
-}
-.troops-member-list{
-  max-height:360px;overflow-y:auto;border:1px solid var(--border);
-  border-radius:6px;background:var(--bg);
-}
-.troops-member-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;
-  border-bottom:1px solid var(--border2);cursor:pointer;
-  transition:background 0.15s;
-}
-.troops-member-item:last-child{border-bottom:none}
-.troops-member-item:hover,
-.troops-member-item:active{background:var(--bg3)}
-.tm-photo,.tm-photo-empty{
-  width:36px;height:36px;border-radius:8px;flex-shrink:0;object-fit:cover;
-  display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,var(--accent-bg),var(--bg3));
-  color:var(--accent);font-weight:700;font-size:15px;
-}
-.tm-info{flex:1;min-width:0}
-.tm-name{font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tm-meta{font-size:11.5px;color:var(--text2);margin-top:2px}
-
-/* 선택된 멤버 배너 */
-.troops-selected{
-  display:flex;align-items:center;gap:12px;padding:10px 12px;
-  background:var(--bg);border:1px solid var(--accent);border-radius:8px;
-}
-#troops-selected-avatar img{width:48px;height:48px;border-radius:10px;object-fit:cover}
-#troops-selected-avatar .tm-photo-empty{width:48px;height:48px;border-radius:10px;font-size:18px}
-.troops-selected-info{flex:1;min-width:0}
-.troops-selected-name{font-size:15px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.troops-selected-meta{font-size:12px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* --- 수동 입력 행 --- */
-.troops-input-row{
-  display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:10px;
-}
-.troops-input-row select,
-.troops-input-row input[type=number]{
-  padding:10px 10px;border:1px solid var(--border);border-radius:6px;
-  background:var(--bg);color:var(--text);font-size:14px;min-width:0;
-}
-.troops-input-row button{padding:10px 14px;font-size:13px;white-space:nowrap}
-
-/* --- 사진 업로드 --- */
-.troops-photo-row{
-  display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;
-  padding:10px;background:var(--bg);border:1px dashed var(--border);border-radius:6px;
-}
-.troops-photo-btn{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:8px 14px;border-radius:6px;cursor:pointer;
-  background:var(--accent);color:#fff;font-size:13px;font-weight:600;
-}
-.troops-photo-btn:active{opacity:0.85}
-.troops-photo-hint{font-size:11.5px;color:var(--text2);flex:1;min-width:140px}
-.troops-photo-preview{
-  flex-basis:100%;margin-top:8px;display:flex;flex-direction:column;gap:8px;
-}
-.troops-photo-preview img{
-  max-width:100%;max-height:320px;border-radius:6px;
-  border:1px solid var(--border);
-}
-.troops-photo-notice{
-  font-size:12px;color:var(--text2);background:var(--bg3);
-  padding:8px 10px;border-radius:6px;
-}
-
-/* --- 요약 (합계) --- */
-.troops-summary{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;
-}
-.troops-summary:empty{display:none}
-.ts-cell{
-  padding:10px 8px;border-radius:6px;text-align:center;
-  border:1px solid var(--border);background:var(--bg);
-}
-.ts-infantry{border-color:#8b9c7e}
-.ts-cavalry{border-color:#9c8b7e}
-.ts-archer{border-color:#7e8b9c}
-.ts-total{border-color:var(--accent);background:var(--accent-bg)}
-.ts-label{font-size:11px;color:var(--text2);margin-bottom:2px}
-.ts-value{font-size:15px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
-
-/* --- 엔트리 행 --- */
-.troops-entries{display:flex;flex-direction:column;gap:6px}
-.troops-entry{
-  display:grid;grid-template-columns:1fr auto auto;gap:10px;
-  align-items:center;padding:10px 12px;
-  background:var(--bg);border:1px solid var(--border);border-radius:6px;
-}
-.te-name{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
-.te-type{
-  display:inline-block;padding:2px 8px;border-radius:4px;
-  font-size:11px;font-weight:700;color:#fff;
-}
-.te-type-infantry{background:#6b7d5e}
-.te-type-cavalry{background:#7d6b5e}
-.te-type-archer{background:#5e6b7d}
-.te-tier{
-  font-size:12px;font-weight:700;color:var(--accent);
-  background:var(--accent-bg);padding:2px 6px;border-radius:4px;
-}
-.te-full{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.te-qty{
-  font-size:15px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;
-  text-align:right;min-width:60px;
-}
-.te-actions{display:flex;gap:4px}
-.btn-icon{
-  width:28px;height:28px;border:none;border-radius:5px;
-  background:var(--bg3);color:var(--text2);cursor:pointer;
-  font-size:13px;display:flex;align-items:center;justify-content:center;
-  transition:all 0.12s;
-}
-.btn-icon:hover{background:var(--border);color:var(--text)}
-.te-del:hover{background:#d6584a;color:#fff}
-
-/* --- 연맹 전체 분포 차트 --- */
-.troops-chart-section{margin-top:14px}
-.troops-chart-wrap{
-  position:relative;height:260px;margin-bottom:10px;
-  background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;
-}
-.troops-chart-stats{
-  display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;
-}
-.ts-chip{
-  padding:4px 10px;border-radius:12px;font-weight:600;color:#fff;
-  font-variant-numeric:tabular-nums;font-size:11.5px;
-}
-.ts-chip-infantry{background:#6b7d5e}
-.ts-chip-cavalry{background:#7d6b5e}
-.ts-chip-archer{background:#5e6b7d}
-.ts-chip-total{background:var(--accent)}
-.ts-recorders{margin-left:auto;color:var(--text2);font-size:11.5px;font-variant-numeric:tabular-nums}
-.troops-chart-empty{color:var(--text3);font-size:12px}
-
-/* --- 모바일 (≤ 720px) --- */
-@media (max-width:720px){
-  .troops-section{padding:12px;margin:10px 0}
-  .troops-input-row{grid-template-columns:1fr 1fr;gap:6px}
-  .troops-input-row select{font-size:13px}
-  .troops-input-row input[type=number]{font-size:13px}
-  .troops-input-row button{grid-column:span 2}
-  .troops-summary{grid-template-columns:repeat(2,1fr)}
-  .te-full{display:none}
-  .troops-entry{grid-template-columns:1fr auto auto;gap:8px;padding:10px}
-  .te-qty{min-width:50px;font-size:14px}
-  .troops-chart-wrap{height:220px;padding:6px}
-  .ts-recorders{margin-left:0;flex-basis:100%;text-align:right}
-}
-
 /* ================================================================
    타일 매치 (미니게임)
    ================================================================ */
@@ -1716,44 +1548,41 @@ a:hover{text-decoration:underline}
   background:#e5e7eb;color:var(--text);
 }
 
-/* ===== 운명의 파트너 ===== */
+/* ===== 운명의 파트너 — 타일 매치 launch-card 패턴 + PNX 오렌지 단색 ===== */
 
+/* 추첨 카드 — .tm-launch-card 와 동일 구조 (가운데 정렬, 단색 그라데이션) */
 .pd-card{
   background:linear-gradient(180deg,#ffffff,#f7f9fc);
   border:1px solid var(--border);border-radius:12px;
-  padding:20px 18px;margin:16px 0;
+  padding:28px 20px;margin:16px 0;text-align:center;
+  position:relative;
 }
-.pd-stepper-row{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;margin-bottom:16px;
-}
-.pd-stepper-label{font-size:14px;color:var(--text);font-weight:600}
+.pd-card-title{font-size:14px;color:var(--text2);margin-bottom:4px}
+.pd-card-meta{font-size:12px;color:var(--text3);margin-bottom:16px}
+.pd-card-meta span{color:var(--text);font-weight:700}
+
+/* Stepper — 카드 안 가운데 배치, -/+ 버튼만 */
 .pd-stepper{
-  display:inline-flex;align-items:center;gap:0;
-  background:#f1f5f9;border-radius:24px;padding:4px;
-  border:1px solid var(--border2);
+  display:inline-flex;align-items:center;gap:8px;
+  margin-bottom:16px;
 }
 .pd-stepper-btn{
-  width:36px;height:36px;border-radius:50%;
-  border:none;background:#ffffff;color:var(--text);
-  font-size:18px;font-weight:700;cursor:pointer;
-  box-shadow:0 1px 2px rgba(0,0,0,0.06);
-  transition:transform 0.12s ease, background 0.12s ease;
+  width:34px;height:34px;border-radius:50%;
+  border:1px solid #4ca84a;background:#ffffff;
+  color:#4ca84a;font-size:18px;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1;
+  /* hover/active 채움 효과 없음 — 깔끔한 단색 유지 */
 }
-.pd-stepper-btn:hover:not(:disabled){background:var(--accent);color:#fff;transform:translateY(-1px)}
-.pd-stepper-btn:active:not(:disabled){transform:translateY(0)}
 .pd-stepper-btn:disabled{opacity:0.35;cursor:not-allowed}
-.pd-stepper-value{
-  display:inline-block;min-width:36px;text-align:center;
-  font-size:18px;font-weight:700;color:var(--text);
-}
+
+/* 추첨 버튼 — .tm-launch-btn 과 동일 (녹색 그라데이션 + 동일 그림자) */
 .pd-draw-btn{
-  width:100%;display:flex;align-items:center;justify-content:center;
-  gap:8px;padding:16px;
-  background:linear-gradient(180deg,#fbbf24,#f59e0b);
-  color:#3b2400;border:none;border-radius:14px;
-  font-size:16px;font-weight:800;letter-spacing:0.02em;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(180deg,#6cc26a,#4ca84a);
+  color:#ffffff;border:0;border-radius:14px;
+  padding:14px 36px;font-size:16px;font-weight:700;
   box-shadow:0 3px 0 rgba(0,0,0,0.18),inset 0 -3px 0 rgba(0,0,0,0.15);
+  cursor:pointer;
   transition:transform 0.12s ease, filter 0.12s ease;
 }
 .pd-draw-btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
@@ -1766,23 +1595,21 @@ a:hover{text-decoration:underline}
 }
 .pd-slot{
   position:relative;height:140px;overflow:hidden;
-  background:linear-gradient(180deg,#0f172a,#1e293b);
-  border-radius:12px;
-  box-shadow:inset 0 2px 6px rgba(0,0,0,0.4),
-             0 2px 6px rgba(0,0,0,0.15);
-  border:2px solid rgba(251,191,36,0.45);
+  background:#1f2937;
+  border-radius:10px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,0.4);
+  border:2px solid rgba(254,215,170,0.4);
 }
-/* 정착 직전 강조 — 노란색 글로우 펄스 */
+/* 정착 시 — PNX 오렌지 보더 + 은은한 글로우, 펄스 미세하게 */
 .pd-slot.pd-slot-locked{
-  border-color:#fbbf24;
+  border-color:#ea580c;
   box-shadow:inset 0 2px 6px rgba(0,0,0,0.4),
-             0 0 16px rgba(251,191,36,0.6),
-             0 2px 6px rgba(0,0,0,0.15);
-  animation:pdSlotLock 0.4s ease;
+             0 0 12px rgba(234,88,12,0.4);
+  animation:pdSlotLock 0.3s ease;
 }
 @keyframes pdSlotLock{
   0%{transform:scale(1)}
-  50%{transform:scale(1.04)}
+  50%{transform:scale(1.02)}
   100%{transform:scale(1)}
 }
 .pd-slot-strip{
@@ -1834,28 +1661,21 @@ a:hover{text-decoration:underline}
   opacity:0;
 }
 
-/* 결과 카드 */
+/* 결과 카드 — .tm-launch-card 와 동일 구조 (단색 그라데이션 흰 배경) */
 .pd-result{margin:16px 0}
 .pd-result-card{
-  background:linear-gradient(160deg,#ffffff 0%,#fef3c7 60%,#fde68a 100%);
-  border:2px solid #fbbf24;border-radius:18px;
-  padding:24px 20px 18px;
-  box-shadow:0 8px 24px rgba(251,191,36,0.25);
+  background:linear-gradient(180deg,#ffffff,#f7f9fc);
+  border:1px solid var(--border);border-radius:12px;
+  padding:24px 20px 16px;
   position:relative;overflow:hidden;
-}
-.pd-result-card::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(circle at 20% 0%,rgba(251,191,36,0.18),transparent 60%),
-             radial-gradient(circle at 90% 100%,rgba(245,158,11,0.18),transparent 60%);
-  pointer-events:none;
 }
 .pd-result-header{text-align:center;margin-bottom:16px;position:relative}
 .pd-result-title{
-  font-size:22px;font-weight:800;color:#7c2d12;
-  letter-spacing:0.02em;margin-bottom:4px;
+  font-size:18px;font-weight:700;color:var(--text);
+  letter-spacing:-0.01em;margin-bottom:4px;
 }
 .pd-result-subtitle{
-  font-size:13px;color:#92400e;font-weight:600;
+  font-size:12px;color:var(--text3);font-weight:500;
 }
 .pd-result-grid{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
@@ -1889,8 +1709,8 @@ a:hover{text-decoration:underline}
 .pd-result-meta{font-size:11px;color:var(--text3);font-weight:500}
 .pd-result-footer{
   display:flex;justify-content:space-between;align-items:center;
-  padding-top:12px;border-top:1px dashed rgba(180,83,9,0.3);
-  font-size:11px;color:#92400e;font-weight:600;position:relative;
+  padding-top:12px;border-top:1px dashed var(--border2);
+  font-size:11px;color:var(--text3);font-weight:500;position:relative;
 }
 .pd-result-actions{
   display:flex;gap:8px;justify-content:center;margin-top:12px;

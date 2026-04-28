@@ -111,11 +111,36 @@
           setCache(activeCoupons);
         }
         pruneSelectedCoupon();
+        pruneStaleHistory();  // 만료된 쿠폰의 history 자동 정리
         renderCoupons();
         updateRedeemAllButton();
       })
       .catch(function() { renderCoupons(); updateRedeemAllButton(); })
       .finally(function() { if (callback) callback(); });
+  }
+
+  /**
+   * 활성 쿠폰 list 에 없는 coupon_history row 를 모두 DELETE.
+   * 안전장치: 활성 list 가 비어있으면 절대 실행하지 않음 (모든 row 삭제 방지).
+   */
+  function pruneStaleHistory() {
+    if (!activeCoupons || activeCoupons.length === 0) return;
+    var codes = activeCoupons.map(function(c) { return c.code; }).join(',');
+    fetch(SUPABASE_URL + '/rest/v1/coupon_history?coupon_code=not.in.(' + codes + ')', {
+      method: 'DELETE',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+        Prefer: 'return=representation'
+      }
+    }).then(function(r) {
+      if (!r.ok) return;
+      return r.json().then(function(rows) {
+        if (rows && rows.length) {
+          console.log('[coupons] pruned ' + rows.length + ' stale history rows');
+        }
+      });
+    }).catch(function() {});
   }
 
   /** 활성 쿠폰 목록이 변경되어 선택된 코드가 사라졌으면 선택 해제. */

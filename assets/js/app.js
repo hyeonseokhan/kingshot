@@ -46,8 +46,6 @@
   function fireSubmenuInit(submenuId) {
     if (submenuId === 'coupons' && window.Coupons && window.Coupons.initPage) {
       window.Coupons.initPage();
-    } else if (submenuId === 'troops' && window.Troops && window.Troops.initPage) {
-      window.Troops.initPage();
     } else if (submenuId === 'tile-match' && window.TileMatch && window.TileMatch.initPage) {
       window.TileMatch.initPage();
     } else if (submenuId === 'partner-draw' && window.PartnerDraw && window.PartnerDraw.initPage) {
@@ -220,9 +218,10 @@
       hash = hash.slice(0, colonIdx);
     }
 
-    var parts = hash.split('-');
-    var tabId = parts[0];
-    var secondPart = parts.length > 1 ? parts[1] : null;
+    // 첫 번째 dash 만 split — submenu id 가 dash 를 포함하는 경우(partner-draw 등) 처리
+    var dashIdx = hash.indexOf('-');
+    var tabId = dashIdx === -1 ? hash : hash.slice(0, dashIdx);
+    var secondPart = dashIdx === -1 ? null : hash.slice(dashIdx + 1);
 
     var tabEl = document.getElementById('tab-' + tabId);
     if (!tabEl) {
