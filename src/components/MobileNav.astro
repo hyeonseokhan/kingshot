@@ -1,9 +1,51 @@
 ---
 import { tabs, findActiveTab, findActiveSubmenu } from '@/data/navigation';
+import { getGuidesByCategory, entryToSlug, type GuideCategory } from '@/lib/guides';
 
 const pathname = Astro.url.pathname;
 const activeTab = findActiveTab(pathname);
-const activeSubmenu = activeTab ? findActiveSubmenu(activeTab, pathname) : undefined;
+
+// 가이드 카테고리별 항목 — 빌드 시 한 번 로드.
+const beginnerGuides = await getGuidesByCategory('beginner');
+const eventsGuides = await getGuidesByCategory('events');
+
+type Child = {
+  title: string;
+  path: string;
+  active: boolean;
+  /** 앱 탭의 서브메뉴 id (있는 경우만) */
+  submenu?: string;
+  /** 가이드 탭의 슬러그 (있는 경우만) */
+  section?: string;
+};
+
+function buildChildren(tabId: string): Child[] {
+  const tab = tabs.find((t) => t.id === tabId)!;
+  if (tab.submenus) {
+    const activeSub = findActiveSubmenu(tab, pathname);
+    return tab.submenus.map((s) => ({
+      title: s.title,
+      path: s.path,
+      active: activeSub?.id === s.id,
+      submenu: s.id,
+    }));
+  }
+  // 가이드 탭(beginner/events) — 마크다운 컬렉션의 order 순 항목을 children 으로
+  const guides = tabId === 'beginner' ? beginnerGuides : eventsGuides;
+  return guides.map((g, idx) => {
+    const slug = entryToSlug(g);
+    const path = `/${tabId as GuideCategory}/${slug}/`;
+    // 인덱스 진입(/, /events/) 시 첫 항목을 active 로 간주
+    let active = pathname === path;
+    if (!active && idx === 0) {
+      if (tabId === 'beginner' && pathname === '/') active = true;
+      if (tabId === 'events' && pathname === '/events/') active = true;
+    }
+    return { title: g.data.title, path, active, section: slug };
+  });
+}
+
+const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) }));
 ---
 
 <div class="mobile-nav-overlay" id="mobile-nav-overlay"></div>
@@ -12,35 +54,34 @@ const activeSubmenu = activeTab ? findActiveSubmenu(activeTab, pathname) : undef
     <button id="mobile-nav-close" type="button" aria-label="메뉴 닫기">&times;</button>
   </div>
   {
-    tabs.map((tab) => {
-      const isExpanded = activeTab?.id === tab.id;
+    tabsWithChildren.map((tab) => {
+      const isCurrentTab = activeTab?.id === tab.id;
       return (
         <>
-          <a
-            href={tab.path}
-            class:list={['mobile-nav-tab', { expanded: isExpanded }]}
+          <button
+            class:list={['mobile-nav-tab', { expanded: isCurrentTab }]}
             data-tab={tab.id}
+            type="button"
           >
             <span>{tab.title}</span>
-            {tab.submenus && <span class="mobile-nav-toggle">▸</span>}
-          </a>
-          {tab.submenus && (
-            <div class:list={['mobile-nav-children', { open: isExpanded }]} data-parent={tab.id}>
-              {tab.submenus.map((sub) => (
-                <a
-                  href={sub.path}
-                  class:list={[
-                    'mobile-nav-section',
-                    { active: activeSubmenu?.id === sub.id },
-                  ]}
-                  data-tab={tab.id}
-                  data-submenu={sub.id}
-                >
-                  {sub.title}
-                </a>
-              ))}
-            </div>
-          )}
+            <span class="mobile-nav-toggle">▸</span>
+          </button>
+          <div
+            class:list={['mobile-nav-children', { open: isCurrentTab }]}
+            data-parent={tab.id}
+          >
+            {tab.children.map((c) => (
+              <a
+                href={c.path}
+                class:list={['mobile-nav-section', { active: c.active }]}
+                data-tab={tab.id}
+                data-submenu={c.submenu}
+                data-section={c.section}
+              >
+                {c.title}
+              </a>
+            ))}
+          </div>
         </>
       );
     })
@@ -65,6 +106,31 @@ const activeSubmenu = activeTab ? findActiveSubmenu(activeTab, pathname) : undef
   btn?.addEventListener('click', openMenu);
   overlay?.addEventListener('click', closeMenu);
   closeBtn?.addEventListener('click', closeMenu);
+
+  // 탭 버튼 클릭 → children 토글 (한 번에 한 탭만 펼침). 페이지 이동 안 함.
+  panel?.querySelectorAll<HTMLButtonElement>('.mobile-nav-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const tabId = tab.dataset.tab;
+      if (!tabId) return;
+      const children = panel.querySelector<HTMLDivElement>(
+        `.mobile-nav-children[data-parent="${tabId}"]`,
+      );
+      if (!children) return;
+      const isOpen = children.classList.contains('open');
+
+      panel
+        .querySelectorAll('.mobile-nav-children')
+        .forEach((c) => c.classList.remove('open'));
+      panel
+        .querySelectorAll('.mobile-nav-tab')
+        .forEach((t) => t.classList.remove('expanded'));
+
+      if (!isOpen) {
+        children.classList.add('open');
+        tab.classList.add('expanded');
+      }
+    });
+  });
 </script>
 
 <style>
@@ -130,18 +196,21 @@ const activeSubmenu = activeTab ? findActiveSubmenu(activeTab, pathname) : undef
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     padding: 14px 20px;
     font-size: 15px;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.85);
     cursor: pointer;
+    border: none;
     border-left: 3px solid transparent;
+    background: none;
     transition: all 0.15s;
-    text-decoration: none;
+    font-family: var(--font);
+    text-align: left;
   }
   .mobile-nav-tab:hover {
     background: rgba(255, 255, 255, 0.06);
-    text-decoration: none;
   }
   .mobile-nav-tab.expanded {
     color: #fff;
