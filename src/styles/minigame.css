@@ -1062,6 +1062,32 @@
   color: var(--text);
 }
 
+/* 크리스탈 보상 토스트 — Stage 클리어 시 잔액 갱신 알림 */
+.tm-crystal-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  z-index: 1200;
+  padding: 10px 18px;
+  background: linear-gradient(180deg, #6366f1, #4338ca);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(67, 56, 202, 0.4);
+  opacity: 0;
+  animation: tmCrystalToast 1.8s ease-out forwards;
+  pointer-events: none;
+  white-space: nowrap;
+}
+@keyframes tmCrystalToast {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+}
+
 /* ===== 운명의 파트너 ===== */
 .pd-card {
   background: linear-gradient(180deg, #ffffff, #f7f9fc);

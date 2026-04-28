@@ -23,10 +23,23 @@ const activeTab = findActiveTab(pathname);
       ))
     }
   </nav>
+  <div
+    id="header-crystal-badge"
+    class="header-crystal-badge"
+    style="display: none;"
+    aria-label="크리스탈 잔액"
+  >
+    <span class="header-crystal-icon">✨</span>
+    <span id="header-crystal-value" class="header-crystal-value">0</span>
+  </div>
   <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="메뉴" type="button"
     >&#9776;</button
   >
 </header>
+
+<script>
+  import '@/scripts/header-crystal-badge';
+</script>
 
 <style>
   .app-header {
@@ -113,6 +126,30 @@ const activeTab = findActiveTab(pathname);
     margin-left: auto;
   }
 
+  /* 크리스탈 잔액 배지 — sessionStorage 인증된 사용자에게만 표시 */
+  .header-crystal-badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    background: rgba(99, 102, 241, 0.18);
+    border: 1px solid rgba(165, 180, 252, 0.45);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .header-crystal-icon {
+    font-size: 14px;
+    line-height: 1;
+  }
+  .header-crystal-value {
+    font-variant-numeric: tabular-nums;
+  }
+
   @media (max-width: 768px) {
     .app-header {
       padding: 0 12px;
@@ -126,6 +163,11 @@ const activeTab = findActiveTab(pathname);
     }
     .mobile-menu-btn {
       display: block;
+      margin-left: 0;
+    }
+    .header-crystal-badge {
+      font-size: 12px;
+      padding: 3px 9px;
     }
   }
 </style>
