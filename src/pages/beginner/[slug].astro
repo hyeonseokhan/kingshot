@@ -1,0 +1,32 @@
+---
+import GuideLayout from '@/layouts/GuideLayout.astro';
+import { getGuidesByCategory, entryToSlug, buildNavItems, type GuideEntry } from '@/lib/guides';
+
+export async function getStaticPaths() {
+  const guides = await getGuidesByCategory('beginner');
+  return guides.map((entry) => ({
+    params: { slug: entryToSlug(entry) },
+    props: { entry, all: guides },
+  }));
+}
+
+interface Props {
+  entry: GuideEntry;
+  all: GuideEntry[];
+}
+
+const { entry, all } = Astro.props;
+const slug = entryToSlug(entry);
+const { Content, headings } = await entry.render();
+const navItems = buildNavItems(all, 'beginner', slug);
+---
+
+<GuideLayout
+  title={`${entry.data.title} — PNX 연맹`}
+  description={`PNX 연맹 입문 가이드 — ${entry.data.title}`}
+  navHeader="목차"
+  navItems={navItems}
+  headings={headings}
+>
+  <Content />
+</GuideLayout>

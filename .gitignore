@@ -38,7 +38,5 @@ vendor/
 # ===== 미니게임 원본 Java 프로젝트 (참고용, 배포 무관) =====
 matchjong-master/
 
-# ===== 개발 중 생성한 검증 스크립트/캡처/mock 페이지 =====
-scripts/
-# 단 alliance_scraper 의 scripts 는 핵심 운영 도구라 예외
-!client_tools/alliance_scraper/scripts/
+# ===== 개발 중 생성한 검증 스크립트/캡처/mock 페이지 (저장소 루트 한정) =====
+/scripts/

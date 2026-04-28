@@ -452,3 +452,4 @@ kingshot/
 | 2026-04-28 | 초안 작성 |
 | 2026-04-28 | 4개 결정 사항 확정 반영 (페이지 라우팅 / 환경변수 / Tailwind 하이브리드 / Phase 7 별도 PR) |
 | 2026-04-28 | Phase 2 완료 — URL 평탄화(`/guides/` 접두사 제거), 6 라우트 동작 확인 |
+| 2026-04-28 | Phase 3 완료 — 가이드 10편 Content Collection 이식, 16 페이지 빌드, TOC·heading anchor·스크롤 스파이 동작. 이모지 포함 heading 슬러그는 kramdown과 미세 차이(예: `-이것만-기억하면-` ← 선행 대시) — 영향은 외부 deep heading 링크 한정 |
