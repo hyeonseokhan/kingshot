@@ -74,10 +74,12 @@
   function renderUserBadge(session) {
     var box = $('pd-user');
     var name = $('pd-user-name');
+    var idEl = $('pd-user-id');
     if (!box || !name) return;
     if (session && session.player_id) {
       box.style.display = '';
-      name.textContent = session.nickname + ' (' + session.player_id + ')';
+      name.textContent = session.nickname;
+      if (idEl) idEl.textContent = '(' + session.player_id + ')';
     } else {
       box.style.display = 'none';
     }

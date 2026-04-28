@@ -452,25 +452,22 @@
     <div class="manage-page" id="page-tile-match">
       <div class="members-header">
         <h1>타일 매치</h1>
+        <!-- 인증 뱃지 — h1 우측 끝에 배치 -->
+        <div class="tm-launch-user" id="tm-launch-user" style="display:none">
+          <span class="tm-launch-user-label">인증됨</span>
+          <strong id="tm-launch-user-name">-</strong>
+          <span class="tm-launch-user-id" id="tm-launch-user-id"></span>
+          <button class="tm-launch-user-logout" id="tm-launch-user-logout" type="button">전환</button>
+        </div>
       </div>
       <div class="page-intro">
-        <p><strong>3매치 마작 — 게임 규칙</strong></p>
+        <p><strong>3매치 마작</strong> — 같은 모양 타일 3개를 슬롯에 모아 보드를 비우는 게임</p>
         <ul>
-          <li><strong>목표</strong> — 보드 위 모든 타일을 슬롯에서 짝지어 비우면 클리어</li>
-          <li><strong>활성 타일</strong> — 위쪽 레이어에 가려지지 않은 타일만 클릭 가능 (회색 처리된 타일은 잠금)</li>
-          <li><strong>슬롯</strong> — 클릭한 타일은 하단 7칸 슬롯으로 이동. 같은 모양 <strong>3개</strong>가 모이면 자동 소거</li>
-          <li><strong>실패</strong> — 슬롯이 가득 차면 게임 오버</li>
-          <li><strong>아이템(각 1회 무료)</strong> — 🧹 제거 / ↩️ 되돌리기 / 🔀 재배치</li>
-          <li><strong>아바타 타일</strong> — 매 게임마다 16개 모양 중 하나가 랜덤 연맹원의 프로필로 대체됩니다</li>
+          <li>활성 타일(밝은 것)만 클릭 가능</li>
+          <li>슬롯 7칸 가득 차면 실패</li>
+          <li>아이템 🧹 ↩️ 🔀 각 1회 무료</li>
         </ul>
-        <p class="page-intro-hint">스테이지 클리어 시 다음 스테이지로 진행 — 단계가 올라갈수록 보드가 커집니다.</p>
-      </div>
-
-      <!-- 인증된 사용자 뱃지 (카드 위) -->
-      <div class="tm-launch-user" id="tm-launch-user" style="display:none">
-        <span class="tm-launch-user-label">인증됨</span>
-        <strong id="tm-launch-user-name">-</strong>
-        <button class="tm-launch-user-logout" id="tm-launch-user-logout" type="button">전환</button>
+        <p class="page-intro-hint">스테이지를 클리어할수록 보드가 커집니다.</p>
       </div>
 
       <!-- 게임 시작 카드 -->
@@ -514,6 +511,12 @@
           <div class="tm-dlg-body">
             <div class="tm-board-area">
               <div class="tm-board" id="tm-board"></div>
+              <!-- 아바타 타일이 누구인지 알려주는 힌트 (absolute 로 보드 영역 위 떠있음) -->
+              <div class="tm-avatar-hint" id="tm-avatar-hint" style="display:none">
+                <span class="tm-avatar-hint-icon">🎭</span>
+                <span id="tm-avatar-hint-name">-</span>
+                <span class="tm-avatar-hint-suffix">의 아바타 등장!</span>
+              </div>
             </div>
 
             <!-- 제거 큐 (제거 아이템 사용 시 표시) — 클릭하면 버퍼로 복귀 -->
@@ -581,6 +584,13 @@
     <div class="manage-page" id="page-partner-draw" style="display:none">
       <div class="members-header">
         <h1>운명의 파트너</h1>
+        <!-- 인증 뱃지 — h1 우측 끝에 배치 -->
+        <div class="tm-launch-user" id="pd-user" style="display:none">
+          <span class="tm-launch-user-label">인증됨</span>
+          <strong id="pd-user-name">-</strong>
+          <span class="tm-launch-user-id" id="pd-user-id"></span>
+          <button class="tm-launch-user-logout" id="pd-user-logout" type="button">전환</button>
+        </div>
       </div>
       <div class="page-intro">
         <p><strong>너 나랑 깐부할래?</strong></p>
@@ -589,13 +599,6 @@
           <li>본인 포함 <strong>2~4명</strong> 중에서 파티 인원을 선택</li>
           <li>본인은 자동 제외 — 나머지 연맹원 풀에서 무작위 추첨</li>
         </ul>
-      </div>
-
-      <!-- 인증 뱃지 -->
-      <div class="tm-launch-user" id="pd-user" style="display:none">
-        <span class="tm-launch-user-label">인증됨</span>
-        <strong id="pd-user-name">-</strong>
-        <button class="tm-launch-user-logout" id="pd-user-logout" type="button">전환</button>
       </div>
 
       <!-- 추첨 카드 -->

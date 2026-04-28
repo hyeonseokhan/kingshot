@@ -38,8 +38,9 @@
   // ===== 상태 =====
 
   // 매 게임마다 16개 모양 중 하나가 랜덤 연맹원의 아바타로 교체됨 (재미 요소)
-  var avatarTileValue = -1;   // 어떤 인덱스가 아바타로 대체될지 (0~15)
-  var avatarTileUrl = null;   // 그 멤버의 profile_photo URL
+  var avatarTileValue = -1;     // 어떤 인덱스가 아바타로 대체될지 (0~15)
+  var avatarTileUrl = null;     // 그 멤버의 profile_photo URL
+  var avatarMemberName = null;  // 그 멤버의 nickname (보드 위 힌트용)
 
   var level = null;
   var tiles = [];
@@ -139,10 +140,12 @@
   function renderUserBadge(session) {
     var box = $('tm-launch-user');
     var name = $('tm-launch-user-name');
+    var idEl = $('tm-launch-user-id');
     if (!box || !name) return;
     if (session && session.player_id) {
       box.style.display = '';
-      name.textContent = session.nickname + ' (' + session.player_id + ')';
+      name.textContent = session.nickname;
+      if (idEl) idEl.textContent = '(' + session.player_id + ')';
     } else {
       box.style.display = 'none';
     }
@@ -325,28 +328,48 @@
   }
 
   function pickAvatarTile() {
-    // 아바타 url 만 미리 결정. avatarTileValue 는 buildBoard 후
+    // 아바타 url + nickname 미리 결정. avatarTileValue 는 buildBoard 후
     // "보드에 실제 존재하는 value 중에서" 결정 (set 수가 16 미만이면 일부 value 미사용).
     avatarTileValue = -1;
     avatarTileUrl = null;
+    avatarMemberName = null;
     var cached = (window.TileMatchAuth && window.TileMatchAuth._cachedMembers) || null;
     if (cached && cached.length) {
       var withPhotoCached = cached.filter(function(m) { return m && m.profile_photo; });
       if (withPhotoCached.length) {
-        avatarTileUrl = withPhotoCached[Math.floor(Math.random() * withPhotoCached.length)].profile_photo;
+        var picked = withPhotoCached[Math.floor(Math.random() * withPhotoCached.length)];
+        avatarTileUrl = picked.profile_photo;
+        avatarMemberName = picked.nickname || null;
       }
       return;
     }
-    // fallback: 직접 fetch
-    fetch(SUPABASE_URL + '/rest/v1/members?select=profile_photo&limit=200', {
+    // fallback: 직접 fetch (nickname 도 함께)
+    fetch(SUPABASE_URL + '/rest/v1/members?select=nickname,profile_photo&limit=200', {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
     }).then(function(r) { return r.json(); }).then(function(list) {
       var withPhoto = (list || []).filter(function(m) { return m && m.profile_photo; });
       if (!withPhoto.length) return;
-      avatarTileUrl = withPhoto[Math.floor(Math.random() * withPhoto.length)].profile_photo;
+      var picked = withPhoto[Math.floor(Math.random() * withPhoto.length)];
+      avatarTileUrl = picked.profile_photo;
+      avatarMemberName = picked.nickname || null;
       // 보드가 이미 그려졌고 avatarTileValue 가 결정됐다면 즉시 반영
-      if (avatarTileValue >= 0) refreshAvatarTiles();
+      if (avatarTileValue >= 0) {
+        refreshAvatarTiles();
+        updateAvatarHint();
+      }
     }).catch(function() {});
+  }
+
+  function updateAvatarHint() {
+    var box = $('tm-avatar-hint');
+    var nameEl = $('tm-avatar-hint-name');
+    if (!box || !nameEl) return;
+    if (avatarMemberName && avatarTileValue >= 0) {
+      nameEl.textContent = avatarMemberName;
+      box.style.display = '';
+    } else {
+      box.style.display = 'none';
+    }
   }
 
   // buildBoard 끝에 호출 — 보드에 실제 존재하는 unique value 중 하나를 아바타로 마킹
@@ -556,6 +579,7 @@
     renderRemoveQueue();
     updateItemButtons();
     updateStatus();
+    updateAvatarHint();  // 누구의 아바타가 끼어있는지 보드 위에 표시
     // 보드 영역 layout 이 잡힌 다음 fit
     requestAnimationFrame(fitBoardToArea);
   }
