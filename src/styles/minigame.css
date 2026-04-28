@@ -1153,3 +1153,186 @@
     font-size: 20px;
   }
 }
+
+/* ===== 장비 강화 (Phase B) ===== */
+
+.eq-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 18px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #ddebff 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+}
+.eq-summary-label {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+}
+.eq-summary-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1e3a8a;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-auth-prompt {
+  margin: 12px 0 18px;
+  padding: 14px 18px;
+  background: #fff7ed;
+  border: 1px dashed #fdba74;
+  border-radius: 10px;
+  color: #9a3412;
+  font-size: 14px;
+}
+.eq-auth-prompt strong {
+  color: #c2410c;
+}
+
+.eq-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media (min-width: 600px) {
+  .eq-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 980px) {
+  .eq-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.eq-slot {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.eq-slot-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.eq-slot-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.eq-slot-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.eq-slot-level {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e3a8a;
+  background: #dbeafe;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-slot-power {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: #64748b;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 8px;
+}
+.eq-slot-power-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-slot-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.eq-slot-next-cost,
+.eq-slot-next-power,
+.eq-slot-next-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+}
+.eq-slot-next-cost .eq-icon {
+  font-size: 13px;
+}
+.eq-slot-next-power {
+  color: #15803d;
+}
+.eq-slot-next-rate {
+  color: #4338ca;
+}
+.eq-slot-next-capped {
+  justify-content: center;
+  color: #b45309;
+  font-weight: 600;
+  background: #fef3c7;
+}
+
+.eq-slot-btn {
+  appearance: none;
+  border: none;
+  background: linear-gradient(180deg, #6366f1, #4338ca);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.eq-slot-btn:hover:not(:disabled) {
+  opacity: 0.92;
+}
+.eq-slot-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.eq-slot-btn:disabled {
+  background: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.eq-slot-result {
+  min-height: 18px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.eq-slot-result-success {
+  color: #15803d;
+}
+.eq-slot-result-fail {
+  color: #94a3b8;
+}
+.eq-slot-result-error {
+  color: #dc2626;
+}

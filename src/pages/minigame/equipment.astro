@@ -1,0 +1,84 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+import { EQUIPMENT_SLOTS, SLOT_LABEL } from '@/lib/balance';
+import '@/styles/minigame.css';
+
+const minigame = tabs.find((t) => t.id === 'minigame')!;
+const active = findActiveSubmenu(minigame, Astro.url.pathname);
+const navItems = minigame.submenus!.map((s) => ({
+  title: s.title,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="장비 강화 — PNX 연맹"
+  description="크리스탈로 장비를 강화해 전투력을 올리세요"
+  navHeader="미니게임"
+  navItems={navItems}
+>
+  <div class="manage-page" id="page-equipment">
+    <div class="members-header">
+      <h1>장비 강화</h1>
+    </div>
+
+    <div class="page-intro">
+      <p><strong>💎 크리스탈로 장비를 강화해 전투력을 올려보세요</strong></p>
+      <ul>
+        <li>6부위 (월계관 / 목걸이 / 상의 / 하의 / 반지 / 지팡이) — 부위마다 +1~+10 단계</li>
+        <li>+5 (Bronze), +10 (Silver) 의 전투력 가성비가 좋음</li>
+        <li>실패해도 등급은 유지 — 크리스탈만 소모</li>
+      </ul>
+    </div>
+
+    <!-- 총 장비 전투력 -->
+    <div class="eq-summary">
+      <span class="eq-summary-label">장비 총 전투력</span>
+      <strong class="eq-summary-value" id="eq-total-power">—</strong>
+    </div>
+
+    <!-- 비인증 안내 -->
+    <div class="eq-auth-prompt" id="eq-auth-prompt" style="display:none">
+      헤더의 <strong>로그인</strong> 버튼으로 인증한 뒤 강화할 수 있어요.
+    </div>
+
+    <!-- 6슬롯 그리드 — 정적 마크업으로 SSR, JS 가 값만 patch -->
+    <div class="eq-grid" id="eq-grid">
+      {EQUIPMENT_SLOTS.map((slot) => (
+        <div class="eq-slot" data-slot={slot}>
+          <div class="eq-slot-head">
+            <span class="eq-slot-icon">{SLOT_LABEL[slot].icon}</span>
+            <span class="eq-slot-name">{SLOT_LABEL[slot].name}</span>
+            <span class="eq-slot-level" data-field="level">+0</span>
+          </div>
+          <div class="eq-slot-power">
+            <span class="eq-slot-power-label">전투력</span>
+            <span class="eq-slot-power-value" data-field="power">—</span>
+          </div>
+          <div class="eq-slot-next" data-field="next">
+            <span class="eq-slot-next-cost"><span class="eq-icon">💎</span><span data-field="cost">—</span></span>
+            <span class="eq-slot-next-power">+<span data-field="delta">—</span></span>
+            <span class="eq-slot-next-rate"><span data-field="rate">—</span>%</span>
+          </div>
+          <button class="eq-slot-btn" data-action="enhance" data-slot={slot} type="button" disabled>
+            강화 시도
+          </button>
+          <div class="eq-slot-result" data-field="result"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+</AppLayout>
+
+<script>
+  import '@/scripts/pages/tile-match-auth';
+  import { initEquipment } from '@/scripts/pages/equipment';
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEquipment);
+  } else {
+    initEquipment();
+  }
+</script>
