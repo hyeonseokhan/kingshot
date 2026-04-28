@@ -135,10 +135,19 @@ const { title, description, navHeader, navItems, headings = [] } = Astro.props;
     margin: 0 0 12px;
     color: var(--text);
   }
-  .center-content :global(ul),
+  /* Tailwind v4 preflight 가 list-style 을 제거하므로 명시 복원 */
+  .center-content :global(ul) {
+    margin: 0 0 14px;
+    padding-left: 24px;
+    list-style: disc outside;
+  }
   .center-content :global(ol) {
     margin: 0 0 14px;
     padding-left: 24px;
+    list-style: decimal outside;
+  }
+  .center-content :global(ul ul) {
+    list-style: circle outside;
   }
   .center-content :global(li) {
     margin: 3px 0;
