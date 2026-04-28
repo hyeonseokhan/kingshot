@@ -2,6 +2,9 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import AuthDialog from '@/components/AuthDialog.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
+// manage.css = 모든 앱형 페이지의 공통 스타일 (.btn, .page-intro, .members-header, .manage-page 등)
+// minigame.css = 게임 전용 (.tm-*, .pd-*)
+import '@/styles/manage.css';
 import '@/styles/minigame.css';
 
 const minigame = tabs.find((t) => t.id === 'minigame')!;
