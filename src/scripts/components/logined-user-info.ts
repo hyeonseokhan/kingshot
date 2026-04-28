@@ -12,6 +12,7 @@
  */
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { patchText } from '@/lib/dom-diff';
 import {
   getSession,
   clearSession,
@@ -68,55 +69,62 @@ function fetchProfilePhoto(playerId: string): Promise<string | null> {
 }
 
 function setCrystal(balance: number | null): void {
-  const v = $('hu-crystal-value');
-  if (!v) return;
-  v.textContent = (balance ?? 0).toLocaleString('ko-KR');
+  // patchText: 같은 값이면 no-op — broadcast 가 같은 값 반복 시 textContent 재할당 안 함
+  patchText($('hu-crystal-value'), (balance ?? 0).toLocaleString('ko-KR'));
 }
 
-function setAvatar(url: string | null, nickname: string): void {
+// 아바타 영역의 placeholder (initial 글자) 즉시 표시. 이미지 fetch 중에도 같은 자리에 글자가 보임.
+function setAvatarPlaceholder(nickname: string): void {
   const wrap = $('hu-avatar');
   const img = $<HTMLImageElement>('hu-avatar-img');
   const initial = $('hu-avatar-initial');
   if (!wrap || !img || !initial) return;
   initial.textContent = (nickname || '?').slice(0, 1).toUpperCase();
-  if (url) {
-    img.onload = () => {
-      img.classList.add('loaded');
-      wrap.classList.add('has-img');
-    };
-    img.onerror = () => {
-      img.classList.remove('loaded');
-      wrap.classList.remove('has-img');
-    };
-    img.src = url;
-  } else {
-    img.removeAttribute('src');
-    img.classList.remove('loaded');
-    wrap.classList.remove('has-img');
-  }
+  // 이전 사진 잔재 제거 — 다른 계정으로 swap 시
+  img.classList.remove('loaded');
+  wrap.classList.remove('has-img');
+  img.removeAttribute('src');
 }
 
-function setState(loggedIn: boolean): void {
+// 사진 URL 이 도착하면 같은 26x26 원 안에서 in-place 로 placeholder 글자 위에 덮어씀.
+function loadAvatarImage(url: string): void {
+  const wrap = $('hu-avatar');
+  const img = $<HTMLImageElement>('hu-avatar-img');
+  if (!wrap || !img) return;
+  img.onload = () => {
+    img.classList.add('loaded');
+    wrap.classList.add('has-img');
+  };
+  img.onerror = () => {
+    img.classList.remove('loaded');
+    wrap.classList.remove('has-img');
+  };
+  img.src = url;
+}
+
+function setState(state: 'loading' | 'loggedin' | 'loggedout'): void {
   const root = $('hu-root');
-  if (root) root.dataset.state = loggedIn ? 'loggedin' : 'loggedout';
-  if (!loggedIn) closeDropdown();
+  if (root) root.dataset.state = state;
+  if (state !== 'loggedin') closeDropdown();
 }
 
 function renderSession(session: AuthSession | null): void {
   if (!session?.player_id) {
-    setState(false);
+    setState('loggedout');
     return;
   }
-  setState(true);
-  const name = $('hu-name');
-  const dropdownName = $('hu-dropdown-name');
-  if (name) name.textContent = session.nickname;
-  if (dropdownName) dropdownName.textContent = session.nickname;
+  // 1) 동기적으로 즉시 카드 표시 — 닉네임은 세션 정보로 바로 채움.
+  //    아바타는 initial 글자, 크리스탈은 — placeholder 로 같은 폭 유지.
+  setState('loggedin');
+  patchText($('hu-name'), session.nickname);
+  patchText($('hu-dropdown-name'), session.nickname);
+  setAvatarPlaceholder(session.nickname);
+  patchText($('hu-crystal-value'), '—');
 
-  // 아바타: members 테이블 1회 조회 (캐시 안 함 — 잔액 fetch 와 동일 라이프사이클)
-  fetchProfilePhoto(session.player_id).then((url) => setAvatar(url, session.nickname));
-
-  // 잔액
+  // 2) 비동기 fetch — 도착하는 대로 in-place 갱신. 레이아웃은 이미 안정.
+  fetchProfilePhoto(session.player_id).then((url) => {
+    if (url) loadAvatarImage(url);
+  });
   fetchBalance(session.player_id).then(setCrystal);
 }
 
@@ -148,7 +156,7 @@ function toggleDropdown(): void {
 function onLogout(): void {
   closeDropdown();
   clearSession();
-  setState(false);
+  setState('loggedout');
   // 사용자가 로그아웃 직후 곧장 다른 계정/같은 계정으로 다시 로그인할 가능성이 높음 → 즉시 다이얼로그
   ensureAuth().then((s) => {
     if (s) renderSession(s);

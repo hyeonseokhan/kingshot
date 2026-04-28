@@ -7,6 +7,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { rewardForStage } from '@/lib/balance';
+import { patchList } from '@/lib/dom-diff';
 
 // ===== 상수 =====
 
@@ -266,10 +267,18 @@ interface MemberLite {
   profile_photo?: string | null;
 }
 
+function hasRankingRows(): boolean {
+  const box = $('tm-ranking-list');
+  return !!box && !!box.querySelector('.tm-ranking-row');
+}
+
 function loadRanking(): void {
   const box = $('tm-ranking-list');
   if (!box) return;
-  box.innerHTML = '<div class="tm-ranking-empty">로딩 중...</div>';
+  // 이미 row 가 그려진 상태면 "로딩 중" placeholder 로 깜빡이지 않게 — refresh 시 stale data 유지
+  if (!hasRankingRows()) {
+    box.innerHTML = '<div class="tm-ranking-empty">로딩 중...</div>';
+  }
 
   fetchSupa(
     SUPABASE_URL +
@@ -295,10 +304,13 @@ function loadRanking(): void {
       });
     })
     .catch((err: Error) => {
-      box.innerHTML =
-        '<div class="tm-ranking-empty">랭킹 조회 실패: ' +
-        (err.message || String(err)) +
-        '</div>';
+      // refresh 중 실패 — stale row 가 있으면 보존 (사용자에게 빈 화면 보여주는 것보다 나음)
+      if (!hasRankingRows()) {
+        box.innerHTML =
+          '<div class="tm-ranking-empty">랭킹 조회 실패: ' +
+          (err.message || String(err)) +
+          '</div>';
+      }
     });
 }
 
@@ -327,57 +339,75 @@ function formatRankingDate(iso: string | null): string {
   return Math.floor(diffMon / 12) + '년 전';
 }
 
+function fillRankingRow(
+  row: HTMLElement,
+  record: RankingRecord,
+  rank: number,
+  member: MemberLite,
+  isMe: boolean,
+): void {
+  row.className = 'tm-ranking-row' + (isMe ? ' tm-ranking-row-me' : '');
+
+  let rankClass = '';
+  if (rank === 1) rankClass = 'gold';
+  else if (rank === 2) rankClass = 'silver';
+  else if (rank === 3) rankClass = 'bronze';
+
+  let effectClass = '';
+  if (rank === 1) effectClass = ' rank-effect-1';
+  else if (rank === 2) effectClass = ' rank-effect-2';
+  else if (rank === 3) effectClass = ' rank-effect-3';
+
+  const dateStr = record.best_stage_at ? formatRankingDate(record.best_stage_at) : '-';
+  const photoInner = member.profile_photo
+    ? '<img class="tm-rank-photo" src="' +
+      escapeRankingHtml(member.profile_photo) +
+      '" alt="">'
+    : '<span class="tm-rank-photo tm-rank-photo-empty">' +
+      escapeRankingHtml((member.nickname || '?').slice(0, 1).toUpperCase()) +
+      '</span>';
+  const photoHtml =
+    '<div class="tm-rank-photo-wrap' + effectClass + '">' + photoInner + '</div>';
+  row.innerHTML =
+    '<span class="tm-rank-num ' + rankClass + '">' + rank + '</span>' +
+    photoHtml +
+    '<span class="tm-rank-name">' +
+    escapeRankingHtml(member.nickname || record.player_id) +
+    (member.level ? '<small>Lv.' + member.level + '</small>' : '') +
+    '</span>' +
+    '<span class="tm-rank-stage">' +
+    record.best_stage +
+    '<span> Stage</span></span>' +
+    '<span class="tm-rank-meta">' +
+    dateStr +
+    '</span>';
+}
+
 function renderRanking(records: RankingRecord[], memberMap: Record<string, MemberLite>): void {
   const box = $('tm-ranking-list');
   if (!box) return;
-  box.innerHTML = '';
+  // 이전 placeholder/empty 메시지가 있다면 제거 (data-key 가 없는 자식들)
+  Array.from(box.children).forEach((child) => {
+    if (!(child as HTMLElement).dataset.key) child.remove();
+  });
   const session = window.TileMatchAuth?.getSession();
   const myId = session ? session.player_id : null;
 
-  const frag = document.createDocumentFragment();
-  records.forEach((r, i) => {
-    const rank = i + 1;
-    const member = memberMap[r.player_id] || ({} as MemberLite);
-    const row = document.createElement('div');
-    row.className = 'tm-ranking-row';
-    if (myId && r.player_id === myId) row.classList.add('tm-ranking-row-me');
-
-    let rankClass = '';
-    if (rank === 1) rankClass = 'gold';
-    else if (rank === 2) rankClass = 'silver';
-    else if (rank === 3) rankClass = 'bronze';
-
-    let effectClass = '';
-    if (rank === 1) effectClass = ' rank-effect-1';
-    else if (rank === 2) effectClass = ' rank-effect-2';
-    else if (rank === 3) effectClass = ' rank-effect-3';
-
-    const dateStr = r.best_stage_at ? formatRankingDate(r.best_stage_at) : '-';
-    const photoInner = member.profile_photo
-      ? '<img class="tm-rank-photo" src="' +
-        escapeRankingHtml(member.profile_photo) +
-        '" alt="">'
-      : '<span class="tm-rank-photo tm-rank-photo-empty">' +
-        escapeRankingHtml((member.nickname || '?').slice(0, 1).toUpperCase()) +
-        '</span>';
-    const photoHtml =
-      '<div class="tm-rank-photo-wrap' + effectClass + '">' + photoInner + '</div>';
-    row.innerHTML =
-      '<span class="tm-rank-num ' + rankClass + '">' + rank + '</span>' +
-      photoHtml +
-      '<span class="tm-rank-name">' +
-      escapeRankingHtml(member.nickname || r.player_id) +
-      (member.level ? '<small>Lv.' + member.level + '</small>' : '') +
-      '</span>' +
-      '<span class="tm-rank-stage">' +
-      r.best_stage +
-      '<span> Stage</span></span>' +
-      '<span class="tm-rank-meta">' +
-      dateStr +
-      '</span>';
-    frag.appendChild(row);
+  patchList({
+    container: box,
+    items: records,
+    key: (r) => r.player_id,
+    render: (r, i) => {
+      const row = document.createElement('div');
+      const member = memberMap[r.player_id] || ({} as MemberLite);
+      fillRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
+      return row;
+    },
+    update: (row, r, i) => {
+      const member = memberMap[r.player_id] || ({} as MemberLite);
+      fillRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
+    },
   });
-  box.appendChild(frag);
 }
 
 // ===== 다이얼로그 =====

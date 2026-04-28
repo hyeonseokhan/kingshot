@@ -119,7 +119,15 @@
 
 ## #6 데이터 갱신 시 화면 깜박임 — 구조적 개선
 
-- **상태**: 미수정 (분류: 구조 개선) | **결정 완료**: 2026-04-28
+- **상태**: 🔶 1차 적용 (2026-04-29, 커밋 예정) | 분류: 구조 개선
+- **남은 작업**: 멤버 관리 리스트 / 쿠폰 히스토리 페이지에 patchList 적용 (별도 PR)
+- **추가 적용 (사용자 피드백)**: 헤더 위젯 깜빡임 패턴 재설계 — opacity:0 reveal 대기 → **스켈레톤 + 점진 채움** 으로 변경 (Twitter/Discord 식 패턴):
+  - SSR 시점에 `data-state="loading"` + 회색 placeholder (avatar circle + 2 bars, pulse 애니메이션) → 레이아웃 즉시 확정
+  - JS hydrate 시 `getSession()` 동기 검사 → 즉시 loggedin/loggedout 상태로 swap
+  - loggedin 시: 닉네임은 세션에서 즉시, 아바타는 initial 글자 placeholder, 크리스탈은 `—`
+  - 아바타 fetch 완료 → 같은 26x26 원에 in-place 덮어씀
+  - 잔액 fetch 완료 → `—` → 숫자 (min-width 로 폭 그대로)
+  - 레이아웃 폭은 SSR 부터 끝까지 동일 (`min-width: 240px` desktop, `90px` mobile)
 - **증상**: API 로 데이터 조회/갱신하는 **거의 모든 동적 UI** 가 깜박임 발생
   - 사용자 명시: "연맹원 목록 그리고 API 로 상태를 조회하여 받는 모든 UI 요소가 다 그러고있어"
 - **주 원인**: `innerHTML = ''` 으로 컨테이너 통째 비우고 다시 채우는 패턴 → DOM 이 빈 상태로 1프레임 이상 노출되며 깜박임. 이미지/아바타도 매번 새로 로드되어 가시적 flash

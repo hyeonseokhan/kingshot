@@ -8,7 +8,14 @@
 // AuthDialog 가 BaseLayout 에 마운트돼있어야 ensureAuth 가 작동함.
 ---
 
-<div class="hu" id="hu-root" data-state="loggedout">
+<div class="hu" id="hu-root" data-state="loading">
+  <!-- 스켈레톤: SSR 시점에 레이아웃 즉시 확정. JS hydrate 직후 loggedin/loggedout 으로 swap. -->
+  <div class="hu-skeleton" aria-hidden="true">
+    <span class="hu-sk-avatar"></span>
+    <span class="hu-sk-line hu-sk-name"></span>
+    <span class="hu-sk-line hu-sk-crystal"></span>
+  </div>
+
   <button class="hu-login" id="hu-login" type="button">로그인</button>
 
   <div class="hu-card" id="hu-card">
@@ -63,7 +70,51 @@
     margin-left: auto;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     position: relative;
+    /* 로그인/비로그인/로딩 상태가 같은 폭을 점유하도록 reserve.
+       로그인 카드 (avatar + 닉네임 + 크리스탈 + 로그아웃) 의 자연 폭 기준. */
+    min-width: 240px;
+  }
+
+  /* 상태별 표시 — 한 시점에 셋 중 하나만 노출 */
+  .hu[data-state='loading'] .hu-login,
+  .hu[data-state='loading'] .hu-card,
+  .hu[data-state='loggedout'] .hu-skeleton,
+  .hu[data-state='loggedout'] .hu-card,
+  .hu[data-state='loggedin'] .hu-skeleton,
+  .hu[data-state='loggedin'] .hu-login {
+    display: none;
+  }
+
+  /* === 스켈레톤 (SSR 직후 ~ JS hydrate 사이에만 보임) === */
+  .hu-skeleton {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hu-sk-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.13);
+    animation: huPulse 1.4s ease-in-out infinite;
+  }
+  .hu-sk-line {
+    height: 11px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.13);
+    animation: huPulse 1.4s ease-in-out infinite;
+  }
+  .hu-sk-name {
+    width: 72px;
+  }
+  .hu-sk-crystal {
+    width: 50px;
+  }
+  @keyframes huPulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 0.95; }
   }
 
   /* === 비로그인: 로그인 버튼 === */
@@ -81,13 +132,6 @@
   }
   .hu-login:hover {
     background: rgba(255, 255, 255, 0.2);
-  }
-
-  .hu[data-state='loggedout'] .hu-card {
-    display: none;
-  }
-  .hu[data-state='loggedin'] .hu-login {
-    display: none;
   }
 
   /* === 로그인 카드 === */
@@ -270,6 +314,10 @@
     .hu-login {
       padding: 4px 12px;
       font-size: 12px;
+    }
+    .hu {
+      /* 모바일은 컴팩트 — 로그인 버튼 / 카드 폭 차이가 작아서 reserve 적게 */
+      min-width: 90px;
     }
   }
 </style>
