@@ -23,6 +23,7 @@ const REMOVE_QUEUE_SIZE = 3;
 const INITIAL_FREE_USES = { remove: 1, undo: 1, shuffle: 1 };
 
 const FN_AUTH_URL = SUPABASE_URL + '/functions/v1/tile-match-auth';
+const FN_ECONOMY_URL = SUPABASE_URL + '/functions/v1/economy';
 
 // ===== 상태 =====
 
@@ -99,6 +100,17 @@ interface AuthCallResult {
   new_record?: boolean;
 }
 
+interface EconomyCallResult {
+  ok?: boolean;
+  error?: string;
+  amount?: number;
+  balance?: number;
+  duplicate?: boolean;
+  stage?: number;
+  total_earned?: number;
+  total_spent?: number;
+}
+
 // ===== Edge Function (auth + record 공용) =====
 function callAuth(
   action: string,
@@ -123,6 +135,52 @@ function callAuth(
       return r.json() as Promise<AuthCallResult>;
     })
     .catch((err: Error) => ({ ok: false, error: String(err.message || err) }));
+}
+
+// ===== Edge Function (economy: 크리스탈 잔액 + 보상 청구) =====
+function callEconomy(
+  action: string,
+  body: Record<string, unknown>,
+  retries = 2,
+): Promise<EconomyCallResult> {
+  return fetch(FN_ECONOMY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(Object.assign({ action }, body)),
+  })
+    .then((r) => {
+      if (r.status === 503 && retries > 0) {
+        return new Promise((res) => setTimeout(res, 600)).then(() =>
+          callEconomy(action, body, retries - 1),
+        );
+      }
+      return r.json() as Promise<EconomyCallResult>;
+    })
+    .catch((err: Error) => ({ ok: false, error: String(err.message || err) }));
+}
+
+// 잔액이 갱신될 때마다 헤더(또는 다른 UI)가 동기화되도록 글로벌 이벤트로 broadcast.
+function broadcastCrystalBalance(balance: number): void {
+  window.dispatchEvent(
+    new CustomEvent('crystal-balance-update', { detail: { balance } }),
+  );
+}
+
+// 보상 획득 시 잠깐 떠있다 사라지는 토스트 (DOM 이 준비되지 않으면 무시)
+function showCrystalRewardToast(amount: number): void {
+  if (amount <= 0) return;
+  const host = document.body;
+  if (!host) return;
+  const toast = document.createElement('div');
+  toast.className = 'tm-crystal-toast';
+  toast.textContent = '✨ 크리스탈 +' + amount;
+  host.appendChild(toast);
+  // CSS 애니메이션으로 fade in/out → 1.8s 후 제거
+  setTimeout(() => toast.remove(), 1800);
 }
 
 // ===== 페이지 진입 =====
@@ -179,6 +237,10 @@ function onSessionReady(session: Session | null): Promise<void> {
     renderStage();
     return Promise.resolve();
   }
+  // get-record (스테이지 기록) 와 get-balance (크리스탈 잔액) 을 병렬 fetch
+  callEconomy('get-balance', { player_id: session.player_id }).then((res) => {
+    if (res?.ok && typeof res.balance === 'number') broadcastCrystalBalance(res.balance);
+  });
   return callAuth('get-record', { player_id: session.player_id }).then((res) => {
     bestStage = res?.ok ? res.best_stage || 0 : 0;
     currentStage = bestStage + 1;
@@ -988,6 +1050,17 @@ function onClear(): void {
         loadRanking();
       },
     );
+    // 보상 청구는 record-clear 와 독립적으로 실행 (한쪽 실패가 다른쪽 막지 않게)
+    callEconomy('claim-stage-reward', {
+      player_id: session.player_id,
+      stage: clearedStage,
+    }).then((res) => {
+      if (!res?.ok) return;
+      if (typeof res.balance === 'number') broadcastCrystalBalance(res.balance);
+      if (!res.duplicate && res.amount && res.amount > 0) {
+        showCrystalRewardToast(res.amount);
+      }
+    });
   } else {
     showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!', true);
   }
