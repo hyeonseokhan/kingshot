@@ -156,9 +156,9 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
   - [x] DB 마이그레이션 (`crystal_balances`, `crystal_transactions`) — production 적용 완료
   - [x] Edge Function `economy/` — production 배포 완료, smoke test 3/3 pass
   - [x] tile-match 클리어 시 보상 청구 통합
-  - [x] 헤더 잔액 배지
+  - [x] 헤더 잔액 배지 (이후 `LoginedUserInfo` 위젯으로 흡수 — 아래 운영 메모 참조)
   - [x] 빌드 검증 + PR + main 머지 + GitHub Pages 배포
-  - [ ] **브라우저 회귀 검증 (사용자 직접)** — Stage 1 클리어 시 토스트/배지 동작 확인
+  - [x] 브라우저 회귀 검증 + 22명/526 stages 데이터 백필 (2026-04-29)
 - [ ] **Phase B** — 장비 강화 (`/minigame/equipment/`) ← **다음 시작 지점**
 - [ ] **Phase C** — PvP 카드 대결 + 랭킹 섹션 (`/minigame/pvp/`)
 
@@ -169,21 +169,60 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 - [ ] PvP 데미지 계산 서버측 강제 (클라이언트는 카드 선택만 전송) — Phase C
 - [ ] PvP 자기공격 / 일일 한도 위반 차단 — Phase C
 
-### Phase A 작업 중 발견한 운영 메모
+### 후속 작업 트랙 (Phase A/B/C 완료 이후)
+
+신규 콘텐츠 구현이 끝나면 위에서 아래 순서로 진행:
+
+1. **트랙 X-1: 웹 프로젝트 설계 재검토 — 깜박임 100% 제거**
+   - **목표**: 데이터 갱신 시 화면 깜박임/플리커 **완전 제거**. 새로고침 같은 시각적 단절 없음
+   - **현재 상태**: ISSUES #6 으로 1차 패치 완료 (헤더 위젯 스켈레톤 + 타일매치 랭킹 keyed 갱신).
+     멤버 관리 리스트 / 쿠폰 히스토리 등 잔여 페이지는 미적용
+   - **접근**: 단순 `patchList` 확장이 아니라 **데이터 흐름·SSR/CSR 경계·캐시 정책 전반 재설계** 검토.
+     Astro 의 정적 prerender 와 클라이언트 hydration 사이의 경계, 페이지 간 상태 공유 방식 등
+   - **트리거**: Phase C 머지 + 검증 완료
+
+2. **트랙 X-2: 메모리 / Supabase I/O 최적화**
+   - **목표**:
+     - 사이트 전체를 페이지별로 회귀하며 **네트워크 I/O 디버깅**
+     - **불필요하게 동일한 데이터를 가져오는 패턴 제거** (예: members 로스터를 페이지마다 매번 fetch)
+     - **Supabase 무료 플랜 I/O 사용량 최소화** (호출 횟수 + 다운로드 byte)
+   - **방법론**:
+     - 각 페이지 진입 시 DevTools Network 탭으로 모든 요청 캡처 → 중복/불필요 식별
+     - 같은 데이터 반복 fetch → 공유 캐시(`src/lib/cache.ts` 활용 또는 확장)로 통합
+     - Edge Function 호출 빈도 점검 (`economy/get-balance` 같이 페이지 진입마다 호출되는 패턴 우선)
+     - Supabase Dashboard "Reports" 탭으로 before/after 사용량 측정
+   - **트리거**: 트랙 X-1 완료 후
+
+### Phase A 운영 메모 (Phase B 작업 시 알아둘 것)
 
 - **production schema_migrations 와 supabase CLI 추적 sync 완료** (2026-04-28).
   과거 dashboard SQL Editor 로 직접 적용된 6개 마이그레이션이 CLI 추적엔 누락돼있어
   `supabase migration repair --status applied <ts>...` 로 sync. Phase B 부터는 `supabase db push` 가
   깔끔하게 새 마이그레이션 1개만 적용함 (이 단계 다시 할 필요 없음).
+- **데이터 백필 완료** (2026-04-29): 22명 / 526 stages / +187,940 크리스탈 소급 지급.
+  `claim-stage-reward` Edge Function 멱등 호출로 처리 (audit trail: `source=tile_match_clear`).
+  → production `crystal_transactions` 에 이미 526건 거래 기록 존재. Phase B 의 강화 거래는
+  `source=equipment_enhance` 로 별도 분류해서 audit 분리.
+- **헤더 잔액 표시 위치 변경**: 별도 배지(`header-crystal-badge.ts`, 삭제됨) → `LoginedUserInfo`
+  위젯 (`src/components/LoginedUserInfo.astro`) 으로 통합. Phase B 의 강화 결과로 잔액이 변경되면
+  `crystal-balance-update` 이벤트 dispatch — 위젯이 자동 갱신함 (이벤트 listener 위치는 위젯 내부).
+- **Stage→reward mirror**: 클라이언트도 보상 amount 를 즉시 알아야 fire-and-forget UI 가 가능해서
+  `src/lib/balance.ts` 에 `rewardForStage()` mirror 도입. 서버(`economy/index.ts`)가 진실의 원천,
+  클라이언트는 표시용. **변경 시 양쪽 동시 수정**. Phase B 의 강화 표(비용/확률)도 같은 패턴으로
+  `src/lib/balance.ts` 확장 권장.
+- **DOM diff 헬퍼 도입**: `src/lib/dom-diff.ts` 의 `patchList`/`patchText`. Phase B 의 장비 강화
+  결과 갱신, 인벤토리 표시 등에서도 처음부터 이 헬퍼로 갱신 — `innerHTML=''` 패턴 사용 금지.
+
 - **Phase B 시작 절차**:
-  1. `git pull origin main` (이 PC 또는 다른 PC 어느 쪽이든)
-  2. `npm install` (의존성 동기화)
+  1. `git pull origin main`
+  2. `npm install`
   3. 새 브랜치: `git checkout -b feat/minigame-equipment`
   4. 본 문서 "디자인 결정사항 → 장비 강화" 섹션 기준으로 작업
   5. 강화 비용/확률 표는 본 문서의 표를 단일 진실 공급원으로 사용
 - **Phase B 의 production 적용**:
   사용자 환경에 supabase CLI 가 설치돼있다면 직접 `supabase db push` + `supabase functions deploy equipment` 실행.
-  없으면 위 "Phase A 작업 중 발견" 섹션처럼 binary 다운로드 후 `--project-ref cbzgmugtsustsxuqpznv` 로 link.
+  없으면 binary 다운로드 후 `--project-ref cbzgmugtsustsxuqpznv` 로 link
+  (이전 PC 작업 사례: `/tmp/supabase` 에 설치하고 `SUPABASE_ACCESS_TOKEN` env 사용).
 
 ---
 
