@@ -1087,9 +1087,17 @@
   font-weight: 700;
 }
 
+/*
+ * .pd-stepper: 원본은 inline-flex 였으나 라이브 Jekyll 사이트와 비교 결과
+ * 모바일에서 같은 라인에 .pd-draw-btn 과 함께 배치되는 회귀 발생.
+ * 부모 .pd-card 가용 폭 차이(32px)로 인해 줄바꿈 임계치를 넘어버림.
+ * → flex(block-level) 로 변경해 형제(.pd-draw-btn) 가 항상 다음 줄에 오도록 강제.
+ *   시각상 결과는 라이브 사이트와 동일.
+ */
 .pd-stepper {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   margin-bottom: 16px;
 }
