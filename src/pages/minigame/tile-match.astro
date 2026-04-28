@@ -1,6 +1,8 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
+import AuthDialog from '@/components/AuthDialog.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/minigame.css';
 
 const minigame = tabs.find((t) => t.id === 'minigame')!;
 const active = findActiveSubmenu(minigame, Astro.url.pathname);
@@ -17,20 +19,147 @@ const navItems = minigame.submenus!.map((s) => ({
   navHeader="미니게임"
   navItems={navItems}
 >
-  <h1 class="placeholder-title">타일 매치</h1>
-  <p>
-    Phase 5 에서 <code>tile-match.js</code> (1057줄) + <code>tile-match-auth.js</code>
-    (326줄) 가 이식된다. 모바일 viewport 동기화·ResizeObserver 기반 자동 스케일이
-    포함된 가장 복잡한 페이지.
-  </p>
+  <AuthDialog />
+
+  <div class="manage-page" id="page-tile-match">
+    <div class="members-header">
+      <h1>타일 매치</h1>
+      <div class="tm-launch-user" id="tm-launch-user" style="display:none">
+        <span class="tm-launch-user-label">인증됨</span>
+        <strong id="tm-launch-user-name">-</strong>
+        <span class="tm-launch-user-id" id="tm-launch-user-id"></span>
+        <button class="tm-launch-user-logout" id="tm-launch-user-logout" type="button">전환</button>
+      </div>
+    </div>
+
+    <div class="page-intro">
+      <p><strong>3매치 마작</strong> — 같은 모양 타일 3개를 슬롯에 모아 보드를 비우는 게임</p>
+      <ul>
+        <li>활성 타일(밝은 것)만 클릭 가능</li>
+        <li>슬롯 7칸 가득 차면 실패</li>
+        <li>아이템 🧹 ↩️ 🔀 각 1회 무료</li>
+      </ul>
+      <p class="page-intro-hint">스테이지를 클리어할수록 보드가 커집니다.</p>
+    </div>
+
+    <!-- 게임 시작 카드 -->
+    <div class="tm-launch-card">
+      <div class="tm-launch-title">다음 스테이지</div>
+      <div class="tm-launch-meta">Stage <span id="tm-launch-stage">1</span></div>
+      <button class="tm-launch-btn" id="tm-launch-btn" type="button">게임 시작</button>
+    </div>
+
+    <!-- 랭킹 -->
+    <div class="tm-ranking" id="tm-ranking">
+      <div class="tm-ranking-header">
+        <h3>랭킹</h3>
+        <button class="tm-ranking-refresh" id="tm-ranking-refresh" type="button" aria-label="새로고침">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="tm-ranking-list" id="tm-ranking-list">
+        <div class="tm-ranking-empty">로딩 중...</div>
+      </div>
+    </div>
+
+    <!-- 게임 다이얼로그 -->
+    <div class="tm-dialog-overlay" id="tm-dialog-overlay" style="display:none">
+      <div class="tm-dialog">
+        <div class="tm-dlg-bar">
+          <div class="tm-dlg-stage">Stage <span id="tm-dlg-stage">1</span></div>
+          <button class="tm-dlg-close-btn" id="tm-dlg-close" type="button" aria-label="나가기">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+              <line x1="6" y1="18" x2="18" y2="6"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="tm-dlg-body">
+          <div class="tm-board-area">
+            <div class="tm-board" id="tm-board"></div>
+            <div class="tm-avatar-hint" id="tm-avatar-hint" style="display:none">
+              <span class="tm-avatar-hint-icon">🎭</span>
+              <span id="tm-avatar-hint-name">-</span>
+              <span class="tm-avatar-hint-suffix">의 아바타 등장!</span>
+            </div>
+          </div>
+
+          <!-- 제거 큐 -->
+          <div class="tm-remove-queue" id="tm-remove-queue" style="display:none">
+            <span class="tm-remove-queue-label">제거됨</span>
+            <div class="tm-remove-slots" id="tm-remove-slots"></div>
+            <span class="tm-remove-queue-hint">탭하면 다시 슬롯으로</span>
+          </div>
+
+          <!-- 선택 슬롯 (버퍼) -->
+          <div class="tm-buffer" id="tm-buffer"></div>
+
+          <!-- 아이템 버튼 -->
+          <div class="tm-items">
+            <button class="tm-item" id="tm-item-remove" type="button">
+              <span class="tm-item-badge" id="tm-item-remove-badge">Free ×1</span>
+              <span class="tm-item-icon">🧹</span>
+              <span class="tm-item-label">제거</span>
+            </button>
+            <button class="tm-item" id="tm-item-undo" type="button">
+              <span class="tm-item-badge" id="tm-item-undo-badge">Free ×1</span>
+              <span class="tm-item-icon">↩️</span>
+              <span class="tm-item-label">되돌리기</span>
+            </button>
+            <button class="tm-item" id="tm-item-shuffle" type="button">
+              <span class="tm-item-badge" id="tm-item-shuffle-badge">Free ×1</span>
+              <span class="tm-item-icon">🔀</span>
+              <span class="tm-item-label">재배치</span>
+            </button>
+          </div>
+
+          <div class="tm-overlay" id="tm-overlay" style="display:none">
+            <div class="tm-overlay-card">
+              <div class="tm-overlay-icon" id="tm-overlay-icon"></div>
+              <div class="tm-overlay-msg" id="tm-overlay-msg"></div>
+              <div class="tm-overlay-actions">
+                <button class="btn btn-primary" id="tm-overlay-restart" type="button">다시 하기</button>
+                <button class="btn btn-secondary" id="tm-overlay-quit" type="button">나가기</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 재배치 농담 팝업 -->
+          <div class="tm-shuffle-popup-overlay" id="tm-shuffle-popup" style="display:none">
+            <div class="tm-shuffle-popup-card">
+              <div class="tm-shuffle-popup-icon">⚠</div>
+              <div class="tm-shuffle-popup-title">알림</div>
+              <div class="tm-shuffle-popup-msg">
+                재배치 아이콘을 클릭하면<br />
+                <strong>카카오페이</strong>로 <strong>300원</strong>을<br />
+                개발자에게 선물합니다.
+              </div>
+              <div class="tm-shuffle-popup-actions">
+                <button class="btn btn-primary" id="tm-shuffle-popup-qr" type="button">QR 화면 이동</button>
+                <button class="btn btn-secondary" id="tm-shuffle-popup-cancel" type="button">취소</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 -->
+  <div class="tm-toast" id="tm-toast" role="status" aria-live="polite"></div>
 </AppLayout>
 
-<style>
-  .placeholder-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0 0 20px;
-    letter-spacing: -0.02em;
-    color: var(--text);
+<script>
+  import '@/scripts/pages/tile-match-auth';
+  import { initTileMatch } from '@/scripts/pages/tile-match';
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTileMatch);
+  } else {
+    initTileMatch();
   }
-</style>
+</script>

@@ -1,0 +1,93 @@
+---
+// 미니게임 본인 인증 다이얼로그 — tile-match 와 partner-draw 가 공유.
+// 동작 로직은 src/scripts/pages/tile-match-auth.ts.
+---
+
+<div class="tm-auth-overlay" id="tm-auth-overlay" style="display:none">
+  <div class="tm-auth-dialog">
+    <div class="tm-auth-bar">
+      <button
+        class="tm-dlg-close-btn tm-auth-back-btn"
+        id="tm-auth-back"
+        type="button"
+        aria-label="뒤로"
+        style="display:none"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <polyline points="15 6 9 12 15 18"></polyline>
+        </svg>
+      </button>
+      <div class="tm-auth-title">계정 인증</div>
+      <button
+        class="tm-dlg-close-btn"
+        id="tm-auth-close"
+        type="button"
+        aria-label="닫기"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+          <line x1="6" y1="18" x2="18" y2="6"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="tm-auth-body">
+      <div class="tm-auth-step" id="tm-auth-step-select">
+        <p class="tm-auth-desc">
+          미니게임은 <strong>연맹원 본인 인증</strong> 후 이용할 수 있습니다.
+        </p>
+        <input
+          type="text"
+          class="tm-auth-search"
+          id="tm-auth-search"
+          placeholder="닉네임 또는 ID 검색"
+          autocomplete="off"
+        />
+        <div class="tm-auth-list" id="tm-auth-list"></div>
+      </div>
+      <div class="tm-auth-step" id="tm-auth-step-pin" style="display:none">
+        <div class="tm-auth-selected" id="tm-auth-selected"></div>
+        <p class="tm-auth-pin-prompt" id="tm-auth-pin-prompt">PIN 4자리를 입력하세요</p>
+        <div class="tm-pin-wrap" id="tm-pin-wrap">
+          <input
+            class="tm-pin-input"
+            id="tm-pin-input"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="4"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            aria-label="PIN 4자리 입력"
+          />
+          <div class="tm-pin-boxes" id="tm-pin-boxes" aria-hidden="true">
+            <div class="tm-pin-box"></div>
+            <div class="tm-pin-box"></div>
+            <div class="tm-pin-box"></div>
+            <div class="tm-pin-box"></div>
+          </div>
+        </div>
+        <div class="tm-auth-msg" id="tm-auth-msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
