@@ -1,0 +1,32 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+
+const minigame = tabs.find((t) => t.id === 'minigame')!;
+const active = findActiveSubmenu(minigame, Astro.url.pathname);
+const navItems = minigame.submenus!.map((s) => ({
+  title: s.title,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="운명의 파트너 — PNX 연맹"
+  description="슬롯머신 파트너 추첨"
+  navHeader="미니게임"
+  navItems={navItems}
+>
+  <h1 class="placeholder-title">운명의 파트너</h1>
+  <p>Phase 5 에서 <code>partner-draw.js</code> (225줄) 가 이식된다.</p>
+</AppLayout>
+
+<style>
+  .placeholder-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 20px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+</style>

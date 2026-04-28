@@ -1,21 +1,19 @@
 ---
-// Phase 1 placeholder — Phase 2에서 BaseLayout + 가이드 redirect로 교체된다.
-import '@/styles/global.css';
+import GuideLayout from '@/layouts/GuideLayout.astro';
+
+// Phase 3 에서 Astro Content Collection 으로부터 첫 입문 가이드를 렌더링하도록 교체.
+const navItems: Array<{ title: string; path: string; active?: boolean }> = [];
 ---
 
-<!doctype html>
-<html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PNX 연맹 가이드</title>
-  </head>
-  <body>
-    <main class="min-h-screen flex items-center justify-center p-8">
-      <div class="text-center space-y-4">
-        <h1 class="text-3xl font-semibold">Astro 마이그레이션 진행 중</h1>
-        <p class="text-[var(--color-text-2)]">Phase 1 — 골격 빌드 검증 페이지</p>
-      </div>
-    </main>
-  </body>
-</html>
+<GuideLayout
+  title="입문 가이드 — PNX 연맹"
+  description="PNX 연맹 입문 가이드"
+  navHeader="목차"
+  navItems={navItems}
+>
+  <h1>입문 가이드</h1>
+  <p>
+    Phase 3 (가이드 마이그레이션) 에서 <code>_guides/beginner/</code> 의 마크다운 7편이
+    <code>src/content/guides/beginner/</code> 으로 이식되어 이 자리에 렌더링된다.
+  </p>
+</GuideLayout>

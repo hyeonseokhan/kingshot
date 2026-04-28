@@ -1,0 +1,83 @@
+---
+type Item = {
+  title: string;
+  path: string;
+  active?: boolean;
+};
+
+interface Props {
+  header: string;
+  items: Item[];
+}
+
+const { header, items } = Astro.props;
+---
+
+<nav class="left-nav">
+  <div class="left-nav-header">{header}</div>
+  <div class="left-nav-items">
+    {
+      items.map((item) => (
+        <a
+          href={item.path}
+          class:list={['left-nav-item', { active: item.active }]}
+        >
+          <span class="step-label">{item.title}</span>
+        </a>
+      ))
+    }
+  </div>
+</nav>
+
+<style>
+  .left-nav {
+    width: var(--left-w);
+    flex-shrink: 0;
+    background: var(--bg);
+    border-right: 1px solid var(--border2);
+    overflow-y: auto;
+    padding: 16px 0;
+  }
+
+  .left-nav-header {
+    padding: 0 16px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text3);
+  }
+
+  .left-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: var(--text2);
+    border-left: 2px solid transparent;
+    transition: all 0.12s;
+    text-decoration: none;
+  }
+  .left-nav-item:hover {
+    background: var(--bg2);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .left-nav-item.active {
+    color: var(--accent);
+    font-weight: 600;
+    background: var(--accent-bg);
+    border-left-color: var(--accent);
+  }
+  .step-label {
+    line-height: 1.3;
+  }
+
+  @media (max-width: 768px) {
+    .left-nav {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,32 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+
+const manage = tabs.find((t) => t.id === 'manage')!;
+const active = findActiveSubmenu(manage, Astro.url.pathname);
+const navItems = manage.submenus!.map((s) => ({
+  title: s.title,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="쿠폰 받기 — PNX 연맹"
+  description="PNX 연맹원 쿠폰 자동 수령"
+  navHeader="연맹관리"
+  navItems={navItems}
+>
+  <h1 class="placeholder-title">쿠폰 받기</h1>
+  <p>Phase 4 에서 <code>coupons.js</code> 의 974줄 로직이 TypeScript 로 이식된다.</p>
+</AppLayout>
+
+<style>
+  .placeholder-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 20px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+</style>

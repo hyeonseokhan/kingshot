@@ -1,0 +1,188 @@
+---
+import { tabs, findActiveTab, findActiveSubmenu } from '@/data/navigation';
+
+const pathname = Astro.url.pathname;
+const activeTab = findActiveTab(pathname);
+const activeSubmenu = activeTab ? findActiveSubmenu(activeTab, pathname) : undefined;
+---
+
+<div class="mobile-nav-overlay" id="mobile-nav-overlay"></div>
+<aside class="mobile-nav-panel" id="mobile-nav-panel">
+  <div class="mobile-nav-close">
+    <button id="mobile-nav-close" type="button" aria-label="메뉴 닫기">&times;</button>
+  </div>
+  {
+    tabs.map((tab) => {
+      const isExpanded = activeTab?.id === tab.id;
+      return (
+        <>
+          <a
+            href={tab.path}
+            class:list={['mobile-nav-tab', { expanded: isExpanded }]}
+            data-tab={tab.id}
+          >
+            <span>{tab.title}</span>
+            {tab.submenus && <span class="mobile-nav-toggle">▸</span>}
+          </a>
+          {tab.submenus && (
+            <div class:list={['mobile-nav-children', { open: isExpanded }]} data-parent={tab.id}>
+              {tab.submenus.map((sub) => (
+                <a
+                  href={sub.path}
+                  class:list={[
+                    'mobile-nav-section',
+                    { active: activeSubmenu?.id === sub.id },
+                  ]}
+                  data-tab={tab.id}
+                  data-submenu={sub.id}
+                >
+                  {sub.title}
+                </a>
+              ))}
+            </div>
+          )}
+        </>
+      );
+    })
+  }
+</aside>
+
+<script>
+  const btn = document.getElementById('mobile-menu-btn');
+  const overlay = document.getElementById('mobile-nav-overlay');
+  const panel = document.getElementById('mobile-nav-panel');
+  const closeBtn = document.getElementById('mobile-nav-close');
+
+  function openMenu() {
+    overlay?.classList.add('open');
+    panel?.classList.add('open');
+  }
+  function closeMenu() {
+    overlay?.classList.remove('open');
+    panel?.classList.remove('open');
+  }
+
+  btn?.addEventListener('click', openMenu);
+  overlay?.addEventListener('click', closeMenu);
+  closeBtn?.addEventListener('click', closeMenu);
+</script>
+
+<style>
+  .mobile-nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.4);
+  }
+  .mobile-nav-overlay.open {
+    display: block;
+  }
+
+  .mobile-nav-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 300px;
+    background: var(--bg-header);
+    color: #fff;
+    z-index: 201;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+    padding: 0;
+  }
+  .mobile-nav-panel.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .mobile-nav-close {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .mobile-nav-close::before {
+    content: '메뉴';
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .mobile-nav-close button {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.15s;
+  }
+  .mobile-nav-close button:hover {
+    color: #fff;
+  }
+
+  .mobile-nav-tab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .mobile-nav-tab:hover {
+    background: rgba(255, 255, 255, 0.06);
+    text-decoration: none;
+  }
+  .mobile-nav-tab.expanded {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border-left-color: var(--accent-light);
+  }
+
+  .mobile-nav-toggle {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    transition: transform 0.2s;
+  }
+  .mobile-nav-tab.expanded .mobile-nav-toggle {
+    transform: rotate(90deg);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .mobile-nav-children {
+    display: none;
+  }
+  .mobile-nav-children.open {
+    display: block;
+  }
+
+  .mobile-nav-section {
+    display: block;
+    padding: 10px 20px 10px 36px;
+    font-size: 13.5px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.12s;
+    text-decoration: none;
+  }
+  .mobile-nav-section:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+  }
+  .mobile-nav-section.active {
+    color: var(--accent-light);
+    font-weight: 600;
+  }
+</style>

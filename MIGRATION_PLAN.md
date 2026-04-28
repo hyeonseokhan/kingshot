@@ -82,15 +82,18 @@
 
 | 기존 (hash) | 신규 (path) |
 |---|---|
-| `/#beginner` 또는 `/` | `/` |
-| `/#beginner-3` | `/guides/beginner/03-vip-arena/` |
-| `/#beginner-3:slug` | `/guides/beginner/03-vip-arena/#slug` |
-| `/#events-1` | `/guides/events/01-viking-raid/` |
+| `/#beginner` 또는 `/` | `/` (첫 입문 가이드 직접 렌더) |
+| `/#beginner-3` | `/beginner/03-vip-arena/` |
+| `/#beginner-3:slug` | `/beginner/03-vip-arena/#slug` |
+| `/#events` | `/events/` (첫 이벤트 가이드 직접 렌더) |
+| `/#events-1` | `/events/01-viking-raid/` |
 | `/#manage-members` | `/manage/members/` |
 | `/#manage-coupons` | `/manage/coupons/` |
 | `/#minigame-tile-match` | `/minigame/tile-match/` |
 | `/#minigame-partner-draw` | `/minigame/partner-draw/` |
 | `?auto-redeem=true` | `/manage/coupons/?auto-redeem=true` (유지) |
+
+> URL 평탄화: `/guides/` 접두사를 두지 않고 탭 id 자체를 path 첫 세그먼트로 사용 (`/beginner/`, `/events/`). 헤더 탭과 1:1 매칭되어 직관적.
 
 **레거시 hash 호환성**: 기존 외부 링크(예: 단톡방 공유)가 깨지지 않도록, 루트 `/`에서 진입 시 `location.hash`를 감지해 신규 path로 `replaceState` 하는 작은 클라이언트 스크립트(`legacy-hash-redirect.ts`)를 추가. Phase 2에서 구현.
 
@@ -448,3 +451,4 @@ kingshot/
 |---|---|
 | 2026-04-28 | 초안 작성 |
 | 2026-04-28 | 4개 결정 사항 확정 반영 (페이지 라우팅 / 환경변수 / Tailwind 하이브리드 / Phase 7 별도 PR) |
+| 2026-04-28 | Phase 2 완료 — URL 평탄화(`/guides/` 접두사 제거), 6 라우트 동작 확인 |

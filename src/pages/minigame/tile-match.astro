@@ -1,0 +1,36 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+
+const minigame = tabs.find((t) => t.id === 'minigame')!;
+const active = findActiveSubmenu(minigame, Astro.url.pathname);
+const navItems = minigame.submenus!.map((s) => ({
+  title: s.title,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="타일 매치 — PNX 연맹"
+  description="3매치 마작 미니게임"
+  navHeader="미니게임"
+  navItems={navItems}
+>
+  <h1 class="placeholder-title">타일 매치</h1>
+  <p>
+    Phase 5 에서 <code>tile-match.js</code> (1057줄) + <code>tile-match-auth.js</code>
+    (326줄) 가 이식된다. 모바일 viewport 동기화·ResizeObserver 기반 자동 스케일이
+    포함된 가장 복잡한 페이지.
+  </p>
+</AppLayout>
+
+<style>
+  .placeholder-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 20px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+</style>

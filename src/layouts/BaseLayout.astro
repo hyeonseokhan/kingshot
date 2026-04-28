@@ -1,0 +1,39 @@
+---
+import '@/styles/global.css';
+import Header from '@/components/Header.astro';
+import MobileNav from '@/components/MobileNav.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = '연맹 가이드', description = 'PNX 연맹 가이드' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+    <script>
+      import '@/scripts/legacy-hash-redirect';
+    </script>
+  </head>
+  <body>
+    <Header />
+    <MobileNav />
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,18 @@
+---
+import GuideLayout from '@/layouts/GuideLayout.astro';
+
+const navItems: Array<{ title: string; path: string; active?: boolean }> = [];
+---
+
+<GuideLayout
+  title="이벤트 — PNX 연맹"
+  description="PNX 연맹 이벤트 가이드"
+  navHeader="목차"
+  navItems={navItems}
+>
+  <h1>이벤트</h1>
+  <p>
+    Phase 3 에서 <code>_guides/events/</code> 의 이벤트 가이드가 이식되어 이 자리에
+    렌더링된다.
+  </p>
+</GuideLayout>
