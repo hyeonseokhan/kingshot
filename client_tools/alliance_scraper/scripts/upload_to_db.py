@@ -123,6 +123,25 @@ def clean_scraper_name(raw: str | None) -> str | None:
     return s or None
 
 
+def prune_left_members(sb, current_ids: set[str], dry_run: bool) -> tuple[int, list[str]]:
+    """Delete rows in `members` whose kingshot_id is not in `current_ids`.
+
+    Why: alliance roster is capped at 100. Members who left between scrapes must
+    be removed so the DB reflects the live roster, not a historical superset.
+
+    Returns (deleted_count, left_ids).
+    """
+    resp = sb.table("members").select("kingshot_id").execute()
+    db_ids = {str(row["kingshot_id"]) for row in (resp.data or [])}
+    left_ids = sorted(db_ids - current_ids)
+    if not left_ids:
+        return 0, []
+    if dry_run:
+        return 0, left_ids
+    sb.table("members").delete().in_("kingshot_id", left_ids).execute()
+    return len(left_ids), left_ids
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Upload scraper JSON to Supabase members table")
     parser.add_argument("--file", type=str, default=None,
@@ -131,6 +150,8 @@ def main() -> int:
                         help="seconds between API calls (default 0.5)")
     parser.add_argument("--dry-run", action="store_true",
                         help="preview upserts without writing to DB")
+    parser.add_argument("--no-prune", action="store_true",
+                        help="skip removing DB rows whose kingshot_id is missing from this scrape")
     args = parser.parse_args()
 
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
@@ -146,9 +167,7 @@ def main() -> int:
     total = len(members)
     print(f"[src] {total} members to upload (scan_started_at={payload.get('scan_started_at')})")
 
-    sb = None
-    if not args.dry_run:
-        sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    sb = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
     ok_count = api_fail = db_fail = 0
     t0 = time.time()
@@ -173,6 +192,7 @@ def main() -> int:
                 "profile_photo": None,
             }
 
+        role = m.get("alliance_role")  # "R1"~"R5" or None
         row = {
             "kingshot_id": kid,
             "nickname": info["nickname"],
@@ -181,8 +201,10 @@ def main() -> int:
             "kingdom": info.get("kingdom"),
             "profile_photo": info.get("profile_photo"),
         }
+        if role:
+            row["alliance_role"] = role
 
-        print(f"    -> nickname={row['nickname']!r} lv={row['level']} kingdom={row['kingdom']}")
+        print(f"    -> nickname={row['nickname']!r} lv={row['level']} kingdom={row['kingdom']} role={role or '-'}")
 
         if not args.dry_run:
             try:
@@ -203,6 +225,21 @@ def main() -> int:
     print(f"  success: {ok_count}")
     print(f"  API failures (used scraper fallback): {api_fail}")
     print(f"  DB failures: {db_fail}")
+
+    if not args.no_prune:
+        current_ids = {str(m.get("id")) for m in members if m.get("id")}
+        deleted, left_ids = prune_left_members(sb, current_ids, dry_run=args.dry_run)
+        if left_ids:
+            preview = ", ".join(left_ids[:10]) + (" ..." if len(left_ids) > 10 else "")
+            if args.dry_run:
+                print(f"  [dry-run] would delete {len(left_ids)} left members: {preview}")
+            else:
+                print(f"  pruned {deleted} left members from DB: {preview}")
+        else:
+            print("  no left members to prune")
+    elif args.no_prune:
+        print("  prune skipped (--no-prune)")
+
     if args.dry_run:
         print("  [dry-run] no rows written to DB")
     return 0 if db_fail == 0 else 1

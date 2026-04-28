@@ -36,6 +36,7 @@ def write_outputs(state: scraper_mod.ScrapeState, out_dir: Path) -> tuple[Path, 
                 "id": m.id,
                 "name": m.name,
                 "alliance_tag": m.alliance_tag,
+                "alliance_role": m.alliance_role,
                 "power": m.power,
                 "rank_at_scan": m.rank_at_scan,
                 "avatar_phash": m.avatar_phash,
@@ -88,6 +89,7 @@ def load_members_from_json(path: Path) -> dict[str, scraper_mod.MemberRecord]:
             name=m.get("name"),
             avatar_phash=m.get("avatar_phash", ""),
             alliance_tag=m.get("alliance_tag"),
+            alliance_role=m.get("alliance_role"),
             scraped_at=m.get("scraped_at", ""),
         )
         out[rec.id] = rec

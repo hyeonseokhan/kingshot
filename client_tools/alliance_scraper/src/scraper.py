@@ -44,6 +44,7 @@ class MemberRecord:
     detail_power_str: str | None = None
     alliance_tag: str | None = None
     kingdom: str | None = None
+    alliance_role: str | None = None  # "R1"~"R5" — template matching 으로 인식
     scraped_at: str = ""
 
 
@@ -227,6 +228,7 @@ class AllianceScraper:
             name=name,
             avatar_phash=row.avatar_phash,
             alliance_tag=alliance_tag,
+            alliance_role=getattr(row, "alliance_role", None),
             scraped_at=datetime.now().isoformat(timespec="seconds"),
         )
         if id_value not in self.state.members:
@@ -236,6 +238,9 @@ class AllianceScraper:
             self.state.members[id_value].power = row.power
             self.state.members[id_value].rank_at_scan = row.rank
             self.state.members[id_value].scraped_at = record.scraped_at
+            new_role = getattr(row, "alliance_role", None)
+            if new_role:
+                self.state.members[id_value].alliance_role = new_role
             if name:
                 self.state.members[id_value].name = name
                 self.state.members[id_value].alliance_tag = alliance_tag
@@ -395,6 +400,7 @@ class AllianceScraper:
             name=full_name,
             avatar_phash=row.avatar_phash,
             alliance_tag=tag,
+            alliance_role=getattr(row, "alliance_role", None),
             scraped_at=datetime.now().isoformat(timespec="seconds"),
         )
         self.state.members[OWN_USER_ID] = record
