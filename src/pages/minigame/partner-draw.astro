@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.astro';
 import AuthDialog from '@/components/AuthDialog.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
-import '@/styles/manage.css';
+// 공통 컴포넌트 스타일은 BaseLayout 에서 자동 import. 게임 전용만 추가.
 import '@/styles/minigame.css';
 
 const minigame = tabs.find((t) => t.id === 'minigame')!;

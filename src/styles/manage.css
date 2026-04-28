@@ -1,75 +1,14 @@
 /*
  * 연맹원 관리 + 쿠폰 받기 페이지 스타일.
- * Phase 4 시점의 시각 동등성 보장 — 원본 style.css 의 manage 섹션을 그대로 이식.
- * Phase 6 에서 Tailwind 하이브리드로 정리 검토.
+ * "manage 전용" 만 포함. 공통 패턴(.btn, .page-intro, .members-header,
+ * .manage-page, .modal-*, .player-card, .empty-cell, .input-row,
+ * 레이아웃 컨테이너) 은 src/styles/components.css 로 이동되어 BaseLayout
+ * 에서 글로벌 import 됨.
+ *
+ * Phase 6: 공통/전용 분리로 회귀 방지.
  */
 
-/* ===== 연맹원 관리 ===== */
-.manage-content {
-  padding: 24px 32px 80px;
-}
-.members-page {
-  max-width: 900px;
-  margin: 0 auto;
-}
-.manage-page {
-  max-width: 900px;
-  margin: 0 auto;
-}
-.members-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  gap: 12px;
-}
-.members-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-}
-.btn {
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font);
-  transition: all 0.12s;
-}
-.btn-primary {
-  background: linear-gradient(135deg, #f59e0b, #ef4444);
-  color: #fff;
-}
-.btn-primary:hover {
-  background: linear-gradient(135deg, #d97706, #dc2626);
-}
-.btn-secondary {
-  background: var(--bg2);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-.btn-secondary:hover {
-  background: var(--bg3);
-}
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 6px;
-  font-size: 16px;
-  color: var(--text3);
-  transition: color 0.12s;
-}
-.btn-icon:hover {
-  color: var(--accent);
-}
-.btn-icon.danger:hover {
-  color: var(--red);
-}
-
-/* 연맹원 리스트 */
+/* ===== 연맹원 리스트 ===== */
 .members-list {
   border: 1px solid var(--border2);
   border-radius: 10px;
@@ -93,29 +32,8 @@
   gap: 12px;
   flex-wrap: wrap;
 }
-.btn-sm {
-  padding: 5px 12px;
-  font-size: 12px;
-}
-.btn-icon-only {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text2);
-  transition: all 0.12s;
-}
-.btn-icon-only:hover {
-  background: var(--bg2);
-  color: var(--text);
-  border-color: var(--border);
-}
-/* 수령 이력 다이얼로그 */
+
+/* ===== 수령 이력 다이얼로그 ===== */
 .history-dialog {
   width: 480px;
   max-width: 95%;
@@ -245,14 +163,8 @@
   outline: none;
   border-color: var(--accent);
 }
-.empty-cell {
-  text-align: center;
-  color: var(--text3);
-  padding: 48px 14px;
-  font-size: 13px;
-}
 
-/* ===== 등급별 배경색 ===== */
+/* ===== 등급별 배경색 (R1~R5) ===== */
 .rank-R1 {
   background: linear-gradient(
     135deg,
@@ -295,7 +207,6 @@
     rgba(205, 70, 70, 0.3) 100%
   );
 }
-/* 등급 뱃지 (현재 미사용 — 호환성 유지) */
 .mc-rank-badge {
   display: inline-block;
   width: 36px;
@@ -327,7 +238,7 @@
   color: #8b0000;
 }
 
-/* ===== 레벨별 프로필 테두리 (Lv.28~30) ===== */
+/* ===== 레벨별 프로필 테두리 (Lv.28~30) — minigame 랭킹에서도 사용 ===== */
 .mc-photo-wrap {
   position: relative;
   flex-shrink: 0;
@@ -454,7 +365,7 @@
   }
 }
 
-/* PC 테이블: 아바타 | 닉네임 | 등급 | 레벨 | 랭킹 | 전투력 | 관리 */
+/* ===== PC 테이블: 아바타 | 닉네임 | 등급 | 레벨 | 랭킹 | 전투력 | 관리 ===== */
 .members-thead,
 .member-row {
   display: grid;
@@ -535,7 +446,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 갱신 실패 표시 */
+/* ===== 갱신 실패 표시 ===== */
 .member-row.member-row-failed {
   background: linear-gradient(to right, rgba(245, 158, 11, 0.08), transparent 60%);
   box-shadow: inset 3px 0 0 #f59e0b;
@@ -550,7 +461,6 @@
   cursor: help;
 }
 
-/* 갱신 실패 배너 */
 .refresh-fail-banner {
   display: flex;
   align-items: center;
@@ -589,7 +499,7 @@
   white-space: nowrap;
 }
 
-/* 관리 버튼 (⋮) */
+/* ===== 관리 버튼 / 다이얼로그 ===== */
 .mc-manage-btn {
   width: 32px;
   height: 32px;
@@ -611,7 +521,6 @@
   color: var(--text);
 }
 
-/* 관리 다이얼로그 */
 .manage-dialog-overlay {
   display: none;
   position: fixed;
@@ -888,41 +797,7 @@
   transform: translateX(16px);
 }
 
-/* 페이지 설명 박스 */
-.page-intro {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text);
-}
-.page-intro p {
-  margin: 0;
-}
-.page-intro ul {
-  margin: 8px 0 10px;
-  padding-left: 20px;
-  list-style: disc outside;
-}
-.page-intro li {
-  margin: 3px 0;
-  color: var(--text2);
-}
-.page-intro li strong {
-  color: var(--text);
-  font-weight: 600;
-}
-.page-intro-hint {
-  padding-top: 10px;
-  border-top: 1px solid var(--border2);
-  color: var(--text3);
-  font-size: 12px;
-}
-
-/* 쿠폰 검색 */
+/* ===== 쿠폰 검색 ===== */
 .coupon-search-input {
   padding: 5px 10px;
   border: 1px solid var(--border2);
@@ -942,7 +817,7 @@
   color: var(--text3);
 }
 
-/* 만료 임박 쿠폰 */
+/* ===== 쿠폰 카드 / 선택 ===== */
 .coupon-card.coupon-expiring {
   border-color: #f59e0b;
   background: rgba(245, 158, 11, 0.05);
@@ -957,8 +832,6 @@
   color: #b45309;
   margin-left: 4px;
 }
-
-/* 쿠폰 선택 모드 */
 .coupon-card {
   cursor: pointer;
   transition: transform 0.1s, border-color 0.15s, background 0.15s;
@@ -988,7 +861,6 @@
   font-weight: 700;
 }
 
-/* 수령 완료 피드백 애니메이션 */
 @keyframes giftDone {
   0% {
     transform: scale(1);
@@ -1004,7 +876,7 @@
   animation: giftDone 0.4s ease;
 }
 
-/* 다이얼로그 하단 액션 */
+/* ===== 다이얼로그 액션 ===== */
 .manage-dialog-actions {
   display: flex;
   align-items: center;
@@ -1059,15 +931,6 @@
 .md-action-close:hover {
   background: var(--bg2);
   color: var(--text);
-}
-.btn-danger {
-  background: none;
-  color: var(--red);
-  border: 1px solid var(--red);
-}
-.btn-danger:hover {
-  background: var(--red);
-  color: #fff;
 }
 
 /* ===== 쿠폰 섹션 ===== */
@@ -1134,7 +997,7 @@
   background: var(--bg3);
   color: var(--accent);
 }
-/* 쿠폰 받기 계정 행 */
+
 .coupon-account-row {
   display: grid;
   grid-template-columns: 40px 1fr 80px;
@@ -1161,7 +1024,7 @@
   background: var(--bg2);
   border-bottom: 1px solid var(--border2);
 }
-/* 쿠폰 액션 버튼 */
+
 .cp-btn {
   width: 30px;
   height: 30px;
@@ -1203,7 +1066,7 @@
   color: inherit;
 }
 
-/* 수령 진행 상태 */
+/* ===== 수령 진행 ===== */
 .redeem-progress {
   padding: 10px 16px;
   margin-bottom: 8px;
@@ -1252,159 +1115,8 @@
   color: var(--text);
 }
 
-/* 모달 */
-.modal-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(0, 0, 0, 0.4);
-  align-items: center;
-  justify-content: center;
-}
-.modal-overlay.open {
-  display: flex;
-}
-.modal {
-  background: var(--bg);
-  border-radius: 12px;
-  width: 440px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-}
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border2);
-}
-.modal-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-}
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 22px;
-  color: var(--text3);
-  cursor: pointer;
-  padding: 0 4px;
-}
-.modal-body {
-  padding: 16px 20px;
-}
-.modal-notice {
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-light);
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-  font-size: 12.5px;
-  color: var(--text);
-  line-height: 1.6;
-}
-.modal-notice strong {
-  font-weight: 600;
-}
-.modal-notice p {
-  margin: 4px 0 0 0;
-}
-.modal-notice p:first-of-type {
-  margin-top: 6px;
-}
-.modal-body label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text2);
-  margin: 12px 0 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.modal-body label:first-child {
-  margin-top: 0;
-}
-.modal-body input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: var(--font);
-}
-.modal-body input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-bg);
-}
-.input-row {
-  display: flex;
-  gap: 8px;
-}
-.input-row input {
-  flex: 1;
-}
-/* 프로필 카드 (검색 결과) */
-.player-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 10px 0;
-  padding: 10px 14px;
-  background: var(--bg3);
-  border-radius: 10px;
-}
-.player-card-photo {
-  width: 72px;
-  height: 72px;
-  border-radius: 12px;
-  object-fit: cover;
-  background: var(--border2);
-  flex-shrink: 0;
-}
-.player-card-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.player-card-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--text);
-}
-.player-card-detail {
-  font-size: 13px;
-  color: var(--text2);
-}
-.player-card-detail strong {
-  color: var(--text);
-  font-weight: 600;
-}
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--border2);
-}
-
 /* ===== 모바일 ===== */
 @media (max-width: 768px) {
-  .manage-content {
-    padding: 12px 14px 80px;
-  }
-  .members-header {
-    margin-bottom: 12px;
-  }
-  .members-header h1 {
-    font-size: 1.15rem;
-  }
-  .members-header .btn {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
   .members-thead {
     display: none !important;
   }
@@ -1453,11 +1165,6 @@
     width: 28px;
     height: 28px;
     font-size: 15px;
-  }
-  .modal {
-    width: 95%;
-    margin: 20px auto;
-    max-height: 90vh;
   }
   .manage-dialog {
     width: 92%;
@@ -1532,11 +1239,5 @@
   .rfb-actions .btn {
     flex: 1;
     font-size: 12px;
-  }
-  /* iOS Safari 자동 줌인 방지 */
-  input,
-  select,
-  textarea {
-    font-size: 16px;
   }
 }

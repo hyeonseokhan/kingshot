@@ -22,27 +22,11 @@ const { title, description, navHeader, navItems } = Astro.props;
 </BaseLayout>
 
 <style>
+  /* .center-content padding 은 components.css 에서 일괄 정의 (BaseLayout 글로벌).
+     scoped 와의 specificity 충돌 방지를 위해 layout 자체는 flex 골격만 처리. */
   .tab-content {
     display: flex;
     flex: 1;
     overflow: hidden;
-  }
-
-  .center-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 32px 48px 80px;
-    min-width: 0;
-  }
-
-  @media (max-width: 1024px) {
-    .center-content {
-      padding: 24px 32px 60px;
-    }
-  }
-  @media (max-width: 768px) {
-    .center-content {
-      padding: 12px 14px 80px;
-    }
   }
 </style>
