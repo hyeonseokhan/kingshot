@@ -1,37 +1,44 @@
+# ===== Astro / Node =====
+node_modules/
+dist/
+.astro/
+*.tsbuildinfo
+
+# ===== 환경변수 (Supabase 등 시크릿) =====
+.env
+.env.local
+.env.*.local
+
+# ===== Jekyll 잔재 (Phase 8에서 폴더 자체 삭제 예정) =====
 _site/
 .sass-cache/
 .jekyll-cache/
 .jekyll-metadata
 Gemfile.lock
+
+# ===== 시스템 / 에디터 =====
 .DS_Store
 *.swp
-.env
+.vscode/
 
-# Claude Code local state
+# ===== Claude Code 로컬 상태 =====
 .claude/
 
-# Supabase CLI 로컬 상태 (DB 연결정보 포함)
+# ===== Supabase CLI 로컬 상태 (DB 연결정보 포함) =====
 supabase/.temp/
 
-# 로컬 작업 파일
+# ===== 로컬 작업 파일 =====
 api-1.json
 coupon.md
 
-# Ruby / Bundler 로컬 설정
+# ===== Ruby / Bundler 로컬 설정 =====
 .bundle/
 vendor/
 
-# IDE 로컬 설정
-.vscode/
-
-# 미니게임 원본 Java 프로젝트 (참고용, 배포 무관)
+# ===== 미니게임 원본 Java 프로젝트 (참고용, 배포 무관) =====
 matchjong-master/
 
-# Playwright 로컬 디버깅용 (배포 무관)
-node_modules/
-package.json
-package-lock.json
-# 개발 중 생성한 검증 스크립트/캡처/mock 페이지
+# ===== 개발 중 생성한 검증 스크립트/캡처/mock 페이지 =====
 scripts/
 # 단 alliance_scraper 의 scripts 는 핵심 운영 도구라 예외
 !client_tools/alliance_scraper/scripts/
