@@ -1,6 +1,7 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/manage.css';
 
 const manage = tabs.find((t) => t.id === 'manage')!;
 const active = findActiveSubmenu(manage, Astro.url.pathname);
@@ -17,16 +18,128 @@ const navItems = manage.submenus!.map((s) => ({
   navHeader="연맹관리"
   navItems={navItems}
 >
-  <h1 class="placeholder-title">쿠폰 받기</h1>
-  <p>Phase 4 에서 <code>coupons.js</code> 의 974줄 로직이 TypeScript 로 이식된다.</p>
+  <div class="manage-page" id="page-coupons">
+    <div class="members-header">
+      <h1>쿠폰 받기</h1>
+      <button class="btn btn-primary" id="btn-add-coupon-account" type="button">+ 계정 등록</button>
+    </div>
+
+    <div class="page-intro">
+      <p>PNX 연맹원 여러분의 <strong>쿠폰 수령을 자동화</strong>하는 페이지입니다.</p>
+      <ul>
+        <li><strong>전체 수령</strong> 버튼 한 번이면 등록된 모든 계정이 자동으로 쿠폰을 받습니다</li>
+        <li>
+          <strong>수령 이력</strong>(
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="vertical-align:-1px"
+          >
+            <path d="M3 3v5h5"></path>
+            <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+            <path d="M12 7v5l4 2"></path>
+          </svg>
+          )에서 언제 누가 받았는지 확인할 수 있어요
+        </li>
+        <li><strong>농장 계정, 지인</strong> 등 PNX 외부 계정도 등록 가능합니다</li>
+      </ul>
+      <p class="page-intro-hint">
+        연맹원 본인은 별도 등록이 필요 없어요. 연맹원 페이지에서 "쿠폰 자동 받기"가 켜져
+        있으면 자동으로 목록에 포함됩니다.
+      </p>
+    </div>
+
+    <!-- 계정 등록 모달 -->
+    <div class="modal-overlay" id="coupon-modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>계정 등록</h3>
+          <button class="modal-close" id="coupon-modal-close" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-notice">
+            <strong>안내</strong>
+            <p>
+              <strong>PNX 연맹원</strong>은 <strong>연맹원 페이지</strong>에서 등록하면 자동으로
+              추가됩니다.
+            </p>
+            <p>이 페이지는 <strong>농장 계정, 지인 등 추가 인원</strong> 등록용입니다.</p>
+          </div>
+          <label for="coupon-input-id">킹샷 ID</label>
+          <div class="input-row">
+            <input type="text" id="coupon-input-id" placeholder="킹샷 아이디 입력" />
+            <button class="btn btn-secondary" id="coupon-btn-search" type="button">조회</button>
+          </div>
+          <div id="coupon-search-result" class="player-card" style="display:none">
+            <img id="coupon-res-photo" class="player-card-photo" src="" alt="" />
+            <div class="player-card-info">
+              <div class="player-card-name" id="coupon-res-nickname">-</div>
+              <div class="player-card-detail">
+                도시 센터 레벨: <strong id="coupon-res-level">-</strong>
+              </div>
+              <div class="player-card-detail">
+                소속 왕국: <strong id="coupon-res-kingdom">-</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="coupon-modal-cancel" type="button">취소</button>
+          <button class="btn btn-primary" id="coupon-modal-save" type="button">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 입력 가능한 쿠폰 -->
+    <div class="coupon-section">
+      <h3 class="coupon-title">입력 가능한 쿠폰</h3>
+      <div class="coupon-list" id="coupon-list">
+        <div class="empty-cell">로딩 중...</div>
+      </div>
+    </div>
+
+    <!-- 쿠폰 대상 목록 -->
+    <div class="members-toolbar">
+      <div class="member-count" id="coupon-member-count"></div>
+      <div class="members-toolbar-right">
+        <input type="text" id="coupon-search" class="coupon-search-input" placeholder="닉네임 검색..." />
+        <button class="btn btn-secondary btn-sm" id="btn-redeem-all" type="button">🎁 전체 수령</button>
+        <button class="btn-icon-only" id="btn-history" title="수령 이력" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3v5h5"></path>
+            <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+            <path d="M12 7v5l4 2"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="members-list" id="coupon-members-list">
+      <div class="empty-cell">로딩 중...</div>
+    </div>
+
+    <!-- 수령 이력 다이얼로그 -->
+    <div class="manage-dialog-overlay" id="history-dialog-overlay">
+      <div class="manage-dialog history-dialog">
+        <div class="history-header">
+          <div class="history-title">
+            <h3>수령 이력</h3>
+            <span class="history-total" id="history-total"></span>
+          </div>
+          <button class="md-close-btn" id="history-close" type="button">&times;</button>
+        </div>
+        <div class="history-body" id="history-body">
+          <div class="empty-cell">로딩 중...</div>
+        </div>
+        <div class="history-pagination" id="history-pagination"></div>
+      </div>
+    </div>
+  </div>
 </AppLayout>
 
-<style>
-  .placeholder-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0 0 20px;
-    letter-spacing: -0.02em;
-    color: var(--text);
-  }
-</style>
+<script>
+  import '@/scripts/pages/coupons';
+</script>
