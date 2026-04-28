@@ -143,7 +143,8 @@
 
 ## #7 쿠폰 자동 수령 — silent return 시 사용자 피드백 부재
 
-- **상태**: 미수정 (분류: 버그/UX)
+- **상태**: ✅ 적용 (2026-04-29, 커밋 예정) | 분류: 버그/UX
+- **추가 수정**: `loadAccounts` / `loadHistory` 에 catch/finally 추가 — 네트워크 reject 시 callback 누락으로 chain 멈추던 잠재 버그도 같이 해결
 - **재현 URL**: `https://kingshot.wooju-home.org/manage/coupons/?auto-redeem=true`
 - **증상**: URL 진입 시 화면에 아무 변화도 일어나지 않음 → 사용자 입장에선 "동작 안 함"으로 보임
 - **원인 (실제 동작 분석 결과)**:

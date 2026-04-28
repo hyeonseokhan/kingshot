@@ -234,37 +234,44 @@ function loadAccounts(callback?: () => void): void {
       .select('kingshot_id,nickname,level,kingdom,profile_photo')
       .eq('auto_coupon', true),
     sb.from('coupon_accounts').select('*'),
-  ]).then((results) => {
-    allAccounts = [];
-    if (results[0].data) {
-      (results[0].data as Array<Record<string, unknown>>).forEach((m) => {
-        allAccounts.push({
-          kingshot_id: m.kingshot_id as string,
-          nickname: m.nickname as string,
-          level: (m.level as number) ?? null,
-          kingdom: (m.kingdom as string) ?? null,
-          profile_photo: (m.profile_photo as string) ?? null,
-          source: 'member',
+  ])
+    .then((results) => {
+      allAccounts = [];
+      if (results[0].data) {
+        (results[0].data as Array<Record<string, unknown>>).forEach((m) => {
+          allAccounts.push({
+            kingshot_id: m.kingshot_id as string,
+            nickname: m.nickname as string,
+            level: (m.level as number) ?? null,
+            kingdom: (m.kingdom as string) ?? null,
+            profile_photo: (m.profile_photo as string) ?? null,
+            source: 'member',
+          });
         });
-      });
-    }
-    if (results[1].data) {
-      (results[1].data as Array<Record<string, unknown>>).forEach((a) => {
-        allAccounts.push({
-          id: a.id as string,
-          kingshot_id: a.kingshot_id as string,
-          nickname: a.nickname as string,
-          level: (a.level as number) ?? null,
-          kingdom: (a.kingdom as string) ?? null,
-          profile_photo: (a.profile_photo as string) ?? null,
-          source: 'extra',
+      }
+      if (results[1].data) {
+        (results[1].data as Array<Record<string, unknown>>).forEach((a) => {
+          allAccounts.push({
+            id: a.id as string,
+            kingshot_id: a.kingshot_id as string,
+            nickname: a.nickname as string,
+            level: (a.level as number) ?? null,
+            kingdom: (a.kingdom as string) ?? null,
+            profile_photo: (a.profile_photo as string) ?? null,
+            source: 'extra',
+          });
         });
-      });
-    }
-    allAccounts.sort((a, b) => (a.nickname || '').localeCompare(b.nickname || '', 'ko'));
-    setAccountsCache(allAccounts);
-    callback?.();
-  });
+      }
+      allAccounts.sort((a, b) => (a.nickname || '').localeCompare(b.nickname || '', 'ko'));
+      setAccountsCache(allAccounts);
+    })
+    .catch(() => {
+      // 네트워크 오류 시 빈 리스트로 진행 — 후속 chain 이 멈추지 않도록 (checkAutoRedeem 까지 도달 보장)
+      allAccounts = [];
+    })
+    .finally(() => {
+      callback?.();
+    });
 }
 
 // ===== 수령 이력 =====
@@ -275,10 +282,11 @@ function loadHistory(callback?: () => void): void {
     callback?.();
     return;
   }
-  sb.from('coupon_history')
-    .select('kingshot_id,coupon_code,status')
-    .in('coupon_code', codes)
-    .then((res) => {
+  // async IIFE — Supabase query builder 가 PromiseLike 라 .catch()/.finally() 가 없으므로
+  // try/catch/finally 로 콜백 누락(checkAutoRedeem 미발동) 방지.
+  void (async () => {
+    try {
+      const res = await sb.from('coupon_history').select('kingshot_id,coupon_code,status').in('coupon_code', codes);
       for (const k of Object.keys(couponHistory)) delete couponHistory[k];
       if (res.data) {
         (res.data as Array<{ kingshot_id: string; coupon_code: string; status: string }>).forEach(
@@ -287,8 +295,12 @@ function loadHistory(callback?: () => void): void {
           },
         );
       }
+    } catch {
+      for (const k of Object.keys(couponHistory)) delete couponHistory[k];
+    } finally {
       callback?.();
-    });
+    }
+  })();
 }
 
 function getRedeemStatus(kingshotId: string): 'done' | 'pending' | 'none' {
@@ -554,20 +566,20 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
 // ===== 전체 수령 =====
 
 function startBulkRedeem(skipConfirm: boolean): void {
+  // skipConfirm 의 의미: confirm prompt 만 생략 — 결과 알림은 항상 표시 (URL 트리거든 버튼 클릭이든
+  // 사용자가 명시적으로 액션을 취한 상태이므로 묵음 종료는 혼란만 야기)
   if (activeCoupons.length === 0) {
-    if (!skipConfirm) alert('사용 가능한 쿠폰이 없습니다.');
+    showInfoPanel('현재 사용 가능한 활성 쿠폰이 없습니다.');
     return;
   }
   const sel = getSelectedCoupon();
   const pending = allAccounts.filter((a) => getCodesToRedeem(a.kingshot_id).length > 0);
   if (pending.length === 0) {
-    if (!skipConfirm) {
-      alert(
-        sel
-          ? sel.code + ' 쿠폰을 모든 계정이 이미 수령했습니다.'
-          : '모든 계정이 이미 쿠폰을 수령했습니다.',
-      );
-    }
+    showInfoPanel(
+      sel
+        ? sel.code + ' 쿠폰을 모든 계정이 이미 수령했습니다 ✓'
+        : '모든 계정이 모든 활성 쿠폰을 이미 수령했습니다 ✓',
+    );
     return;
   }
   const confirmMsg = sel
@@ -609,6 +621,26 @@ function startBulkRedeem(skipConfirm: boolean): void {
 }
 
 // ===== 진행 표시 =====
+
+// 즉시 끝난 액션 (활성 쿠폰 0 / 모두 이미 수령)을 사용자에게 알리는 패널.
+// auto-redeem URL 진입 시 화면이 깜깜하지 않도록 보장하는 핵심 — silent return 금지.
+function showInfoPanel(text: string): void {
+  let el = maybe<HTMLDivElement>('redeem-progress');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'redeem-progress';
+    el.className = 'redeem-progress';
+    const toolbar = document.querySelector<HTMLElement>('#page-coupons .members-toolbar');
+    toolbar?.parentNode?.insertBefore(el, toolbar.nextSibling);
+  }
+  el.innerHTML =
+    '<div class="redeem-summary summary-ok"><span>' + esc(text) + '</span></div>';
+  el.style.display = '';
+  // SUMMARY_DISPLAY_MS 동안 노출 후 자동 숨김 — showSummary 와 동일 라이프사이클
+  setTimeout(() => {
+    if (el && el.parentNode) el.style.display = 'none';
+  }, SUMMARY_DISPLAY_MS);
+}
 
 function showProgress(text: string): void {
   let el = maybe<HTMLDivElement>('redeem-progress');
