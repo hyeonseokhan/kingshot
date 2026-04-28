@@ -115,6 +115,11 @@ const navItems = minigame.submenus!.map((s) => ({
             <div class="tm-overlay-card">
               <div class="tm-overlay-icon" id="tm-overlay-icon"></div>
               <div class="tm-overlay-msg" id="tm-overlay-msg"></div>
+              <div class="tm-overlay-reward" id="tm-overlay-reward" style="display:none">
+                <span class="tm-overlay-reward-icon">💎</span>
+                <span class="tm-overlay-reward-amount" id="tm-overlay-reward-amount">0</span>
+                <span class="tm-overlay-reward-label">크리스탈 획득</span>
+              </div>
               <div class="tm-overlay-actions">
                 <button class="btn btn-primary" id="tm-overlay-restart" type="button">다시 하기</button>
                 <button class="btn btn-secondary" id="tm-overlay-quit" type="button">나가기</button>

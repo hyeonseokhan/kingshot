@@ -6,6 +6,7 @@
  */
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { rewardForStage } from '@/lib/balance';
 
 // ===== 상수 =====
 
@@ -168,19 +169,6 @@ function broadcastCrystalBalance(balance: number): void {
   window.dispatchEvent(
     new CustomEvent('crystal-balance-update', { detail: { balance } }),
   );
-}
-
-// 보상 획득 시 잠깐 떠있다 사라지는 토스트 (DOM 이 준비되지 않으면 무시)
-function showCrystalRewardToast(amount: number): void {
-  if (amount <= 0) return;
-  const host = document.body;
-  if (!host) return;
-  const toast = document.createElement('div');
-  toast.className = 'tm-crystal-toast';
-  toast.textContent = '✨ 크리스탈 +' + amount;
-  host.appendChild(toast);
-  // CSS 애니메이션으로 fade in/out → 1.8s 후 제거
-  setTimeout(() => toast.remove(), 1800);
 }
 
 // ===== 페이지 진입 =====
@@ -1013,34 +1001,32 @@ function checkEnd(): void {
 function onClear(): void {
   const session = window.TileMatchAuth?.getSession();
   const clearedStage = currentStage;
-  if (session?.player_id) {
-    showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!', true);
-    callAuth('record-clear', { player_id: session.player_id, stage: clearedStage }).then(
-      (res) => {
-        if (!res?.ok) return;
-        bestStage = res.best_stage || bestStage;
-        currentStage = bestStage + 1;
-        renderStage();
-        loadRanking();
-      },
-    );
-    // 보상 청구는 record-clear 와 독립적으로 실행 (한쪽 실패가 다른쪽 막지 않게)
-    callEconomy('claim-stage-reward', {
-      player_id: session.player_id,
-      stage: clearedStage,
-    }).then((res) => {
-      if (!res?.ok) return;
-      if (typeof res.balance === 'number') broadcastCrystalBalance(res.balance);
-      if (!res.duplicate && res.amount && res.amount > 0) {
-        showCrystalRewardToast(res.amount);
-      }
-    });
-  } else {
-    showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!', true);
-  }
+  // 클라이언트 측 사전 계산 — 서버 응답 기다리지 않고 다이얼로그를 즉시 완성형으로 표시.
+  // (재플레이 X 도메인 가정: 같은 stage 두 번 클리어 시나리오 없음 → duplicate 분기 불필요)
+  const reward = session?.player_id ? rewardForStage(clearedStage) : 0;
+  showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!', true, reward);
+
+  if (!session?.player_id) return;
+
+  callAuth('record-clear', { player_id: session.player_id, stage: clearedStage }).then((res) => {
+    if (!res?.ok) return;
+    bestStage = res.best_stage || bestStage;
+    currentStage = bestStage + 1;
+    renderStage();
+    loadRanking();
+  });
+
+  // 보상 청구는 fire-and-forget — UI 는 이미 reward 표시 끝났고, 응답은 잔액 broadcast 용으로만 사용.
+  // 사용자가 다이얼로그 닫고 브라우저를 빠르게 종료해도 서버는 청구를 처리함.
+  callEconomy('claim-stage-reward', {
+    player_id: session.player_id,
+    stage: clearedStage,
+  }).then((res) => {
+    if (res?.ok && typeof res.balance === 'number') broadcastCrystalBalance(res.balance);
+  });
 }
 
-function showOverlay(icon: string, msg: string, isSuccess: boolean): void {
+function showOverlay(icon: string, msg: string, isSuccess: boolean, rewardAmount = 0): void {
   const iconEl = $('tm-overlay-icon');
   const msgEl = $('tm-overlay-msg');
   const ov = $('tm-overlay');
@@ -1049,6 +1035,30 @@ function showOverlay(icon: string, msg: string, isSuccess: boolean): void {
   if (ov) ov.style.display = '';
   const primaryBtn = $('tm-overlay-restart');
   if (primaryBtn) primaryBtn.textContent = isSuccess ? '다음 단계' : '다시 하기';
+
+  const rewardBox = $('tm-overlay-reward');
+  const rewardAmt = $('tm-overlay-reward-amount');
+  if (rewardBox && rewardAmt) {
+    if (rewardAmount > 0) {
+      rewardAmt.textContent = '+' + rewardAmount.toLocaleString('ko-KR');
+      rewardBox.style.display = '';
+      // 매번 다이얼로그가 뜰 때마다 슬라이드업 애니메이션 재시작
+      restartAnimation(rewardAmt);
+    } else {
+      rewardBox.style.display = 'none';
+    }
+  }
+
+  // 폭죽 wiggle 도 매번 재시작
+  if (iconEl) restartAnimation(iconEl);
+}
+
+// CSS 애니메이션 재시작 트릭: animation 속성을 잠깐 none 으로 비웠다가 다시 비움(원래 CSS 값으로 복귀).
+// 사이에 강제 reflow 한 번을 끼워서 브라우저가 두 상태를 다른 시점으로 보도록 한다.
+function restartAnimation(el: HTMLElement): void {
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = '';
 }
 
 function hideOverlay(): void {

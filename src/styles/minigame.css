@@ -419,242 +419,8 @@
   margin-top: 4px;
 }
 
-/* 인증 다이얼로그 (PIN 등록/검증) */
-.tm-auth-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tm-auth-dialog {
-  background: #ffffff;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-}
-@media (min-width: 720px) {
-  .tm-auth-dialog {
-    width: 420px;
-    max-width: 95vw;
-    height: min(720px, 95vh);
-    border-radius: 16px;
-  }
-}
-.tm-auth-bar {
-  background: #1f2937;
-  color: #ffffff;
-  flex: 0 0 auto;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.tm-auth-bar .tm-auth-title {
-  flex: 1;
-  font-weight: 700;
-  font-size: 14px;
-}
-.tm-auth-back-btn {
-  order: -1;
-}
-.tm-auth-body {
-  flex: 1 1 auto;
-  padding: 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.tm-auth-step {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-.tm-auth-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text2);
-  line-height: 1.5;
-}
-.tm-auth-search {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 16px;
-  background: #ffffff;
-  font-family: var(--font);
-}
-.tm-auth-search:focus {
-  outline: none;
-  border-color: #66aaff;
-}
-.tm-auth-list {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fafbfd;
-  display: flex;
-  flex-direction: column;
-}
-.tm-auth-item {
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--font);
-  color: var(--text);
-}
-.tm-auth-item:last-child {
-  border-bottom: 0;
-}
-.tm-auth-item:hover {
-  background: #eef2f7;
-}
-.tm-auth-item-photo,
-.tm-auth-item-photo-empty {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  object-fit: cover;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #dbe6f3, #eef3f9);
-  color: #4a6080;
-  font-weight: 700;
-  font-size: 14px;
-}
-.tm-auth-item-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-.tm-auth-item-name {
-  font-weight: 700;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tm-auth-item-id {
-  font-size: 11px;
-  color: var(--text3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tm-auth-empty {
-  padding: 20px;
-  text-align: center;
-  color: var(--text3);
-  font-size: 12px;
-}
-
-.tm-auth-selected {
-  background: #ecfdf5;
-  border: 1px solid #a7e9c5;
-  color: #0e6d3a;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-}
-.tm-auth-pin-prompt {
-  margin: 8px 0 0;
-  text-align: center;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 600;
-}
-.tm-pin-wrap {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  margin: 4px auto;
-  width: fit-content;
-  cursor: text;
-}
-.tm-pin-input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  border: 0;
-  outline: none;
-  font-size: 16px;
-  color: transparent;
-  caret-color: transparent;
-  text-align: center;
-  letter-spacing: 0;
-}
-.tm-pin-boxes {
-  display: flex;
-  gap: 10px;
-  pointer-events: none;
-}
-.tm-pin-box {
-  width: 48px;
-  height: 56px;
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  background: #fafbfd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: var(--text);
-  font-weight: 700;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.tm-pin-box.tm-pin-box-filled {
-  border-color: #66aaff;
-  background: #ffffff;
-  color: #1f2937;
-}
-.tm-pin-input:focus + .tm-pin-boxes .tm-pin-box.tm-pin-box-active {
-  border-color: #66aaff;
-}
-.tm-auth-msg {
-  min-height: 18px;
-  text-align: center;
-  font-size: 12px;
-  color: #c0392b;
-  line-height: 1.4;
-}
-
-@media (max-width: 720px) {
-  .tm-auth-body {
-    padding: 14px;
-    gap: 10px;
-  }
-  .tm-pin-box {
-    width: 44px;
-    height: 52px;
-    font-size: 22px;
-  }
-}
+/* 인증 다이얼로그 스타일은 src/components/AuthDialog.astro 의 <style is:global> 로 이전됨
+ * (AuthDialog 가 BaseLayout 에 마운트되어 모든 페이지에서 보이므로 페이지별 CSS 와 분리) */
 
 /* 타일 */
 .tm-tile {
@@ -857,6 +623,19 @@
   font-size: 48px;
   margin-bottom: 8px;
   line-height: 1;
+  display: inline-block;
+  transform-origin: 50% 80%;
+  animation: tmOverlayIconWiggle 1.6s ease-in-out 0.1s 2 both;
+}
+
+@keyframes tmOverlayIconWiggle {
+  0%   { transform: rotate(0deg) scale(1); }
+  15%  { transform: rotate(-8deg) scale(1.06); }
+  30%  { transform: rotate(7deg) scale(1.06); }
+  45%  { transform: rotate(-5deg) scale(1.04); }
+  60%  { transform: rotate(4deg) scale(1.03); }
+  75%  { transform: rotate(-2deg) scale(1.01); }
+  100% { transform: rotate(0deg) scale(1); }
 }
 .tm-overlay-msg {
   font-size: 14px;
@@ -948,30 +727,60 @@
   color: var(--text);
 }
 
-/* 크리스탈 보상 토스트 — Stage 클리어 시 잔액 갱신 알림 */
-.tm-crystal-toast {
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-12px);
-  z-index: 1200;
-  padding: 10px 18px;
-  background: linear-gradient(180deg, #6366f1, #4338ca);
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
+/* 클리어 다이얼로그 안의 크리스탈 보상 라인 */
+.tm-overlay-reward {
+  display: inline-flex;
+  align-items: center; /* 수직 중앙 정렬 — baseline 은 폰트 크기 차이로 정렬 어긋남 */
+  gap: 6px;
+  margin-top: -4px;
+  margin-bottom: 10px;
+  padding: 6px 14px;
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+  border: 1px solid #c7d2fe;
   border-radius: 999px;
-  box-shadow: 0 8px 24px rgba(67, 56, 202, 0.4);
-  opacity: 0;
-  animation: tmCrystalToast 1.8s ease-out forwards;
-  pointer-events: none;
+  color: #4338ca;
+  font-weight: 700;
   white-space: nowrap;
 }
-@keyframes tmCrystalToast {
-  0%   { opacity: 0; transform: translateX(-50%) translateY(-12px); }
-  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
-  80%  { opacity: 1; transform: translateX(-50%) translateY(0); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+.tm-overlay-reward-icon,
+.tm-overlay-reward-amount,
+.tm-overlay-reward-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+.tm-overlay-reward-icon {
+  font-size: 16px;
+  /* 다이아몬드 이모지가 다른 텍스트와 동일한 광학 중심에 오도록 미세 조정 */
+  transform: translateY(-0.5px);
+}
+.tm-overlay-reward-amount {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  /* 숫자가 아래에서 위로 살짝 솟아오르는 효과 */
+  animation: tmRewardAmountRise 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tm-overlay-reward-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6366f1;
+  margin-left: 2px;
+}
+
+@keyframes tmRewardAmountRise {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ===== 운명의 파트너 ===== */

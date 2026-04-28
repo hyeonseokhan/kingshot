@@ -1,8 +1,8 @@
 ---
 // 헤더 우측 인증 위젯.
 // 비로그인: "로그인" 버튼.
-// 로그인 (데스크톱): [아바타] [닉네임] [✨ N] [로그아웃] 가로 펼침.
-// 로그인 (모바일): [아바타] [✨ N] ▾ — 클릭 시 닉네임 + 로그아웃 드롭다운.
+// 로그인 (데스크톱): [아바타] [닉네임] [💎 N] [로그아웃] 가로 펼침.
+// 로그인 (모바일): [아바타] [💎 N] ▾ — 클릭 시 닉네임 + 로그아웃 드롭다운.
 //
 // 동작 로직: src/scripts/components/logined-user-info.ts
 // AuthDialog 가 BaseLayout 에 마운트돼있어야 ensureAuth 가 작동함.
@@ -25,7 +25,7 @@
       </span>
       <span class="hu-name" id="hu-name">-</span>
       <span class="hu-crystal" aria-label="크리스탈 잔액">
-        <span class="hu-crystal-icon">✨</span>
+        <span class="hu-crystal-icon">💎</span>
         <span class="hu-crystal-value" id="hu-crystal-value">0</span>
       </span>
       <svg
@@ -143,26 +143,39 @@
     display: none;
   }
 
+  /* 가로 나열 요소들의 수직 중앙 정렬 — 자식 모두 inline-flex + line-height: 1 통일 */
+  .hu-name,
+  .hu-crystal,
+  .hu-crystal-icon,
+  .hu-crystal-value {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
   .hu-name {
     white-space: nowrap;
     max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* ellipsis 가 작동하려면 inline-flex 위에 block-level overflow 가 필요 → display 만 block 으로 덮음 */
+    display: inline-block;
+    line-height: 1;
+    vertical-align: middle;
   }
-
   .hu-crystal {
-    display: inline-flex;
-    align-items: center;
     gap: 4px;
     padding-left: 6px;
     border-left: 1px solid rgba(255, 255, 255, 0.18);
   }
   .hu-crystal-icon {
     font-size: 13px;
-    line-height: 1;
+    /* 💎 이모지 광학 중심 보정 — 텍스트 baseline 보다 살짝 아래에 오는 글리프 특성 */
+    transform: translateY(-0.5px);
   }
   .hu-crystal-value {
     font-variant-numeric: tabular-nums;
+    min-width: 3.5em;
+    justify-content: flex-end;
   }
 
   .hu-caret {

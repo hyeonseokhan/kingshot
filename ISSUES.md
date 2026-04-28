@@ -85,7 +85,16 @@
 
 ## #5 크리스탈 획득 안내 — 토스트 제거 → 클리어 다이얼로그에 즉시 표시 (fire-and-forget)
 
-- **상태**: 미수정 (분류: UX 변경) | **결정 완료**: 2026-04-28
+- **상태**: ✅ 적용 (2026-04-29, 커밋 예정) | 분류: UX 변경
+- **추가 보완 (사용자 피드백)**:
+  - 다이얼로그 가로 요소 수직 중앙 정렬 (icon/amount/label) — `align-items: center` + 자식 `inline-flex/line-height:1` 통일
+  - 폭죽 wiggle + 숫자 슬라이드업 애니메이션 + 매 표시마다 재시작 (restartAnimation 헬퍼)
+  - 크리스탈 이모지 ✨ → 💎 (다이아몬드)
+  - 헤더 위젯 `.hu-crystal-value` `min-width: 3.5em` + 우측 정렬 — 자릿수 변해도 위젯 폭 고정
+  - AuthDialog 스타일을 컴포넌트 자체로 이전 (BaseLayout 마운트 후 비-미니게임 페이지에서 스타일 누락 회귀 수정)
+- **데이터 백필 (2026-04-29 실행)**:
+  - 22명, 526 stages 신규 지급, +187,940 크리스탈
+  - `claim-stage-reward` Edge Function 멱등 호출로 라이브 시스템 호환 (audit trail: source=`tile_match_clear`)
 - **현재 동작**:
   - 스테이지 클리어 시 클리어 다이얼로그 즉시 표시 ("🎉 Stage N 클리어!")
   - 별도 토스트 "✨ 크리스탈 +N" 가 1.8초간 떴다 사라짐 (`tm-crystal-toast`)

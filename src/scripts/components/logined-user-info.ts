@@ -5,7 +5,7 @@
  *   - sessionStorage 의 인증 세션을 읽고 UI 상태(로그인/비로그인) 반영
  *   - 로그인 클릭 → ensureAuth (AuthDialog 띄움)
  *   - 로그아웃 클릭 → clearSession + ensureAuth (자동으로 다시 로그인 다이얼로그)
- *   - crystal-balance-update 이벤트 listen → ✨ 값 즉시 갱신
+ *   - crystal-balance-update 이벤트 listen → 💎 값 즉시 갱신
  *   - 모바일에서 트리거 클릭 → 드롭다운 토글
  *
  * AuthDialog DOM 이 페이지에 없으면 ensureAuth 가 무한 대기함 → BaseLayout 에 항상 마운트 보장.
