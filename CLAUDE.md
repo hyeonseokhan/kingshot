@@ -152,21 +152,38 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 
 ### Phase 진행 상황
 
-- [ ] **Phase A** — 크리스탈 경제 기반 ← **현재 시작 지점**
-  - [ ] DB 마이그레이션 (`crystal_balances`, `crystal_transactions`)
-  - [ ] Edge Function `economy/`
-  - [ ] tile-match 클리어 시 보상 청구 통합
-  - [ ] 헤더 잔액 배지
-  - [ ] 빌드 검증 + PR
-- [ ] **Phase B** — 장비 강화 (`/minigame/equipment/`)
+- [x] **Phase A** — 크리스탈 경제 기반 (PR #1, commit `3b9deaf`, main 머지됨)
+  - [x] DB 마이그레이션 (`crystal_balances`, `crystal_transactions`) — production 적용 완료
+  - [x] Edge Function `economy/` — production 배포 완료, smoke test 3/3 pass
+  - [x] tile-match 클리어 시 보상 청구 통합
+  - [x] 헤더 잔액 배지
+  - [x] 빌드 검증 + PR + main 머지 + GitHub Pages 배포
+  - [ ] **브라우저 회귀 검증 (사용자 직접)** — Stage 1 클리어 시 토스트/배지 동작 확인
+- [ ] **Phase B** — 장비 강화 (`/minigame/equipment/`) ← **다음 시작 지점**
 - [ ] **Phase C** — PvP 카드 대결 + 랭킹 섹션 (`/minigame/pvp/`)
 
 ### 보안 / 무결성 체크리스트
-- [ ] anon key로 통화 테이블 직접 변경 차단 (RLS write 차단)
-- [ ] 보상 중복 청구 방지 (`crystal_transactions.ref_key` UNIQUE)
-- [ ] 강화 race condition 방지 (DB 함수 단일 트랜잭션)
-- [ ] PvP 데미지 계산 서버측 강제 (클라이언트는 카드 선택만 전송)
-- [ ] PvP 자기공격 / 일일 한도 위반 차단
+- [x] anon key로 통화 테이블 직접 변경 차단 (RLS write 차단)
+- [x] 보상 중복 청구 방지 (`crystal_transactions.ref_key` UNIQUE)
+- [ ] 강화 race condition 방지 (DB 함수 단일 트랜잭션) — Phase B
+- [ ] PvP 데미지 계산 서버측 강제 (클라이언트는 카드 선택만 전송) — Phase C
+- [ ] PvP 자기공격 / 일일 한도 위반 차단 — Phase C
+
+### Phase A 작업 중 발견한 운영 메모
+
+- **production schema_migrations 와 supabase CLI 추적 sync 완료** (2026-04-28).
+  과거 dashboard SQL Editor 로 직접 적용된 6개 마이그레이션이 CLI 추적엔 누락돼있어
+  `supabase migration repair --status applied <ts>...` 로 sync. Phase B 부터는 `supabase db push` 가
+  깔끔하게 새 마이그레이션 1개만 적용함 (이 단계 다시 할 필요 없음).
+- **Phase B 시작 절차**:
+  1. `git pull origin main` (이 PC 또는 다른 PC 어느 쪽이든)
+  2. `npm install` (의존성 동기화)
+  3. 새 브랜치: `git checkout -b feat/minigame-equipment`
+  4. 본 문서 "디자인 결정사항 → 장비 강화" 섹션 기준으로 작업
+  5. 강화 비용/확률 표는 본 문서의 표를 단일 진실 공급원으로 사용
+- **Phase B 의 production 적용**:
+  사용자 환경에 supabase CLI 가 설치돼있다면 직접 `supabase db push` + `supabase functions deploy equipment` 실행.
+  없으면 위 "Phase A 작업 중 발견" 섹션처럼 binary 다운로드 후 `--project-ref cbzgmugtsustsxuqpznv` 로 link.
 
 ---
 
@@ -184,5 +201,16 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 
 - `MIGRATION_PLAN.md` — 과거 Jekyll → Astro 마이그레이션 기록
 - 신규 미니게임 확장 기획서 (PDF, 사내 문서 — repo 외부 보관). 핵심 내용은 본 문서의 "디자인 결정사항" 섹션에 모두 반영됨
-- `supabase/migrations/` — 기존 스키마
+- `supabase/migrations/` — 기존 스키마 (가장 최근: `20260428100000_create_crystal_economy.sql`)
 - `supabase/functions/tile-match-auth/index.ts` — Edge Function 패턴 레퍼런스
+- `supabase/functions/economy/index.ts` — Phase A 의 stage→reward 매핑 + RPC 호출 패턴 (Phase B/C 가 따라갈 템플릿)
+
+## 다른 PC 합류 시 setup
+
+```bash
+git pull origin main
+npm install
+# .env 파일은 git ignore 되어있음 — 다른 PC 에 별도 복사 필요
+#   필수 키: PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, SUPABASE_ACCESS_TOKEN
+npm run dev   # 로컬 미리보기 (Astro dev server)
+```
