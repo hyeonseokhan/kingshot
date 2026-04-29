@@ -165,15 +165,16 @@
   background-size: 300% 300%;
   animation: gradientMove 4s ease infinite;
 }
+/* 메달 색 통일 — 1=Gold, 2=Silver, 3=Bronze. 양 페이지(타일매치/PvP) 공통. */
 .tm-rank-photo-wrap.rank-effect-3 {
-  background-image: linear-gradient(135deg, #15803d, #34d399, #10b981, #15803d);
+  background-image: linear-gradient(135deg, #d97706, #fbbf24, #92400e, #d97706);
 }
 .tm-rank-photo-wrap.rank-effect-2 {
-  background-image: linear-gradient(135deg, #8b5cf6, #06b6d4, #a855f7, #8b5cf6);
+  background-image: linear-gradient(135deg, #cbd5e1, #f8fafc, #94a3b8, #cbd5e1);
   animation-duration: 3s;
 }
 .tm-rank-photo-wrap.rank-effect-1 {
-  background-image: linear-gradient(135deg, #ef4444, #f97316, #eab308, #ef4444);
+  background-image: linear-gradient(135deg, #f59e0b, #fde047, #d97706, #fbbf24);
   animation-duration: 2s;
 }
 .tm-rank-photo-wrap.rank-effect-1::before,
@@ -188,39 +189,39 @@
 }
 .tm-rank-photo-wrap.rank-effect-3::before {
   inset: -1px;
-  background: linear-gradient(135deg, #15803d, #34d399, #10b981, #15803d);
+  background: linear-gradient(135deg, #d97706, #fbbf24, #92400e, #d97706);
   background-size: 300% 300%;
   animation: gradientMove 4s ease infinite, haze 3s ease-in-out infinite;
   filter: blur(3px);
-  opacity: 0.4;
+  opacity: 0.45;
 }
 .tm-rank-photo-wrap.rank-effect-2::before {
   inset: -2px;
-  background: linear-gradient(135deg, #8b5cf6, #06b6d4, #a855f7, #8b5cf6);
+  background: linear-gradient(135deg, #cbd5e1, #f8fafc, #94a3b8, #cbd5e1);
   background-size: 300% 300%;
   animation: gradientMove 3s ease infinite, haze 2.5s ease-in-out infinite;
   filter: blur(4px);
-  opacity: 0.45;
+  opacity: 0.5;
 }
 .tm-rank-photo-wrap.rank-effect-1::before {
   inset: -2px;
-  background: linear-gradient(135deg, #ef4444, #f97316, #eab308, #ef4444);
+  background: linear-gradient(135deg, #f59e0b, #fde047, #d97706, #fbbf24);
   background-size: 300% 300%;
   animation: gradientMove 2s ease infinite, haze 2s ease-in-out infinite;
   filter: blur(4px);
-  opacity: 0.5;
+  opacity: 0.55;
 }
 .tm-rank-photo-wrap.rank-effect-1::after {
   inset: -3px;
   background: radial-gradient(
     circle,
-    rgba(249, 115, 22, 0.3),
-    rgba(239, 68, 68, 0.15),
+    rgba(253, 224, 71, 0.35),
+    rgba(245, 158, 11, 0.18),
     transparent 70%
   );
   animation: hazeOuter 3s ease-in-out infinite;
   filter: blur(6px);
-  opacity: 0.4;
+  opacity: 0.45;
 }
 .tm-rank-name {
   font-weight: 600;
@@ -2127,32 +2128,32 @@
 .pvp-rank-row:nth-child(2) .pvp-rank-pos { color: #64748b; }
 .pvp-rank-row:nth-child(3) .pvp-rank-pos { color: #92400e; }
 
-/* 1·2·3등 행 강조 — 좌측 색상 border + 좌→우 그라데이션 + 아바타 외곽 */
-.pvp-rank-row:nth-child(1),
-.pvp-rank-row:nth-child(2),
-.pvp-rank-row:nth-child(3) {
-  position: relative;
+/* PvP 의 .tm-rank-photo-wrap 사이즈 — grid 28px column 에 맞춤 */
+.pvp-rank-row .tm-rank-photo-wrap {
+  width: 28px;
+  height: 28px;
 }
+.pvp-rank-row .tm-rank-photo,
+.pvp-rank-row .tm-rank-photo-empty {
+  width: 28px;
+  height: 28px;
+}
+
+/* 1·2·3등 행 강조 — 양 페이지 공통 (타일매치 + PvP). 좌측 색상 띠 + 좌→우 그라데이션 */
+.tm-ranking-row:nth-child(1),
 .pvp-rank-row:nth-child(1) {
   background: linear-gradient(90deg, rgba(245, 158, 11, 0.14), transparent 65%);
   box-shadow: inset 3px 0 0 #f59e0b;
 }
+.tm-ranking-row:nth-child(2),
 .pvp-rank-row:nth-child(2) {
   background: linear-gradient(90deg, rgba(148, 163, 184, 0.14), transparent 65%);
   box-shadow: inset 3px 0 0 #94a3b8;
 }
+.tm-ranking-row:nth-child(3),
 .pvp-rank-row:nth-child(3) {
   background: linear-gradient(90deg, rgba(180, 83, 9, 0.14), transparent 65%);
   box-shadow: inset 3px 0 0 #b45309;
-}
-.pvp-rank-row:nth-child(1) .pvp-rank-avatar {
-  box-shadow: 0 0 0 2px #f59e0b, 0 0 8px rgba(245, 158, 11, 0.5);
-}
-.pvp-rank-row:nth-child(2) .pvp-rank-avatar {
-  box-shadow: 0 0 0 2px #94a3b8;
-}
-.pvp-rank-row:nth-child(3) .pvp-rank-avatar {
-  box-shadow: 0 0 0 2px #b45309;
 }
 .pvp-rank-avatar {
   width: 28px;

@@ -618,13 +618,15 @@ function renderRanking(): void {
       .slice(0, 20);
     body.innerHTML = sorted
       .map((r, i) => {
-        const avatar = r.profile_photo
-          ? `<img class="pvp-rank-avatar" src="${r.profile_photo}" alt="" />`
-          : `<div class="pvp-rank-avatar pvp-rank-avatar-placeholder">${r.nickname.charAt(0)}</div>`;
+        const photoInner = r.profile_photo
+          ? `<img class="tm-rank-photo" src="${r.profile_photo}" alt="" />`
+          : `<span class="tm-rank-photo tm-rank-photo-empty">${r.nickname.charAt(0)}</span>`;
+        const effectCls = i < 3 ? ' rank-effect-' + (i + 1) : '';
+        const avatarWrap = `<div class="tm-rank-photo-wrap${effectCls}">${photoInner}</div>`;
         return (
           `<div class="pvp-rank-row">` +
           `<span class="pvp-rank-pos">${i + 1}</span>` +
-          avatar +
+          avatarWrap +
           `<span class="pvp-rank-name">${r.nickname}</span>` +
           `<span class="pvp-rank-cell-power">${r.power.toLocaleString('ko-KR')}</span>` +
           `<span class="pvp-rank-cell-wins">${r.pvp_wins.toLocaleString('ko-KR')}</span>` +
