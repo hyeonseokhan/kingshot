@@ -1,0 +1,158 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/minigame.css';
+
+const minigame = tabs.find((t) => t.id === 'minigame')!;
+const active = findActiveSubmenu(minigame, Astro.url.pathname);
+const navItems = minigame.submenus!.map((s) => ({
+  title: s.title,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="매칭 대결 — PNX 연맹"
+  description="장비 강화한 power 로 다른 연맹원과 카드 대결"
+  navHeader="미니게임"
+  navItems={navItems}
+>
+  <div class="manage-page" id="page-pvp">
+    <div class="members-header">
+      <h1>매칭 대결</h1>
+    </div>
+
+    <div class="page-intro">
+      <p><strong>⚔️ 장비 강화한 power 로 연맹원과 카드 대결을 펼치세요</strong></p>
+      <ul>
+        <li><strong>일일 5회</strong> 공격 (방어는 무제한). KST 자정 리셋</li>
+        <li>5턴 대결 / HP 1000 / 카드 3종 — 공격·강화·방어</li>
+        <li>승리 +200 / 패배 +50 크리스탈 (참가 보상)</li>
+        <li>방어자는 자동 응전 — 비동기 PvP</li>
+      </ul>
+    </div>
+
+    <!-- 비인증 안내 -->
+    <div class="eq-auth-prompt" id="pvp-auth-prompt" style="display:none">
+      헤더의 <strong>로그인</strong> 버튼으로 인증한 뒤 대결할 수 있어요.
+    </div>
+
+    <!-- view: matching (default) -->
+    <section class="pvp-view" data-view="matching" id="pvp-view-matching">
+      <div class="pvp-daily">
+        <span class="pvp-daily-label">오늘 남은 공격</span>
+        <strong class="pvp-daily-value" id="pvp-daily-remaining">—</strong>
+        <span class="pvp-daily-max">/ 5</span>
+      </div>
+
+      <div class="pvp-section-head">
+        <h2>도전 상대</h2>
+        <button class="pvp-refresh-btn" type="button" id="pvp-refresh-btn">🔄 새로 고침</button>
+      </div>
+
+      <div class="pvp-opponents" id="pvp-opponents"></div>
+
+      <p class="pvp-note" id="pvp-matching-note"></p>
+    </section>
+
+    <!-- view: battle -->
+    <section class="pvp-view" data-view="battle" id="pvp-view-battle" style="display:none">
+      <div class="pvp-arena">
+        <div class="pvp-fighter" id="pvp-fighter-attacker">
+          <img class="pvp-fighter-avatar" id="pvp-attacker-avatar" alt="" />
+          <div class="pvp-fighter-info">
+            <strong class="pvp-fighter-name" id="pvp-attacker-name">나</strong>
+            <span class="pvp-fighter-power">⚔️ <span id="pvp-attacker-power">0</span></span>
+          </div>
+          <div class="pvp-hpbar">
+            <div class="pvp-hpbar-fill" id="pvp-attacker-hp-fill" style="width:100%"></div>
+            <span class="pvp-hpbar-text"><span id="pvp-attacker-hp">1000</span> / 1000</span>
+          </div>
+        </div>
+
+        <div class="pvp-vs">VS</div>
+
+        <div class="pvp-fighter pvp-fighter-defender" id="pvp-fighter-defender">
+          <img class="pvp-fighter-avatar" id="pvp-defender-avatar" alt="" />
+          <div class="pvp-fighter-info">
+            <strong class="pvp-fighter-name" id="pvp-defender-name">상대</strong>
+            <span class="pvp-fighter-power">⚔️ <span id="pvp-defender-power">0</span></span>
+          </div>
+          <div class="pvp-hpbar">
+            <div class="pvp-hpbar-fill" id="pvp-defender-hp-fill" style="width:100%"></div>
+            <span class="pvp-hpbar-text"><span id="pvp-defender-hp">1000</span> / 1000</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pvp-turn-info">
+        Turn <strong id="pvp-turn">1</strong> / 5
+      </div>
+
+      <!-- 직전 턴 결과 -->
+      <div class="pvp-last-turn" id="pvp-last-turn" style="display:none"></div>
+
+      <div class="pvp-cards">
+        <button class="pvp-card pvp-card-attack" type="button" data-card="attack">
+          <span class="pvp-card-icon">⚔️</span>
+          <strong class="pvp-card-name">공격</strong>
+          <span class="pvp-card-desc">1.2~1.5배 데미지</span>
+        </button>
+        <button class="pvp-card pvp-card-enhance" type="button" data-card="enhance">
+          <span class="pvp-card-icon">✨</span>
+          <strong class="pvp-card-name">강화</strong>
+          <span class="pvp-card-desc">크리티컬 30% (×2)</span>
+        </button>
+        <button class="pvp-card pvp-card-defend" type="button" data-card="defend">
+          <span class="pvp-card-icon">🛡️</span>
+          <strong class="pvp-card-name">방어</strong>
+          <span class="pvp-card-desc">받는 데미지 절반</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- view: result -->
+    <section class="pvp-view" data-view="result" id="pvp-view-result" style="display:none">
+      <div class="pvp-result-card">
+        <div class="pvp-result-icon" id="pvp-result-icon">🎉</div>
+        <h2 class="pvp-result-title" id="pvp-result-title">승리!</h2>
+        <div class="pvp-result-reward">
+          <span>💎</span>
+          <strong id="pvp-result-reward">+200</strong>
+          <span>크리스탈</span>
+        </div>
+        <div class="pvp-result-actions">
+          <button class="pvp-result-btn pvp-result-again" type="button" id="pvp-result-again">다시 도전</button>
+          <button class="pvp-result-btn pvp-result-close" type="button" id="pvp-result-close">매칭으로</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 랭킹 섹션 (페이지 하단 통합) -->
+    <section class="pvp-ranking">
+      <div class="pvp-section-head">
+        <h2>랭킹</h2>
+        <div class="pvp-ranking-tabs">
+          <button class="pvp-ranking-tab active" type="button" data-rank="power">전투력</button>
+          <button class="pvp-ranking-tab" type="button" data-rank="best_stage">스테이지</button>
+          <button class="pvp-ranking-tab" type="button" data-rank="pvp_wins">PvP 승수</button>
+        </div>
+      </div>
+      <div class="pvp-ranking-list" id="pvp-ranking-list">
+        <div class="pvp-ranking-empty">불러오는 중...</div>
+      </div>
+    </section>
+  </div>
+</AppLayout>
+
+<script>
+  import '@/scripts/pages/tile-match-auth';
+  import { initPvP } from '@/scripts/pages/pvp';
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPvP);
+  } else {
+    initPvP();
+  }
+</script>

@@ -44,6 +44,7 @@ export const tabs: NavTab[] = [
     pathPrefix: '/minigame/',
     submenus: [
       { id: 'equipment', title: '장비 강화', path: '/minigame/equipment/' },
+      { id: 'pvp', title: '매칭 대결', path: '/minigame/pvp/' },
       { id: 'tile-match', title: '타일 매치', path: '/minigame/tile-match/' },
       { id: 'partner-draw', title: '운명의 파트너', path: '/minigame/partner-draw/' },
     ],

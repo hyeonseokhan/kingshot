@@ -1657,3 +1657,461 @@
   80%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
 }
+
+/* ===== PvP 매칭 대결 (Phase C) ===== */
+
+.pvp-view {
+  margin-top: 16px;
+}
+
+/* 일일 횟수 패널 */
+.pvp-daily {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, #fef3c7, #fde68a);
+  border: 1px solid #fbbf24;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #78350f;
+}
+.pvp-daily-label {
+  font-weight: 600;
+}
+.pvp-daily-value {
+  font-size: 16px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.pvp-daily-max {
+  color: #92400e;
+  font-weight: 500;
+}
+
+/* 섹션 헤더 (h2 + 우측 컨트롤) */
+.pvp-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+.pvp-section-head h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+}
+.pvp-refresh-btn {
+  appearance: none;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.pvp-refresh-btn:hover {
+  background: #e2e8f0;
+}
+
+/* 후보 카드 그리드 */
+.pvp-opponents {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+@media (max-width: 480px) {
+  .pvp-opponents {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pvp-opponent {
+  appearance: none;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+.pvp-opponent:hover {
+  transform: translateY(-2px);
+  border-color: #6366f1;
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.18);
+}
+.pvp-opponent-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+.pvp-opponent-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 20px;
+  color: #64748b;
+}
+.pvp-opponent-name {
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 700;
+  text-align: center;
+}
+.pvp-opponent-power {
+  font-size: 12px;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+.pvp-opponent-empty {
+  grid-column: 1 / -1;
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.pvp-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* ===== 배틀 화면 ===== */
+.pvp-arena {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 50%, #fef2f2 100%);
+  border-radius: 16px;
+  border: 1px solid #fecaca;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.pvp-fighter {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pvp-fighter-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f1f5f9;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+.pvp-fighter-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.pvp-fighter-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  max-width: 100px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pvp-fighter-power {
+  font-size: 11px;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+/* HP 바 */
+.pvp-hpbar {
+  width: 100%;
+  height: 22px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #cbd5e1;
+}
+.pvp-hpbar-fill {
+  height: 100%;
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  transition: width 0.5s ease;
+}
+.pvp-fighter-defender .pvp-hpbar-fill {
+  background: linear-gradient(180deg, #3b82f6 0%, #1e40af 100%);
+}
+.pvp-hpbar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.pvp-vs {
+  font-size: 24px;
+  font-weight: 900;
+  color: #dc2626;
+  text-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
+  flex-shrink: 0;
+}
+
+.pvp-turn-info {
+  text-align: center;
+  font-size: 14px;
+  color: #475569;
+  margin: 14px 0;
+  font-weight: 600;
+}
+.pvp-turn-info strong {
+  font-size: 18px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.pvp-last-turn {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #475569;
+}
+.pvp-last-turn-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.pvp-last-turn-row strong {
+  color: #0f172a;
+}
+
+/* 카드 3장 */
+.pvp-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.pvp-card {
+  appearance: none;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+.pvp-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+.pvp-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pvp-card-attack    { border-color: #ef4444; }
+.pvp-card-enhance   { border-color: #6366f1; }
+.pvp-card-defend    { border-color: #14b8a6; }
+.pvp-card-attack:hover:not(:disabled)  { background: #fef2f2; }
+.pvp-card-enhance:hover:not(:disabled) { background: #eef2ff; }
+.pvp-card-defend:hover:not(:disabled)  { background: #f0fdfa; }
+.pvp-card-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.pvp-card-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.pvp-card-desc {
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ===== 결과 화면 ===== */
+.pvp-result-card {
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 28px 20px;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  margin: 24px auto;
+  max-width: 380px;
+}
+.pvp-result-icon {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.pvp-result-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 14px;
+}
+.pvp-result-reward {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 16px;
+  background: #fef3c7;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #78350f;
+  margin-bottom: 20px;
+}
+.pvp-result-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.pvp-result-btn {
+  appearance: none;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.pvp-result-again {
+  background: linear-gradient(180deg, #6366f1, #4338ca);
+  color: #fff;
+}
+.pvp-result-close {
+  background: #e2e8f0;
+  color: #475569;
+}
+.pvp-result-btn:hover { opacity: 0.92; }
+
+/* ===== 랭킹 ===== */
+.pvp-ranking {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+.pvp-ranking-tabs {
+  display: flex;
+  gap: 4px;
+}
+.pvp-ranking-tab {
+  appearance: none;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.12s;
+}
+.pvp-ranking-tab:hover {
+  background: #f1f5f9;
+}
+.pvp-ranking-tab.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #ffffff;
+}
+
+.pvp-ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pvp-rank-row {
+  display: grid;
+  grid-template-columns: 28px 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+}
+.pvp-rank-pos {
+  font-weight: 800;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.pvp-rank-row:nth-child(1) .pvp-rank-pos { color: #d97706; }
+.pvp-rank-row:nth-child(2) .pvp-rank-pos { color: #64748b; }
+.pvp-rank-row:nth-child(3) .pvp-rank-pos { color: #92400e; }
+.pvp-rank-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+.pvp-rank-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: #64748b;
+}
+.pvp-rank-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pvp-rank-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+.pvp-ranking-empty {
+  padding: 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
