@@ -1234,7 +1234,8 @@
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
   border: 2px solid rgba(255,255,255,0.7);
-  overflow: hidden;
+  /* overflow: hidden 제거 — uniform tier ::before 글로우가 inset:-6px 으로 박스 외부에
+     나가서 보여야 함. 자식 img 는 자체 border-radius 로 코너 round 처리. */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1247,6 +1248,9 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  /* 부모(.eq-avatar) 의 border-radius 14px - border 2px = 12px. overflow:hidden
+     없어도 모서리 둥글게 보이도록 자체 border-radius. */
+  border-radius: 12px;
 }
 
 /* 슬롯 — 좌우 3:3 절대 위치. 다층 그림자로 입체적 게임 카드 느낌.
