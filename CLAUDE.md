@@ -156,16 +156,27 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
   - [x] DB 마이그레이션 (`crystal_balances`, `crystal_transactions`) — production 적용 완료
   - [x] Edge Function `economy/` — production 배포 완료, smoke test 3/3 pass
   - [x] tile-match 클리어 시 보상 청구 통합
-  - [x] 헤더 잔액 배지 (이후 `LoginedUserInfo` 위젯으로 흡수 — 아래 운영 메모 참조)
+  - [x] 헤더 잔액 배지 (이후 `LoginedUserInfo` 위젯으로 흡수)
   - [x] 빌드 검증 + PR + main 머지 + GitHub Pages 배포
   - [x] 브라우저 회귀 검증 + 22명/526 stages 데이터 백필 (2026-04-29)
-- [ ] **Phase B** — 장비 강화 (`/minigame/equipment/`) ← **다음 시작 지점**
-- [ ] **Phase C** — PvP 카드 대결 + 랭킹 섹션 (`/minigame/pvp/`)
+- [x] **Phase B** — 장비 강화 (`/minigame/equipment/`) (PR #2~#8, 최종 commit `3dc7cce`)
+  - [x] DB 마이그레이션 (`equipment_levels` + `enhance_equipment` RPC)
+  - [x] Edge Function `equipment/` — production 배포 완료
+  - [x] `/minigame/equipment/` 페이지 — 캐릭터 중심 레이아웃 + 모달 + RPG 게임 아이콘 PNG
+  - [x] **100단계 확장** + 6 RPG 등급 (일반/고급/희귀/영웅/레전드/신화) — `ENHANCE_RANGES` 보간
+  - [x] **결정적 회귀 fix** — `apply_crystal_transaction` 의 CHECK violation 버그 (마이그레이션 `20260429120000`)
+  - [x] **데이터 백필** (2026-04-29 재밸런스) — 22명/655 거래/220,165 크리스탈,
+    `tile_match_records` 는 건드리지 않음. 강화/잔액/거래 모두 새 시스템 기준 재지급
+  - [x] Stage 46+ 반복 파밍 (100/회, ref_key NULL) — 일상 활동 재화
+  - [x] **브라우저 회귀 검증** (사용자 직접, 2026-04-29 OK)
+- [ ] **Phase C** — PvP 카드 대결 + 랭킹 섹션 (`/minigame/pvp/`) ← **다음 시작 지점**
 
 ### 보안 / 무결성 체크리스트
 - [x] anon key로 통화 테이블 직접 변경 차단 (RLS write 차단)
 - [x] 보상 중복 청구 방지 (`crystal_transactions.ref_key` UNIQUE)
-- [ ] 강화 race condition 방지 (DB 함수 단일 트랜잭션) — Phase B
+- [x] 강화 race condition 방지 (DB 함수 단일 트랜잭션 + `target == current+1` 검증)
+- [x] **무료 강화 hole 차단** — 음수 amount + 잔액 row 미존재 케이스를 명시적 `check_violation` 으로 거부
+  (마이그레이션 `20260429120000_fix_apply_crystal_transaction.sql`)
 - [ ] PvP 데미지 계산 서버측 강제 (클라이언트는 카드 선택만 전송) — Phase C
 - [ ] PvP 자기공격 / 일일 한도 위반 차단 — Phase C
 
@@ -202,7 +213,26 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
      - 등급 추가 (예: '초월') 또는 +101+ 단계 확장
    - 현재 단계: 미정. 100단계 도달자가 나오면 본격 설계
 
-### Phase A 운영 메모 (Phase B 작업 시 알아둘 것)
+### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
+
+- **100단계 + 6 RPG 등급 시스템** (2026-04-29 재밸런스) — `src/lib/balance.ts` 의
+  `ENHANCE_RANGES` 객체 + 선형 보간 함수. Phase C 의 PvP 데미지 공식에서 장비 power
+  계산 시 `accumulatedPower(level)` 활용 가능.
+- **`apply_crystal_transaction` 의 PG 동작 함정** — INSERT...ON CONFLICT 의 row CHECK
+  는 conflict 분기보다 먼저 검사됨. 음수 amount(차감) 시 INSERT VALUES 의 balance
+  컬럼에 raw 값 넣으면 항상 CHECK violation. 향후 통화 차감 마이그레이션 작성 시
+  반드시 `INSERT VALUES (..., GREATEST(amount, 0), ...)` 패턴 사용 + `DO UPDATE`
+  분기에서만 raw amount 적용.
+- **Stage 46+ 반복 파밍** — `claim-stage-reward` 가 stage 46+ 에 ref_key NULL 사용해
+  매 클리어마다 새 거래 INSERT. PvP 보상도 비슷하게 ref_key 패턴 결정 필요
+  (시즌별 또는 매번).
+- **데이터 백필 표준 패턴** — 두 번 실행됨 (2026-04-29 두 차례).
+  `tile_match_records.best_stage` 보고 `crystal_transactions` 행별 INSERT +
+  `crystal_balances` 합산 INSERT. `tile_match_records` 는 절대 건드리지 않음.
+- **모달 결과 토스트 패턴** — native `<dialog>` 가 top layer 라 외부 fixed 토스트는
+  backdrop 블러에 가려짐. dialog 내부 absolute 로 두면 같은 top layer.
+
+### Phase A 운영 메모 (Phase B 이전)
 
 - **production schema_migrations 와 supabase CLI 추적 sync 완료** (2026-04-28).
   과거 dashboard SQL Editor 로 직접 적용된 6개 마이그레이션이 CLI 추적엔 누락돼있어
@@ -222,16 +252,17 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 - **DOM diff 헬퍼 도입**: `src/lib/dom-diff.ts` 의 `patchList`/`patchText`. Phase B 의 장비 강화
   결과 갱신, 인벤토리 표시 등에서도 처음부터 이 헬퍼로 갱신 — `innerHTML=''` 패턴 사용 금지.
 
-- **Phase B 시작 절차**:
+- **Phase C 시작 절차**:
   1. `git pull origin main`
   2. `npm install`
-  3. 새 브랜치: `git checkout -b feat/minigame-equipment`
-  4. 본 문서 "디자인 결정사항 → 장비 강화" 섹션 기준으로 작업
-  5. 강화 비용/확률 표는 본 문서의 표를 단일 진실 공급원으로 사용
-- **Phase B 의 production 적용**:
-  사용자 환경에 supabase CLI 가 설치돼있다면 직접 `supabase db push` + `supabase functions deploy equipment` 실행.
-  없으면 binary 다운로드 후 `--project-ref cbzgmugtsustsxuqpznv` 로 link
-  (이전 PC 작업 사례: `/tmp/supabase` 에 설치하고 `SUPABASE_ACCESS_TOKEN` env 사용).
+  3. 새 브랜치: `git checkout -b feat/minigame-pvp`
+  4. 본 문서 "디자인 결정사항 → PvP" 섹션 기준으로 작업
+- **Phase C 의 production 적용** — 옵션 두 가지:
+  * `/tmp/supabase` 의 CLI 사용 (이전 작업 흐름) — `db push` + `functions deploy pvp`
+  * 또는 Management API 로 SQL 직접 실행 + `functions deploy` (더 빠름)
+- **Phase C 신규 테이블** (CLAUDE.md "데이터 모델" 섹션 참조):
+  `pvp_battles` (30일 자동 청소 — pg_cron) + `pvp_daily_state`
+- **Phase C 데미지 공식** — 서버측 `random()` + 등급별 `accumulatedPower(level)` 활용 가능
 
 ---
 
