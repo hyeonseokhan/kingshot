@@ -54,30 +54,49 @@ async function dbRpc<T = unknown>(fnName: string, args: Record<string, unknown>)
 }
 
 // ============================================================
-// 장비 강화 표 (SSOT — 클라이언트 src/lib/balance.ts 와 동일 유지)
+// 장비 강화 — 등급별 range + 선형 보간 (SSOT, 클라이언트 src/lib/balance.ts 와 일치 유지)
 // ============================================================
-//   level : 강화 후 도달 레벨 (1~10)
-//   cost  : 시도당 소모 크리스탈
-//   power : 성공 시 추가 전투력
-//   rate  : 성공 확률 (0.0~1.0)
-const ENHANCE_TABLE: ReadonlyArray<{
+//   - 튜토리얼 (+1, +2): 100% 성공
+//   - 등급별 range 안에서 cost/power/rate 선형 보간
+//   - 100단계 cap (그 이후는 후속 트랙 — 신소재 시스템)
+const ENHANCE_MAX_LEVEL = 100;
+
+const ENHANCE_RANGES: ReadonlyArray<{
+  from: number; to: number;
+  costFrom: number; costTo: number;
+  powerFrom: number; powerTo: number;
+  rateFrom: number; rateTo: number;
+}> = [
+  { from: 3,  to: 10,  costFrom: 300,    costTo: 1000,   powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.80 },
+  { from: 11, to: 25,  costFrom: 1500,   costTo: 4000,   powerFrom: 250,   powerTo: 600,    rateFrom: 0.75, rateTo: 0.55 },
+  { from: 26, to: 45,  costFrom: 5000,   costTo: 15000,  powerFrom: 700,   powerTo: 2000,   rateFrom: 0.50, rateTo: 0.30 },
+  { from: 46, to: 70,  costFrom: 18000,  costTo: 60000,  powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.25, rateTo: 0.10 },
+  { from: 71, to: 100, costFrom: 70000,  costTo: 400000, powerFrom: 10000, powerTo: 50000,  rateFrom: 0.08, rateTo: 0.02 },
+];
+
+interface EnhanceStep {
   level: number;
   cost: number;
   power: number;
   rate: number;
-}> = [
-  { level: 1,  cost: 100,   power: 50,    rate: 1.00 },
-  { level: 2,  cost: 200,   power: 60,    rate: 1.00 },
-  { level: 3,  cost: 400,   power: 80,    rate: 0.90 },
-  { level: 4,  cost: 800,   power: 120,   rate: 0.80 },
-  { level: 5,  cost: 1500,  power: 200,   rate: 0.70 },
-  { level: 6,  cost: 2200,  power: 330,   rate: 0.66 },
-  { level: 7,  cost: 2900,  power: 460,   rate: 0.62 },
-  { level: 8,  cost: 3600,  power: 600,   rate: 0.58 },
-  { level: 9,  cost: 4300,  power: 780,   rate: 0.54 },
-  { level: 10, cost: 5000,  power: 1000,  rate: 0.50 },
-];
-const ENHANCE_MAX_LEVEL = 10;
+}
+
+function enhanceStepFor(targetLevel: number): EnhanceStep | null {
+  if (targetLevel < 1 || targetLevel > ENHANCE_MAX_LEVEL) return null;
+  if (targetLevel === 1) return { level: 1, cost: 100, power: 50, rate: 1.0 };
+  if (targetLevel === 2) return { level: 2, cost: 200, power: 60, rate: 1.0 };
+  const range = ENHANCE_RANGES.find((r) => targetLevel >= r.from && targetLevel <= r.to);
+  if (!range) return null;
+  const span = Math.max(1, range.to - range.from);
+  const t = (targetLevel - range.from) / span;
+  return {
+    level: targetLevel,
+    cost: Math.round(range.costFrom + (range.costTo - range.costFrom) * t),
+    power: Math.round(range.powerFrom + (range.powerTo - range.powerFrom) * t),
+    rate: range.rateFrom + (range.rateTo - range.rateFrom) * t,
+  };
+}
+
 const VALID_SLOTS = ["crown", "necklace", "top", "bottom", "ring", "staff"] as const;
 type Slot = typeof VALID_SLOTS[number];
 
@@ -128,7 +147,8 @@ async function enhance(playerId: string, slot: unknown) {
     return { ok: false, error: "level_capped", current_level: currentLevel };
   }
 
-  const step = ENHANCE_TABLE[targetLevel - 1]!;
+  const step = enhanceStepFor(targetLevel);
+  if (!step) return { ok: false, error: "invalid_level", current_level: currentLevel };
 
   // RPC: atomic 잔액 차감 + 확률 굴림 + level 갱신
   const result = await dbRpc<{

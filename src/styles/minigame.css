@@ -1193,34 +1193,42 @@
 
 /* 캐릭터 중심 캔버스 — 모바일 폰 비율 (3:4) 고정.
  * PC 에서도 모바일 크기 정도로 보이도록 max-width 를 좁게 잡고 가운데 정렬.
- * 배경은 투명 (페이지 배경이 비침), 외곽은 은색 광택 그라디언트 테두리. */
+ * 배경: 중앙 흰색 → 외각 은색 으로 번지는 radial-gradient (물방울 효과)
+ * 테두리: 없음, 외각은 다층 box-shadow 로 떠있는 느낌. */
 .eq-stage {
   position: relative;
   max-width: 420px;
   margin: 12px auto 24px;
   aspect-ratio: 3 / 4;
-  background:
-    linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(135deg, #f8fafc 0%, #cbd5e1 25%, #64748b 55%, #cbd5e1 80%, #f1f5f9 100%) border-box;
-  border: 4px solid transparent;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    #ffffff 0%,
+    #f1f5f9 35%,
+    #cbd5e1 75%,
+    #94a3b8 100%
+  );
+  border: none;
   border-radius: 18px;
   overflow: hidden;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 6px 16px rgba(15, 23, 42, 0.14);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 14px 28px rgba(15, 23, 42, 0.18),
+    0 2px 6px rgba(15, 23, 42, 0.08);
 }
 .eq-stage[data-state="loading"] .eq-slot,
 .eq-stage[data-state="auth-required"] .eq-slot {
   opacity: 0.5;
 }
 
-/* 가운데 아바타 박스 — profile_photo 가 작은 해상도라 박스도 작게 (24%, 이전의 절반).
- * 캔버스 가운데 (top 38%, left 38%) 에 배치. */
+/* 가운데 아바타 박스 — 6 슬롯 육각형의 정중앙(약 44.75% y) 에 박스 가운데를 일치.
+ *   6 슬롯 세로 가운데 = (row-1 가운데 18.75 + row-2 44.75 + row-3 70.75) / 3 = 44.75%
+ *   아바타 height = 28% × stage_w / stage_h ≈ 21% → 가운데 정렬: top = 44.75 - 10.5 = 34.25%
+ * 가로 가운데 = 50% → left = 36% (width 28% 의 절반인 14% 좌측). */
 .eq-avatar {
   position: absolute;
-  left: 38%;
-  top: 38%;
-  width: 24%;
+  left: 36%;
+  top: 34%;
+  width: 28%;
   aspect-ratio: 1;
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
@@ -1240,18 +1248,13 @@
   display: block;
 }
 
-/* 슬롯 — 좌우 3:3 절대 위치. 다층 그림자로 입체적 게임 카드 느낌. */
+/* 슬롯 — 좌우 3:3 절대 위치. 다층 그림자로 입체적 게임 카드 느낌.
+ * 배경 색상은 .eq-slot-tier-* 클래스가 책임. */
 .eq-slot {
   position: absolute;
   width: 18%;
   aspect-ratio: 1;
   appearance: none;
-  background: linear-gradient(
-    180deg,
-    var(--eq-slot-blue-top) 0%,
-    var(--eq-slot-blue-mid) 48%,
-    var(--eq-slot-blue-bottom) 100%
-  );
   border: 2px solid var(--eq-slot-border);
   border-radius: var(--eq-slot-radius);
   padding: 0;
@@ -1263,7 +1266,7 @@
     var(--eq-slot-shadow-outer),
     var(--eq-slot-shadow-top-hl),
     var(--eq-slot-shadow-bot-deep);
-  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease, background 0.2s ease;
 }
 .eq-slot:hover {
   transform: translateY(-2px);
@@ -1325,11 +1328,69 @@
   white-space: nowrap;
   z-index: 3;
 }
-.eq-slot-bronze .eq-slot-badge {
-  background: linear-gradient(180deg, #d97706, #92400e);
+/* ===== 등급 (rarity) 시스템 — 슬롯 배경 + 배지 색상 ===== */
+/*  파스텔 톤 일관성 — 모든 슬롯 배경은 같은 명도 단계 (밝은→중간→옅은) 의 3-stop 그라디언트.
+ *  PNG 아이콘이 위에 올라가니 너무 진하지 않게.
+ *  배지는 슬롯 배경보다 진해서 시선 끌게. 폰트는 배지 명도에 따라 흰색/갈색 분기. */
+
+/* 일반 (+0): 거의 흰색에 가까운 회색 */
+.eq-slot-tier-common {
+  background: linear-gradient(180deg, #fafbfc 0%, #f1f3f5 48%, #e2e6ea 100%);
 }
-.eq-slot-silver .eq-slot-badge {
-  background: linear-gradient(180deg, #94a3b8, #475569);
+
+/* 고급 (+1~2): 옅은 녹색 */
+.eq-slot-tier-uncommon {
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 48%, #a7f3d0 100%);
+}
+.eq-slot-tier-uncommon .eq-slot-badge {
+  background: linear-gradient(180deg, #86efac 0%, #22c55e 50%, #15803d 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+/* 희귀 (+3~4): 옅은 하늘색 */
+.eq-slot-tier-rare {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 48%, #bfdbfe 100%);
+}
+.eq-slot-tier-rare .eq-slot-badge {
+  background: linear-gradient(180deg, #93c5fd 0%, #3b82f6 50%, #1e40af 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+/* 영웅 (+5~6): 옅은 보라 */
+.eq-slot-tier-epic {
+  background: linear-gradient(180deg, #faf5ff 0%, #ede9fe 48%, #ddd6fe 100%);
+}
+.eq-slot-tier-epic .eq-slot-badge {
+  background: linear-gradient(180deg, #d8b4fe 0%, #a855f7 50%, #6b21a8 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+/* 레전드 (+7~8): 옅은 금색 */
+.eq-slot-tier-legendary {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 48%, #fde68a 100%);
+}
+.eq-slot-tier-legendary .eq-slot-badge {
+  background: linear-gradient(180deg, #fde047 0%, #f59e0b 50%, #b45309 100%);
+  color: #5d3500;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+/* 신화 (+9~10): 옅은 붉은색 */
+.eq-slot-tier-mythic {
+  background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 48%, #fecaca 100%);
+}
+.eq-slot-tier-mythic .eq-slot-badge {
+  background: linear-gradient(180deg, #fca5a5 0%, #ef4444 50%, #991b1b 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.95);
 }
 .eq-slot-bronze {
   border-color: #fbbf24;
@@ -1344,26 +1405,29 @@
     0 4px 10px rgba(100, 116, 139, 0.45);
 }
 
-/* 좌측 3슬롯 위치 */
-.eq-slot-left.eq-slot-row-1 { left: 5%;  top: 10%; }
-.eq-slot-left.eq-slot-row-2 { left: 5%;  top: 41%; }
-.eq-slot-left.eq-slot-row-3 { left: 5%;  top: 72%; }
+/* 슬롯 위치 — 육각형 6 꼭지점 (상/하단 모임, 중간 멀어짐).
+ *   상단 (월계관/목걸이): 안쪽으로 모임  — 좌우 22%
+ *   중간 (상의/하의):     가장 바깥     — 좌우 5%
+ *   하단 (반지/지팡이):  안쪽으로 모임  — 좌우 22%
+ *   세로 간격: 12% / 38% / 64% — 각 간격 26% (3% 만큼 그룹 전체 위로 → 상단 여백 축소) */
+.eq-slot-left.eq-slot-row-1  { left: 22%; top: 12%; }
+.eq-slot-left.eq-slot-row-2  { left: 5%;  top: 38%; }
+.eq-slot-left.eq-slot-row-3  { left: 22%; top: 64%; }
 
-/* 우측 3슬롯 위치 */
-.eq-slot-right.eq-slot-row-1 { right: 5%; top: 10%; }
-.eq-slot-right.eq-slot-row-2 { right: 5%; top: 41%; }
-.eq-slot-right.eq-slot-row-3 { right: 5%; top: 72%; }
+.eq-slot-right.eq-slot-row-1 { right: 22%; top: 12%; }
+.eq-slot-right.eq-slot-row-2 { right: 5%;  top: 38%; }
+.eq-slot-right.eq-slot-row-3 { right: 22%; top: 64%; }
 
-/* 하단 장비 합산 전투력 — glassmorphism (반투명 유리 패널 느낌) */
+/* 하단 장비 합산 전투력 — "총 전투력: +N" glassmorphism 패널 */
 .eq-totalpower {
   position: absolute;
   left: 50%;
-  bottom: 6%;
+  bottom: 7%;
   transform: translateX(-50%);
   display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 18px;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 20px;
   height: 42px;
   min-width: 170px;
   justify-content: center;
@@ -1379,21 +1443,20 @@
     inset 0 1px 0 rgba(255, 255, 255, 1);
   backdrop-filter: blur(8px);
   white-space: nowrap;
+  align-content: center;
 }
-.eq-totalpower-icon {
-  font-size: 18px;
-  line-height: 1;
+.eq-totalpower-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #52606d;
+  align-self: center;
 }
 .eq-totalpower-value {
   font-variant-numeric: tabular-nums;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 900;
   color: #006aa6;
-}
-.eq-totalpower-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #52606d;
+  align-self: center;
 }
 
 /* 큰 데스크톱에서 텍스트 강조 (이미지는 % 기반이라 자동 비례). */
@@ -1405,11 +1468,18 @@
 /* ===== 강화 모달 ===== */
 
 .eq-modal {
+  /* 모달은 콘텐츠 영역(LeftNav 제외) 의 가운데에 배치.
+     --left-w 가 PC 에서 20%, 모바일 (max-width:768px) 에서 0px 라 변수 그대로 활용. */
+  position: fixed;
+  inset: 0 0 0 var(--left-w);
+  margin: auto;
+  width: 380px;
+  max-width: 92vw;
+  height: fit-content;
+  max-height: calc(100dvh - 32px);
   border: none;
   padding: 0;
   background: transparent;
-  max-width: 92vw;
-  width: 380px;
   border-radius: 16px;
   overflow: visible;
 }
@@ -1549,3 +1619,41 @@
 .eq-modal-result-success { color: #15803d; }
 .eq-modal-result-fail    { color: #94a3b8; }
 .eq-modal-result-error   { color: #dc2626; }
+
+/* 강화 결과 토스트 — modal dialog 정 가운데에 펑 떴다 사라짐.
+ * dialog 가 top layer 라 backdrop 블러 위에 표시되어 가시성 보장. */
+.eq-result-toast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  padding: 14px 28px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 5;
+}
+.eq-result-toast[data-active="true"] {
+  animation: eqResultToast 1.6s ease-out forwards;
+}
+.eq-result-toast-success {
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+.eq-result-toast-fail {
+  background: linear-gradient(180deg, #94a3b8 0%, #475569 100%);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+}
+@keyframes eqResultToast {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  18%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  28%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+}

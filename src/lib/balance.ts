@@ -7,17 +7,17 @@
  * 변경 시 양쪽 동시 수정:
  *   - 본 파일
  *   - supabase/functions/economy/index.ts          (rewardForStage)
- *   - supabase/functions/equipment/index.ts        (ENHANCE_TABLE)
+ *   - supabase/functions/equipment/index.ts        (ENHANCE_RANGES + helpers)
  */
 
 // ============================================================
 // Stage → 크리스탈 보상 (Phase A)
 // ============================================================
-//   Stage 1     : 100 (튜토리얼 보너스)
-//   Stage 2~10  : 10, 15, 20, 25, 30, 35, 40, 45, 50 (5씩 점진)
-//   Stage 11~20 : 100, 120, 140, 160, 180, 200, 220, 250, 280, 300
-//   Stage 21~45 : 500 부터 +20씩 → stage 45 = 980
-//   Stage 46+   : 0 (난이도 cap, 의미 없음)
+//   Stage 1     : 100 (튜토리얼 보너스, 1회)
+//   Stage 2~10  : 10, 15, 20, 25, 30, 35, 40, 45, 50 (5씩 점진, 각 1회)
+//   Stage 11~20 : 100, 120, 140, 160, 180, 200, 220, 250, 280, 300 (각 1회)
+//   Stage 21~45 : 500 부터 +20씩 → stage 45 = 980 (각 1회)
+//   Stage 46+   : 100 (고정, 매 클리어 반복 파밍 가능 — 연맹원 일상 활동 재화)
 
 const STAGE_11_20: readonly number[] = [100, 120, 140, 160, 180, 200, 220, 250, 280, 300];
 
@@ -26,7 +26,13 @@ export function rewardForStage(stage: number): number {
   if (stage >= 2 && stage <= 10) return (stage - 1) * 5 + 5;
   if (stage >= 11 && stage <= 20) return STAGE_11_20[stage - 11]!;
   if (stage >= 21 && stage <= 45) return 500 + (stage - 21) * 20;
+  if (stage >= 46) return 100; // 반복 파밍 구간
   return 0;
+}
+
+/** stage 가 반복 보상 구간(46+)인지. 서버측 ref_key 분기에 사용. */
+export function isRepeatableRewardStage(stage: number): boolean {
+  return stage >= 46;
 }
 
 // ============================================================
@@ -55,50 +61,100 @@ export interface EnhanceStep {
   cost: number;
   power: number;
   rate: number;
-  tier?: 'bronze' | 'silver';
+}
+
+/** 강화 cap. 100 단계 이후는 별도 컨텐츠 (신소재 등 — 후속 트랙 X-3 참조). */
+export const ENHANCE_MAX_LEVEL = 100;
+
+/**
+ * 강화 등급 (rarity).
+ *   common(+0) → uncommon(+1~10) → rare(+11~25) → epic(+26~45)
+ *   → legendary(+46~70) → mythic(+71~100)
+ */
+export type EquipmentTier =
+  | 'common'
+  | 'uncommon'
+  | 'rare'
+  | 'epic'
+  | 'legendary'
+  | 'mythic';
+
+export const TIER_LABEL: Record<EquipmentTier, string> = {
+  common: '일반',
+  uncommon: '고급',
+  rare: '희귀',
+  epic: '영웅',
+  legendary: '레전드',
+  mythic: '신화',
+};
+
+export function tierForLevel(level: number): EquipmentTier {
+  if (level <= 0) return 'common';
+  if (level <= 10) return 'uncommon';
+  if (level <= 25) return 'rare';
+  if (level <= 45) return 'epic';
+  if (level <= 70) return 'legendary';
+  return 'mythic'; // 71~100
 }
 
 /**
- * 강화 단계별 비용 / 증가 전투력 / 성공률.
+ * 강화 단계 비용/전투력/확률 — 등급별 range 정의 + 선형 보간.
+ *   - 튜토리얼 (+1, +2): 무조건 100% 성공 (특별 처리)
+ *   - 그 외: 등급별 시작/끝 값 사이 보간
  *
- *   level : 강화 후 도달 레벨 (1~10). 즉 +0 → +1 시도 시 ENHANCE_TABLE[0] 참조
- *   cost  : 시도 1회당 소모 크리스탈 (성공/실패 무관)
- *   power : 성공 시 추가되는 전투력 (실패 시 변화 없음)
- *   rate  : 성공 확률 (0.0 ~ 1.0)
- *
- * 현재 cap = +10 (Silver). 향후 해금으로 +11+ 확장 예정.
+ * 참고:
+ *   - 비용 곡선 — 등급 사이에 의도적 jump (uncommon 끝 1,000 → rare 시작 1,500)
+ *   - 게임 평생 max 재화 ~20,820 + stage 46+ 100/회 반복 파밍 가정
+ *   - 한 부위 신화(+71~100) 풀강은 end-game grind 영역 (수백만 ~ 수천만 크리스탈)
  */
-export const ENHANCE_TABLE: readonly EnhanceStep[] = [
-  { level: 1,  cost: 100,   power: 50,    rate: 1.00 },
-  { level: 2,  cost: 200,   power: 60,    rate: 1.00 },
-  { level: 3,  cost: 400,   power: 80,    rate: 0.90 },
-  { level: 4,  cost: 800,   power: 120,   rate: 0.80 },
-  { level: 5,  cost: 1500,  power: 200,   rate: 0.70, tier: 'bronze' },
-  { level: 6,  cost: 2200,  power: 330,   rate: 0.66 },
-  { level: 7,  cost: 2900,  power: 460,   rate: 0.62 },
-  { level: 8,  cost: 3600,  power: 600,   rate: 0.58 },
-  { level: 9,  cost: 4300,  power: 780,   rate: 0.54 },
-  { level: 10, cost: 5000,  power: 1000,  rate: 0.50, tier: 'silver' },
+const ENHANCE_RANGES: ReadonlyArray<{
+  tier: EquipmentTier;
+  from: number;
+  to: number;
+  costFrom: number;
+  costTo: number;
+  powerFrom: number;
+  powerTo: number;
+  rateFrom: number;
+  rateTo: number;
+}> = [
+  { tier: 'uncommon',  from: 3,  to: 10,  costFrom: 300,    costTo: 1000,    powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.80 },
+  { tier: 'rare',      from: 11, to: 25,  costFrom: 1500,   costTo: 4000,    powerFrom: 250,   powerTo: 600,    rateFrom: 0.75, rateTo: 0.55 },
+  { tier: 'epic',      from: 26, to: 45,  costFrom: 5000,   costTo: 15000,   powerFrom: 700,   powerTo: 2000,   rateFrom: 0.50, rateTo: 0.30 },
+  { tier: 'legendary', from: 46, to: 70,  costFrom: 18000,  costTo: 60000,   powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.25, rateTo: 0.10 },
+  { tier: 'mythic',    from: 71, to: 100, costFrom: 70000,  costTo: 400000,  powerFrom: 10000, powerTo: 50000,  rateFrom: 0.08, rateTo: 0.02 },
 ];
 
-/** 현재 cap. 사용자 코드 분기에 사용. */
-export const ENHANCE_MAX_LEVEL = 10;
-
 /**
- * 현재 레벨에서 한 단계 강화 시도 시 비용/효과/확률 반환.
+ * 현재 레벨에서 한 단계 강화 시도 시 cost/power/rate 반환.
  * 이미 max 면 null.
  */
 export function enhanceCostFor(currentLevel: number): EnhanceStep | null {
   const next = currentLevel + 1;
   if (next < 1 || next > ENHANCE_MAX_LEVEL) return null;
-  return ENHANCE_TABLE[next - 1] ?? null;
+
+  // 튜토리얼 — +1, +2 는 100% 성공 보장
+  if (next === 1) return { level: 1, cost: 100, power: 50, rate: 1.0 };
+  if (next === 2) return { level: 2, cost: 200, power: 60, rate: 1.0 };
+
+  const range = ENHANCE_RANGES.find((r) => next >= r.from && next <= r.to);
+  if (!range) return null;
+  const span = Math.max(1, range.to - range.from);
+  const t = (next - range.from) / span;
+  return {
+    level: next,
+    cost: Math.round(range.costFrom + (range.costTo - range.costFrom) * t),
+    power: Math.round(range.powerFrom + (range.powerTo - range.powerFrom) * t),
+    rate: range.rateFrom + (range.rateTo - range.rateFrom) * t,
+  };
 }
 
-/** 0..currentLevel 까지의 누적 전투력. 강화 안 된 슬롯이면 0. */
+/** 0..currentLevel 까지의 누적 전투력 (성공 가정). */
 export function accumulatedPower(currentLevel: number): number {
   let sum = 0;
   for (let i = 1; i <= currentLevel && i <= ENHANCE_MAX_LEVEL; i++) {
-    sum += ENHANCE_TABLE[i - 1]!.power;
+    const step = enhanceCostFor(i - 1);
+    if (step) sum += step.power;
   }
   return sum;
 }

@@ -50,19 +50,24 @@ async function dbRpc<T = unknown>(fnName: string, args: Record<string, unknown>)
 // ============================================================
 // stage → reward 매핑 (서버 권위: 클라이언트가 amount 를 결정하지 못하게 함)
 // ============================================================
-//   Stage 1       : 100  (튜토리얼 보너스)
-//   Stage 2~10    : 10, 15, 20, 25, 30, 35, 40, 45, 50 (5씩 점진)
-//   Stage 11~20   : 100, 120, 140, 160, 180, 200, 220, 250, 280, 300
-//   Stage 21~45   : 500 부터 +20씩 → stage 45 = 980
-//   Stage 46+     : 0 (난이도 cap, 의미 없음)
+//   Stage 1       : 100  (튜토리얼 보너스, 1회)
+//   Stage 2~10    : 10, 15, 20, 25, 30, 35, 40, 45, 50 (5씩 점진, 각 1회)
+//   Stage 11~20   : 100, 120, 140, 160, 180, 200, 220, 250, 280, 300 (각 1회)
+//   Stage 21~45   : 500 부터 +20씩 → stage 45 = 980 (각 1회)
+//   Stage 46+     : 100 (고정, 매 클리어 반복 파밍 — 연맹원 일상 활동 재화)
 const STAGE_11_20: readonly number[] = [100, 120, 140, 160, 180, 200, 220, 250, 280, 300];
 
 function rewardForStage(stage: number): number {
   if (stage === 1) return 100;
-  if (stage >= 2 && stage <= 10) return (stage - 1) * 5 + 5; // 2→10, 10→50
+  if (stage >= 2 && stage <= 10) return (stage - 1) * 5 + 5;
   if (stage >= 11 && stage <= 20) return STAGE_11_20[stage - 11]!;
-  if (stage >= 21 && stage <= 45) return 500 + (stage - 21) * 20; // 21→500, 45→980
+  if (stage >= 21 && stage <= 45) return 500 + (stage - 21) * 20;
+  if (stage >= 46) return 100;
   return 0;
+}
+
+function isRepeatableRewardStage(stage: number): boolean {
+  return stage >= 46;
 }
 
 // ============================================================
@@ -101,7 +106,11 @@ async function claimStageReward(playerId: string, stage: unknown) {
   }
 
   // RPC 호출: 거래 INSERT + 잔액 갱신 트랜잭션 + 멱등성
-  const refKey = `tile_match:stage_${stageNum}:first_clear`;
+  //   Stage 1~45: first_clear ref_key 로 멱등 (재클리어 시 0 적립)
+  //   Stage 46+: ref_key NULL — 매 클리어마다 새 거래 INSERT, 반복 파밍 가능
+  const refKey = isRepeatableRewardStage(stageNum)
+    ? null
+    : `tile_match:stage_${stageNum}:first_clear`;
   const result = await dbRpc<{
     duplicate: boolean;
     amount_applied: number;

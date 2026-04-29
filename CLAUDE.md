@@ -193,6 +193,15 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
      - Supabase Dashboard "Reports" 탭으로 before/after 사용량 측정
    - **트리거**: 트랙 X-1 완료 후
 
+3. **트랙 X-3: 100단계 이후 신소재 강화 시스템** (한 두 달 뒤 기획 예정)
+   - **트리거**: 연맹원 일부가 신화 등급 (+71~100) 까지 도달한 시점
+   - **목표**: 100단계 cap 이후 다음 강화 컨텐츠 — 크리스탈이 아닌 별도 재료
+   - **구상 (잠정)**:
+     - 신소재(보석/룬/전설의 파편 등) 인벤토리 신규 테이블
+     - 재료 획득 채널 — 신규 미니게임? PvP 시즌 보상? 신화 강화 부산물?
+     - 등급 추가 (예: '초월') 또는 +101+ 단계 확장
+   - 현재 단계: 미정. 100단계 도달자가 나오면 본격 설계
+
 ### Phase A 운영 메모 (Phase B 작업 시 알아둘 것)
 
 - **production schema_migrations 와 supabase CLI 추적 sync 완료** (2026-04-28).
