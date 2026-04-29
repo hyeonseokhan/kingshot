@@ -1172,18 +1172,22 @@
 }
 
 /* 캐릭터 중심 캔버스 — 모바일 폰 비율 (3:4) 고정.
- * PC 에서도 모바일 크기 정도로 보이도록 max-width 를 좁게 잡고 가운데 정렬. */
+ * PC 에서도 모바일 크기 정도로 보이도록 max-width 를 좁게 잡고 가운데 정렬.
+ * 배경은 투명 (페이지 배경이 비침), 외곽은 은색 광택 그라디언트 테두리. */
 .eq-stage {
   position: relative;
   max-width: 420px;
   margin: 12px auto 24px;
   aspect-ratio: 3 / 4;
   background:
-    radial-gradient(ellipse at 50% 30%, #dceefc 0%, #c6e0f7 60%, #b1d3ef 100%);
-  border: 1px solid #93c5fd;
-  border-radius: 16px;
+    linear-gradient(transparent, transparent) padding-box,
+    linear-gradient(135deg, #f8fafc 0%, #cbd5e1 25%, #64748b 55%, #cbd5e1 80%, #f1f5f9 100%) border-box;
+  border: 4px solid transparent;
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(30, 64, 175, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 6px 16px rgba(15, 23, 42, 0.14);
 }
 .eq-stage[data-state="loading"] .eq-slot,
 .eq-stage[data-state="auth-required"] .eq-slot {
@@ -1216,20 +1220,14 @@
   display: block;
 }
 
-/* 슬롯 — 좌우 3:3 절대 위치, 배경 투명 + 은색 광택 그라디언트 테두리.
- *   - background: 두 layer.
- *     padding-box (안쪽): 거의 투명 — stage 의 배경이 비쳐 보임
- *     border-box (테두리): 은색 그라디언트 (반사광 표현)
- *   - border 자체는 transparent — 그라디언트가 border-box 에서 보임 */
+/* 슬롯 — 좌우 3:3 절대 위치 */
 .eq-slot {
   position: absolute;
   width: 18%;
   aspect-ratio: 1;
   appearance: none;
-  background:
-    linear-gradient(rgba(255,255,255,0.10), rgba(255,255,255,0.04)) padding-box,
-    linear-gradient(135deg, #f8fafc 0%, #cbd5e1 25%, #64748b 55%, #cbd5e1 80%, #f1f5f9 100%) border-box;
-  border: 3px solid transparent;
+  background: linear-gradient(180deg, #4dabf7 0%, #2b87dd 100%);
+  border: 2px solid rgba(255, 255, 255, 0.85);
   border-radius: 14px;
   padding: 0;
   cursor: pointer;
@@ -1237,18 +1235,15 @@
   align-items: center;
   justify-content: center;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.5),
-    0 3px 6px rgba(15, 23, 42, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 4px 8px rgba(30, 64, 175, 0.25);
   transition: transform 0.12s, box-shadow 0.12s;
 }
 .eq-slot:hover {
   transform: translateY(-1px);
-  background:
-    linear-gradient(rgba(255,255,255,0.18), rgba(255,255,255,0.08)) padding-box,
-    linear-gradient(135deg, #ffffff 0%, #e2e8f0 25%, #475569 55%, #e2e8f0 80%, #ffffff 100%) border-box;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.6),
-    0 6px 12px rgba(15, 23, 42, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 6px 12px rgba(30, 64, 175, 0.32);
 }
 .eq-slot:active {
   transform: scale(0.97);
@@ -1292,22 +1287,16 @@
 .eq-slot-silver .eq-slot-badge {
   background: linear-gradient(180deg, #94a3b8, #475569);
 }
-/* Bronze (+5): 테두리를 구리/금색 광택으로 */
 .eq-slot-bronze {
-  background:
-    linear-gradient(rgba(255,255,255,0.10), rgba(255,255,255,0.04)) padding-box,
-    linear-gradient(135deg, #fef3c7 0%, #fbbf24 25%, #92400e 55%, #fbbf24 80%, #fef3c7 100%) border-box;
+  border-color: #fbbf24;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.55),
-    0 4px 10px rgba(217, 119, 6, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 4px 10px rgba(217, 119, 6, 0.4);
 }
-/* Silver (+10): 테두리를 더 강한 은백색 광택으로 (기본 슬롯도 은색이지만 명도 차이) */
 .eq-slot-silver {
-  background:
-    linear-gradient(rgba(255,255,255,0.12), rgba(255,255,255,0.05)) padding-box,
-    linear-gradient(135deg, #ffffff 0%, #e2e8f0 25%, #334155 55%, #e2e8f0 80%, #ffffff 100%) border-box;
+  border-color: #cbd5e1;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
     0 4px 10px rgba(100, 116, 139, 0.45);
 }
 
