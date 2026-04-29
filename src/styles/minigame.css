@@ -2056,9 +2056,9 @@
 .pvp-rank-header,
 .pvp-rank-row {
   display: grid;
-  grid-template-columns: 28px 28px minmax(0, 1fr) 78px 56px;
+  grid-template-columns: 24px 28px minmax(0, 1fr) 80px 50px;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 10px;
 }
 .pvp-rank-header {
@@ -2072,6 +2072,10 @@
 .pvp-rank-h-pos,
 .pvp-rank-h-name {
   text-align: left;
+  white-space: nowrap;
+}
+.pvp-rank-h-spacer {
+  /* 행의 avatar column 자리 — 헤더에선 빈 placeholder, 5-column grid 정렬 */
 }
 .pvp-rank-h-sort {
   appearance: none;
@@ -2229,18 +2233,83 @@
   font-size: 14px;
 }
 
-/* 검색 섹션 — 5회 후 자유 매칭 */
-.pvp-search-section {
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid #e2e8f0;
+/* 섹션 헤더의 우측 액션 버튼 묶음 (새로 고침 + 대상 검색) */
+.pvp-section-actions {
+  display: flex;
+  gap: 6px;
 }
-.pvp-search-section .tm-auth-search {
+
+/* 대상 검색 다이얼로그 — 연습 모드 시 진입 */
+.pvp-search-dialog {
+  position: fixed;
+  inset: 0 0 0 var(--left-w);
+  margin: auto;
+  width: 420px;
+  max-width: 92vw;
+  height: fit-content;
+  max-height: calc(100dvh - 32px);
+  border: none;
+  padding: 0;
+  background: transparent;
+  border-radius: 16px;
+  overflow: visible;
+}
+.pvp-search-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+.pvp-search-dialog-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+  max-height: calc(100dvh - 32px);
+}
+.pvp-search-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.pvp-search-dialog-head strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.pvp-search-dialog-close {
+  appearance: none;
+  background: none;
+  border: none;
+  width: 30px;
+  height: 30px;
+  font-size: 22px;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.pvp-search-dialog-close:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+.pvp-search-dialog .tm-auth-search {
   width: 100%;
   display: block;
   box-sizing: border-box;
-  margin-bottom: 10px;
 }
+.pvp-search-dialog-note {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px dashed #e2e8f0;
+}
+
 .pvp-search-list {
   display: flex;
   flex-direction: column;

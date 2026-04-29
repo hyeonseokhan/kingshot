@@ -53,7 +53,12 @@ const navItems = minigame.submenus!.map((s) => ({
 
       <div class="pvp-section-head">
         <h2>도전 상대</h2>
-        <button class="pvp-refresh-btn" type="button" id="pvp-refresh-btn">🔄 새로 고침</button>
+        <div class="pvp-section-actions">
+          <button class="pvp-refresh-btn" type="button" id="pvp-search-trigger" style="display:none">
+            🔍 대상 검색
+          </button>
+          <button class="pvp-refresh-btn" type="button" id="pvp-refresh-btn">🔄 새로 고침</button>
+        </div>
       </div>
 
       <div class="pvp-opponents-box">
@@ -61,12 +66,20 @@ const navItems = minigame.submenus!.map((s) => ({
       </div>
 
       <p class="pvp-note" id="pvp-matching-note"></p>
+    </section>
 
-      <!-- 연습 모드: 직접 검색 도전 (5회 소진 시 표시) -->
-      <div class="pvp-search-section" id="pvp-search-section" style="display:none">
-        <div class="pvp-section-head">
-          <h2>다른 연맹원에게 도전</h2>
-        </div>
+    <!-- 대상 검색 다이얼로그 (연습 모드 시 진입) -->
+    <dialog class="pvp-search-dialog" id="pvp-search-dialog" aria-labelledby="pvp-search-title">
+      <div class="pvp-search-dialog-card">
+        <header class="pvp-search-dialog-head">
+          <strong id="pvp-search-title">대상 검색</strong>
+          <button
+            type="button"
+            class="pvp-search-dialog-close"
+            id="pvp-search-dialog-close"
+            aria-label="닫기"
+          >×</button>
+        </header>
         <input
           type="text"
           class="tm-auth-search"
@@ -75,8 +88,9 @@ const navItems = minigame.submenus!.map((s) => ({
           autocomplete="off"
         />
         <div class="pvp-search-list" id="pvp-search-list"></div>
+        <p class="pvp-search-dialog-note">선택 시 즉시 도전 시작 — 연습 모드라 보상/승수 적립 X</p>
       </div>
-    </section>
+    </dialog>
 
     <!-- view: battle -->
     <section class="pvp-view" data-view="battle" id="pvp-view-battle" style="display:none">
@@ -163,6 +177,7 @@ const navItems = minigame.submenus!.map((s) => ({
       <div class="pvp-rank-table" id="pvp-ranking-table">
         <div class="pvp-rank-header">
           <span class="pvp-rank-h-pos">#</span>
+          <span class="pvp-rank-h-spacer" aria-hidden="true"></span>
           <span class="pvp-rank-h-name">닉네임</span>
           <button class="pvp-rank-h-sort active" type="button" data-sort="power">⚔️ 전투력</button>
           <button class="pvp-rank-h-sort" type="button" data-sort="pvp_wins">🏆 승수</button>

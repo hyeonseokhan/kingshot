@@ -115,17 +115,40 @@ function fetchDaily(playerId: string): Promise<void> {
     attacksRemaining = remaining;
     const el = $('pvp-daily-remaining');
     if (el) patchText(el, remaining);
-    // 5회 소진 시 연습 모드 배지 + 검색 섹션 표시
+    // 5회 소진 시 연습 모드 배지 + "대상 검색" 트리거 버튼 표시
     const banner = $('pvp-practice-banner');
-    const search = $('pvp-search-section');
+    const trigger = $('pvp-search-trigger');
     const isPractice = remaining <= 0;
     if (banner) banner.style.display = isPractice ? '' : 'none';
-    if (search) search.style.display = isPractice ? '' : 'none';
+    if (trigger) trigger.style.display = isPractice ? '' : 'none';
     // 연습 모드 진입 시 멤버 목록 prefetch (캐시 없으면)
     if (isPractice && !allMembersCache) {
       fetchAllMembers(playerId);
     }
   });
+}
+
+function openSearchDialog(): void {
+  const dlg = $('pvp-search-dialog') as HTMLDialogElement | null;
+  if (!dlg) return;
+  // 캐시 없으면 fetch
+  const session = window.TileMatchAuth?.getSession();
+  if (session?.player_id && !allMembersCache) {
+    fetchAllMembers(session.player_id);
+  } else if (allMembersCache) {
+    renderSearchList('');
+  }
+  // 검색 input 초기화
+  const inp = $('pvp-search-input') as HTMLInputElement | null;
+  if (inp) inp.value = '';
+  if (typeof dlg.showModal === 'function') dlg.showModal();
+  // input focus
+  setTimeout(() => inp?.focus(), 50);
+}
+
+function closeSearchDialog(): void {
+  const dlg = $('pvp-search-dialog') as HTMLDialogElement | null;
+  if (dlg && typeof dlg.close === 'function' && dlg.open) dlg.close();
 }
 
 // ===== 검색 모드 — 5회 후 자유 매칭 =====
@@ -643,17 +666,30 @@ export function initPvP(): void {
     if (session?.player_id) fetchOpponents(session.player_id);
   });
 
-  // 검색 input — 연습 모드 시 멤버 검색
+  // 대상 검색 트리거 — dialog 열기
+  $('pvp-search-trigger')?.addEventListener('click', openSearchDialog);
+
+  // dialog 닫기 (× 버튼 + backdrop 클릭)
+  $('pvp-search-dialog-close')?.addEventListener('click', closeSearchDialog);
+  ($('pvp-search-dialog') as HTMLDialogElement | null)?.addEventListener('click', (e) => {
+    // backdrop 클릭 (dialog 자체) 시 닫기 — 카드 영역 클릭은 상관 X
+    if ((e.target as HTMLElement).id === 'pvp-search-dialog') closeSearchDialog();
+  });
+
+  // 검색 input
   ($('pvp-search-input') as HTMLInputElement | null)?.addEventListener('input', (e) => {
     renderSearchList((e.target as HTMLInputElement).value);
   });
 
-  // 검색 결과 클릭 — defender 직접 선택 (연습 모드 — is_ranked=false 자동)
+  // 검색 결과 클릭 — defender 직접 선택 (is_ranked=false 자동) + dialog 닫음
   $('pvp-search-list')?.addEventListener('click', (e) => {
     const target = (e.target as HTMLElement).closest<HTMLButtonElement>('.pvp-search-item');
     if (!target) return;
     const id = target.dataset.targetId;
-    if (id) onSelectOpponent(id);
+    if (id) {
+      closeSearchDialog();
+      onSelectOpponent(id);
+    }
   });
 
   // 카드 클릭
