@@ -450,7 +450,10 @@ function onSelectCard(card: 'attack' | 'enhance' | 'defend'): void {
       // HP / 턴 / cooldown 갱신
       currentBattle!.attacker_hp = res.attacker_hp ?? currentBattle!.attacker_hp;
       currentBattle!.defender_hp = res.defender_hp ?? currentBattle!.defender_hp;
-      currentBattle!.turn = (res.turn ?? currentBattle!.turn) + 1;
+      // 마지막 턴이면 다음 턴 표시 X — 5/5 그대로 유지 (이전엔 6/5 로 잘못 표시되던 버그)
+      if (!res.last_turn && res.status !== 'done') {
+        currentBattle!.turn = (res.turn ?? currentBattle!.turn) + 1;
+      }
       currentBattle!.last_attacker_card = (res.a_card ?? null) as
         | 'attack' | 'enhance' | 'defend' | null;
       updateHpBars();

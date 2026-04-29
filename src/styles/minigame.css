@@ -2096,9 +2096,15 @@
 .pvp-rank-h-sort.active {
   color: #4338ca;
 }
-.pvp-rank-h-sort.active::after {
+/* ▼ 화살표는 항상 자리 차지 (visibility hidden), active 일 때만 보임 →
+ * 클릭 시 컬럼 width 변화 없어 모바일에서 헤더 wrap 안 됨 */
+.pvp-rank-h-sort::after {
   content: ' ▼';
   font-size: 10px;
+  visibility: hidden;
+}
+.pvp-rank-h-sort.active::after {
+  visibility: visible;
 }
 
 .pvp-rank-body {
@@ -2120,6 +2126,34 @@
 .pvp-rank-row:nth-child(1) .pvp-rank-pos { color: #d97706; font-size: 14px; }
 .pvp-rank-row:nth-child(2) .pvp-rank-pos { color: #64748b; }
 .pvp-rank-row:nth-child(3) .pvp-rank-pos { color: #92400e; }
+
+/* 1·2·3등 행 강조 — 좌측 색상 border + 좌→우 그라데이션 + 아바타 외곽 */
+.pvp-rank-row:nth-child(1),
+.pvp-rank-row:nth-child(2),
+.pvp-rank-row:nth-child(3) {
+  position: relative;
+}
+.pvp-rank-row:nth-child(1) {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.14), transparent 65%);
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+.pvp-rank-row:nth-child(2) {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.14), transparent 65%);
+  box-shadow: inset 3px 0 0 #94a3b8;
+}
+.pvp-rank-row:nth-child(3) {
+  background: linear-gradient(90deg, rgba(180, 83, 9, 0.14), transparent 65%);
+  box-shadow: inset 3px 0 0 #b45309;
+}
+.pvp-rank-row:nth-child(1) .pvp-rank-avatar {
+  box-shadow: 0 0 0 2px #f59e0b, 0 0 8px rgba(245, 158, 11, 0.5);
+}
+.pvp-rank-row:nth-child(2) .pvp-rank-avatar {
+  box-shadow: 0 0 0 2px #94a3b8;
+}
+.pvp-rank-row:nth-child(3) .pvp-rank-avatar {
+  box-shadow: 0 0 0 2px #b45309;
+}
 .pvp-rank-avatar {
   width: 28px;
   height: 28px;
