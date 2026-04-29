@@ -385,23 +385,21 @@ function showResult(res: PlayCardResp): void {
 
 // ===== 랭킹 =====
 
-let currentRankMode: 'power' | 'best_stage' | 'pvp_wins' = 'power';
+let currentRankMode: 'power' | 'pvp_wins' = 'power';
 
 interface RankingRow {
   kingshot_id: string;
   nickname: string;
   profile_photo: string | null;
   power: number;
-  best_stage: number;
   pvp_wins: number;
 }
 
-function loadRanking(mode: 'power' | 'best_stage' | 'pvp_wins'): void {
+function loadRanking(mode: 'power' | 'pvp_wins'): void {
   currentRankMode = mode;
-  // 현재 모든 멤버 + equipment_levels(power) + tile_match_records(best_stage) + pvp_battles count
-  // PostgREST nested select 활용
+  // 멤버 + equipment_levels(power) → 클라이언트 합산. PvP 승수는 별도 쿼리.
   const url =
-    `${REST_URL}/members?select=kingshot_id,nickname,profile_photo,equipment_levels(power),tile_match_records(best_stage)&order=nickname.asc&limit=200`;
+    `${REST_URL}/members?select=kingshot_id,nickname,profile_photo,equipment_levels(power)&order=nickname.asc&limit=200`;
   fetch(url, {
     headers: {
       apikey: SUPABASE_ANON_KEY,
@@ -414,19 +412,14 @@ function loadRanking(mode: 'power' | 'best_stage' | 'pvp_wins'): void {
       nickname: string;
       profile_photo: string | null;
       equipment_levels?: { power: number }[];
-      tile_match_records?: { best_stage: number }[];
     }>) => {
-      // 멤버별 power, best_stage 합산
       const enriched: RankingRow[] = rows.map((m) => ({
         kingshot_id: m.kingshot_id,
         nickname: m.nickname,
         profile_photo: m.profile_photo,
         power: (m.equipment_levels ?? []).reduce((s, e) => s + (e.power || 0), 0),
-        best_stage: m.tile_match_records?.[0]?.best_stage ?? 0,
         pvp_wins: 0,
       }));
-
-      // PvP 승수 — pvp_battles 에서 fetch (별도 쿼리)
       return fetchPvpWins().then((winsMap) => {
         enriched.forEach((r) => {
           r.pvp_wins = winsMap[r.kingshot_id] ?? 0;
@@ -463,7 +456,7 @@ function fetchPvpWins(): Promise<Record<string, number>> {
     .catch(() => ({}));
 }
 
-function renderRanking(rows: RankingRow[], mode: 'power' | 'best_stage' | 'pvp_wins'): void {
+function renderRanking(rows: RankingRow[], mode: 'power' | 'pvp_wins'): void {
   const host = $('pvp-ranking-list');
   if (!host) return;
   if (rows.length === 0) {
@@ -472,7 +465,7 @@ function renderRanking(rows: RankingRow[], mode: 'power' | 'best_stage' | 'pvp_w
   }
   // 정렬
   const sorted = [...rows].sort((a, b) => (b[mode] || 0) - (a[mode] || 0)).slice(0, 20);
-  const valueLabel = mode === 'power' ? '⚔️' : mode === 'best_stage' ? '🏁' : '🏆';
+  const valueLabel = mode === 'power' ? '⚔️' : '🏆';
   host.innerHTML = sorted
     .map((r, i) => {
       const v = r[mode] || 0;
@@ -558,7 +551,7 @@ export function initPvP(): void {
   // 랭킹 탭
   document.querySelectorAll<HTMLButtonElement>('.pvp-ranking-tab').forEach((b) => {
     b.addEventListener('click', () => {
-      const mode = b.dataset.rank as 'power' | 'best_stage' | 'pvp_wins' | undefined;
+      const mode = b.dataset.rank as 'power' | 'pvp_wins' | undefined;
       if (!mode) return;
       document.querySelectorAll<HTMLButtonElement>('.pvp-ranking-tab').forEach((x) =>
         x.classList.toggle('active', x === b),
