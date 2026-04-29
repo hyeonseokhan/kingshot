@@ -13,7 +13,10 @@ import {
   SLOT_LABEL,
   ENHANCE_MAX_LEVEL,
   enhanceCostFor,
+  tierForLevel,
+  TIER_LABEL,
   type EquipmentSlot,
+  type EquipmentTier,
 } from '@/lib/balance';
 import { patchText } from '@/lib/dom-diff';
 
@@ -23,6 +26,7 @@ const REST_URL = SUPABASE_URL + '/rest/v1';
 
 let initialized = false;
 let currentBalance = 0;
+let balanceLoaded = false;          // false 면 fetch 전 — 클라이언트 잔액 차단 적용 X
 const slotState = new Map<EquipmentSlot, { level: number; power: number }>();
 const busySlots = new Set<EquipmentSlot>();
 let activeModalSlot: EquipmentSlot | null = null;
@@ -140,12 +144,16 @@ function renderAllSlots(): void {
   EQUIPMENT_SLOTS.forEach((slot) => renderSlot(slot));
 }
 
+const ALL_TIER_CLASSES: ReadonlyArray<string> = (
+  ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const
+).map((t) => 'eq-slot-tier-' + t);
+
 function renderSlot(slot: EquipmentSlot): void {
   const el = slotEl(slot);
   if (!el) return;
   const state = slotState.get(slot) ?? { level: 0, power: 0 };
 
-  // 좌상단 레벨 배지: level 0 이면 hidden, 1~10 이면 +N
+  // 좌상단 레벨 배지 — level 0 이면 hidden
   const badge = el.querySelector<HTMLElement>('[data-field="badge"]');
   if (badge) {
     if (state.level === 0) {
@@ -153,14 +161,13 @@ function renderSlot(slot: EquipmentSlot): void {
     } else {
       badge.hidden = false;
       patchText(badge, '+' + state.level);
-      // tier 색상 표시
-      el.classList.toggle('eq-slot-bronze', state.level === 5);
-      el.classList.toggle('eq-slot-silver', state.level === ENHANCE_MAX_LEVEL);
     }
   }
-  // 0 일 때는 색상 클래스 모두 해제
-  if (state.level !== 5) el.classList.remove('eq-slot-bronze');
-  if (state.level !== ENHANCE_MAX_LEVEL) el.classList.remove('eq-slot-silver');
+
+  // 등급 클래스 — 슬롯 배경 + 배지 색상이 함께 변경됨
+  const tier: EquipmentTier = tierForLevel(state.level);
+  ALL_TIER_CLASSES.forEach((c) => el.classList.remove(c));
+  el.classList.add('eq-slot-tier-' + tier);
 }
 
 function renderTotalPower(total: number): void {
@@ -168,12 +175,15 @@ function renderTotalPower(total: number): void {
   if (el) patchText(el, '+' + total.toLocaleString('ko-KR'));
 }
 
-function setBalance(n: number): void {
+function setBalance(n: number, broadcast = true): void {
   currentBalance = n;
-  // 헤더 위젯에 broadcast
-  window.dispatchEvent(
-    new CustomEvent('crystal-balance-update', { detail: { balance: n } }),
-  );
+  balanceLoaded = true;
+  // 헤더 위젯에 broadcast (단, 외부 broadcast 를 받아 갱신할 때는 false 로 무한루프 차단)
+  if (broadcast) {
+    window.dispatchEvent(
+      new CustomEvent('crystal-balance-update', { detail: { balance: n } }),
+    );
+  }
   // 모달이 열려있으면 CTA 버튼 상태 갱신
   if (activeModalSlot) syncModalCtaState();
 }
@@ -210,10 +220,8 @@ function renderModal(slot: EquipmentSlot): void {
   if (nameEl) nameEl.textContent = label.name;
   const levelEl = modalField('level-text');
   if (levelEl) {
-    let txt = '+' + state.level + ' 단계';
-    if (state.level === 5) txt += ' (Bronze)';
-    else if (state.level === ENHANCE_MAX_LEVEL) txt += ' (Silver)';
-    levelEl.textContent = txt;
+    const tier = tierForLevel(state.level);
+    levelEl.textContent = '+' + state.level + ' 단계 · ' + TIER_LABEL[tier];
   }
 
   const curPowerEl = modalField('cur-power');
@@ -273,7 +281,9 @@ function syncModalCtaState(): void {
     return;
   }
   const busy = busySlots.has(activeModalSlot);
-  const insufficient = currentBalance < next.cost;
+  // 잔액 fetch 가 완료된 상태에서만 클라이언트 차단 적용
+  // (fetch 전 / 실패 시엔 currentBalance=0 이라 잘못 차단되므로)
+  const insufficient = balanceLoaded && currentBalance < next.cost;
   cta.disabled = busy || insufficient;
   cta.textContent = busy ? '처리 중...' : insufficient ? '크리스탈 부족' : '강화 시도';
 }
@@ -284,6 +294,22 @@ function showModalResult(kind: 'success' | 'fail' | 'error', msg: string): void 
   el.textContent = msg;
   el.className = 'eq-modal-result eq-modal-result-' + kind;
   // 성공/실패 메시지는 그대로 두고 사용자가 닫거나 재강화 시 초기화
+}
+
+// 강화 결과 토스트 — 모달 dialog 안 absolute 로 카드 위에 떠오름.
+// dialog 가 top layer 라 backdrop 블러 위에 표시 → 가시성 100%.
+function showResultToast(kind: 'success' | 'fail', msg: string): void {
+  const toast = $('eq-result-toast');
+  if (!toast) return;
+  toast.className = 'eq-result-toast eq-result-toast-' + kind;
+  toast.textContent = msg;
+  // animation 재시작 (data-active 토글 + reflow trick)
+  toast.dataset.active = 'false';
+  void toast.offsetHeight;
+  toast.dataset.active = 'true';
+  window.setTimeout(() => {
+    if (toast.textContent === msg) toast.dataset.active = 'false';
+  }, 1800);
 }
 
 // ===== 강화 액션 =====
@@ -300,7 +326,8 @@ function handleEnhance(): void {
   const state = slotState.get(slot) ?? { level: 0, power: 0 };
   const next = enhanceCostFor(state.level);
   if (!next) return;
-  if (currentBalance < next.cost) {
+  // 잔액 fetch 완료 + 실제 부족인 경우만 클라이언트 차단. fetch 전엔 서버 응답으로 결정
+  if (balanceLoaded && currentBalance < next.cost) {
     showModalResult('error', '크리스탈이 부족해요');
     return;
   }
@@ -335,9 +362,13 @@ function handleEnhance(): void {
       renderSlot(slot);
 
       if (res.success) {
-        showModalResult('success', '✨ +' + res.new_level + ' 강화 성공!');
+        const successMsg = '✨ +' + res.new_level + ' 강화 성공!';
+        showModalResult('success', successMsg);
+        showResultToast('success', successMsg);
       } else {
-        showModalResult('fail', '💔 강화 실패');
+        const failMsg = '💔 강화 실패';
+        showModalResult('fail', failMsg);
+        showResultToast('fail', failMsg);
       }
       // 모달 미리보기 정보 (다음 단계) 갱신
       renderModal(slot);
@@ -354,6 +385,18 @@ function showAuthPrompt(): void {
   const prompt = $('eq-auth-prompt');
   if (prompt) prompt.style.display = '';
   setStageState('auth-required');
+  // 이전 사용자 데이터 클리어 — 로그아웃 / 세션 만료 시
+  slotState.clear();
+  busySlots.clear();
+  currentBalance = 0;
+  balanceLoaded = false;
+  // 아바타 이미지 초기화 (이전 사용자 사진 잔존 방지)
+  const img = $('eq-avatar-img') as HTMLImageElement | null;
+  if (img) {
+    img.removeAttribute('src');
+    img.alt = '';
+  }
+  renderAllSlots();
   renderTotalPower(0);
 }
 
@@ -420,11 +463,12 @@ export function initEquipment(): void {
   }
 }
 
-// 다른 페이지(타일 매치 등)에서 잔액 갱신 시 동기화
+// 다른 페이지(타일 매치 등) / 헤더 위젯에서 잔액 갱신 broadcast 받을 때 동기화.
+// 자기 자신이 broadcast 한 것도 받지만 값이 같으면 early return 해서 무한루프 차단됨.
 window.addEventListener('crystal-balance-update', ((e: Event) => {
   const detail = (e as CustomEvent<{ balance: number }>).detail;
   if (detail && typeof detail.balance === 'number' && detail.balance !== currentBalance) {
-    currentBalance = detail.balance;
-    if (activeModalSlot) syncModalCtaState();
+    setBalance(detail.balance, false);
+    return;
   }
 }) as EventListener);

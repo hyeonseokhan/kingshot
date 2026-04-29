@@ -35,6 +35,15 @@ const SLOT_LAYOUT = [
       <h1>장비 강화</h1>
     </div>
 
+    <div class="page-intro">
+      <p><strong>💎 크리스탈로 6부위 장비를 강화해 전투력을 올리세요</strong></p>
+      <ul>
+        <li>등급: <strong>일반(+0)</strong> · 고급(+1~10) · 희귀(+11~25) · 영웅(+26~45) · 레전드(+46~70) · <strong>신화(+71~100)</strong></li>
+        <li>1~2단계: 100% 성공 / 3단계 이후: 확률 강화 (실패해도 등급 유지)</li>
+        <li>크리스탈은 타일매치 stage 클리어 보상 — <strong>stage 46+ 는 매 클리어마다 100 반복 파밍</strong></li>
+      </ul>
+    </div>
+
     <!-- 비인증 안내 -->
     <div class="eq-auth-prompt" id="eq-auth-prompt" style="display:none">
       헤더의 <strong>로그인</strong> 버튼으로 인증한 뒤 강화할 수 있어요.
@@ -51,7 +60,7 @@ const SLOT_LAYOUT = [
       {SLOT_LAYOUT.map(({ slot, side, row }) => (
         <button
           type="button"
-          class={`eq-slot eq-slot-${side} eq-slot-row-${row}`}
+          class={`eq-slot eq-slot-${side} eq-slot-row-${row} eq-slot-tier-common`}
           data-slot={slot}
           data-action="open-modal"
           aria-label={`${SLOT_LABEL[slot].name} 강화`}
@@ -67,16 +76,17 @@ const SLOT_LAYOUT = [
         </button>
       ))}
 
-      <!-- 하단: 장비 합산 전투력 -->
+      <!-- 하단: 장비 합산 전투력 — "총 전투력:    +0" -->
       <div class="eq-totalpower" id="eq-totalpower">
-        <span class="eq-totalpower-icon">💎</span>
-        <span class="eq-totalpower-value" id="eq-total-power">—</span>
-        <span class="eq-totalpower-label">장비 총 전투력</span>
+        <span class="eq-totalpower-label">총 전투력:</span>
+        <span class="eq-totalpower-value" id="eq-total-power">+0</span>
       </div>
     </div>
 
     <!-- 강화 모달 (네이티브 dialog) -->
     <dialog class="eq-modal" id="eq-modal" aria-labelledby="eq-modal-title">
+      <!-- 모달 카드 위쪽에 떠오르는 결과 토스트 (dialog 내부라 top layer 안) -->
+      <div id="eq-result-toast" class="eq-result-toast" data-active="false" aria-live="polite"></div>
       <div class="eq-modal-card">
         <header class="eq-modal-head">
           <img

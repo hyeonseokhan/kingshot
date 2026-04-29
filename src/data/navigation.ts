@@ -40,12 +40,12 @@ export const tabs: NavTab[] = [
   {
     id: 'minigame',
     title: '미니게임',
-    path: '/minigame/tile-match/',
+    path: '/minigame/equipment/',
     pathPrefix: '/minigame/',
     submenus: [
+      { id: 'equipment', title: '장비 강화', path: '/minigame/equipment/' },
       { id: 'tile-match', title: '타일 매치', path: '/minigame/tile-match/' },
       { id: 'partner-draw', title: '운명의 파트너', path: '/minigame/partner-draw/' },
-      { id: 'equipment', title: '장비 강화', path: '/minigame/equipment/' },
     ],
   },
 ];
