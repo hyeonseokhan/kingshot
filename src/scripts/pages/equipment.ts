@@ -201,8 +201,11 @@ function renderModal(slot: EquipmentSlot): void {
   const next = enhanceCostFor(state.level);
   const label = SLOT_LABEL[slot];
 
-  const iconEl = modalField('icon');
-  if (iconEl) iconEl.textContent = label.icon;
+  const iconEl = modalField('icon') as HTMLImageElement | null;
+  if (iconEl) {
+    iconEl.src = label.image;
+    iconEl.alt = label.name;
+  }
   const nameEl = modalField('name');
   if (nameEl) nameEl.textContent = label.name;
   const levelEl = modalField('level-text');

@@ -1156,6 +1156,26 @@
 
 /* ===== 장비 강화 (Phase B — 캐릭터 중심 레이아웃) ===== */
 
+/* 디자인 토큰 — 이 페이지 전용. 슬롯 색상/크기/그림자 등 한 곳에서 관리. */
+.manage-page#page-equipment {
+  --eq-panel-radius: 18px;
+  --eq-slot-radius: 14px;
+
+  --eq-slot-blue-top: #55c4ff;
+  --eq-slot-blue-mid: #2fa2ed;
+  --eq-slot-blue-bottom: #187fd0;
+  --eq-slot-border: rgba(255, 255, 255, 0.88);
+
+  --eq-slot-shadow-outer: 0 8px 14px rgba(28, 67, 116, 0.28);
+  --eq-slot-shadow-top-hl: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --eq-slot-shadow-bot-deep: inset 0 -5px 10px rgba(0, 62, 130, 0.30);
+
+  --eq-badge-gold-top: #fff0a8;
+  --eq-badge-gold-mid: #ffc542;
+  --eq-badge-gold-bot: #f39b19;
+  --eq-badge-text: #5d3500;
+}
+
 /* 비인증 안내 */
 .eq-auth-prompt {
   margin: 12px auto 18px;
@@ -1220,30 +1240,42 @@
   display: block;
 }
 
-/* 슬롯 — 좌우 3:3 절대 위치 */
+/* 슬롯 — 좌우 3:3 절대 위치. 다층 그림자로 입체적 게임 카드 느낌. */
 .eq-slot {
   position: absolute;
   width: 18%;
   aspect-ratio: 1;
   appearance: none;
-  background: linear-gradient(180deg, #4dabf7 0%, #2b87dd 100%);
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  border-radius: 14px;
-  padding: 0;
+  background: linear-gradient(
+    180deg,
+    var(--eq-slot-blue-top) 0%,
+    var(--eq-slot-blue-mid) 48%,
+    var(--eq-slot-blue-bottom) 100%
+  );
+  border: 2px solid var(--eq-slot-border);
+  border-radius: var(--eq-slot-radius);
+  padding: 8%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 4px 8px rgba(30, 64, 175, 0.25);
-  transition: transform 0.12s, box-shadow 0.12s;
+    var(--eq-slot-shadow-outer),
+    var(--eq-slot-shadow-top-hl),
+    var(--eq-slot-shadow-bot-deep);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
 }
 .eq-slot:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  filter: brightness(1.05);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 6px 12px rgba(30, 64, 175, 0.32);
+    0 12px 18px rgba(28, 67, 116, 0.34),
+    var(--eq-slot-shadow-top-hl),
+    var(--eq-slot-shadow-bot-deep);
+}
+.eq-slot:active {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.97);
 }
 .eq-slot:active {
   transform: scale(0.97);
@@ -1252,34 +1284,46 @@
   cursor: default;
 }
 
+/* 이미지 아이콘 — 슬롯 안에서 균일 크기로 contain. */
 .eq-slot-icon {
-  font-size: 28px;
-  line-height: 1;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.32));
 }
 
-/* 좌상단 레벨 배지 */
+/* 좌상단 레벨 배지 — 3-stop 금색 그라디언트 (메탈릭 광택) */
 .eq-slot-badge {
   position: absolute;
-  top: -6px;
-  left: -6px;
-  min-width: 26px;
+  top: -8px;
+  left: -8px;
+  min-width: 28px;
   height: 22px;
-  padding: 0 6px;
-  background: #f59e0b;
-  color: #fff;
+  padding: 0 7px;
+  background: linear-gradient(
+    180deg,
+    var(--eq-badge-gold-top) 0%,
+    var(--eq-badge-gold-mid) 52%,
+    var(--eq-badge-gold-bot) 100%
+  );
+  color: var(--eq-badge-text);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
-  border: 2px solid #fff;
+  border: 2px solid rgba(255, 255, 255, 0.92);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   letter-spacing: -0.02em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  box-shadow:
+    0 4px 8px rgba(109, 67, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
   pointer-events: none;
   white-space: nowrap;
+  z-index: 3;
 }
 .eq-slot-bronze .eq-slot-badge {
   background: linear-gradient(180deg, #d97706, #92400e);
@@ -1310,46 +1354,51 @@
 .eq-slot-right.eq-slot-row-2 { right: 5%; top: 41%; }
 .eq-slot-right.eq-slot-row-3 { right: 5%; top: 72%; }
 
-/* 하단 장비 합산 전투력 */
+/* 하단 장비 합산 전투력 — glassmorphism (반투명 유리 패널 느낌) */
 .eq-totalpower {
   position: absolute;
   left: 50%;
-  bottom: 5%;
+  bottom: 6%;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: rgba(255,255,255,0.85);
-  border: 1px solid rgba(255,255,255,0.95);
+  gap: 7px;
+  padding: 0 18px;
+  height: 42px;
+  min-width: 170px;
+  justify-content: center;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94) 0%,
+    rgba(235, 242, 252, 0.90) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 999px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e3a8a;
-  box-shadow: 0 4px 10px rgba(30, 64, 175, 0.18);
-  backdrop-filter: blur(6px);
+  box-shadow:
+    0 10px 18px rgba(28, 55, 91, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  backdrop-filter: blur(8px);
   white-space: nowrap;
 }
 .eq-totalpower-icon {
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
 }
 .eq-totalpower-value {
   font-variant-numeric: tabular-nums;
   font-size: 16px;
-  color: #0c4a6e;
+  font-weight: 900;
+  color: #006aa6;
 }
 .eq-totalpower-label {
   font-size: 12px;
-  font-weight: 500;
-  color: #475569;
-  margin-left: 2px;
+  font-weight: 700;
+  color: #52606d;
 }
 
-/* 큰 데스크톱에서 슬롯 아이콘 약간 키움 */
+/* 큰 데스크톱에서 텍스트 강조 (이미지는 % 기반이라 자동 비례). */
 @media (min-width: 540px) {
-  .eq-slot-icon { font-size: 32px; }
-  .eq-slot-badge { min-width: 30px; height: 24px; font-size: 12px; }
+  .eq-slot-badge { min-width: 32px; height: 24px; font-size: 12px; }
   .eq-totalpower-value { font-size: 18px; }
 }
 
@@ -1386,16 +1435,14 @@
   border-bottom: 1px solid #e2e8f0;
 }
 .eq-modal-icon {
-  font-size: 30px;
-  line-height: 1;
   width: 44px;
   height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  object-fit: contain;
+  padding: 4px;
   background: linear-gradient(180deg, #4dabf7, #2b87dd);
   border-radius: 10px;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 .eq-modal-title-wrap {
   display: flex;
