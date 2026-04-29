@@ -1254,7 +1254,7 @@
   );
   border: 2px solid var(--eq-slot-border);
   border-radius: var(--eq-slot-radius);
-  padding: 8%;
+  padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1284,10 +1284,10 @@
   cursor: default;
 }
 
-/* 이미지 아이콘 — 슬롯 안에서 균일 크기로 contain. */
+/* 이미지 아이콘 — 슬롯 안에서 78% 사이즈로 contain (테두리에 닿지 않도록). */
 .eq-slot-icon {
-  width: 100%;
-  height: 100%;
+  width: 78%;
+  height: 78%;
   object-fit: contain;
   display: block;
   pointer-events: none;
