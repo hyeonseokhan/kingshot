@@ -2371,3 +2371,38 @@
   color: #94a3b8;
   font-size: 13px;
 }
+
+/* ===== 랭킹 새로고침 버튼 — 타일매치/PvP 공통 spinning ===== */
+.pvp-rank-refresh {
+  appearance: none;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.pvp-rank-refresh:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.tm-ranking-refresh.is-loading,
+.pvp-rank-refresh.is-loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.tm-ranking-refresh.is-loading svg,
+.pvp-rank-refresh.is-loading svg {
+  animation: minigameRefreshSpin 0.7s linear infinite;
+}
+@keyframes minigameRefreshSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

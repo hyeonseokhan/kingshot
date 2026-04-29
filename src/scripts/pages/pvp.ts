@@ -537,6 +537,8 @@ interface RankingRow {
 
 /** 멤버 + 장비 power + PvP 승수 fetch → cache 후 현재 mode 로 렌더. */
 function loadRanking(): void {
+  const refreshBtn = $('pvp-rank-refresh');
+  if (refreshBtn) refreshBtn.classList.add('is-loading');
   const url =
     `${REST_URL}/members?select=kingshot_id,nickname,profile_photo,equipment_levels(power)&order=nickname.asc&limit=200`;
   fetch(url, {
@@ -573,6 +575,10 @@ function loadRanking(): void {
     .catch(() => {
       cachedRankings = [];
       renderRanking();
+    })
+    .finally(() => {
+      // spinning 최소 400ms 유지 — 빠르게 응답 와도 사용자가 클릭 인지 가능
+      window.setTimeout(() => refreshBtn?.classList.remove('is-loading'), 400);
     });
 }
 
@@ -729,6 +735,9 @@ export function initPvP(): void {
       renderRanking();
     });
   });
+
+  // 랭킹 새로고침 — fetch 다시 (PvP 결과 직후 or 사용자 명시 갱신)
+  $('pvp-rank-refresh')?.addEventListener('click', loadRanking);
 
   // 인증 세션
   if (window.TileMatchAuth) {

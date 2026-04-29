@@ -279,6 +279,9 @@ function loadRanking(): void {
   if (!hasRankingRows()) {
     box.innerHTML = '<div class="tm-ranking-empty">로딩 중...</div>';
   }
+  // 새로고침 버튼 spinning 표시 (사용자에게 클릭 동작 인지)
+  const refreshBtn = $('tm-ranking-refresh');
+  if (refreshBtn) refreshBtn.classList.add('is-loading');
 
   fetchSupa(
     SUPABASE_URL +
@@ -311,6 +314,10 @@ function loadRanking(): void {
           (err.message || String(err)) +
           '</div>';
       }
+    })
+    .finally(() => {
+      // spinning 멈춤 — 너무 빨리 끝나면 사용자가 인지 못 하니 최소 400ms 유지
+      window.setTimeout(() => refreshBtn?.classList.remove('is-loading'), 400);
     });
 }
 
