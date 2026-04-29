@@ -1154,32 +1154,12 @@
   }
 }
 
-/* ===== 장비 강화 (Phase B) ===== */
+/* ===== 장비 강화 (Phase B — 캐릭터 중심 레이아웃) ===== */
 
-.eq-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 12px 0 18px;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #ddebff 100%);
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-}
-.eq-summary-label {
-  font-size: 13px;
-  color: #475569;
-  font-weight: 500;
-}
-.eq-summary-value {
-  font-size: 22px;
-  font-weight: 800;
-  color: #1e3a8a;
-  font-variant-numeric: tabular-nums;
-}
-
+/* 비인증 안내 */
 .eq-auth-prompt {
-  margin: 12px 0 18px;
+  margin: 12px auto 18px;
+  max-width: 540px;
   padding: 14px 18px;
   background: #fff7ed;
   border: 1px dashed #fdba74;
@@ -1191,148 +1171,328 @@
   color: #c2410c;
 }
 
-.eq-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 24px;
+/* 캐릭터 중심 캔버스 — 모바일 폰 비율 (3:4) 고정 */
+.eq-stage {
+  position: relative;
+  max-width: 540px;
+  margin: 12px auto 24px;
+  aspect-ratio: 3 / 4;
+  background:
+    radial-gradient(ellipse at 50% 30%, #dceefc 0%, #c6e0f7 60%, #b1d3ef 100%);
+  border: 1px solid #93c5fd;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(30, 64, 175, 0.10);
 }
-@media (min-width: 600px) {
-  .eq-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (min-width: 980px) {
-  .eq-grid {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
-}
-
-.eq-slot {
-  background: #ffffff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+.eq-stage[data-state="loading"] .eq-slot,
+.eq-stage[data-state="auth-required"] .eq-slot {
+  opacity: 0.5;
 }
 
-.eq-slot-head {
+/* 가운데 아바타 박스 */
+.eq-avatar {
+  position: absolute;
+  left: 26%;
+  top: 12%;
+  width: 48%;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
+  border: 2px solid rgba(255,255,255,0.7);
+  overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    0 6px 14px rgba(30, 64, 175, 0.18);
 }
-.eq-slot-icon {
-  font-size: 22px;
-  line-height: 1;
-}
-.eq-slot-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  flex: 1;
-}
-.eq-slot-level {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1e3a8a;
-  background: #dbeafe;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-variant-numeric: tabular-nums;
+.eq-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.eq-slot-power {
+/* 슬롯 — 좌우 3:3 절대 위치 */
+.eq-slot {
+  position: absolute;
+  width: 18%;
+  aspect-ratio: 1;
+  appearance: none;
+  background: linear-gradient(180deg, #4dabf7 0%, #2b87dd 100%);
+  border: 2px solid rgba(255,255,255,0.85);
+  border-radius: 14px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 4px 8px rgba(30, 64, 175, 0.25);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.eq-slot:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 6px 12px rgba(30, 64, 175, 0.32);
+}
+.eq-slot:active {
+  transform: scale(0.97);
+}
+.eq-slot:disabled {
+  cursor: default;
+}
+
+.eq-slot-icon {
+  font-size: 28px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+}
+
+/* 좌상단 레벨 배지 */
+.eq-slot-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 6px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -0.02em;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.eq-slot-bronze .eq-slot-badge {
+  background: linear-gradient(180deg, #d97706, #92400e);
+}
+.eq-slot-silver .eq-slot-badge {
+  background: linear-gradient(180deg, #94a3b8, #475569);
+}
+.eq-slot-bronze {
+  border-color: #fbbf24;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 4px 10px rgba(217, 119, 6, 0.4);
+}
+.eq-slot-silver {
+  border-color: #cbd5e1;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.7),
+    0 4px 10px rgba(100, 116, 139, 0.45);
+}
+
+/* 좌측 3슬롯 위치 */
+.eq-slot-left.eq-slot-row-1 { left: 5%;  top: 10%; }
+.eq-slot-left.eq-slot-row-2 { left: 5%;  top: 41%; }
+.eq-slot-left.eq-slot-row-3 { left: 5%;  top: 72%; }
+
+/* 우측 3슬롯 위치 */
+.eq-slot-right.eq-slot-row-1 { right: 5%; top: 10%; }
+.eq-slot-right.eq-slot-row-2 { right: 5%; top: 41%; }
+.eq-slot-right.eq-slot-row-3 { right: 5%; top: 72%; }
+
+/* 하단 장비 합산 전투력 */
+.eq-totalpower {
+  position: absolute;
+  left: 50%;
+  bottom: 5%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.95);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e3a8a;
+  box-shadow: 0 4px 10px rgba(30, 64, 175, 0.18);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.eq-totalpower-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.eq-totalpower-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  color: #0c4a6e;
+}
+.eq-totalpower-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  margin-left: 2px;
+}
+
+/* 큰 데스크톱에서 슬롯 아이콘 약간 키움 */
+@media (min-width: 540px) {
+  .eq-slot-icon { font-size: 32px; }
+  .eq-slot-badge { min-width: 30px; height: 24px; font-size: 12px; }
+  .eq-totalpower-value { font-size: 18px; }
+}
+
+/* ===== 강화 모달 ===== */
+
+.eq-modal {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: 92vw;
+  width: 380px;
+  border-radius: 16px;
+  overflow: visible;
+}
+.eq-modal::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+.eq-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+}
+
+.eq-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.eq-modal-icon {
+  font-size: 30px;
+  line-height: 1;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #4dabf7, #2b87dd);
+  border-radius: 10px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+}
+.eq-modal-title-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.eq-modal-title-wrap strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.eq-modal-level {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+.eq-modal-close {
+  appearance: none;
+  background: none;
+  border: none;
+  width: 30px;
+  height: 30px;
+  font-size: 22px;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.eq-modal-close:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.eq-modal-stats,
+.eq-modal-cost {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+.eq-modal-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.eq-modal-row-label {
   color: #64748b;
-  border-top: 1px dashed #e2e8f0;
-  padding-top: 8px;
 }
-.eq-slot-power-value {
-  font-size: 15px;
-  font-weight: 700;
+.eq-modal-row-value {
   color: #0f172a;
-  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
 }
-
-.eq-slot-next {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  font-size: 13px;
-  color: #475569;
-  background: #f8fafc;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-variant-numeric: tabular-nums;
-}
-.eq-slot-next-cost,
-.eq-slot-next-power,
-.eq-slot-next-rate {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-weight: 600;
-}
-.eq-slot-next-cost .eq-icon {
-  font-size: 13px;
-}
-.eq-slot-next-power {
+.eq-modal-row-after .eq-modal-row-value {
   color: #15803d;
 }
-.eq-slot-next-rate {
-  color: #4338ca;
-}
-.eq-slot-next-capped {
-  justify-content: center;
-  color: #b45309;
+.eq-modal-row-after em {
+  font-size: 12px;
   font-weight: 600;
-  background: #fef3c7;
+  color: #15803d;
+  margin-left: 4px;
+  font-style: normal;
 }
 
-.eq-slot-btn {
+.eq-modal-note {
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+  margin: 0;
+}
+
+.eq-modal-cta {
   appearance: none;
   border: none;
   background: linear-gradient(180deg, #6366f1, #4338ca);
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.1s;
 }
-.eq-slot-btn:hover:not(:disabled) {
-  opacity: 0.92;
-}
-.eq-slot-btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-.eq-slot-btn:disabled {
+.eq-modal-cta:hover:not(:disabled) { opacity: 0.92; }
+.eq-modal-cta:active:not(:disabled) { transform: scale(0.98); }
+.eq-modal-cta:disabled {
   background: #cbd5e1;
   color: #64748b;
   cursor: not-allowed;
 }
 
-.eq-slot-result {
-  min-height: 18px;
+.eq-modal-result {
+  min-height: 20px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.eq-slot-result-success {
-  color: #15803d;
-}
-.eq-slot-result-fail {
-  color: #94a3b8;
-}
-.eq-slot-result-error {
-  color: #dc2626;
-}
+.eq-modal-result-success { color: #15803d; }
+.eq-modal-result-fail    { color: #94a3b8; }
+.eq-modal-result-error   { color: #dc2626; }

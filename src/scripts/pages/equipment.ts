@@ -1,16 +1,16 @@
 /**
- * 장비 강화 페이지 (Phase B).
+ * 장비 강화 페이지 (Phase B — 캐릭터 중심 레이아웃 redesign).
  *
  * 동작:
- *   - 인증된 사용자: get-equipment 로 6슬롯 상태 fetch, 카드 렌더
- *   - 강화 버튼 클릭: enhance API 호출 → 결과 카드에 표시 + 잔액 broadcast
- *   - 비인증: 헤더 로그인 안내 표시 + 모든 강화 버튼 disabled
- *
- * 의존: tile-match-auth.ts (window.TileMatchAuth) — 인증 세션 공유
+ *   - 6슬롯 = 캐릭터(아바타) 좌우 3:3 절대 배치, 각 슬롯은 부위 이모지 + 좌상단 레벨 배지
+ *   - 슬롯 클릭 → 강화 모달 (<dialog>) 열림: 현재→강화후 미리보기 + 비용/확률
+ *   - 모달 안 "강화 시도" → enhance API → 결과 표시 + 카드/배지/총 전투력 갱신
+ *   - 인증 안 됐으면 안내 박스 표시, 슬롯 클릭은 인증 다이얼로그 트리거
  */
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import {
   EQUIPMENT_SLOTS,
+  SLOT_LABEL,
   ENHANCE_MAX_LEVEL,
   enhanceCostFor,
   type EquipmentSlot,
@@ -19,11 +19,13 @@ import { patchText } from '@/lib/dom-diff';
 
 const FN_ECONOMY_URL = SUPABASE_URL + '/functions/v1/economy';
 const FN_EQUIPMENT_URL = SUPABASE_URL + '/functions/v1/equipment';
+const REST_URL = SUPABASE_URL + '/rest/v1';
 
 let initialized = false;
 let currentBalance = 0;
 const slotState = new Map<EquipmentSlot, { level: number; power: number }>();
-let busySlots = new Set<EquipmentSlot>();
+const busySlots = new Set<EquipmentSlot>();
+let activeModalSlot: EquipmentSlot | null = null;
 
 interface EquipmentResp {
   ok: boolean;
@@ -40,7 +42,6 @@ interface EnhanceResp {
   new_power?: number;
   cost?: number;
   balance?: number;
-  current_level?: number;
 }
 
 interface BalanceResp {
@@ -48,16 +49,25 @@ interface BalanceResp {
   balance?: number;
 }
 
+interface MemberRow {
+  profile_photo: string | null;
+  nickname: string;
+}
+
 function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
-function slotEl(slot: EquipmentSlot): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`.eq-slot[data-slot="${slot}"]`);
+function slotEl(slot: EquipmentSlot): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(`.eq-slot[data-slot="${slot}"]`);
 }
 
-function field(parent: HTMLElement, key: string): HTMLElement | null {
-  return parent.querySelector<HTMLElement>(`[data-field="${key}"]`);
+function modal(): HTMLDialogElement | null {
+  return $('eq-modal') as HTMLDialogElement | null;
+}
+
+function modalField(key: string): HTMLElement | null {
+  return modal()?.querySelector<HTMLElement>(`[data-field="${key}"]`) ?? null;
 }
 
 // ===== API =====
@@ -85,6 +95,7 @@ function fetchEquipment(playerId: string): Promise<void> {
     res.levels.forEach((l) => slotState.set(l.slot, { level: l.level, power: l.power }));
     renderAllSlots();
     renderTotalPower(res.total_power ?? 0);
+    setStageState('ready');
   });
 }
 
@@ -98,7 +109,32 @@ function fetchBalance(playerId: string): Promise<void> {
   });
 }
 
+function fetchProfilePhoto(playerId: string): Promise<void> {
+  // 멤버 프로필 사진 — null 보장 X 환경이지만 안전하게 처리
+  const url = `${REST_URL}/members?kingshot_id=eq.${encodeURIComponent(playerId)}&select=profile_photo,nickname`;
+  return fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+      Accept: 'application/vnd.pgrst.object+json',
+    },
+  })
+    .then((r) => (r.ok ? (r.json() as Promise<MemberRow>) : null))
+    .then((row) => {
+      const img = $('eq-avatar-img') as HTMLImageElement | null;
+      if (!img || !row) return;
+      img.src = row.profile_photo ?? '';
+      img.alt = row.nickname || '';
+    })
+    .catch(() => {});
+}
+
 // ===== 렌더 =====
+
+function setStageState(state: 'loading' | 'ready' | 'auth-required'): void {
+  const stage = $('eq-stage');
+  if (stage) stage.dataset.state = state;
+}
 
 function renderAllSlots(): void {
   EQUIPMENT_SLOTS.forEach((slot) => renderSlot(slot));
@@ -108,49 +144,23 @@ function renderSlot(slot: EquipmentSlot): void {
   const el = slotEl(slot);
   if (!el) return;
   const state = slotState.get(slot) ?? { level: 0, power: 0 };
-  const next = enhanceCostFor(state.level);
 
-  const levelEl = field(el, 'level');
-  if (levelEl) {
-    let label = '+' + state.level;
-    if (state.level === 5) label += ' (Bronze)';
-    else if (state.level === ENHANCE_MAX_LEVEL) label += ' (Silver)';
-    patchText(levelEl, label);
-  }
-  const powerEl = field(el, 'power');
-  if (powerEl) patchText(powerEl, '+' + state.power.toLocaleString('ko-KR'));
-
-  const nextEl = field(el, 'next');
-  const btn = el.querySelector<HTMLButtonElement>('button.eq-slot-btn');
-
-  if (!next) {
-    if (nextEl) {
-      nextEl.classList.add('eq-slot-next-capped');
-      nextEl.textContent = '최대 강화 도달';
+  // 좌상단 레벨 배지: level 0 이면 hidden, 1~10 이면 +N
+  const badge = el.querySelector<HTMLElement>('[data-field="badge"]');
+  if (badge) {
+    if (state.level === 0) {
+      badge.hidden = true;
+    } else {
+      badge.hidden = false;
+      patchText(badge, '+' + state.level);
+      // tier 색상 표시
+      el.classList.toggle('eq-slot-bronze', state.level === 5);
+      el.classList.toggle('eq-slot-silver', state.level === ENHANCE_MAX_LEVEL);
     }
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = '최대 강화';
-    }
-    return;
   }
-
-  // 다음 단계 정보
-  const costEl = field(el, 'cost');
-  const deltaEl = field(el, 'delta');
-  const rateEl = field(el, 'rate');
-  if (costEl) patchText(costEl, next.cost.toLocaleString('ko-KR'));
-  if (deltaEl) patchText(deltaEl, String(next.power));
-  if (rateEl) patchText(rateEl, String(Math.round(next.rate * 100)));
-  if (nextEl) nextEl.classList.remove('eq-slot-next-capped');
-
-  // 버튼 상태
-  if (btn) {
-    const insufficient = currentBalance < next.cost;
-    const busy = busySlots.has(slot);
-    btn.disabled = insufficient || busy;
-    btn.textContent = busy ? '처리 중...' : insufficient ? '크리스탈 부족' : '강화 시도';
-  }
+  // 0 일 때는 색상 클래스 모두 해제
+  if (state.level !== 5) el.classList.remove('eq-slot-bronze');
+  if (state.level !== ENHANCE_MAX_LEVEL) el.classList.remove('eq-slot-silver');
 }
 
 function renderTotalPower(total: number): void {
@@ -164,29 +174,120 @@ function setBalance(n: number): void {
   window.dispatchEvent(
     new CustomEvent('crystal-balance-update', { detail: { balance: n } }),
   );
-  renderAllSlots();
+  // 모달이 열려있으면 CTA 버튼 상태 갱신
+  if (activeModalSlot) syncModalCtaState();
 }
 
-function showResult(slot: EquipmentSlot, kind: 'success' | 'fail' | 'error', msg: string): void {
-  const el = slotEl(slot);
-  if (!el) return;
-  const resEl = field(el, 'result');
-  if (!resEl) return;
-  resEl.classList.remove('eq-slot-result-success', 'eq-slot-result-fail', 'eq-slot-result-error');
-  resEl.classList.add('eq-slot-result-' + kind);
-  resEl.textContent = msg;
-  // 4초 후 사라짐
-  window.setTimeout(() => {
-    if (resEl.textContent === msg) {
-      resEl.textContent = '';
-      resEl.classList.remove('eq-slot-result-success', 'eq-slot-result-fail', 'eq-slot-result-error');
+// ===== 모달 =====
+
+function openModal(slot: EquipmentSlot): void {
+  const session = window.TileMatchAuth?.getSession();
+  if (!session?.player_id) {
+    window.TileMatchAuth?.ensureAuth();
+    return;
+  }
+  activeModalSlot = slot;
+  renderModal(slot);
+  modal()?.showModal();
+}
+
+function closeModal(): void {
+  activeModalSlot = null;
+  modal()?.close();
+}
+
+function renderModal(slot: EquipmentSlot): void {
+  const state = slotState.get(slot) ?? { level: 0, power: 0 };
+  const next = enhanceCostFor(state.level);
+  const label = SLOT_LABEL[slot];
+
+  const iconEl = modalField('icon');
+  if (iconEl) iconEl.textContent = label.icon;
+  const nameEl = modalField('name');
+  if (nameEl) nameEl.textContent = label.name;
+  const levelEl = modalField('level-text');
+  if (levelEl) {
+    let txt = '+' + state.level + ' 단계';
+    if (state.level === 5) txt += ' (Bronze)';
+    else if (state.level === ENHANCE_MAX_LEVEL) txt += ' (Silver)';
+    levelEl.textContent = txt;
+  }
+
+  const curPowerEl = modalField('cur-power');
+  if (curPowerEl) curPowerEl.textContent = '+' + state.power.toLocaleString('ko-KR');
+
+  const afterRow = modalField('after-row');
+  const costSection = modalField('cost-section');
+  const noteEl = modalField('note');
+  const cta = $('eq-modal-cta') as HTMLButtonElement | null;
+
+  if (!next) {
+    // max 도달
+    if (afterRow) afterRow.style.display = 'none';
+    if (costSection) costSection.style.display = 'none';
+    if (noteEl) noteEl.textContent = '최대 강화 도달';
+    if (cta) {
+      cta.textContent = '최대 강화';
+      cta.disabled = true;
     }
-  }, 4000);
+    return;
+  }
+
+  if (afterRow) afterRow.style.display = '';
+  if (costSection) costSection.style.display = '';
+  if (noteEl) noteEl.textContent = '실패해도 등급은 유지 — 크리스탈만 소모';
+
+  const newPowerTotal = state.power + next.power;
+  const nextPowerEl = modalField('next-power');
+  if (nextPowerEl) nextPowerEl.textContent = '+' + newPowerTotal.toLocaleString('ko-KR');
+  const deltaEl = modalField('delta');
+  if (deltaEl) deltaEl.textContent = '(↑' + next.power + ')';
+
+  const costEl = modalField('cost');
+  if (costEl) costEl.textContent = next.cost.toLocaleString('ko-KR');
+  const rateEl = modalField('rate');
+  if (rateEl) rateEl.textContent = Math.round(next.rate * 100) + '%';
+
+  // 결과 메시지 영역 초기화
+  const resultEl = modalField('result');
+  if (resultEl) {
+    resultEl.textContent = '';
+    resultEl.className = 'eq-modal-result';
+  }
+
+  syncModalCtaState();
 }
 
-// ===== 이벤트 =====
+function syncModalCtaState(): void {
+  if (!activeModalSlot) return;
+  const cta = $('eq-modal-cta') as HTMLButtonElement | null;
+  if (!cta) return;
+  const state = slotState.get(activeModalSlot) ?? { level: 0, power: 0 };
+  const next = enhanceCostFor(state.level);
+  if (!next) {
+    cta.disabled = true;
+    cta.textContent = '최대 강화';
+    return;
+  }
+  const busy = busySlots.has(activeModalSlot);
+  const insufficient = currentBalance < next.cost;
+  cta.disabled = busy || insufficient;
+  cta.textContent = busy ? '처리 중...' : insufficient ? '크리스탈 부족' : '강화 시도';
+}
 
-function handleEnhance(slot: EquipmentSlot): void {
+function showModalResult(kind: 'success' | 'fail' | 'error', msg: string): void {
+  const el = modalField('result');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'eq-modal-result eq-modal-result-' + kind;
+  // 성공/실패 메시지는 그대로 두고 사용자가 닫거나 재강화 시 초기화
+}
+
+// ===== 강화 액션 =====
+
+function handleEnhance(): void {
+  if (!activeModalSlot) return;
+  const slot = activeModalSlot;
   const session = window.TileMatchAuth?.getSession();
   if (!session?.player_id) {
     window.TileMatchAuth?.ensureAuth();
@@ -197,12 +298,12 @@ function handleEnhance(slot: EquipmentSlot): void {
   const next = enhanceCostFor(state.level);
   if (!next) return;
   if (currentBalance < next.cost) {
-    showResult(slot, 'error', '크리스탈 부족');
+    showModalResult('error', '크리스탈이 부족해요');
     return;
   }
 
   busySlots.add(slot);
-  renderSlot(slot);
+  syncModalCtaState();
 
   postJson<EnhanceResp>(FN_EQUIPMENT_URL, {
     action: 'enhance',
@@ -211,20 +312,15 @@ function handleEnhance(slot: EquipmentSlot): void {
   })
     .then((res) => {
       if (!res.ok) {
-        if (res.error === 'insufficient_crystals') {
-          showResult(slot, 'error', '크리스탈 부족');
-        } else if (res.error === 'level_capped') {
-          showResult(slot, 'error', '최대 강화 도달');
-        } else if (res.error === 'level_mismatch') {
-          // 다른 탭에서 갱신됐을 가능성 — 새로고침
-          showResult(slot, 'error', '잠시 후 재시도');
+        if (res.error === 'insufficient_crystals') showModalResult('error', '크리스탈이 부족해요');
+        else if (res.error === 'level_capped') showModalResult('error', '최대 강화 도달');
+        else if (res.error === 'level_mismatch') {
+          showModalResult('error', '잠시 후 재시도');
           fetchEquipment(session.player_id);
-        } else {
-          showResult(slot, 'error', '오류: ' + (res.error ?? 'unknown'));
-        }
+        } else showModalResult('error', '오류: ' + (res.error ?? 'unknown'));
         return;
       }
-      // 성공/실패 처리
+      // 성공/실패 처리 — slotState 갱신
       slotState.set(slot, {
         level: res.new_level ?? state.level,
         power: res.new_power ?? state.power,
@@ -233,28 +329,28 @@ function handleEnhance(slot: EquipmentSlot): void {
       // 총 전투력 재계산
       const total = Array.from(slotState.values()).reduce((s, v) => s + v.power, 0);
       renderTotalPower(total);
+      renderSlot(slot);
 
       if (res.success) {
-        showResult(slot, 'success', '✨ +' + res.new_level + ' 강화 성공!');
+        showModalResult('success', '✨ +' + res.new_level + ' 강화 성공!');
       } else {
-        showResult(slot, 'fail', '💔 실패 (-' + (res.cost ?? next.cost).toLocaleString('ko-KR') + ' 💎)');
+        showModalResult('fail', '💔 강화 실패');
       }
-      renderSlot(slot);
+      // 모달 미리보기 정보 (다음 단계) 갱신
+      renderModal(slot);
     })
     .finally(() => {
       busySlots.delete(slot);
-      renderSlot(slot);
+      syncModalCtaState();
     });
 }
+
+// ===== 인증 흐름 =====
 
 function showAuthPrompt(): void {
   const prompt = $('eq-auth-prompt');
   if (prompt) prompt.style.display = '';
-  // 모든 카드의 다음-단계 / 버튼은 그대로 두되 disabled
-  document.querySelectorAll<HTMLButtonElement>('.eq-slot-btn').forEach((b) => {
-    b.disabled = true;
-    b.textContent = '인증 필요';
-  });
+  setStageState('auth-required');
   renderTotalPower(0);
 }
 
@@ -266,10 +362,12 @@ function hideAuthPrompt(): void {
 function onSessionReady(session: { player_id: string; nickname: string } | null): void {
   if (session?.player_id) {
     hideAuthPrompt();
+    fetchProfilePhoto(session.player_id);
     fetchBalance(session.player_id);
     fetchEquipment(session.player_id);
   } else {
     showAuthPrompt();
+    closeModal();
   }
 }
 
@@ -279,15 +377,37 @@ export function initEquipment(): void {
   if (initialized) return;
   initialized = true;
 
-  // 강화 버튼 (이벤트 위임)
-  $('eq-grid')?.addEventListener('click', (e) => {
-    const target = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-action="enhance"]');
+  // 슬롯 클릭 → 모달 열기 (이벤트 위임)
+  $('eq-stage')?.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      'button[data-action="open-modal"]',
+    );
     if (!target) return;
     const slot = target.getAttribute('data-slot') as EquipmentSlot | null;
-    if (slot) handleEnhance(slot);
+    if (slot) openModal(slot);
   });
 
-  // 인증 세션 변화 리스닝
+  // 모달 내 버튼 핸들링 (close / enhance) — 단일 listener
+  modal()?.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    if (t.closest('[data-action="close-modal"]')) {
+      closeModal();
+      return;
+    }
+    if (t.closest('[data-action="enhance"]')) {
+      handleEnhance();
+      return;
+    }
+    // backdrop 클릭으로 닫기 (dialog 자체 클릭은 카드 밖 영역)
+    if (t === modal()) closeModal();
+  });
+
+  // ESC 로 닫히면 activeModalSlot 정리
+  modal()?.addEventListener('close', () => {
+    activeModalSlot = null;
+  });
+
+  // 인증 세션
   if (window.TileMatchAuth) {
     window.TileMatchAuth.initPage();
     window.TileMatchAuth.onSessionChange(onSessionReady);
@@ -297,11 +417,11 @@ export function initEquipment(): void {
   }
 }
 
-// 다른 페이지(타일 매치)에서 잔액이 갱신되면 우리도 반영
+// 다른 페이지(타일 매치 등)에서 잔액 갱신 시 동기화
 window.addEventListener('crystal-balance-update', ((e: Event) => {
   const detail = (e as CustomEvent<{ balance: number }>).detail;
   if (detail && typeof detail.balance === 'number' && detail.balance !== currentBalance) {
     currentBalance = detail.balance;
-    renderAllSlots();
+    if (activeModalSlot) syncModalCtaState();
   }
 }) as EventListener);

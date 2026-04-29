@@ -1,7 +1,7 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
-import { EQUIPMENT_SLOTS, SLOT_LABEL } from '@/lib/balance';
+import { SLOT_LABEL } from '@/lib/balance';
 import '@/styles/minigame.css';
 
 const minigame = tabs.find((t) => t.id === 'minigame')!;
@@ -11,6 +11,17 @@ const navItems = minigame.submenus!.map((s) => ({
   path: s.path,
   active: active?.id === s.id,
 }));
+
+// 좌우 3:3 레이아웃 — 게임 원본 캐릭터 둘러싸는 패턴 그대로.
+// 행 인덱스(1~3)는 CSS 의 절대 좌표 매핑에 사용.
+const SLOT_LAYOUT = [
+  { slot: 'crown',    side: 'left',  row: 1 },
+  { slot: 'top',      side: 'left',  row: 2 },
+  { slot: 'ring',     side: 'left',  row: 3 },
+  { slot: 'necklace', side: 'right', row: 1 },
+  { slot: 'bottom',   side: 'right', row: 2 },
+  { slot: 'staff',    side: 'right', row: 3 },
+] as const;
 ---
 
 <AppLayout
@@ -24,51 +35,95 @@ const navItems = minigame.submenus!.map((s) => ({
       <h1>장비 강화</h1>
     </div>
 
-    <div class="page-intro">
-      <p><strong>💎 크리스탈로 장비를 강화해 전투력을 올려보세요</strong></p>
-      <ul>
-        <li>6부위 (월계관 / 목걸이 / 상의 / 하의 / 반지 / 지팡이) — 부위마다 +1~+10 단계</li>
-        <li>+5 (Bronze), +10 (Silver) 의 전투력 가성비가 좋음</li>
-        <li>실패해도 등급은 유지 — 크리스탈만 소모</li>
-      </ul>
-    </div>
-
-    <!-- 총 장비 전투력 -->
-    <div class="eq-summary">
-      <span class="eq-summary-label">장비 총 전투력</span>
-      <strong class="eq-summary-value" id="eq-total-power">—</strong>
-    </div>
-
     <!-- 비인증 안내 -->
     <div class="eq-auth-prompt" id="eq-auth-prompt" style="display:none">
       헤더의 <strong>로그인</strong> 버튼으로 인증한 뒤 강화할 수 있어요.
     </div>
 
-    <!-- 6슬롯 그리드 — 정적 마크업으로 SSR, JS 가 값만 patch -->
-    <div class="eq-grid" id="eq-grid">
-      {EQUIPMENT_SLOTS.map((slot) => (
-        <div class="eq-slot" data-slot={slot}>
-          <div class="eq-slot-head">
-            <span class="eq-slot-icon">{SLOT_LABEL[slot].icon}</span>
-            <span class="eq-slot-name">{SLOT_LABEL[slot].name}</span>
-            <span class="eq-slot-level" data-field="level">+0</span>
-          </div>
-          <div class="eq-slot-power">
-            <span class="eq-slot-power-label">전투력</span>
-            <span class="eq-slot-power-value" data-field="power">—</span>
-          </div>
-          <div class="eq-slot-next" data-field="next">
-            <span class="eq-slot-next-cost"><span class="eq-icon">💎</span><span data-field="cost">—</span></span>
-            <span class="eq-slot-next-power">+<span data-field="delta">—</span></span>
-            <span class="eq-slot-next-rate"><span data-field="rate">—</span>%</span>
-          </div>
-          <button class="eq-slot-btn" data-action="enhance" data-slot={slot} type="button" disabled>
-            강화 시도
-          </button>
-          <div class="eq-slot-result" data-field="result"></div>
-        </div>
+    <!-- 캐릭터 중심 캔버스 — 모바일 폰 폼팩터 비율 (3:4) -->
+    <div class="eq-stage" id="eq-stage" data-state="loading">
+      <!-- 가운데 아바타 -->
+      <div class="eq-avatar">
+        <img class="eq-avatar-img" id="eq-avatar-img" alt="" />
+      </div>
+
+      <!-- 6슬롯 — 좌우 3:3 절대 위치 -->
+      {SLOT_LAYOUT.map(({ slot, side, row }) => (
+        <button
+          type="button"
+          class={`eq-slot eq-slot-${side} eq-slot-row-${row}`}
+          data-slot={slot}
+          data-action="open-modal"
+          aria-label={`${SLOT_LABEL[slot].name} 강화`}
+        >
+          <span class="eq-slot-badge" data-field="badge" hidden>+0</span>
+          <span class="eq-slot-icon">{SLOT_LABEL[slot].icon}</span>
+        </button>
       ))}
+
+      <!-- 하단: 장비 합산 전투력 -->
+      <div class="eq-totalpower" id="eq-totalpower">
+        <span class="eq-totalpower-icon">💎</span>
+        <span class="eq-totalpower-value" id="eq-total-power">—</span>
+        <span class="eq-totalpower-label">장비 총 전투력</span>
+      </div>
     </div>
+
+    <!-- 강화 모달 (네이티브 dialog) -->
+    <dialog class="eq-modal" id="eq-modal" aria-labelledby="eq-modal-title">
+      <div class="eq-modal-card">
+        <header class="eq-modal-head">
+          <span class="eq-modal-icon" data-field="icon">👑</span>
+          <div class="eq-modal-title-wrap">
+            <strong id="eq-modal-title" data-field="name">월계관</strong>
+            <span class="eq-modal-level" data-field="level-text">+0 단계</span>
+          </div>
+          <button
+            type="button"
+            class="eq-modal-close"
+            data-action="close-modal"
+            aria-label="닫기"
+          >×</button>
+        </header>
+
+        <section class="eq-modal-stats">
+          <div class="eq-modal-row">
+            <span class="eq-modal-row-label">현재 전투력</span>
+            <strong class="eq-modal-row-value" data-field="cur-power">+0</strong>
+          </div>
+          <div class="eq-modal-row eq-modal-row-after" data-field="after-row">
+            <span class="eq-modal-row-label">강화 후</span>
+            <strong class="eq-modal-row-value">
+              <span data-field="next-power">+0</span>
+              <em data-field="delta">(↑0)</em>
+            </strong>
+          </div>
+        </section>
+
+        <section class="eq-modal-cost" data-field="cost-section">
+          <div class="eq-modal-row">
+            <span class="eq-modal-row-label">💎 비용</span>
+            <strong class="eq-modal-row-value" data-field="cost">0</strong>
+          </div>
+          <div class="eq-modal-row">
+            <span class="eq-modal-row-label">성공 확률</span>
+            <strong class="eq-modal-row-value" data-field="rate">0%</strong>
+          </div>
+        </section>
+
+        <p class="eq-modal-note" data-field="note">실패해도 등급은 유지 — 크리스탈만 소모</p>
+
+        <button
+          type="button"
+          class="eq-modal-cta"
+          id="eq-modal-cta"
+          data-action="enhance"
+          disabled
+        >강화 시도</button>
+
+        <div class="eq-modal-result" data-field="result"></div>
+      </div>
+    </dialog>
   </div>
 </AppLayout>
 
