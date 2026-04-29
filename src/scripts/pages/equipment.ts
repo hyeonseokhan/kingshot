@@ -142,11 +142,35 @@ function setStageState(state: 'loading' | 'ready' | 'auth-required'): void {
 
 function renderAllSlots(): void {
   EQUIPMENT_SLOTS.forEach((slot) => renderSlot(slot));
+  // 6슬롯 등급 검사 후 아바타 uniform 효과 갱신
+  applyAvatarUniformEffect();
 }
 
 const ALL_TIER_CLASSES: ReadonlyArray<string> = (
   ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const
 ).map((t) => 'eq-slot-tier-' + t);
+
+const ALL_AVATAR_TIER_CLASSES: ReadonlyArray<string> = (
+  ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const
+).map((t) => 'eq-avatar-tier-' + t);
+
+/** 6 슬롯 모두 같은 등급일 때 그 tier 반환. 일반(common) 은 효과 X. */
+function uniformTier(): EquipmentTier | null {
+  if (slotState.size < EQUIPMENT_SLOTS.length) return null;
+  const tiers = Array.from(slotState.values()).map((s) => tierForLevel(s.level));
+  const first = tiers[0];
+  if (!first || first === 'common') return null;
+  return tiers.every((t) => t === first) ? first : null;
+}
+
+/** 6 슬롯 등급 검사 후 아바타 글로우 효과 적용/해제. */
+function applyAvatarUniformEffect(): void {
+  const avatar = document.querySelector<HTMLElement>('.eq-avatar');
+  if (!avatar) return;
+  ALL_AVATAR_TIER_CLASSES.forEach((c) => avatar.classList.remove(c));
+  const tier = uniformTier();
+  if (tier) avatar.classList.add('eq-avatar-tier-' + tier);
+}
 
 function renderSlot(slot: EquipmentSlot): void {
   const el = slotEl(slot);
@@ -210,17 +234,33 @@ function renderModal(slot: EquipmentSlot): void {
   const state = slotState.get(slot) ?? { level: 0, power: 0 };
   const next = enhanceCostFor(state.level);
   const label = SLOT_LABEL[slot];
+  const tier = tierForLevel(state.level);
 
   const iconEl = modalField('icon') as HTMLImageElement | null;
   if (iconEl) {
     iconEl.src = label.image;
     iconEl.alt = label.name;
   }
+  // 모달 슬롯 미니어처 — 페이지 슬롯과 동일한 등급 색상 + 배지 적용
+  const iconWrap = modalField('icon-wrap');
+  if (iconWrap) {
+    ALL_TIER_CLASSES.forEach((c) => iconWrap.classList.remove(c));
+    iconWrap.classList.add('eq-slot-tier-' + tier);
+  }
+  const modalBadge = modalField('modal-badge');
+  if (modalBadge) {
+    if (state.level === 0) {
+      modalBadge.hidden = true;
+    } else {
+      modalBadge.hidden = false;
+      modalBadge.textContent = '+' + state.level;
+    }
+  }
+
   const nameEl = modalField('name');
   if (nameEl) nameEl.textContent = label.name;
   const levelEl = modalField('level-text');
   if (levelEl) {
-    const tier = tierForLevel(state.level);
     levelEl.textContent = '+' + state.level + ' 단계 · ' + TIER_LABEL[tier];
   }
 
@@ -360,6 +400,8 @@ function handleEnhance(): void {
       const total = Array.from(slotState.values()).reduce((s, v) => s + v.power, 0);
       renderTotalPower(total);
       renderSlot(slot);
+      // 한 슬롯 등급 변화 → 6 슬롯 uniform 검사 다시 (아바타 효과 갱신)
+      applyAvatarUniformEffect();
 
       if (res.success) {
         const successMsg = '✨ +' + res.new_level + ' 강화 성공!';

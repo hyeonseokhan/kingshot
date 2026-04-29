@@ -89,12 +89,16 @@ const SLOT_LAYOUT = [
       <div id="eq-result-toast" class="eq-result-toast" data-active="false" aria-live="polite"></div>
       <div class="eq-modal-card">
         <header class="eq-modal-head">
-          <img
-            class="eq-modal-icon"
-            data-field="icon"
-            src="/images/items/crown.png"
-            alt=""
-          />
+          <!-- 슬롯 미니어처 — 강화 단계의 등급 색상 + 배지 동일 적용 -->
+          <div class="eq-slot eq-modal-slot-mini eq-slot-tier-common" data-field="icon-wrap">
+            <span class="eq-slot-badge" data-field="modal-badge" hidden>+0</span>
+            <img
+              class="eq-slot-icon"
+              data-field="icon"
+              src="/images/items/crown.png"
+              alt=""
+            />
+          </div>
           <div class="eq-modal-title-wrap">
             <strong id="eq-modal-title" data-field="name">월계관</strong>
             <span class="eq-modal-level" data-field="level-text">+0 단계</span>
