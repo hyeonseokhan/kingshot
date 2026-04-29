@@ -37,14 +37,17 @@ export function rewardForStage(stage: number): number {
 export const EQUIPMENT_SLOTS = ['crown', 'necklace', 'top', 'bottom', 'ring', 'staff'] as const;
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
 
-/** UI 표시용 한글 라벨 + 이모지. */
-export const SLOT_LABEL: Record<EquipmentSlot, { name: string; icon: string }> = {
-  crown:    { name: '월계관', icon: '👑' },
-  necklace: { name: '목걸이', icon: '📿' },
-  top:      { name: '상의',   icon: '👕' },
-  bottom:   { name: '하의',   icon: '👖' },
-  ring:     { name: '반지',   icon: '💍' },
-  staff:    { name: '지팡이', icon: '🪄' },
+/** UI 표시용 한글 라벨 + 아이콘 이미지 경로 (이모지 fallback). */
+export const SLOT_LABEL: Record<
+  EquipmentSlot,
+  { name: string; icon: string; image: string }
+> = {
+  crown:    { name: '월계관', icon: '👑', image: '/images/items/crown.png' },
+  necklace: { name: '목걸이', icon: '📿', image: '/images/items/necklace.png' },
+  top:      { name: '상의',   icon: '👕', image: '/images/items/top.png' },
+  bottom:   { name: '하의',   icon: '👖', image: '/images/items/bottom.png' },
+  ring:     { name: '반지',   icon: '💍', image: '/images/items/ring.png' },
+  staff:    { name: '지팡이', icon: '🪄', image: '/images/items/staff.png' },
 };
 
 export interface EnhanceStep {

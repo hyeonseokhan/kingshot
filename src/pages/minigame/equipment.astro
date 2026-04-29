@@ -57,7 +57,13 @@ const SLOT_LAYOUT = [
           aria-label={`${SLOT_LABEL[slot].name} 강화`}
         >
           <span class="eq-slot-badge" data-field="badge" hidden>+0</span>
-          <span class="eq-slot-icon">{SLOT_LABEL[slot].icon}</span>
+          <img
+            class="eq-slot-icon"
+            src={SLOT_LABEL[slot].image}
+            alt={SLOT_LABEL[slot].name}
+            loading="lazy"
+            decoding="async"
+          />
         </button>
       ))}
 
@@ -73,7 +79,12 @@ const SLOT_LAYOUT = [
     <dialog class="eq-modal" id="eq-modal" aria-labelledby="eq-modal-title">
       <div class="eq-modal-card">
         <header class="eq-modal-head">
-          <span class="eq-modal-icon" data-field="icon">👑</span>
+          <img
+            class="eq-modal-icon"
+            data-field="icon"
+            src="/images/items/crown.png"
+            alt=""
+          />
           <div class="eq-modal-title-wrap">
             <strong id="eq-modal-title" data-field="name">월계관</strong>
             <span class="eq-modal-level" data-field="level-text">+0 단계</span>
