@@ -34,11 +34,18 @@ interface BattleState {
   attacker_hp: number;
   defender_hp: number;
   turn: number;
+  is_ranked: boolean;
+  /** 직전 턴 attacker 카드 — cooldown 판정용 */
+  last_attacker_card: 'attack' | 'enhance' | 'defend' | null;
 }
 
 let currentOpponents: Opponent[] = [];
 let currentBattle: BattleState | null = null;
 let busy = false;
+/** 5회 다 쓰면 attacks_remaining = 0 → 검색 섹션 활성. -1 = 미확인. */
+let attacksRemaining = -1;
+/** 검색 모드 — 멤버 캐시 */
+let allMembersCache: { kingshot_id: string; nickname: string; profile_photo: string | null }[] | null = null;
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -105,9 +112,71 @@ function fetchDaily(playerId: string): Promise<void> {
     player_id: playerId,
   }).then((res) => {
     const remaining = res.ok ? (res.attacks_remaining ?? 5) : 5;
+    attacksRemaining = remaining;
     const el = $('pvp-daily-remaining');
     if (el) patchText(el, remaining);
+    // 5회 소진 시 연습 모드 배지 + 검색 섹션 표시
+    const banner = $('pvp-practice-banner');
+    const search = $('pvp-search-section');
+    const isPractice = remaining <= 0;
+    if (banner) banner.style.display = isPractice ? '' : 'none';
+    if (search) search.style.display = isPractice ? '' : 'none';
+    // 연습 모드 진입 시 멤버 목록 prefetch (캐시 없으면)
+    if (isPractice && !allMembersCache) {
+      fetchAllMembers(playerId);
+    }
   });
+}
+
+// ===== 검색 모드 — 5회 후 자유 매칭 =====
+
+function fetchAllMembers(myId: string): Promise<void> {
+  const url =
+    `${REST_URL}/members?select=kingshot_id,nickname,profile_photo&kingshot_id=neq.${encodeURIComponent(myId)}&order=nickname.asc&limit=300`;
+  return fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+    },
+  })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((rows: typeof allMembersCache) => {
+      allMembersCache = rows ?? [];
+      renderSearchList('');
+    })
+    .catch(() => {
+      allMembersCache = [];
+    });
+}
+
+function renderSearchList(query: string): void {
+  const list = $('pvp-search-list');
+  if (!list || !allMembersCache) return;
+  const q = query.trim().toLowerCase();
+  const filtered = q === ''
+    ? allMembersCache
+    : allMembersCache.filter(
+        (m) => m.nickname.toLowerCase().includes(q) || m.kingshot_id.includes(q),
+      );
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="pvp-search-empty">검색 결과 없음</div>';
+    return;
+  }
+  list.innerHTML = filtered
+    .slice(0, 50)
+    .map((m) => {
+      const avatar = m.profile_photo
+        ? `<img class="pvp-search-avatar" src="${m.profile_photo}" alt="" />`
+        : `<div class="pvp-search-avatar pvp-search-avatar-placeholder">${m.nickname.charAt(0)}</div>`;
+      return (
+        `<button class="pvp-search-item" type="button" data-target-id="${m.kingshot_id}">` +
+        avatar +
+        `<span class="pvp-search-item-name">${m.nickname}</span>` +
+        `<span class="pvp-search-item-arrow">⚔️</span>` +
+        `</button>`
+      );
+    })
+    .join('');
 }
 
 function renderOpponents(list: Opponent[], myPower: number): void {
@@ -157,15 +226,29 @@ interface StartResp {
   defender_hp?: number;
   turn?: number;
   attacks_remaining?: number;
+  is_ranked?: boolean;
   error?: string;
 }
 
-function onSelectOpponent(oppId: string): void {
+function onSelectOpponent(oppId: string, fallbackInfo?: { nickname: string; profile_photo: string | null }): void {
   if (busy) return;
   const session = window.TileMatchAuth?.getSession();
   if (!session?.player_id) return;
-  const opp = currentOpponents.find((o) => o.kingshot_id === oppId);
-  if (!opp) return;
+  // 자동 매칭 후보 또는 검색 결과에서 정보 가져오기
+  const opp = currentOpponents.find((o) => o.kingshot_id === oppId)
+    ?? (allMembersCache?.find((m) => m.kingshot_id === oppId) && {
+      kingshot_id: oppId,
+      nickname: allMembersCache.find((m) => m.kingshot_id === oppId)!.nickname,
+      profile_photo: allMembersCache.find((m) => m.kingshot_id === oppId)!.profile_photo,
+      power: 0,
+    });
+  if (!opp && !fallbackInfo) return;
+  const oppInfo = opp ?? {
+    kingshot_id: oppId,
+    nickname: fallbackInfo!.nickname,
+    profile_photo: fallbackInfo!.profile_photo,
+    power: 0,
+  };
 
   busy = true;
   postJson<StartResp>(FN_PVP_URL, {
@@ -175,28 +258,27 @@ function onSelectOpponent(oppId: string): void {
   })
     .then((res) => {
       if (!res.ok || !res.battle_id) {
-        if (res.error === 'daily_limit_reached') {
-          alert('오늘 공격 횟수를 모두 소진했어요. 내일 다시 도전하세요.');
-        } else {
-          alert('배틀 시작 실패: ' + (res.error ?? 'unknown'));
-        }
+        alert('배틀 시작 실패: ' + (res.error ?? 'unknown'));
         return;
       }
       currentBattle = {
         battle_id: res.battle_id,
         attacker_id: session.player_id,
         defender_id: oppId,
-        defender_nickname: opp.nickname,
-        defender_avatar: opp.profile_photo,
+        defender_nickname: oppInfo.nickname,
+        defender_avatar: oppInfo.profile_photo,
         attacker_power: res.attacker_power ?? 0,
         defender_power: res.defender_power ?? 0,
         attacker_hp: res.attacker_hp ?? 1000,
         defender_hp: res.defender_hp ?? 1000,
         turn: res.turn ?? 1,
+        is_ranked: res.is_ranked !== false,
+        last_attacker_card: null,
       };
-      renderBattle(session.nickname, opp);
+      renderBattle(session.nickname, oppInfo);
       showView('battle');
       // 일일 횟수 갱신
+      attacksRemaining = res.attacks_remaining ?? attacksRemaining;
       const el = $('pvp-daily-remaining');
       if (el && typeof res.attacks_remaining === 'number') patchText(el, res.attacks_remaining);
     })
@@ -277,8 +359,20 @@ function updateTurnInfo(): void {
 }
 
 function setCardsEnabled(enabled: boolean): void {
+  // 모든 카드 비활성/활성 + cooldown 표시 클래스 갱신
+  const lastCard = currentBattle?.last_attacker_card;
   document.querySelectorAll<HTMLButtonElement>('.pvp-card').forEach((b) => {
-    b.disabled = !enabled;
+    const card = b.dataset.card as 'attack' | 'enhance' | 'defend' | undefined;
+    if (!enabled || !card) {
+      b.disabled = true;
+      b.classList.remove('pvp-card-cooldown');
+      return;
+    }
+    // cooldown: 직전 턴 enhance/defend 사용했으면 attack 만 가능
+    const cooldownActive = lastCard === 'enhance' || lastCard === 'defend';
+    const isAvailable = !cooldownActive || card === 'attack';
+    b.disabled = !isAvailable;
+    b.classList.toggle('pvp-card-cooldown', cooldownActive && card !== 'attack');
   });
 }
 
@@ -299,6 +393,8 @@ interface PlayCardResp {
   defender_hp?: number;
   winner_id?: string | null;
   reward_crystals?: number;
+  collision?: boolean;
+  is_ranked?: boolean;
   error?: string;
 }
 
@@ -328,21 +424,23 @@ function onSelectCard(card: 'attack' | 'enhance' | 'defend'): void {
         setCardsEnabled(true);
         return;
       }
-      // HP / 턴 갱신
+      // HP / 턴 / cooldown 갱신
       currentBattle!.attacker_hp = res.attacker_hp ?? currentBattle!.attacker_hp;
       currentBattle!.defender_hp = res.defender_hp ?? currentBattle!.defender_hp;
       currentBattle!.turn = (res.turn ?? currentBattle!.turn) + 1;
+      currentBattle!.last_attacker_card = (res.a_card ?? null) as
+        | 'attack' | 'enhance' | 'defend' | null;
       updateHpBars();
       updateTurnInfo();
       renderLastTurn(res);
 
       if (res.last_turn || res.status === 'done') {
-        // 결과 화면 — 1초 딜레이 (마지막 턴 결과 보여주고 전환)
+        // 결과 화면 — 1.2초 딜레이 (마지막 턴 결과 보여주고 전환)
         window.setTimeout(() => {
           showResult(res);
-        }, 1000);
+        }, 1200);
       } else {
-        setCardsEnabled(true);
+        setCardsEnabled(true); // cooldown 자동 반영
       }
     })
     .finally(() => {
@@ -357,22 +455,40 @@ function renderLastTurn(res: PlayCardResp): void {
   const dName = CARD_NAME[res.d_card ?? ''] ?? '?';
   const aCrit = res.a_crit ? ' 💥CRIT' : '';
   const dCrit = res.d_crit ? ' 💥CRIT' : '';
+  const collisionBanner = res.collision
+    ? `<div class="pvp-last-turn-collision">💥 격돌! 양쪽 ${res.a_dmg_to_d ?? 0} 데미지</div>`
+    : '';
   el.innerHTML =
+    collisionBanner +
     `<div class="pvp-last-turn-row"><span>나</span><strong>${aName}${aCrit}</strong><span>→ ${res.a_dmg_to_d ?? 0} 데미지</span></div>` +
     `<div class="pvp-last-turn-row"><span>상대</span><strong>${dName}${dCrit}</strong><span>→ ${res.d_dmg_to_a ?? 0} 데미지</span></div>`;
   el.style.display = '';
+  el.classList.toggle('pvp-last-turn-collision-active', !!res.collision);
 }
 
 // ===== 결과 화면 =====
 
 function showResult(res: PlayCardResp): void {
   const win = res.winner_id === currentBattle?.attacker_id;
+  const isPractice = currentBattle?.is_ranked === false;
   const icon = $('pvp-result-icon');
-  if (icon) icon.textContent = win ? '🎉' : '💔';
+  if (icon) icon.textContent = isPractice ? (win ? '😆' : '😭') : (win ? '🎉' : '💔');
   const title = $('pvp-result-title');
-  if (title) title.textContent = win ? '승리!' : '패배';
+  if (title) {
+    title.textContent = isPractice
+      ? (win ? '연습 승리' : '연습 패배')
+      : (win ? '승리!' : '패배');
+  }
   const reward = $('pvp-result-reward');
-  if (reward) reward.textContent = '+' + (res.reward_crystals ?? 0).toLocaleString('ko-KR');
+  if (reward) {
+    if (isPractice) {
+      reward.textContent = '연습 매칭 — 보상 / 승수 X';
+      reward.classList.add('pvp-result-reward-practice');
+    } else {
+      reward.textContent = '+' + (res.reward_crystals ?? 0).toLocaleString('ko-KR');
+      reward.classList.remove('pvp-result-reward-practice');
+    }
+  }
   showView('result');
   // 잔액 broadcast — 헤더 위젯이 갱신됨
   if (typeof res.reward_crystals === 'number' && res.reward_crystals > 0) {
@@ -380,12 +496,13 @@ function showResult(res: PlayCardResp): void {
     window.dispatchEvent(new CustomEvent('crystal-balance-refresh-request'));
   }
   // 랭킹도 새로 fetch (PvP 승수 탭이 변경됐을 수 있음)
-  loadRanking(currentRankMode);
+  loadRanking();
 }
 
 // ===== 랭킹 =====
 
 let currentRankMode: 'power' | 'pvp_wins' = 'power';
+let cachedRankings: RankingRow[] = [];
 
 interface RankingRow {
   kingshot_id: string;
@@ -395,9 +512,8 @@ interface RankingRow {
   pvp_wins: number;
 }
 
-function loadRanking(mode: 'power' | 'pvp_wins'): void {
-  currentRankMode = mode;
-  // 멤버 + equipment_levels(power) → 클라이언트 합산. PvP 승수는 별도 쿼리.
+/** 멤버 + 장비 power + PvP 승수 fetch → cache 후 현재 mode 로 렌더. */
+function loadRanking(): void {
   const url =
     `${REST_URL}/members?select=kingshot_id,nickname,profile_photo,equipment_levels(power)&order=nickname.asc&limit=200`;
   fetch(url, {
@@ -428,10 +544,12 @@ function loadRanking(mode: 'power' | 'pvp_wins'): void {
       });
     })
     .then((rows) => {
-      renderRanking(rows, currentRankMode);
+      cachedRankings = rows;
+      renderRanking();
     })
     .catch(() => {
-      renderRanking([], currentRankMode);
+      cachedRankings = [];
+      renderRanking();
     });
 }
 
@@ -456,32 +574,37 @@ function fetchPvpWins(): Promise<Record<string, number>> {
     .catch(() => ({}));
 }
 
-function renderRanking(rows: RankingRow[], mode: 'power' | 'pvp_wins'): void {
-  const host = $('pvp-ranking-list');
-  if (!host) return;
-  if (rows.length === 0) {
-    host.innerHTML = '<div class="pvp-ranking-empty">데이터 없음</div>';
-    return;
+/** cachedRankings 를 currentRankMode 기준 내림차순으로 정렬해 렌더. */
+function renderRanking(): void {
+  const body = $('pvp-ranking-body');
+  if (!body) return;
+  if (cachedRankings.length === 0) {
+    body.innerHTML = '<div class="pvp-ranking-empty">데이터 없음</div>';
+  } else {
+    const sorted = [...cachedRankings]
+      .sort((a, b) => (b[currentRankMode] || 0) - (a[currentRankMode] || 0))
+      .slice(0, 20);
+    body.innerHTML = sorted
+      .map((r, i) => {
+        const avatar = r.profile_photo
+          ? `<img class="pvp-rank-avatar" src="${r.profile_photo}" alt="" />`
+          : `<div class="pvp-rank-avatar pvp-rank-avatar-placeholder">${r.nickname.charAt(0)}</div>`;
+        return (
+          `<div class="pvp-rank-row">` +
+          `<span class="pvp-rank-pos">${i + 1}</span>` +
+          avatar +
+          `<span class="pvp-rank-name">${r.nickname}</span>` +
+          `<span class="pvp-rank-cell-power">${r.power.toLocaleString('ko-KR')}</span>` +
+          `<span class="pvp-rank-cell-wins">${r.pvp_wins.toLocaleString('ko-KR')}</span>` +
+          `</div>`
+        );
+      })
+      .join('');
   }
-  // 정렬
-  const sorted = [...rows].sort((a, b) => (b[mode] || 0) - (a[mode] || 0)).slice(0, 20);
-  const valueLabel = mode === 'power' ? '⚔️' : '🏆';
-  host.innerHTML = sorted
-    .map((r, i) => {
-      const v = r[mode] || 0;
-      const avatar = r.profile_photo
-        ? `<img class="pvp-rank-avatar" src="${r.profile_photo}" alt="" />`
-        : `<div class="pvp-rank-avatar pvp-rank-avatar-placeholder">${r.nickname.charAt(0)}</div>`;
-      return (
-        `<div class="pvp-rank-row">` +
-        `<span class="pvp-rank-pos">${i + 1}</span>` +
-        avatar +
-        `<span class="pvp-rank-name">${r.nickname}</span>` +
-        `<span class="pvp-rank-value">${valueLabel} ${v.toLocaleString('ko-KR')}</span>` +
-        `</div>`
-      );
-    })
-    .join('');
+  // 헤더 active 표시 (정렬 ▼ 화살표는 CSS ::after 로)
+  document.querySelectorAll<HTMLButtonElement>('.pvp-rank-h-sort').forEach((b) => {
+    b.classList.toggle('active', b.dataset.sort === currentRankMode);
+  });
 }
 
 // ===== 인증 흐름 =====
@@ -492,11 +615,11 @@ function onSessionReady(session: { player_id: string; nickname: string } | null)
     showView('matching');
     fetchOpponents(session.player_id);
     fetchDaily(session.player_id);
-    loadRanking(currentRankMode);
+    loadRanking();
   } else {
     showAuthPrompt();
     // 비인증 사용자도 랭킹은 보여줌
-    loadRanking(currentRankMode);
+    loadRanking();
   }
 }
 
@@ -518,6 +641,19 @@ export function initPvP(): void {
   $('pvp-refresh-btn')?.addEventListener('click', () => {
     const session = window.TileMatchAuth?.getSession();
     if (session?.player_id) fetchOpponents(session.player_id);
+  });
+
+  // 검색 input — 연습 모드 시 멤버 검색
+  ($('pvp-search-input') as HTMLInputElement | null)?.addEventListener('input', (e) => {
+    renderSearchList((e.target as HTMLInputElement).value);
+  });
+
+  // 검색 결과 클릭 — defender 직접 선택 (연습 모드 — is_ranked=false 자동)
+  $('pvp-search-list')?.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement).closest<HTMLButtonElement>('.pvp-search-item');
+    if (!target) return;
+    const id = target.dataset.targetId;
+    if (id) onSelectOpponent(id);
   });
 
   // 카드 클릭
@@ -548,15 +684,13 @@ export function initPvP(): void {
     }
   });
 
-  // 랭킹 탭
-  document.querySelectorAll<HTMLButtonElement>('.pvp-ranking-tab').forEach((b) => {
+  // 랭킹 컬럼 헤더 클릭 → 그 컬럼 기준 내림차순 재정렬 (fetch 안 함, cachedRankings 재렌더만)
+  document.querySelectorAll<HTMLButtonElement>('.pvp-rank-h-sort').forEach((b) => {
     b.addEventListener('click', () => {
-      const mode = b.dataset.rank as 'power' | 'pvp_wins' | undefined;
-      if (!mode) return;
-      document.querySelectorAll<HTMLButtonElement>('.pvp-ranking-tab').forEach((x) =>
-        x.classList.toggle('active', x === b),
-      );
-      loadRanking(mode);
+      const mode = b.dataset.sort as 'power' | 'pvp_wins' | undefined;
+      if (!mode || mode === currentRankMode) return;
+      currentRankMode = mode;
+      renderRanking();
     });
   });
 

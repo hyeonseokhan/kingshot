@@ -40,10 +40,15 @@ const navItems = minigame.submenus!.map((s) => ({
 
     <!-- view: matching (default) -->
     <section class="pvp-view" data-view="matching" id="pvp-view-matching">
-      <div class="pvp-daily">
+      <div class="pvp-daily" id="pvp-daily-panel">
         <span class="pvp-daily-label">오늘 남은 공격</span>
         <strong class="pvp-daily-value" id="pvp-daily-remaining">—</strong>
         <span class="pvp-daily-max">/ 5</span>
+      </div>
+
+      <!-- 연습 모드 안내 (5회 소진 시) -->
+      <div class="pvp-practice-banner" id="pvp-practice-banner" style="display:none">
+        💡 <strong>연습 모드</strong> — 보상/승수는 적립되지 않아요. 누구든 자유롭게 도전 가능.
       </div>
 
       <div class="pvp-section-head">
@@ -51,9 +56,26 @@ const navItems = minigame.submenus!.map((s) => ({
         <button class="pvp-refresh-btn" type="button" id="pvp-refresh-btn">🔄 새로 고침</button>
       </div>
 
-      <div class="pvp-opponents" id="pvp-opponents"></div>
+      <div class="pvp-opponents-box">
+        <div class="pvp-opponents" id="pvp-opponents"></div>
+      </div>
 
       <p class="pvp-note" id="pvp-matching-note"></p>
+
+      <!-- 연습 모드: 직접 검색 도전 (5회 소진 시 표시) -->
+      <div class="pvp-search-section" id="pvp-search-section" style="display:none">
+        <div class="pvp-section-head">
+          <h2>다른 연맹원에게 도전</h2>
+        </div>
+        <input
+          type="text"
+          class="tm-auth-search"
+          id="pvp-search-input"
+          placeholder="닉네임 또는 ID 검색"
+          autocomplete="off"
+        />
+        <div class="pvp-search-list" id="pvp-search-list"></div>
+      </div>
     </section>
 
     <!-- view: battle -->
@@ -97,19 +119,23 @@ const navItems = minigame.submenus!.map((s) => ({
         <button class="pvp-card pvp-card-attack" type="button" data-card="attack">
           <span class="pvp-card-icon">⚔️</span>
           <strong class="pvp-card-name">공격</strong>
-          <span class="pvp-card-desc">1.2~1.5배 데미지</span>
+          <span class="pvp-card-desc">매턴 사용</span>
         </button>
         <button class="pvp-card pvp-card-enhance" type="button" data-card="enhance">
           <span class="pvp-card-icon">✨</span>
           <strong class="pvp-card-name">강화</strong>
-          <span class="pvp-card-desc">크리티컬 30% (×2)</span>
+          <span class="pvp-card-desc">크리 30% / 1턴 쿨</span>
         </button>
         <button class="pvp-card pvp-card-defend" type="button" data-card="defend">
           <span class="pvp-card-icon">🛡️</span>
           <strong class="pvp-card-name">방어</strong>
-          <span class="pvp-card-desc">받는 데미지 절반</span>
+          <span class="pvp-card-desc">데미지 절반 / 1턴 쿨</span>
         </button>
       </div>
+
+      <p class="pvp-mechanics-hint">
+        💥 양쪽이 <strong>공격</strong> 동시 선택 시 <strong>격돌</strong> — 양쪽 HP 20% 깎임 (전투력 무관)
+      </p>
     </section>
 
     <!-- view: result -->
@@ -129,17 +155,21 @@ const navItems = minigame.submenus!.map((s) => ({
       </div>
     </section>
 
-    <!-- 랭킹 섹션 (페이지 하단 통합) -->
+    <!-- 랭킹 섹션 (페이지 하단 통합 — 컬럼 헤더 클릭 정렬) -->
     <section class="pvp-ranking">
       <div class="pvp-section-head">
         <h2>랭킹</h2>
-        <div class="pvp-ranking-tabs">
-          <button class="pvp-ranking-tab active" type="button" data-rank="power">전투력</button>
-          <button class="pvp-ranking-tab" type="button" data-rank="pvp_wins">PvP 승수</button>
-        </div>
       </div>
-      <div class="pvp-ranking-list" id="pvp-ranking-list">
-        <div class="pvp-ranking-empty">불러오는 중...</div>
+      <div class="pvp-rank-table" id="pvp-ranking-table">
+        <div class="pvp-rank-header">
+          <span class="pvp-rank-h-pos">#</span>
+          <span class="pvp-rank-h-name">닉네임</span>
+          <button class="pvp-rank-h-sort active" type="button" data-sort="power">⚔️ 전투력</button>
+          <button class="pvp-rank-h-sort" type="button" data-sort="pvp_wins">🏆 승수</button>
+        </div>
+        <div class="pvp-rank-body" id="pvp-ranking-body">
+          <div class="pvp-ranking-empty">불러오는 중...</div>
+        </div>
       </div>
     </section>
   </div>

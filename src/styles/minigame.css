@@ -1719,32 +1719,33 @@
   background: #e2e8f0;
 }
 
-/* 후보 카드 그리드 */
+/* 후보 카드 그리드 — 모바일/데스크톱 모두 3-column 가로 정렬, 외곽 박스 */
+.pvp-opponents-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
 .pvp-opponents {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-@media (max-width: 480px) {
-  .pvp-opponents {
-    grid-template-columns: 1fr;
-  }
+  gap: 8px;
 }
 
 .pvp-opponent {
   appearance: none;
   background: #ffffff;
   border: 2px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 14px 10px;
+  border-radius: 12px;
+  padding: 10px 6px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .pvp-opponent:hover {
   transform: translateY(-2px);
@@ -1752,11 +1753,15 @@
   box-shadow: 0 8px 16px rgba(99, 102, 241, 0.18);
 }
 .pvp-opponent-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
   object-fit: cover;
   background: #e2e8f0;
+}
+@media (min-width: 480px) {
+  .pvp-opponent-avatar { width: 56px; height: 56px; }
+  .pvp-opponent { padding: 14px 10px; gap: 6px; }
 }
 .pvp-opponent-avatar-placeholder {
   display: flex;
@@ -1767,15 +1772,23 @@
   color: #64748b;
 }
 .pvp-opponent-name {
-  font-size: 13px;
+  font-size: 12px;
   color: #0f172a;
   font-weight: 700;
   text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pvp-opponent-power {
-  font-size: 12px;
+  font-size: 11px;
   color: #475569;
   font-variant-numeric: tabular-nums;
+}
+@media (min-width: 480px) {
+  .pvp-opponent-name { font-size: 13px; }
+  .pvp-opponent-power { font-size: 12px; }
 }
 .pvp-opponent-empty {
   grid-column: 1 / -1;
@@ -2031,45 +2044,68 @@
   padding-top: 24px;
   border-top: 1px solid #e2e8f0;
 }
-.pvp-ranking-tabs {
-  display: flex;
-  gap: 4px;
-}
-.pvp-ranking-tab {
-  appearance: none;
-  background: transparent;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
-  font-size: 12px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.12s;
-}
-.pvp-ranking-tab:hover {
-  background: #f1f5f9;
-}
-.pvp-ranking-tab.active {
-  background: #6366f1;
-  border-color: #6366f1;
-  color: #ffffff;
-}
-
-.pvp-ranking-list {
+/* 랭킹 — 한 테이블에 전투력/승수 동시 표시, 컬럼 헤더 클릭으로 내림차순 정렬 */
+.pvp-rank-table {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
 }
+.pvp-rank-header,
 .pvp-rank-row {
   display: grid;
-  grid-template-columns: 28px 32px 1fr auto;
+  grid-template-columns: 28px 28px minmax(0, 1fr) 78px 56px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 8px 10px;
-  background: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
+}
+.pvp-rank-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+.pvp-rank-h-pos,
+.pvp-rank-h-name {
+  text-align: left;
+}
+.pvp-rank-h-sort {
+  appearance: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  padding: 0;
+  text-align: right;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+.pvp-rank-h-sort:hover {
+  color: #4338ca;
+}
+.pvp-rank-h-sort.active {
+  color: #4338ca;
+}
+.pvp-rank-h-sort.active::after {
+  content: ' ▼';
+  font-size: 10px;
+}
+
+.pvp-rank-body {
+  display: flex;
+  flex-direction: column;
+}
+.pvp-rank-row {
+  border-top: 1px solid #f1f5f9;
+}
+.pvp-rank-row:first-child {
+  border-top: none;
 }
 .pvp-rank-pos {
   font-weight: 800;
@@ -2077,7 +2113,7 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
-.pvp-rank-row:nth-child(1) .pvp-rank-pos { color: #d97706; }
+.pvp-rank-row:nth-child(1) .pvp-rank-pos { color: #d97706; font-size: 14px; }
 .pvp-rank-row:nth-child(2) .pvp-rank-pos { color: #64748b; }
 .pvp-rank-row:nth-child(3) .pvp-rank-pos { color: #92400e; }
 .pvp-rank-avatar {
@@ -2103,13 +2139,164 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pvp-rank-value {
+.pvp-rank-cell-power {
   font-size: 13px;
   font-weight: 700;
-  color: #475569;
+  color: #4338ca;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.pvp-rank-cell-wins {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b45309;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .pvp-ranking-empty {
+  padding: 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* ===== PvP cooldown / 격돌 / 검색 / 연습 모드 ===== */
+
+/* 카드 cooldown — 직전 턴 enhance/defend 사용 시 disabled 표시 */
+.pvp-card-cooldown {
+  position: relative;
+  opacity: 0.45;
+}
+.pvp-card-cooldown::after {
+  content: '🔒';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 14px;
+}
+
+/* 격돌 효과 — 직전 턴 결과 박스 빨간 강조 */
+.pvp-last-turn-collision {
+  background: linear-gradient(180deg, #ef4444, #b91c1c);
+  color: #fff;
+  font-weight: 900;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.30);
+  animation: pvpCollisionFlash 0.6s ease-out;
+}
+@keyframes pvpCollisionFlash {
+  0%   { transform: scale(0.8); opacity: 0; }
+  40%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 메커니즘 힌트 */
+.pvp-mechanics-hint {
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+.pvp-mechanics-hint strong {
+  color: #dc2626;
+}
+
+/* 연습 모드 배지 */
+.pvp-practice-banner {
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #ede9fe, #ddd6fe);
+  border: 1px solid #c4b5fd;
+  border-radius: 10px;
+  color: #5b21b6;
+  font-size: 13px;
+  text-align: center;
+}
+.pvp-practice-banner strong {
+  color: #4338ca;
+}
+
+/* 결과 화면 — 연습 모드 보상 표시 */
+.pvp-result-reward.pvp-result-reward-practice {
+  background: #ede9fe;
+  color: #6b21a8;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* 검색 섹션 — 5회 후 자유 매칭 */
+.pvp-search-section {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8f0;
+}
+.pvp-search-section .tm-auth-search {
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+.pvp-search-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px;
+  background: #ffffff;
+}
+.pvp-search-item {
+  appearance: none;
+  background: transparent;
+  border: none;
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s;
+  text-align: left;
+}
+.pvp-search-item:hover {
+  background: #f8fafc;
+}
+.pvp-search-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+.pvp-search-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+}
+.pvp-search-item-name {
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pvp-search-item-arrow {
+  font-size: 14px;
+  color: #94a3b8;
+}
+.pvp-search-empty {
   padding: 16px;
   text-align: center;
   color: #94a3b8;

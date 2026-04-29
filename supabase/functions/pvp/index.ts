@@ -106,15 +106,27 @@ async function dbRpc<T = unknown>(fnName: string, args: Record<string, unknown>)
 // ============================================================
 const HP_INITIAL = 1000;
 const MAX_TURNS = 5;
-const DAILY_ATTACK_LIMIT = 5;
+const DAILY_ATTACK_LIMIT = 5;       // 5회까지만 ranked (보상 + 승수)
 const REWARD_WIN = 200;
 const REWARD_LOSE = 50;
-const DEFENSE_FACTOR = 0.1; // EnemyPower × 0.1 = 데미지 감산
-const DEFEND_REDUCTION = 0.5; // 방어 카드 시 받는 데미지 50% 감소
+
+// 데미지 공식 (share-based):
+//   share = MyPower / max(1, MyPower + EnemyPower)
+//   base  = HP_INITIAL × DAMAGE_RATIO_BASE × cardEffect × random × critMult × share
+//   chip  = HP_INITIAL × MIN_CHIP_RATIO × cardEffect × random × critMult   (약자 보호)
+//   damage = floor(base + chip)
+//   defender 가 defend 면 damage *= DEFEND_REDUCTION
+const DAMAGE_RATIO_BASE = 0.25;
+const MIN_CHIP_RATIO = 0.04;
+const DEFEND_REDUCTION = 0.5;       // 방어 카드 시 받는 데미지 50% 감소
 const ENHANCE_CRIT_RATE = 0.30;
 const ENHANCE_CRIT_MULT = 2.0;
+
+// 격돌 — 양쪽 동시 attack 카드 시 양쪽 HP 20% 깎임 (일반 데미지 X)
+const COLLISION_DAMAGE_RATIO = 0.20;
+
 const OPPONENT_CANDIDATES = 3;
-const OPPONENT_POWER_RANGE = 0.5; // 자기 power 의 ±50% 안 매칭 우선
+const OPPONENT_POWER_RANGE = 0.5;   // 자기 power 의 ±50% 안 매칭 우선
 
 type CardKind = "attack" | "enhance" | "defend";
 const VALID_CARDS: ReadonlyArray<CardKind> = ["attack", "enhance", "defend"];
@@ -152,12 +164,19 @@ interface CardOutcome {
 
 /**
  * 한 카드의 raw 데미지 계산 (defender 의 defend 효과는 호출 측에서 후처리).
- * 입력: attackerPower, attackerCard
- * 출력: damage (defender 의 defense 차감 후 0 이상), isCrit (강화 카드 크리티컬)
  *
- * 데미지 공식:
- *   raw = attackerPower × cardEffect × Random(0.85~1.15) × critMult
- *   damage = max(0, floor(raw - defenderPower × DEFENSE_FACTOR))
+ * 새 공식 — share-based + chip:
+ *   share = attackerPower / max(1, attackerPower + defenderPower)
+ *   base  = HP_INITIAL × DAMAGE_RATIO_BASE × cardEffect × random × critMult × share
+ *   chip  = HP_INITIAL × MIN_CHIP_RATIO × cardEffect × random × critMult   (약자 보호 floor)
+ *   damage = floor(base + chip)
+ *
+ * 효과:
+ *   - 동등 power: 평균 ~218 데미지 → 5턴 풀 진행
+ *   - 큰 power 차이: 강자 우세 but 1턴 즉사 X
+ *   - power 0 약자도 chip 으로 ~54 데미지 줌
+ *
+ * 격돌(collision) 처리는 이 함수가 아닌 simulate 측에서 별도 — 양쪽 attack 시 양쪽 200 정액 데미지.
  */
 function rollCardDamage(
   attackerPower: number,
@@ -171,7 +190,6 @@ function rollCardDamage(
   if (attackerCard === "attack") {
     cardEffect = 1.2 + Math.random() * 0.3; // 1.2 ~ 1.5
   } else {
-    // enhance — 1.0 + 크리티컬 30%
     cardEffect = 1.0;
     if (Math.random() < ENHANCE_CRIT_RATE) {
       critMult = ENHANCE_CRIT_MULT;
@@ -179,15 +197,28 @@ function rollCardDamage(
     }
   }
   const luck = 0.85 + Math.random() * 0.30;
-  const raw = attackerPower * cardEffect * luck * critMult;
-  const damage = Math.max(0, Math.floor(raw - defenderPower * DEFENSE_FACTOR));
-  return { damage, isCrit };
+  const totalPower = Math.max(1, attackerPower + defenderPower);
+  const share = attackerPower / totalPower;
+  const base = HP_INITIAL * DAMAGE_RATIO_BASE * cardEffect * luck * critMult * share;
+  const chip = HP_INITIAL * MIN_CHIP_RATIO * cardEffect * luck * critMult;
+  return { damage: Math.max(0, Math.floor(base + chip)), isCrit };
 }
 
-/** 방어자 자동 카드 선택 — 단순 random (추후 AI 강화 가능). */
-function pickDefenderCard(): CardKind {
+/** cooldown 검사 — enhance/defend 사용 직후 다음 턴은 attack 만 가능. */
+function isCardAvailable(card: CardKind, lastCard: CardKind | null): boolean {
+  if (lastCard === "enhance" || lastCard === "defend") {
+    return card === "attack";
+  }
+  return true;
+}
+
+/** 방어자 자동 카드 — cooldown 고려해 가능 카드 중 random. */
+function pickDefenderCardWithCooldown(lastCard: CardKind | null): CardKind {
+  if (lastCard === "enhance" || lastCard === "defend") return "attack";
   return VALID_CARDS[Math.floor(Math.random() * VALID_CARDS.length)]!;
 }
+
+// (구) pickDefenderCard 제거 — pickDefenderCardWithCooldown 사용
 
 // ============================================================
 // 액션: list-opponents
@@ -283,20 +314,21 @@ async function startBattle(attackerId: string, defenderId: unknown) {
   );
   if (!defender) return { ok: false, error: "defender_not_found" };
 
-  // 일일 공격 횟수 검증 + 증가
+  // 일일 공격 횟수 — 5회 안 = ranked, 5회 후 = 연습 모드 (보상/승수 X, 자유 매칭)
   const today = todayKst();
   const dailyRow = await dbSelectOne<{ attacks_used: number }>(
     `pvp_daily_state?player_id=eq.${encodeURIComponent(attackerId)}&date_kst=eq.${today}&select=attacks_used`,
   );
   const used = dailyRow?.attacks_used ?? 0;
-  if (used >= DAILY_ATTACK_LIMIT) {
-    return { ok: false, error: "daily_limit_reached", attacks_used: used, max: DAILY_ATTACK_LIMIT };
+  const isRankedBattle = used < DAILY_ATTACK_LIMIT;
+  if (isRankedBattle) {
+    await dbUpsert(
+      "pvp_daily_state",
+      { player_id: attackerId, date_kst: today, attacks_used: used + 1 },
+      "player_id,date_kst",
+    );
   }
-  await dbUpsert(
-    "pvp_daily_state",
-    { player_id: attackerId, date_kst: today, attacks_used: used + 1 },
-    "player_id,date_kst",
-  );
+  // 5회 후엔 attacks_used 증가 X — 매번 연습 모드로 진행
 
   // power 스냅샷
   const [attackerPower, defenderPower] = await Promise.all([
@@ -314,6 +346,7 @@ async function startBattle(attackerId: string, defenderId: unknown) {
       defender_power: defenderPower,
       turns_log: [],
       status: "in_progress",
+      is_ranked: isRankedBattle,
     },
     true,
   );
@@ -326,7 +359,8 @@ async function startBattle(attackerId: string, defenderId: unknown) {
     attacker_hp: HP_INITIAL,
     defender_hp: HP_INITIAL,
     turn: 1,
-    attacks_remaining: DAILY_ATTACK_LIMIT - used - 1,
+    attacks_remaining: Math.max(0, DAILY_ATTACK_LIMIT - used - (isRankedBattle ? 1 : 0)),
+    is_ranked: isRankedBattle,
   };
 }
 
@@ -342,6 +376,7 @@ interface BattleRow {
   winner_id: string | null;
   turns_log: TurnLogEntry[];
   status: "in_progress" | "done";
+  is_ranked?: boolean;
 }
 
 interface TurnLogEntry {
@@ -354,6 +389,7 @@ interface TurnLogEntry {
   d_crit: boolean;
   a_hp_after: number;
   d_hp_after: number;
+  collision?: boolean;
 }
 
 async function playCard(playerId: string, battleId: unknown, card: unknown) {
@@ -370,25 +406,46 @@ async function playCard(playerId: string, battleId: unknown, card: unknown) {
   const turn = battle.turns_log.length + 1;
   if (turn > MAX_TURNS) return { ok: false, error: "max_turns_reached" };
 
-  // 이전 턴까지의 HP 추적
+  // 이전 턴 HP / cooldown 추적
   const lastEntry = battle.turns_log[battle.turns_log.length - 1];
   const prevAttackerHp = lastEntry?.a_hp_after ?? HP_INITIAL;
   const prevDefenderHp = lastEntry?.d_hp_after ?? HP_INITIAL;
+  const lastACard = lastEntry?.a_card ?? null;
+  const lastDCard = lastEntry?.d_card ?? null;
 
-  // defender 카드 자동 선택
-  const defenderCard = pickDefenderCard();
+  // cooldown 검증 — 직전 턴 enhance/defend 사용했으면 이번 턴은 attack 만 가능
+  if (!isCardAvailable(card, lastACard)) {
+    return { ok: false, error: "card_on_cooldown", required: "attack" };
+  }
 
-  // 양쪽 데미지 계산 (서로 동시에 카드 사용)
-  const aOutcome = rollCardDamage(battle.attacker_power, card, battle.defender_power);
-  const dOutcome = rollCardDamage(battle.defender_power, defenderCard, battle.attacker_power);
+  // defender 카드 자동 선택 (cooldown 고려)
+  const defenderCard = pickDefenderCardWithCooldown(lastDCard);
 
-  // defend 카드는 받는 데미지 50% 감소 (양쪽 동시 처리)
-  const aDmgToD = defenderCard === "defend"
-    ? Math.floor(aOutcome.damage * DEFEND_REDUCTION)
-    : aOutcome.damage;
-  const dDmgToA = card === "defend"
-    ? Math.floor(dOutcome.damage * DEFEND_REDUCTION)
-    : dOutcome.damage;
+  // 격돌 처리 — 양쪽 동시 attack 시 일반 데미지 X, 양쪽 HP 20% 정액 깎임
+  let aDmgToD: number;
+  let dDmgToA: number;
+  let aCrit = false;
+  let dCrit = false;
+  let isCollision = false;
+
+  if (card === "attack" && defenderCard === "attack") {
+    isCollision = true;
+    const collisionDmg = Math.floor(HP_INITIAL * COLLISION_DAMAGE_RATIO);
+    aDmgToD = collisionDmg;
+    dDmgToA = collisionDmg;
+  } else {
+    const aOutcome = rollCardDamage(battle.attacker_power, card, battle.defender_power);
+    const dOutcome = rollCardDamage(battle.defender_power, defenderCard, battle.attacker_power);
+    aCrit = aOutcome.isCrit;
+    dCrit = dOutcome.isCrit;
+    // defend 카드는 받는 데미지 50% 감소 (양쪽 동시 처리)
+    aDmgToD = defenderCard === "defend"
+      ? Math.floor(aOutcome.damage * DEFEND_REDUCTION)
+      : aOutcome.damage;
+    dDmgToA = card === "defend"
+      ? Math.floor(dOutcome.damage * DEFEND_REDUCTION)
+      : dOutcome.damage;
+  }
 
   const newAttackerHp = Math.max(0, prevAttackerHp - dDmgToA);
   const newDefenderHp = Math.max(0, prevDefenderHp - aDmgToD);
@@ -399,10 +456,11 @@ async function playCard(playerId: string, battleId: unknown, card: unknown) {
     d_card: defenderCard,
     a_dmg_to_d: aDmgToD,
     d_dmg_to_a: dDmgToA,
-    a_crit: aOutcome.isCrit,
-    d_crit: dOutcome.isCrit,
+    a_crit: aCrit,
+    d_crit: dCrit,
     a_hp_after: newAttackerHp,
     d_hp_after: newDefenderHp,
+    collision: isCollision,
   };
 
   // 종료 판정: HP 0 또는 마지막 턴
@@ -415,9 +473,10 @@ async function playCard(playerId: string, battleId: unknown, card: unknown) {
     else winnerId = battle.defender_id; // 동률 → defender 승 (attacker 도전자 패널티)
   }
 
-  // 보상 계산 + 적립
+  // 보상 계산 + 적립 — 단 ranked 매치만 (연습 모드 = is_ranked false 는 보상 X)
   let rewardCrystals = 0;
-  if (isLastTurn) {
+  const isRanked = battle.is_ranked !== false; // null/undefined 도 ranked 로 간주 (구 데이터)
+  if (isLastTurn && isRanked) {
     rewardCrystals = winnerId === battle.attacker_id ? REWARD_WIN : REWARD_LOSE;
     // attacker 만 보상 (defender 는 자동 응전이라 무보상)
     try {
@@ -458,6 +517,8 @@ async function playCard(playerId: string, battleId: unknown, card: unknown) {
     d_card: defenderCard,
     a_dmg_to_d: aDmgToD,
     d_dmg_to_a: dDmgToA,
+    collision: isCollision,
+    is_ranked: isRanked,
     a_crit: aOutcome.isCrit,
     d_crit: dOutcome.isCrit,
     attacker_hp: newAttackerHp,
