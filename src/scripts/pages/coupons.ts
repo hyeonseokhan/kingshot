@@ -154,70 +154,96 @@ function daysUntilExpire(isoStr: string | null | undefined): number | null {
   return Math.floor(diff / (24 * 60 * 60 * 1000));
 }
 
+function createCouponCard(c: ActiveCoupon): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'coupon-card';
+  card.setAttribute('role', 'button');
+  card.tabIndex = 0;
+  card.innerHTML = `
+    <span class="coupon-badge-active"></span>
+    <span class="coupon-code"></span>
+    <span class="coupon-expires"></span>
+  `;
+  updateCouponCard(card, c);
+  return card;
+}
+
+function updateCouponCard(card: HTMLElement, c: ActiveCoupon): void {
+  const days = daysUntilExpire(c.expiresAt);
+  const expiring = days !== null && days <= 3;
+  const selected = selectedCouponCode === c.code;
+  card.className =
+    'coupon-card' +
+    (expiring ? ' coupon-expiring' : '') +
+    (selected ? ' coupon-selected' : '');
+  card.dataset.code = c.code;
+
+  patchText(
+    card.querySelector<HTMLElement>('.coupon-badge-active'),
+    selected ? '선택됨' : 'ACTIVE',
+  );
+  patchText(card.querySelector<HTMLElement>('.coupon-code'), c.code);
+
+  // 만료 영역은 텍스트 + 옵션 배지 → outerHTML 대신 자식 두 개로 분리
+  const expiresEl = card.querySelector<HTMLElement>('.coupon-expires')!;
+  const baseText = '만료: ' + (c.expiresAt ? formatDate(c.expiresAt) : '무기한');
+  // 텍스트 노드만 갱신 (배지는 별도)
+  let textNode = expiresEl.firstChild;
+  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+    textNode = document.createTextNode('');
+    expiresEl.insertBefore(textNode, expiresEl.firstChild);
+  }
+  if (textNode.textContent !== baseText) textNode.textContent = baseText;
+
+  let badge = expiresEl.querySelector<HTMLElement>('.coupon-badge-expiring');
+  if (expiring) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'coupon-badge-expiring';
+      expiresEl.appendChild(badge);
+    }
+    patchText(badge, days! <= 0 ? '곧 만료' : 'D-' + days);
+  } else {
+    badge?.remove();
+  }
+}
+
 function renderCoupons(): void {
-  const el = maybe('coupon-list');
-  if (!el) return;
+  const cardsEl = maybe('coupon-cards');
+  const hintEl = maybe('coupon-select-hint');
+  const statusEl = maybe('coupon-list-status');
+  if (!cardsEl || !hintEl || !statusEl) return;
+
   if (activeCoupons.length === 0) {
-    el.innerHTML = '<div class="empty-cell">현재 사용 가능한 쿠폰이 없습니다</div>';
+    cardsEl.replaceChildren();
+    hintEl.style.display = 'none';
+    statusEl.style.display = '';
+    statusEl.textContent = '현재 사용 가능한 쿠폰이 없습니다';
     return;
   }
-  const cardsHtml = activeCoupons
-    .map((c) => {
-      const days = daysUntilExpire(c.expiresAt);
-      const expiring = days !== null && days <= 3;
-      const badge = expiring
-        ? '<span class="coupon-badge-expiring">' +
-          (days! <= 0 ? '곧 만료' : 'D-' + days) +
-          '</span>'
-        : '';
-      const selected = selectedCouponCode === c.code;
-      const classNames =
-        'coupon-card' +
-        (expiring ? ' coupon-expiring' : '') +
-        (selected ? ' coupon-selected' : '');
-      return (
-        '<div class="' +
-        classNames +
-        '" data-code="' +
-        esc(c.code) +
-        '" role="button" tabindex="0">' +
-        '<span class="coupon-badge-active">' +
-        (selected ? '선택됨' : 'ACTIVE') +
-        '</span>' +
-        '<span class="coupon-code">' +
-        esc(c.code) +
-        '</span>' +
-        '<span class="coupon-expires">만료: ' +
-        (c.expiresAt ? formatDate(c.expiresAt) : '무기한') +
-        badge +
-        '</span>' +
-        '</div>'
-      );
-    })
-    .join('');
-  el.innerHTML =
-    cardsHtml +
-    '<div class="coupon-select-hint">' +
-    (selectedCouponCode
-      ? '<strong>' +
-        esc(selectedCouponCode) +
-        '</strong> 만 수령합니다. 다시 클릭하면 전체 모드로 돌아갑니다.'
-      : '쿠폰 카드를 클릭하면 해당 쿠폰만 받게 됩니다 (자격 미달 쿠폰 분리 수령용).') +
-    '</div>';
 
-  el.querySelectorAll<HTMLElement>('.coupon-card').forEach((card) => {
-    card.addEventListener('click', () => {
-      const code = card.getAttribute('data-code');
-      if (code) selectCoupon(code);
-    });
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        const code = card.getAttribute('data-code');
-        if (code) selectCoupon(code);
-      }
-    });
+  statusEl.style.display = 'none';
+  patchList({
+    container: cardsEl,
+    items: activeCoupons,
+    key: (c) => c.code,
+    render: createCouponCard,
+    update: updateCouponCard,
   });
+
+  hintEl.style.display = '';
+  // hint 는 텍스트 + 옵션 strong → 한 번 build, selectedCouponCode 변화 시 patch
+  if (selectedCouponCode) {
+    hintEl.innerHTML =
+      '<strong>' +
+      esc(selectedCouponCode) +
+      '</strong> 만 수령합니다. 다시 클릭하면 전체 모드로 돌아갑니다.';
+  } else {
+    patchText(
+      hintEl,
+      '쿠폰 카드를 클릭하면 해당 쿠폰만 받게 됩니다 (자격 미달 쿠폰 분리 수령용).',
+    );
+  }
 }
 
 // ===== 대상 계정 =====
@@ -909,6 +935,25 @@ function bindEventListeners(): void {
         searchKeyword = '';
         renderAccounts();
       }
+    });
+  }
+
+  // 쿠폰 카드 클릭/키보드 — 컨테이너 위임 (patchList 가 element 재사용해도 listener 한 번만)
+  const couponCardsEl = maybe('coupon-cards');
+  if (couponCardsEl) {
+    couponCardsEl.addEventListener('click', (e) => {
+      const card = (e.target as HTMLElement).closest<HTMLElement>('.coupon-card');
+      if (!card) return;
+      const code = card.dataset.code;
+      if (code) selectCoupon(code);
+    });
+    couponCardsEl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const card = (e.target as HTMLElement).closest<HTMLElement>('.coupon-card');
+      if (!card) return;
+      e.preventDefault();
+      const code = card.dataset.code;
+      if (code) selectCoupon(code);
     });
   }
 

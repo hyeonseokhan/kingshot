@@ -957,6 +957,12 @@
   color: var(--text2);
 }
 .coupon-list {
+  /* 카드 컨테이너 + hint + status 를 세로로 분리 — patchList 가 카드만 reconcile */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coupon-cards {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;

@@ -98,7 +98,9 @@ const navItems = manage.submenus!.map((s) => ({
     <div class="coupon-section">
       <h3 class="coupon-title">입력 가능한 쿠폰</h3>
       <div class="coupon-list" id="coupon-list">
-        <div class="empty-cell">로딩 중...</div>
+        <div class="coupon-cards" id="coupon-cards"></div>
+        <div class="coupon-select-hint" id="coupon-select-hint" style="display:none"></div>
+        <div class="empty-cell" id="coupon-list-status">로딩 중...</div>
       </div>
     </div>
 
