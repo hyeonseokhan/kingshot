@@ -223,17 +223,25 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
      `src/styles/tools.css`, `신규서비스.md`, `navigation.ts` 의 tools 탭 항목.
    - 복구 필요 시 git history 의 `ae830a9` (Phase 2-B 완료) 직전 시점에서 cherry-pick 가능.
 
-4. **트랙 4: 데이터베이스 최적화 — 누적된 dead column / index 정리** ← **다음 시작 지점**
-   - **목표**: Phase A/B/C 진행 중 누적된 **사용하지 않는 컬럼 / 인덱스 / RLS 정책 정리**
-   - **점검 대상 (예시)**:
-     - `members` 테이블의 더 이상 안 쓰는 필드
-     - 마이그레이션 중간에 만들었다가 dead 가 된 인덱스
-     - PvP `is_ranked` 도입 전 인덱스 (winner_id only) — 새 인덱스 (winner_id, is_ranked) 와 중복 검토
-   - **방법론**:
-     - `information_schema` 쿼리로 컬럼 사용 여부 확인 (`pg_stat_user_tables`, `pg_stat_user_indexes`)
-     - production Supabase Dashboard 의 query stats 로 실제 사용 패턴 확인
-     - **삭제 전 백업 마이그레이션 1건 = 컬럼/인덱스 추가 마이그레이션 1건** 패턴 (rollback 가능)
-   - 트랙 3 포기로 인해 트랙 4 가 다음 진입 지점.
+4. **트랙 4: 데이터베이스 최적화 — 누적된 dead column / index 정리**
+
+   #### Track 4-1 ✅ 완료 (2026-04-30, 마이그레이션 `20260430120000_drop_dead_columns_indexes.sql`)
+   - **삭제한 dead 컬럼 4개** (members 테이블, 코드 grep 매칭 0건):
+     - `troop_count` (bigint), `kill_points` (bigint), `alliance_role` (text), `last_active_at` (timestamptz)
+   - **삭제한 dead 인덱스 2개** (idx_scan=0 + 매칭 쿼리 패턴 없음):
+     - `idx_pvp_battles_attacker_created`, `idx_pvp_battles_defender_created`
+   - 마이그레이션 파일 상단에 ROLLBACK SQL 주석 보존 (필요 시 그대로 실행)
+   - **보존**: `idx_crystal_tx_ref_unique` (UNIQUE 제약 핵심), `idx_pvp_battles_winner_ranked` (랭킹 쿼리, 데이터 늘면 활용)
+
+   #### Track 4-2 ⏳ 보류 — pg_cron 결정 필요
+   - 발견: `cleanup_old_pvp_battles()` 함수는 존재하지만 **pg_cron extension 미설치** → 호출 안 됨
+     → `pvp_battles` 영구 누적 + `idx_pvp_battles_finished_at` 미사용 (idx_scan=0)
+   - 결정 옵션:
+     - **A. pg_cron 활성화** + cron job 등록 (Supabase Dashboard)
+     - **B. cleanup 포기** → 함수 + 인덱스 같이 drop
+     - **C. 외부 스케줄러로 호출** (GitHub Actions cron 등)
+     - **D. 보류** — 현재 상태 유지
+   - 사용자 결정 대기 중.
 
 ### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
 
