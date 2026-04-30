@@ -1,0 +1,232 @@
+/* 게임도구 — 건설 최적화 + 후속 신규 도구들 공용 스타일 */
+
+#page-build-optimizer {
+  max-width: 720px;
+}
+
+/* ===== 섹션 ===== */
+.bo-section {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+.bo-section-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ===== 필드 (label + input + hint) ===== */
+.bo-field {
+  margin-top: 12px;
+}
+.bo-field:first-of-type {
+  margin-top: 0;
+}
+.bo-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+.bo-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text3);
+}
+
+/* ===== 일반 input ===== */
+.bo-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--bg2);
+  color: var(--text);
+}
+.bo-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+/* ===== 시간 입력 (일/시간/분 묶음) ===== */
+.bo-time-row {
+  display: flex;
+  gap: 6px;
+}
+.bo-time-cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 0 4px 0 8px;
+  gap: 4px;
+}
+.bo-time-cell:focus-within {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+.bo-time-cell input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+  text-align: right;
+}
+.bo-time-cell input:focus {
+  outline: none;
+}
+.bo-time-cell em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text3);
+  font-weight: 500;
+  flex-shrink: 0;
+  padding-right: 6px;
+}
+
+/* ===== 펫 라디오 옵션 ===== */
+.bo-pet-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.bo-pet-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  background: var(--bg2);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  transition: all 120ms;
+}
+.bo-pet-opt input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.bo-pet-opt:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(67, 56, 202, 0.06);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ===== 토글 (법령) ===== */
+.bo-toggle-row {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+.bo-toggle-row input {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+/* ===== 계산 버튼 ===== */
+.bo-calc-btn {
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.bo-calc-btn:hover,
+.bo-calc-btn:focus {
+  background: #3730a3;
+  outline: none;
+}
+.bo-calc-btn:active {
+  transform: translateY(1px);
+}
+
+/* ===== 결과 ===== */
+.bo-result {
+  margin-top: 16px;
+}
+.bo-result-card {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 16px;
+}
+.bo-result-row {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.bo-result-recommend {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.bo-tag-positive {
+  color: #059669;
+  font-weight: 700;
+}
+.bo-tag-neutral {
+  color: var(--accent);
+  font-weight: 700;
+}
+.bo-result-divider {
+  border: none;
+  border-top: 1px dashed var(--border2);
+  margin: 12px 0;
+}
+.bo-result-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bo-result-detail > div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text2);
+}
+.bo-result-detail strong {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.bo-result-error {
+  color: #b91c1c;
+  font-size: 14px;
+  margin: 0;
+  font-weight: 500;
+}
+.bo-result-note {
+  margin: 14px 0 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text2);
+  background: rgba(245, 158, 11, 0.08);
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+}

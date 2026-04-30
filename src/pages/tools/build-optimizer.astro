@@ -1,6 +1,7 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/tools.css';
 
 const tools = tabs.find((t) => t.id === 'tools')!;
 const active = findActiveSubmenu(tools, Astro.url.pathname);
@@ -23,7 +24,105 @@ const navItems = tools.submenus!.map((s) => ({
     </div>
 
     <div class="page-intro">
-      <p><strong>🚧 준비 중</strong> — 곧 추가될 기능입니다.</p>
+      <p>건축 시작 타이밍을 <strong>총리대신 / 펫 / 법령</strong> 조합 기준으로 추천합니다.</p>
+      <ul>
+        <li><strong>입력값</strong> 은 자동 저장 — 다음 방문 시 바로 이어서 계산</li>
+        <li>지금 시작 vs 총리대신 기다리기 의 <strong>이득 시간</strong> 계산</li>
+        <li><strong>손익분기 대기 시간</strong> 까지 기다려도 이득</li>
+      </ul>
     </div>
+
+    <!-- ===== 1. 공통 버프 ===== -->
+    <section class="bo-section">
+      <h2 class="bo-section-title">공통 버프</h2>
+
+      <div class="bo-field">
+        <label for="bo-base-speed" class="bo-label">기본 건설 속도 (%)</label>
+        <input
+          type="number"
+          id="bo-base-speed"
+          class="bo-input"
+          inputmode="decimal"
+          step="0.1"
+          min="0"
+          placeholder="예: 54.6"
+        />
+        <p class="bo-hint">연구/스탯 등 본인의 기본 건설 속도</p>
+      </div>
+
+      <div class="bo-field">
+        <span class="bo-label">펫 버프 (회색늑대)</span>
+        <div class="bo-pet-options" id="bo-pet-options">
+          <label class="bo-pet-opt"><input type="radio" name="bo-pet" value="0" checked /><span>사용 X</span></label>
+          <label class="bo-pet-opt"><input type="radio" name="bo-pet" value="5" /><span>5%</span></label>
+          <label class="bo-pet-opt"><input type="radio" name="bo-pet" value="7" /><span>7%</span></label>
+          <label class="bo-pet-opt"><input type="radio" name="bo-pet" value="9" /><span>9%</span></label>
+          <label class="bo-pet-opt"><input type="radio" name="bo-pet" value="12" /><span>12%</span></label>
+          <label class="bo-pet-opt"><input type="radio" name="bo-pet" value="15" /><span>15%</span></label>
+        </div>
+        <p class="bo-hint">스킬 사용 후 5분 이내 시작한 건축물에 적용</p>
+      </div>
+
+      <div class="bo-field">
+        <label class="bo-label bo-toggle-row">
+          <input type="checkbox" id="bo-law" />
+          <span>법령 사용 — 시간 단축 20%</span>
+        </label>
+        <p class="bo-hint">사용 후 5분 이내 시작한 건축물에 적용 / 재사용 24시간</p>
+      </div>
+
+      <div class="bo-field">
+        <span class="bo-label">총리대신까지 남은 시간</span>
+        <div class="bo-time-row" data-time-input="bo-pm-wait">
+          <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
+        </div>
+        <p class="bo-hint">신청 후 권한 부여 예상 시간 — 0 이면 즉시 사용 가능</p>
+      </div>
+    </section>
+
+    <!-- ===== 2. 건축 후보 ===== -->
+    <section class="bo-section">
+      <h2 class="bo-section-title">건축 후보</h2>
+
+      <div class="bo-field">
+        <label for="bo-bldg-name" class="bo-label">건물 이름 (선택)</label>
+        <input
+          type="text"
+          id="bo-bldg-name"
+          class="bo-input"
+          placeholder="예: 도시 센터 27레벨"
+        />
+      </div>
+
+      <div class="bo-field">
+        <span class="bo-label">기본 건축 시간</span>
+        <div class="bo-time-row" data-time-input="bo-bldg-time">
+          <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
+        </div>
+        <p class="bo-hint">버프가 적용되지 않은 원본 건축 시간</p>
+      </div>
+    </section>
+
+    <button class="bo-calc-btn" id="bo-calc" type="button">계산하기</button>
+
+    <!-- ===== 3. 결과 (PR 3 에서 다듬음. 지금은 단순 출력) ===== -->
+    <section class="bo-result" id="bo-result" hidden>
+      <h2 class="bo-section-title">추천 결과</h2>
+      <div class="bo-result-card" id="bo-result-card"></div>
+    </section>
   </div>
 </AppLayout>
+
+<script>
+  import { initBuildOptimizer } from '@/scripts/pages/build-optimizer';
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBuildOptimizer);
+  } else {
+    initBuildOptimizer();
+  }
+</script>
