@@ -851,10 +851,13 @@ interface HistoryRow {
 
 function loadHistoryPage(): void {
   const status = $('history-status');
-  const table = $('history-table');
-  // 현재 row 는 유지 (깜박임 차단). 로딩 표시는 status 만 가시화.
-  status.style.display = '';
-  status.textContent = '로딩 중...';
+  const tbody = $('history-rows');
+  // 첫 진입(row 없음) 만 "로딩 중..." 표시. 페이지 변경 시엔 기존 row 유지 →
+  // dialog 가 커졌다 작아지는 깜박임 차단.
+  if (tbody.children.length === 0) {
+    status.style.display = '';
+    status.textContent = '로딩 중...';
+  }
 
   const from = (historyCurrentPage - 1) * HISTORY_PAGE_SIZE;
   const to = from + HISTORY_PAGE_SIZE - 1;
@@ -866,7 +869,7 @@ function loadHistoryPage(): void {
     .range(from, to)
     .then((res) => {
       if (res.error) {
-        table.style.display = 'none';
+        $('history-table').style.display = 'none';
         status.style.display = '';
         status.textContent = '조회 실패: ' + res.error.message;
         return;

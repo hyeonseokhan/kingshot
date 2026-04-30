@@ -78,6 +78,26 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
+  /* fixed — 페이지 변경 시 데이터 길이 차이로 컬럼 너비가 재계산되며 변동하는 것 방지 */
+  table-layout: fixed;
+}
+.history-table th:nth-child(1),
+.history-table td:nth-child(1) {
+  width: 40%;
+} /* 계정 (닉네임) */
+.history-table th:nth-child(2),
+.history-table td:nth-child(2) {
+  width: 32%;
+} /* 쿠폰 코드 */
+.history-table th:nth-child(3),
+.history-table td:nth-child(3) {
+  width: 28%;
+} /* 수령일시 */
+/* 셀 내용이 너무 길면 ellipsis 로 잘라 표시 — 컬럼 변동 막음 */
+.history-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .history-table th {
   padding: 8px 12px;
