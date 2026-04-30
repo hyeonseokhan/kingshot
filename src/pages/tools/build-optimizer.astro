@@ -79,23 +79,67 @@ const navItems =
         </label>
         <p class="bo-hint">사용 후 5분 이내 시작한 건축물에 적용 / 재사용 24시간</p>
       </div>
+    </section>
 
+    <!-- ===== 2. 총리대신 임명 시각 ===== -->
+    <section class="bo-section">
+      <h2 class="bo-section-title">총리대신 임명 시각</h2>
       <div class="bo-field">
-        <label for="bo-pm-time" class="bo-label">총리대신 임명 예정 시각</label>
-        <input type="time" id="bo-pm-time" class="bo-input bo-input-time" />
+        <label for="bo-pm-datetime" class="bo-label">예정 시각</label>
+        <input
+          type="text"
+          id="bo-pm-datetime"
+          class="bo-input"
+          inputmode="text"
+          autocomplete="off"
+          placeholder="예: 2026-05-01 06:41:29"
+        />
         <p class="bo-hint">
-          예정 시각(KST) 입력 — 지나간 시각이면 내일로 자동 판단. 비워두면 즉시 사용 가능
+          게임 화면 표기 그대로 복붙 가능 — 날짜+시각 / 시각만 / 비워두면 즉시 임명 가능.
+          지원 포맷: <code>2026-05-01 06:41:29</code>, <code>2026/05/01 06:41</code>, <code>06:41</code> (오늘, 지나간 시각이면 내일로)
         </p>
       </div>
     </section>
 
-    <!-- ===== 2. 건축 후보 (큐 2개) ===== -->
+    <!-- ===== 3. 현재 건축 큐 ===== -->
+    <section class="bo-section">
+      <h2 class="bo-section-title">현재 건축 큐</h2>
+
+      <div class="bo-field" data-queue="q1">
+        <span class="bo-label">큐 1</span>
+        <div class="bo-queue-options">
+          <label class="bo-queue-opt"><input type="radio" name="bo-queue1-status" value="empty" checked /><span>비어있음</span></label>
+          <label class="bo-queue-opt"><input type="radio" name="bo-queue1-status" value="building" /><span>건축 중</span></label>
+        </div>
+        <div class="bo-time-row" data-time-input="bo-queue1-time">
+          <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
+        </div>
+        <p class="bo-hint">건축 중 선택 시 남은 시간 입력</p>
+      </div>
+
+      <div class="bo-field" data-queue="q2">
+        <span class="bo-label">큐 2</span>
+        <div class="bo-queue-options">
+          <label class="bo-queue-opt"><input type="radio" name="bo-queue2-status" value="empty" checked /><span>비어있음</span></label>
+          <label class="bo-queue-opt"><input type="radio" name="bo-queue2-status" value="building" /><span>건축 중</span></label>
+        </div>
+        <div class="bo-time-row" data-time-input="bo-queue2-time">
+          <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 4. 다음 건축 후보 ===== -->
     <section class="bo-section">
       <h2 class="bo-section-title">다음 건축 후보 (최대 2개)</h2>
 
       <div class="bo-field">
-        <span class="bo-label">큐 1 — 기본 건축 시간</span>
-        <div class="bo-time-row" data-time-input="bo-bldg1-time">
+        <span class="bo-label">후보 1 — 기본 건축 시간</span>
+        <div class="bo-time-row" data-time-input="bo-cand1-time">
           <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
           <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
           <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
@@ -103,13 +147,27 @@ const navItems =
       </div>
 
       <div class="bo-field">
-        <span class="bo-label">큐 2 — 기본 건축 시간</span>
-        <div class="bo-time-row" data-time-input="bo-bldg2-time">
+        <span class="bo-label">후보 2 — 기본 건축 시간</span>
+        <div class="bo-time-row" data-time-input="bo-cand2-time">
           <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
           <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
           <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
         </div>
-        <p class="bo-hint">사용 안 할 큐는 비워둬도 됨 (한 큐만 입력 가능)</p>
+        <p class="bo-hint">후보가 1개면 후보 2 는 비워둠</p>
+      </div>
+    </section>
+
+    <!-- ===== 5. 보유 가속권 ===== -->
+    <section class="bo-section">
+      <h2 class="bo-section-title">보유 가속권 (선택)</h2>
+      <div class="bo-field">
+        <span class="bo-label">건축 가속권 합산</span>
+        <div class="bo-time-row" data-time-input="bo-ticket-time">
+          <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
+        </div>
+        <p class="bo-hint">Phase 3 에서 가속권 사용 권장 분석에 활용 — 입력만 미리 받음</p>
       </div>
     </section>
 

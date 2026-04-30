@@ -1,47 +1,85 @@
 /**
  * 건설 최적화 페이지 — UI 와 계산 코어(`@/lib/build-optimizer`) 를 연결.
  *
- * PR 2 (현재): 큐 2개 입력 + 각 큐 독립 분석. 총리대신은 임명 예정 시각(HH:MM) 으로 입력.
- * PR 3: 결과 카드 다듬기 (펼치기/색상 강조).
- * PR 4: 큐 간 상호작용(같은 5분 윈도우 공유 등) + 가속권 분석.
+ * Phase 2-A (현재): 5 섹션 입력 폼 (공통 버프 / PM 시각 / 건축 큐 / 후보 / 가속권).
+ *   recommendForCandidates 로 패턴 분류 + 큐 배정. 결과 표시는 임시 (Phase 2-B 에서 다듬음).
+ * Phase 2-B: 패턴별 헤더 메시지 + 큐 배정 카드 + 색상.
+ * Phase 3:    가속권 분석 (evaluateAccelerationTicket).
  */
 
 import {
   toSeconds,
   formatTime,
-  analyzeBuilding,
+  recommendForCandidates,
   type BuffSettings,
-  type BuildingAnalysis,
   type BuildingCandidate,
+  type BuildQueue,
+  type CandidateAssignment,
+  type OptimizationResult,
+  type RecommendationPattern,
 } from '@/lib/build-optimizer';
 
-const STORAGE_KEY = 'build-optimizer-v2';
+const STORAGE_KEY = 'build-optimizer-v3';
 
 interface SavedState {
+  // 공통 버프
   baseSpeedPercent: number;
   petSpeedPercent: number;
   lawUsed: boolean;
-  /** 총리대신 임명 예정 시각 (HH:MM, 24h). 빈 문자열이면 즉시 사용 가능. */
-  pmTimeStr: string;
-  bldg1Days: number;
-  bldg1Hours: number;
-  bldg1Minutes: number;
-  bldg2Days: number;
-  bldg2Hours: number;
-  bldg2Minutes: number;
+
+  // 총리대신 임명 시각 — 자유 텍스트 (parseDatetime 으로 파싱)
+  pmDatetimeStr: string;
+
+  // 건축 큐 1
+  queue1Status: 'empty' | 'building';
+  queue1Days: number;
+  queue1Hours: number;
+  queue1Minutes: number;
+
+  // 건축 큐 2
+  queue2Status: 'empty' | 'building';
+  queue2Days: number;
+  queue2Hours: number;
+  queue2Minutes: number;
+
+  // 후보 1
+  cand1Days: number;
+  cand1Hours: number;
+  cand1Minutes: number;
+
+  // 후보 2
+  cand2Days: number;
+  cand2Hours: number;
+  cand2Minutes: number;
+
+  // 보유 가속권 (Phase 3 에서 사용)
+  ticketDays: number;
+  ticketHours: number;
+  ticketMinutes: number;
 }
 
 const DEFAULT_STATE: SavedState = {
   baseSpeedPercent: 0,
   petSpeedPercent: 0,
   lawUsed: false,
-  pmTimeStr: '',
-  bldg1Days: 0,
-  bldg1Hours: 0,
-  bldg1Minutes: 0,
-  bldg2Days: 0,
-  bldg2Hours: 0,
-  bldg2Minutes: 0,
+  pmDatetimeStr: '',
+  queue1Status: 'empty',
+  queue1Days: 0,
+  queue1Hours: 0,
+  queue1Minutes: 0,
+  queue2Status: 'empty',
+  queue2Days: 0,
+  queue2Hours: 0,
+  queue2Minutes: 0,
+  cand1Days: 0,
+  cand1Hours: 0,
+  cand1Minutes: 0,
+  cand2Days: 0,
+  cand2Hours: 0,
+  cand2Minutes: 0,
+  ticketDays: 0,
+  ticketHours: 0,
+  ticketMinutes: 0,
 };
 
 // ===== DOM helpers =====
@@ -66,26 +104,39 @@ function timeInputs(prefix: string): {
   };
 }
 
-// ===== 시각 → 대기 초 =====
+// ===== datetime 파싱 =====
 
 /**
- * "HH:MM" → 현재 시각으로부터 그 시각까지의 대기 초.
- * 입력 시각이 현재보다 과거면 내일의 같은 시각으로 자동 해석.
- * 빈 문자열이면 0 (즉시).
+ * 사용자 자유입력 → Date. 게임 화면의 다양한 표기 그대로 받기 위해 여러 포맷 허용.
+ *
+ * 지원:
+ *   - "2026-05-01 06:41:29" / "2026/05/01 06:41" / "2026.05.01 06:41"
+ *   - "06:41:29" / "06:41"  (오늘, 지나간 시각이면 내일로 자동 보정)
+ *   - 빈 문자열 → null (즉시 사용 가능)
  */
-function pmWaitSecondsFromTime(timeStr: string): number {
-  if (!timeStr) return 0;
-  const m = /^(\d{1,2}):(\d{2})$/.exec(timeStr);
-  if (!m) return 0;
-  const hh = Number(m[1]);
-  const mm = Number(m[2]);
-  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0;
-  const now = new Date();
-  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
-  if (target.getTime() <= now.getTime()) {
-    target.setDate(target.getDate() + 1);
+function parseDatetime(input: string, now: Date = new Date()): Date | null {
+  const s = input.trim().replace(/[/.]/g, '-');
+  if (!s) return null;
+
+  // YYYY-MM-DD HH:MM[:SS]
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if (m) {
+    return new Date(+m[1]!, +m[2]! - 1, +m[3]!, +m[4]!, +m[5]!, m[6] ? +m[6] : 0);
   }
-  return Math.floor((target.getTime() - now.getTime()) / 1000);
+  // HH:MM[:SS] only — today, if past push to tomorrow
+  m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if (m) {
+    const t = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +m[1]!, +m[2]!, m[3] ? +m[3] : 0);
+    if (t.getTime() <= now.getTime()) t.setDate(t.getDate() + 1);
+    return t;
+  }
+  return null;
+}
+
+function pmWaitSeconds(input: string): number {
+  const d = parseDatetime(input);
+  if (!d) return 0;
+  return Math.max(0, Math.floor((d.getTime() - Date.now()) / 1000));
 }
 
 // ===== state load/save =====
@@ -110,138 +161,247 @@ function saveState(s: SavedState): void {
 
 // ===== state ↔ DOM =====
 
-function readState(): SavedState {
-  const num = (el: HTMLInputElement | null): number => {
-    if (!el || el.value === '') return 0;
-    const n = Number(el.value);
-    return Number.isFinite(n) ? n : 0;
-  };
+function num(el: HTMLInputElement | null): number {
+  if (!el || el.value === '') return 0;
+  const n = Number(el.value);
+  return Number.isFinite(n) ? n : 0;
+}
 
+function readState(): SavedState {
   const baseSpeedEl = $<HTMLInputElement>('bo-base-speed');
-  const petEl = document.querySelector<HTMLInputElement>(
-    'input[name="bo-pet"]:checked',
-  );
+  const petEl = document.querySelector<HTMLInputElement>('input[name="bo-pet"]:checked');
   const lawEl = $<HTMLInputElement>('bo-law');
-  const pmTimeEl = $<HTMLInputElement>('bo-pm-time');
-  const b1 = timeInputs('bo-bldg1-time');
-  const b2 = timeInputs('bo-bldg2-time');
+  const pmEl = $<HTMLInputElement>('bo-pm-datetime');
+
+  const q1Status = (
+    document.querySelector<HTMLInputElement>('input[name="bo-queue1-status"]:checked')?.value ?? 'empty'
+  ) as 'empty' | 'building';
+  const q2Status = (
+    document.querySelector<HTMLInputElement>('input[name="bo-queue2-status"]:checked')?.value ?? 'empty'
+  ) as 'empty' | 'building';
+
+  const q1 = timeInputs('bo-queue1-time');
+  const q2 = timeInputs('bo-queue2-time');
+  const c1 = timeInputs('bo-cand1-time');
+  const c2 = timeInputs('bo-cand2-time');
+  const t = timeInputs('bo-ticket-time');
 
   return {
     baseSpeedPercent: num(baseSpeedEl),
     petSpeedPercent: petEl ? Number(petEl.value) : 0,
     lawUsed: !!lawEl?.checked,
-    pmTimeStr: pmTimeEl?.value ?? '',
-    bldg1Days: num(b1.d),
-    bldg1Hours: num(b1.h),
-    bldg1Minutes: num(b1.m),
-    bldg2Days: num(b2.d),
-    bldg2Hours: num(b2.h),
-    bldg2Minutes: num(b2.m),
+    pmDatetimeStr: pmEl?.value ?? '',
+    queue1Status: q1Status,
+    queue1Days: num(q1.d),
+    queue1Hours: num(q1.h),
+    queue1Minutes: num(q1.m),
+    queue2Status: q2Status,
+    queue2Days: num(q2.d),
+    queue2Hours: num(q2.h),
+    queue2Minutes: num(q2.m),
+    cand1Days: num(c1.d),
+    cand1Hours: num(c1.h),
+    cand1Minutes: num(c1.m),
+    cand2Days: num(c2.d),
+    cand2Hours: num(c2.h),
+    cand2Minutes: num(c2.m),
+    ticketDays: num(t.d),
+    ticketHours: num(t.h),
+    ticketMinutes: num(t.m),
   };
 }
 
-function writeState(s: SavedState): void {
-  $<HTMLInputElement>('bo-base-speed').value = s.baseSpeedPercent
-    ? String(s.baseSpeedPercent)
-    : '';
+function setNumberInput(el: HTMLInputElement, v: number): void {
+  el.value = v ? String(v) : '';
+}
 
+function writeState(s: SavedState): void {
+  setNumberInput($<HTMLInputElement>('bo-base-speed'), s.baseSpeedPercent);
   document.querySelectorAll<HTMLInputElement>('input[name="bo-pet"]').forEach((r) => {
     r.checked = Number(r.value) === s.petSpeedPercent;
   });
-
   $<HTMLInputElement>('bo-law').checked = s.lawUsed;
-  $<HTMLInputElement>('bo-pm-time').value = s.pmTimeStr;
+  $<HTMLInputElement>('bo-pm-datetime').value = s.pmDatetimeStr;
 
-  const b1 = timeInputs('bo-bldg1-time');
-  b1.d.value = s.bldg1Days ? String(s.bldg1Days) : '';
-  b1.h.value = s.bldg1Hours ? String(s.bldg1Hours) : '';
-  b1.m.value = s.bldg1Minutes ? String(s.bldg1Minutes) : '';
+  document.querySelectorAll<HTMLInputElement>('input[name="bo-queue1-status"]').forEach((r) => {
+    r.checked = r.value === s.queue1Status;
+  });
+  document.querySelectorAll<HTMLInputElement>('input[name="bo-queue2-status"]').forEach((r) => {
+    r.checked = r.value === s.queue2Status;
+  });
 
-  const b2 = timeInputs('bo-bldg2-time');
-  b2.d.value = s.bldg2Days ? String(s.bldg2Days) : '';
-  b2.h.value = s.bldg2Hours ? String(s.bldg2Hours) : '';
-  b2.m.value = s.bldg2Minutes ? String(s.bldg2Minutes) : '';
+  const q1 = timeInputs('bo-queue1-time');
+  setNumberInput(q1.d, s.queue1Days);
+  setNumberInput(q1.h, s.queue1Hours);
+  setNumberInput(q1.m, s.queue1Minutes);
+
+  const q2 = timeInputs('bo-queue2-time');
+  setNumberInput(q2.d, s.queue2Days);
+  setNumberInput(q2.h, s.queue2Hours);
+  setNumberInput(q2.m, s.queue2Minutes);
+
+  const c1 = timeInputs('bo-cand1-time');
+  setNumberInput(c1.d, s.cand1Days);
+  setNumberInput(c1.h, s.cand1Hours);
+  setNumberInput(c1.m, s.cand1Minutes);
+
+  const c2 = timeInputs('bo-cand2-time');
+  setNumberInput(c2.d, s.cand2Days);
+  setNumberInput(c2.h, s.cand2Hours);
+  setNumberInput(c2.m, s.cand2Minutes);
+
+  const t = timeInputs('bo-ticket-time');
+  setNumberInput(t.d, s.ticketDays);
+  setNumberInput(t.h, s.ticketHours);
+  setNumberInput(t.m, s.ticketMinutes);
+
+  syncQueueTimeEnabled();
+}
+
+// 큐 status='empty' 면 시간 입력 비활성화 — UX 명확성 + 잘못된 입력 차단
+function syncQueueTimeEnabled(): void {
+  for (const qid of ['queue1', 'queue2'] as const) {
+    const status = document.querySelector<HTMLInputElement>(
+      `input[name="bo-${qid}-status"]:checked`,
+    )?.value;
+    const timeRow = document.querySelector<HTMLElement>(`[data-time-input="bo-${qid}-time"]`);
+    if (!timeRow) continue;
+    const disabled = status === 'empty';
+    timeRow.classList.toggle('bo-time-row-disabled', disabled);
+    timeRow.querySelectorAll<HTMLInputElement>('input').forEach((i) => {
+      i.disabled = disabled;
+    });
+  }
 }
 
 // ===== 분석 + 결과 출력 =====
 
 function buildBuffs(state: SavedState): BuffSettings {
+  const ticketSec =
+    state.ticketDays * 86400 + state.ticketHours * 3600 + state.ticketMinutes * 60;
   return {
     baseSpeedPercent: state.baseSpeedPercent,
     petSpeedPercent: state.petSpeedPercent,
-    primeMinisterSpeedPercent: 10, // 총리대신 적용 시 항상 10%
+    primeMinisterSpeedPercent: 10,
     lawReductionPercent: state.lawUsed ? 20 : 0,
-    primeMinisterWaitSeconds: pmWaitSecondsFromTime(state.pmTimeStr),
-    accelerationTicketSeconds: 0,
+    primeMinisterWaitSeconds: pmWaitSeconds(state.pmDatetimeStr),
+    accelerationTicketSeconds: ticketSec,
   };
+}
+
+function buildQueues(state: SavedState): [BuildQueue, BuildQueue] {
+  return [
+    {
+      id: 'queue1',
+      status: state.queue1Status,
+      remainingSeconds:
+        state.queue1Status === 'building'
+          ? toSeconds({
+              days: state.queue1Days,
+              hours: state.queue1Hours,
+              minutes: state.queue1Minutes,
+              seconds: 0,
+            })
+          : 0,
+    },
+    {
+      id: 'queue2',
+      status: state.queue2Status,
+      remainingSeconds:
+        state.queue2Status === 'building'
+          ? toSeconds({
+              days: state.queue2Days,
+              hours: state.queue2Hours,
+              minutes: state.queue2Minutes,
+              seconds: 0,
+            })
+          : 0,
+    },
+  ];
+}
+
+function buildCandidates(state: SavedState): BuildingCandidate[] {
+  const c1Sec = toSeconds({
+    days: state.cand1Days,
+    hours: state.cand1Hours,
+    minutes: state.cand1Minutes,
+    seconds: 0,
+  });
+  const c2Sec = toSeconds({
+    days: state.cand2Days,
+    hours: state.cand2Hours,
+    minutes: state.cand2Minutes,
+    seconds: 0,
+  });
+  const list: BuildingCandidate[] = [];
+  if (c1Sec > 0) list.push({ id: 'cand1', name: '후보 1', baseSeconds: c1Sec });
+  if (c2Sec > 0) list.push({ id: 'cand2', name: '후보 2', baseSeconds: c2Sec });
+  return list;
 }
 
 function calculate(): void {
   const state = readState();
   saveState(state);
 
-  const candidates: BuildingCandidate[] = [];
-  const q1Sec = toSeconds({
-    days: state.bldg1Days,
-    hours: state.bldg1Hours,
-    minutes: state.bldg1Minutes,
-    seconds: 0,
-  });
-  if (q1Sec > 0) candidates.push({ id: 'q1', name: '큐 1', baseSeconds: q1Sec });
-
-  const q2Sec = toSeconds({
-    days: state.bldg2Days,
-    hours: state.bldg2Hours,
-    minutes: state.bldg2Minutes,
-    seconds: 0,
-  });
-  if (q2Sec > 0) candidates.push({ id: 'q2', name: '큐 2', baseSeconds: q2Sec });
-
+  const candidates = buildCandidates(state);
   if (candidates.length === 0) {
-    showResult('<p class="bo-result-error">큐 1 또는 큐 2 의 건축 시간을 입력하세요.</p>');
+    showResult('<p class="bo-result-error">후보 1 또는 후보 2 의 건축 시간을 입력하세요.</p>');
     return;
   }
 
+  const queues = buildQueues(state);
   const buffs = buildBuffs(state);
-  const html = candidates
-    .map((b) => renderBuildingResult(b, analyzeBuilding(b, buffs)))
-    .join('<hr class="bo-result-divider" />');
+  const result = recommendForCandidates(candidates, queues, buffs);
 
-  showResult(html + '<p class="bo-result-note">법령과 펫은 사용 후 5분 이내에 건축을 시작해야 적용됩니다.</p>');
+  showResult(renderResult(result, buffs));
 }
 
-function renderBuildingResult(b: BuildingCandidate, a: BuildingAnalysis): string {
-  // 추천/이득 메시지 — 3가지 케이스
-  // 1) 총리대신 즉시 사용 가능 (actualWait=0): 지금 모든 버프 적용해서 시작
-  // 2) 대기 시간 < 손익분기: 기다림이 이득
-  // 3) 대기 시간 >= 손익분기: 즉시 시작이 이득
-  let recommendLine: string;
-  let gainLine: string;
+// Phase 2-A 임시 결과 표시 — Phase 2-B 에서 패턴별 헤더 / 색상 / 카드 형태로 다듬음.
+function renderResult(r: OptimizationResult, buffs: BuffSettings): string {
+  const patternLabel: Record<RecommendationPattern, string> = {
+    A: '패턴 A — 큐 진행 중 + 후보 2개',
+    B: '패턴 B — 긴 건물 단독, PM 대기가 손익분기보다 짧음',
+    C: '패턴 C — 짧은 건물, PM 대기가 손익분기보다 김',
+    D: '패턴 D — 큐 둘 다 비어 + 후보 2개',
+    single: '단일 (PM 미설정 또는 단순 케이스)',
+  };
 
-  if (a.actualWaitSeconds === 0) {
-    recommendLine = `<strong class="bo-tag-positive">지금 바로 시작하세요 (모든 버프 적용)</strong>`;
-    gainLine = `총리대신 + 법령 + 펫 적용으로 <strong>${formatTime(a.breakEvenWaitSeconds)}</strong> 단축됨`;
-  } else if (a.shouldWaitForPrimeMinister) {
-    recommendLine = `<strong class="bo-tag-positive">기다리세요 (총리대신 후 시작)</strong>`;
-    gainLine = `예상 이득 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong>`;
-  } else if (a.netGainSeconds === 0) {
-    recommendLine = `<strong class="bo-tag-neutral">지금 바로 시작하세요</strong>`;
-    gainLine = '동률 — 어느 쪽이든 결과 같음';
-  } else {
-    recommendLine = `<strong class="bo-tag-neutral">지금 바로 시작하세요</strong>`;
-    gainLine = `즉시 시작이 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong> 이득`;
-  }
+  const header = `<div class="bo-result-row bo-result-recommend">${patternLabel[r.pattern]}</div>`;
+  const pmLine =
+    buffs.primeMinisterWaitSeconds > 0
+      ? `<div class="bo-result-row">총리대신 대기: <strong>${formatTime(buffs.primeMinisterWaitSeconds)}</strong></div>`
+      : `<div class="bo-result-row">총리대신: <strong>즉시 사용 가능</strong></div>`;
+
+  const blocks = r.assignments.map((a) => renderAssignment(a)).join('<hr class="bo-result-divider" />');
+
+  const note =
+    '<p class="bo-result-note">법령과 펫은 사용 후 5분 이내에 건축을 시작해야 적용됩니다.</p>';
+  return header + pmLine + blocks + note;
+}
+
+function renderAssignment(a: CandidateAssignment): string {
+  const queueLabel = a.assignedQueueId === 'queue1' ? '큐 1' : '큐 2';
+  const strategy =
+    a.chosenStrategy === 'wait-pm'
+      ? '<strong class="bo-tag-positive">총리대신 대기 후 시작</strong>'
+      : '<strong class="bo-tag-neutral">즉시 시작</strong>';
+  const gain =
+    a.netGainSeconds > 0
+      ? `예상 이득 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong>`
+      : a.netGainSeconds < 0
+        ? `즉시가 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong> 이득`
+        : '동률 — 어느 쪽이든 결과 같음';
 
   return `
     <div class="bo-result-row bo-result-recommend">
-      ${b.name} <span class="bo-result-baseTime">(${formatTime(b.baseSeconds)})</span>: ${recommendLine}
+      ${a.candidate.name ?? a.candidate.id} → ${queueLabel}: ${strategy}
     </div>
-    <div class="bo-result-row">${gainLine}</div>
+    <div class="bo-result-row">${gain}</div>
     <div class="bo-result-detail">
-      <div><span>즉시 시작 시 건축 시간</span><strong>${formatTime(a.immediateBuildSeconds)}</strong></div>
-      <div><span>총리대신 적용 시 건축 시간</span><strong>${formatTime(a.withPrimeMinisterBuildSeconds)}</strong></div>
+      <div><span>큐 빔 시각 (현재 기준)</span><strong>${formatTime(a.queueFreeSeconds)}</strong></div>
+      <div><span>즉시 전략 — 총 소요</span><strong>${formatTime(a.immediateTotalSeconds)}</strong></div>
+      <div><span>총리대신 전략 — 총 소요</span><strong>${formatTime(a.withPmTotalSeconds)}</strong></div>
       <div><span>손익분기 대기 시간</span><strong>${formatTime(a.breakEvenWaitSeconds)}</strong></div>
-      <div><span>현재 총리대신 대기 시간</span><strong>${formatTime(a.actualWaitSeconds)}</strong></div>
     </div>
   `;
 }
@@ -259,12 +419,16 @@ function showResult(html: string): void {
 export function initBuildOptimizer(): void {
   writeState(loadState());
 
+  // 입력 변동 → 자동 저장
   document
     .querySelectorAll<HTMLInputElement>(
-      'input[type="number"], input[type="text"], input[type="time"], input[type="checkbox"], input[type="radio"]',
+      'input[type="number"], input[type="text"], input[type="checkbox"], input[type="radio"]',
     )
     .forEach((el) => {
-      el.addEventListener('change', () => saveState(readState()));
+      el.addEventListener('change', () => {
+        saveState(readState());
+        syncQueueTimeEnabled();
+      });
     });
 
   $('bo-calc').addEventListener('click', calculate);
