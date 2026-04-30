@@ -150,14 +150,22 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  /* grid 로 자식(empty placeholder + img) 같은 셀에 stack — img.onload 시 그 위로 페이드 인 */
+  display: inline-grid;
+  place-items: center;
 }
-.tm-rank-photo-wrap .tm-rank-photo,
-.tm-rank-photo-wrap .tm-rank-photo-empty {
-  position: relative;
+.tm-rank-photo-wrap > .tm-rank-photo,
+.tm-rank-photo-wrap > .tm-rank-photo-empty {
+  grid-area: 1 / 1;
   z-index: 1;
+}
+/* 페이드 인 — .tm-rank-photo-fade 마커가 있는 img 한정 */
+.tm-rank-photo-wrap .tm-rank-photo.tm-rank-photo-fade {
+  opacity: 0;
+  transition: opacity 80ms ease-out;
+}
+.tm-rank-photo-wrap .tm-rank-photo.tm-rank-photo-fade.tm-rank-photo-loaded {
+  opacity: 1;
 }
 .tm-rank-photo-wrap.rank-effect-1,
 .tm-rank-photo-wrap.rank-effect-2,

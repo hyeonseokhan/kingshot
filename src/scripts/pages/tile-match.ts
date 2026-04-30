@@ -7,7 +7,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { rewardForStage } from '@/lib/balance';
-import { patchList } from '@/lib/dom-diff';
+import { patchList, patchText } from '@/lib/dom-diff';
 
 // ===== 상수 =====
 
@@ -321,13 +321,6 @@ function loadRanking(): void {
     });
 }
 
-function escapeRankingHtml(s: unknown): string {
-  return String(s).replace(/[&<>"]/g, (c) => {
-    const m: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-    return m[c]!;
-  });
-}
-
 function formatRankingDate(iso: string | null): string {
   if (!iso) return '-';
   const t = new Date(iso).getTime();
@@ -346,7 +339,67 @@ function formatRankingDate(iso: string | null): string {
   return Math.floor(diffMon / 12) + '년 전';
 }
 
-function fillRankingRow(
+function rankNumClass(rank: number): string {
+  if (rank === 1) return 'gold';
+  if (rank === 2) return 'silver';
+  if (rank === 3) return 'bronze';
+  return '';
+}
+
+function rankEffectClass(rank: number): string {
+  if (rank === 1) return 'rank-effect-1';
+  if (rank === 2) return 'rank-effect-2';
+  if (rank === 3) return 'rank-effect-3';
+  return '';
+}
+
+/** photo wrap 의 placeholder + img stack — members.ts/coupons.ts 와 동일 패턴 */
+function syncRankingPhoto(wrap: HTMLElement, member: MemberLite): void {
+  const url = member.profile_photo;
+  const fallbackChar = ((member.nickname || '?').slice(0, 1) || '?').toUpperCase();
+
+  let empty = wrap.querySelector<HTMLElement>('.tm-rank-photo-empty');
+  if (!empty) {
+    empty = document.createElement('span');
+    empty.className = 'tm-rank-photo tm-rank-photo-empty';
+    wrap.appendChild(empty);
+  }
+  patchText(empty, fallbackChar);
+
+  let img = wrap.querySelector<HTMLImageElement>('img.tm-rank-photo');
+  if (url) {
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'tm-rank-photo tm-rank-photo-fade';
+      img.alt = '';
+      img.decoding = 'async';
+      img.addEventListener('load', () => img!.classList.add('tm-rank-photo-loaded'));
+      img.addEventListener('error', () => img!.classList.remove('tm-rank-photo-loaded'));
+      wrap.appendChild(img);
+    }
+    if (img.src !== url) {
+      img.classList.remove('tm-rank-photo-loaded');
+      img.src = url;
+    }
+  } else {
+    img?.remove();
+  }
+}
+
+function createRankingRow(): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'tm-ranking-row';
+  row.innerHTML = `
+    <span class="tm-rank-num"></span>
+    <div class="tm-rank-photo-wrap"></div>
+    <span class="tm-rank-name"><span class="tm-rank-name-text"></span><small class="tm-rank-name-lvl" style="display:none"></small></span>
+    <span class="tm-rank-stage"><span class="tm-rank-stage-num"></span><span> Stage</span></span>
+    <span class="tm-rank-meta"></span>
+  `;
+  return row;
+}
+
+function updateRankingRow(
   row: HTMLElement,
   record: RankingRecord,
   rank: number,
@@ -355,39 +408,32 @@ function fillRankingRow(
 ): void {
   row.className = 'tm-ranking-row' + (isMe ? ' tm-ranking-row-me' : '');
 
-  let rankClass = '';
-  if (rank === 1) rankClass = 'gold';
-  else if (rank === 2) rankClass = 'silver';
-  else if (rank === 3) rankClass = 'bronze';
+  const numEl = row.querySelector<HTMLElement>('.tm-rank-num')!;
+  numEl.className = 'tm-rank-num' + (rankNumClass(rank) ? ' ' + rankNumClass(rank) : '');
+  patchText(numEl, rank);
 
-  let effectClass = '';
-  if (rank === 1) effectClass = ' rank-effect-1';
-  else if (rank === 2) effectClass = ' rank-effect-2';
-  else if (rank === 3) effectClass = ' rank-effect-3';
+  const wrap = row.querySelector<HTMLElement>('.tm-rank-photo-wrap')!;
+  const effect = rankEffectClass(rank);
+  wrap.className = 'tm-rank-photo-wrap' + (effect ? ' ' + effect : '');
+  syncRankingPhoto(wrap, member);
 
-  const dateStr = record.best_stage_at ? formatRankingDate(record.best_stage_at) : '-';
-  const photoInner = member.profile_photo
-    ? '<img class="tm-rank-photo" src="' +
-      escapeRankingHtml(member.profile_photo) +
-      '" alt="">'
-    : '<span class="tm-rank-photo tm-rank-photo-empty">' +
-      escapeRankingHtml((member.nickname || '?').slice(0, 1).toUpperCase()) +
-      '</span>';
-  const photoHtml =
-    '<div class="tm-rank-photo-wrap' + effectClass + '">' + photoInner + '</div>';
-  row.innerHTML =
-    '<span class="tm-rank-num ' + rankClass + '">' + rank + '</span>' +
-    photoHtml +
-    '<span class="tm-rank-name">' +
-    escapeRankingHtml(member.nickname || record.player_id) +
-    (member.level ? '<small>Lv.' + member.level + '</small>' : '') +
-    '</span>' +
-    '<span class="tm-rank-stage">' +
-    record.best_stage +
-    '<span> Stage</span></span>' +
-    '<span class="tm-rank-meta">' +
-    dateStr +
-    '</span>';
+  patchText(
+    row.querySelector<HTMLElement>('.tm-rank-name-text'),
+    member.nickname || record.player_id,
+  );
+  const lvlEl = row.querySelector<HTMLElement>('.tm-rank-name-lvl')!;
+  if (member.level) {
+    lvlEl.style.display = '';
+    patchText(lvlEl, 'Lv.' + member.level);
+  } else {
+    lvlEl.style.display = 'none';
+  }
+
+  patchText(row.querySelector<HTMLElement>('.tm-rank-stage-num'), record.best_stage);
+  patchText(
+    row.querySelector<HTMLElement>('.tm-rank-meta'),
+    record.best_stage_at ? formatRankingDate(record.best_stage_at) : '-',
+  );
 }
 
 function renderRanking(records: RankingRecord[], memberMap: Record<string, MemberLite>): void {
@@ -405,14 +451,14 @@ function renderRanking(records: RankingRecord[], memberMap: Record<string, Membe
     items: records,
     key: (r) => r.player_id,
     render: (r, i) => {
-      const row = document.createElement('div');
+      const row = createRankingRow();
       const member = memberMap[r.player_id] || ({} as MemberLite);
-      fillRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
+      updateRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
       return row;
     },
     update: (row, r, i) => {
       const member = memberMap[r.player_id] || ({} as MemberLite);
-      fillRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
+      updateRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
     },
   });
 }
