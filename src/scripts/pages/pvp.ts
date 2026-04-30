@@ -10,6 +10,7 @@
  */
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { patchText } from '@/lib/dom-diff';
+import { membersStore, fetchMembers } from '@/lib/stores/members';
 
 const FN_PVP_URL = SUPABASE_URL + '/functions/v1/pvp';
 const REST_URL = SUPABASE_URL + '/rest/v1';
@@ -44,8 +45,18 @@ let currentBattle: BattleState | null = null;
 let busy = false;
 /** 5회 다 쓰면 attacks_remaining = 0 → 검색 섹션 활성. -1 = 미확인. */
 let attacksRemaining = -1;
-/** 검색 모드 — 멤버 캐시 */
-let allMembersCache: { kingshot_id: string; nickname: string; profile_photo: string | null }[] | null = null;
+/** 검색 모드 — 자기(myId)를 제외한 멤버 목록을 store 에서 추출. store 가 비어 있으면 null. */
+function searchableMembers(myId: string): { kingshot_id: string; nickname: string; profile_photo: string | null }[] | null {
+  const all = membersStore.get();
+  if (!all) return null;
+  return all
+    .filter((m) => m.kingshot_id !== myId)
+    .map((m) => ({
+      kingshot_id: m.kingshot_id,
+      nickname: m.nickname,
+      profile_photo: m.profile_photo,
+    }));
+}
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -121,9 +132,9 @@ function fetchDaily(playerId: string): Promise<void> {
     const isPractice = remaining <= 0;
     if (banner) banner.style.display = isPractice ? '' : 'none';
     if (trigger) trigger.style.display = isPractice ? '' : 'none';
-    // 연습 모드 진입 시 멤버 목록 prefetch (캐시 없으면)
-    if (isPractice && !allMembersCache) {
-      fetchAllMembers(playerId);
+    // 연습 모드 진입 시 멤버 목록 prefetch (store 캐시 없으면)
+    if (isPractice && !membersStore.get()) {
+      membersStore.refresh(fetchMembers).then(() => renderSearchList(''));
     }
   });
 }
@@ -131,12 +142,11 @@ function fetchDaily(playerId: string): Promise<void> {
 function openSearchDialog(): void {
   const dlg = $('pvp-search-dialog') as HTMLDialogElement | null;
   if (!dlg) return;
-  // 캐시 없으면 fetch
-  const session = window.TileMatchAuth?.getSession();
-  if (session?.player_id && !allMembersCache) {
-    fetchAllMembers(session.player_id);
-  } else if (allMembersCache) {
+  // 캐시 있으면 즉시 렌더, 없으면 fetch 후 렌더 (in-flight 중복 호출은 store 가 보호)
+  if (membersStore.get()) {
     renderSearchList('');
+  } else {
+    membersStore.refresh(fetchMembers).then(() => renderSearchList(''));
   }
   // 검색 input 초기화
   const inp = $('pvp-search-input') as HTMLInputElement | null;
@@ -153,32 +163,17 @@ function closeSearchDialog(): void {
 
 // ===== 검색 모드 — 5회 후 자유 매칭 =====
 
-function fetchAllMembers(myId: string): Promise<void> {
-  const url =
-    `${REST_URL}/members?select=kingshot_id,nickname,profile_photo&kingshot_id=neq.${encodeURIComponent(myId)}&order=nickname.asc&limit=300`;
-  return fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-    },
-  })
-    .then((r) => (r.ok ? r.json() : []))
-    .then((rows: typeof allMembersCache) => {
-      allMembersCache = rows ?? [];
-      renderSearchList('');
-    })
-    .catch(() => {
-      allMembersCache = [];
-    });
-}
-
 function renderSearchList(query: string): void {
   const list = $('pvp-search-list');
-  if (!list || !allMembersCache) return;
+  if (!list) return;
+  const session = window.TileMatchAuth?.getSession();
+  const myId = session?.player_id ?? '';
+  const members = searchableMembers(myId);
+  if (!members) return;
   const q = query.trim().toLowerCase();
   const filtered = q === ''
-    ? allMembersCache
-    : allMembersCache.filter(
+    ? members
+    : members.filter(
         (m) => m.nickname.toLowerCase().includes(q) || m.kingshot_id.includes(q),
       );
   if (filtered.length === 0) {
@@ -257,14 +252,19 @@ function onSelectOpponent(oppId: string, fallbackInfo?: { nickname: string; prof
   if (busy) return;
   const session = window.TileMatchAuth?.getSession();
   if (!session?.player_id) return;
-  // 자동 매칭 후보 또는 검색 결과에서 정보 가져오기
-  const opp = currentOpponents.find((o) => o.kingshot_id === oppId)
-    ?? (allMembersCache?.find((m) => m.kingshot_id === oppId) && {
-      kingshot_id: oppId,
-      nickname: allMembersCache.find((m) => m.kingshot_id === oppId)!.nickname,
-      profile_photo: allMembersCache.find((m) => m.kingshot_id === oppId)!.profile_photo,
-      power: 0,
-    });
+  // 자동 매칭 후보에 없으면 store(검색 모드 후보) 에서 보강
+  let opp: Opponent | undefined = currentOpponents.find((o) => o.kingshot_id === oppId);
+  if (!opp) {
+    const fromStore = membersStore.get()?.find((m) => m.kingshot_id === oppId);
+    if (fromStore) {
+      opp = {
+        kingshot_id: oppId,
+        nickname: fromStore.nickname,
+        profile_photo: fromStore.profile_photo,
+        power: 0,
+      };
+    }
+  }
   if (!opp && !fallbackInfo) return;
   const oppInfo = opp ?? {
     kingshot_id: oppId,
