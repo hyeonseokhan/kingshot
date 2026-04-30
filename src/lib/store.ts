@@ -29,8 +29,11 @@ export interface Store<T> {
   /**
    * fetcher 를 실행해 값을 갱신. 같은 fetcher 가 진행 중이면 그 Promise 를 반환
    * (중복 호출 방지). 성공 시 set() 호출 → 구독자 자동 갱신.
+   *
+   * **freshness 체크**: 캐시가 TTL 안이면 fetch 스킵하고 현재 메모리 값 즉시 반환.
+   * 페이지 진입 시 캐시 신선하면 네트워크 호출 0번. 강제 갱신 필요 시 force=true.
    */
-  refresh(fetcher: () => Promise<T>): Promise<T>;
+  refresh(fetcher: () => Promise<T>, force?: boolean): Promise<T>;
 }
 
 export interface CreateStoreOptions<T> {
@@ -54,11 +57,14 @@ export function createStore<T>(opts: CreateStoreOptions<T> = {}): Store<T> {
   const { storageKey, ttlMs, validate } = opts;
 
   // 메모리 + sessionStorage 백업 동기화
-  let memory: T | null = readFromStorage();
+  const restored = readFromStorage();
+  let memory: T | null = restored?.value ?? null;
+  // freshness 추적 — set/restore 시점. refresh() 의 TTL 체크에 사용.
+  let lastSetAt: number | null = restored?.ts ?? null;
   const subscribers = new Set<(value: T | null) => void>();
   let inFlight: Promise<T> | null = null;
 
-  function readFromStorage(): T | null {
+  function readFromStorage(): { value: T; ts: number } | null {
     if (!storageKey || typeof sessionStorage === 'undefined') return null;
     try {
       const raw = sessionStorage.getItem(storageKey);
@@ -66,7 +72,7 @@ export function createStore<T>(opts: CreateStoreOptions<T> = {}): Store<T> {
       const parsed = JSON.parse(raw) as CachedEntry<T>;
       if (ttlMs != null && Date.now() - parsed.ts > ttlMs) return null;
       if (validate && !validate(parsed.value)) return null;
-      return parsed.value;
+      return { value: parsed.value, ts: parsed.ts };
     } catch {
       return null;
     }
@@ -107,6 +113,7 @@ export function createStore<T>(opts: CreateStoreOptions<T> = {}): Store<T> {
     },
     set(value: T) {
       memory = value;
+      lastSetAt = Date.now();
       writeToStorage(value);
       notify(value);
     },
@@ -124,14 +131,22 @@ export function createStore<T>(opts: CreateStoreOptions<T> = {}): Store<T> {
     },
     invalidate() {
       memory = null;
+      lastSetAt = null;
       clearStorage();
       notify(null);
     },
-    refresh(fetcher) {
+    refresh(fetcher, force = false) {
+      // freshness 체크: 캐시가 TTL 안이면 fetch 스킵
+      if (!force && memory != null && lastSetAt != null) {
+        if (ttlMs == null || Date.now() - lastSetAt < ttlMs) {
+          return Promise.resolve(memory);
+        }
+      }
       if (inFlight) return inFlight;
       inFlight = fetcher()
         .then((value) => {
           memory = value;
+          lastSetAt = Date.now();
           writeToStorage(value);
           notify(value);
           return value;
