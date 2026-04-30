@@ -4,11 +4,9 @@
  */
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { membersStore, fetchMembers } from '@/lib/stores/members';
 
 const SESSION_KEY = 'tileMatchAuth';
-const MEMBERS_URL =
-  SUPABASE_URL +
-  '/rest/v1/members?select=kingshot_id,nickname,level,profile_photo&order=nickname.asc';
 const FN_AUTH_URL = SUPABASE_URL + '/functions/v1/tile-match-auth';
 const FAIL_MSG = '비밀번호를 확인해 주세요. 또는 비밀번호 초기화 요청을 해주세요.';
 
@@ -17,6 +15,7 @@ export interface AuthSession {
   nickname: string;
 }
 
+// 인증 다이얼로그가 표시하는 멤버 정보 — Member 의 subset.
 interface MemberLite {
   kingshot_id: string;
   nickname: string;
@@ -24,9 +23,12 @@ interface MemberLite {
   profile_photo?: string | null;
 }
 
+function getMembers(): MemberLite[] {
+  return (membersStore.get() ?? []) as MemberLite[];
+}
+
 // ===== 모듈 상태 =====
 let initialized = false;
-let members: MemberLite[] = [];
 let selectedMember: MemberLite | null = null;
 let pinMode: 'set' | 'verify' | null = null;
 let pinInput = '';
@@ -121,32 +123,33 @@ function showStep(step: 'select' | 'pin'): void {
   if (back) back.style.display = step === 'pin' ? '' : 'none';
 }
 
-// ===== 연맹원 목록 =====
+// ===== 연맹원 목록 — membersStore 공유 =====
 function loadMembers(): void {
   const box = $('tm-auth-list');
   if (!box) return;
-  box.innerHTML = '<div class="tm-auth-empty">불러오는 중...</div>';
-  fetch(MEMBERS_URL, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-    },
-  })
-    .then((r) => r.json())
-    .then((data: unknown) => {
-      members = Array.isArray(data) ? (data as MemberLite[]) : [];
-      renderList(members);
-    })
+  // 캐시 있으면 즉시 표시 + 백그라운드 새로고침. store freshness 체크가 자동으로 fetch 스킵.
+  const cached = getMembers();
+  if (cached.length > 0) {
+    renderList(cached);
+  } else {
+    box.innerHTML = '<div class="tm-auth-empty">불러오는 중...</div>';
+  }
+  membersStore
+    .refresh(fetchMembers)
+    .then((list) => renderList(list as MemberLite[]))
     .catch((err: Error) => {
-      box.innerHTML =
-        '<div class="tm-auth-empty">조회 실패: ' + (err.message || String(err)) + '</div>';
+      if (cached.length === 0) {
+        box.innerHTML =
+          '<div class="tm-auth-empty">조회 실패: ' + (err.message || String(err)) + '</div>';
+      }
     });
 }
 
 function filterMembers(q: string): MemberLite[] {
+  const all = getMembers();
   q = (q || '').trim().toLowerCase();
-  if (!q) return members;
-  return members.filter((m) => {
+  if (!q) return all;
+  return all.filter((m) => {
     const nick = (m.nickname || '').toLowerCase();
     const pid = String(m.kingshot_id || '').toLowerCase();
     return nick.indexOf(q) !== -1 || pid.indexOf(q) !== -1;
@@ -366,15 +369,16 @@ export function initAuthPage(): void {
       setMsg('');
       const s = $<HTMLInputElement>('tm-auth-search');
       if (s) s.value = '';
-      renderList(members);
+      renderList(getMembers());
     });
 
-  if (!members.length) loadMembers();
+  // store freshness 체크가 자동으로 fetch 스킵 — 매번 호출해도 OK
+  loadMembers();
 }
 
 /** 다른 모듈(타일매치/파트너)이 멤버 목록 재사용. */
 export function getCachedMembers(): MemberLite[] {
-  return members;
+  return getMembers();
 }
 
 // 전역 노출 (cross-module 호환)
@@ -398,6 +402,6 @@ window.TileMatchAuth = {
   clearSession,
   onSessionChange,
   get _cachedMembers() {
-    return members;
+    return getMembers();
   },
 };
