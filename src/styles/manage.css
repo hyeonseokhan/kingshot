@@ -259,10 +259,13 @@
   border-radius: 8px;
   z-index: 1;
   object-fit: cover;
+}
+/* 페이드 인 — .mc-photo-fade 마커가 있는 img 한정. 다른 페이지(쿠폰 등) 의 .mc-photo 는 영향 X */
+.mc-photo-wrap .mc-photo.mc-photo-fade {
   opacity: 0;
   transition: opacity 200ms ease-out;
 }
-.mc-photo-wrap .mc-photo.mc-photo-loaded {
+.mc-photo-wrap .mc-photo.mc-photo-fade.mc-photo-loaded {
   opacity: 1;
 }
 .mc-photo-wrap .mc-photo-empty {

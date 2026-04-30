@@ -168,7 +168,7 @@ function syncPhoto(wrap: HTMLElement, m: Member): void {
   if (url) {
     if (!img) {
       img = document.createElement('img');
-      img.className = 'mc-photo';
+      img.className = 'mc-photo mc-photo-fade';
       img.decoding = 'async';
       img.addEventListener('load', () => img!.classList.add('mc-photo-loaded'));
       img.addEventListener('error', () => img!.classList.remove('mc-photo-loaded'));
