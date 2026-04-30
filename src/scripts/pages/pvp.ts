@@ -586,8 +586,9 @@ function loadRanking(): void {
 }
 
 function fetchPvpWins(): Promise<Record<string, number>> {
+  // is_ranked=true 만 카운트 — 연습 모드(일일 5회 후) 매치는 승수 반영 X
   return fetch(
-    `${REST_URL}/pvp_battles?select=winner_id&status=eq.done&limit=10000`,
+    `${REST_URL}/pvp_battles?select=winner_id&status=eq.done&is_ranked=eq.true&limit=10000`,
     {
       headers: {
         apikey: SUPABASE_ANON_KEY,

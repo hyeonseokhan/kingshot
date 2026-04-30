@@ -2061,7 +2061,7 @@
 .pvp-rank-header,
 .pvp-rank-row {
   display: grid;
-  grid-template-columns: 24px 28px minmax(0, 1fr) 80px 50px;
+  grid-template-columns: 24px 28px minmax(0, 1fr) 80px 64px;
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
@@ -2094,6 +2094,7 @@
   text-align: right;
   font-family: inherit;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 .pvp-rank-h-sort:hover {
   color: #4338ca;
