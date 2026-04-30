@@ -234,14 +234,19 @@ function renderMembers(): void {
   syncRefreshBanner();
 }
 
-function refreshFromStore(): Promise<Member[]> {
+/**
+ * store 갱신.
+ * - force=false (기본): 캐시 신선하면 fetch 스킵 (페이지 진입용)
+ * - force=true: 변경 이벤트 후 — TTL 무시하고 fetch 강제 (저장/삭제/등록/전체갱신)
+ */
+function refreshFromStore(force = false): Promise<Member[]> {
   const status = $('members-status');
   // 캐시 없으면 "로딩 중...", 캐시 있으면 백그라운드 갱신이라 status 손대지 않음
   if (membersStore.get() === null) {
     status.style.display = '';
     status.textContent = '로딩 중...';
   }
-  return membersStore.refresh(fetchMembers).catch((err: Error) => {
+  return membersStore.refresh(fetchMembers, force).catch((err: Error) => {
     status.style.display = '';
     status.textContent = '오류: ' + err.message;
     throw err;
@@ -370,7 +375,7 @@ function refreshMembersByIds(memberIds: string[]): void {
       clearFailedRefresh();
     }
     invalidateAccountsCache();
-    refreshFromStore();
+    refreshFromStore(true);
   });
 }
 
@@ -533,8 +538,8 @@ function initPage(): void {
               btn.innerHTML =
                 '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
             }, 1500);
-            // 백그라운드로 store 갱신 — 목록의 해당 row 가 자동 patch
-            refreshFromStore();
+            // 백그라운드로 store 강제 갱신 — 변경 사항 반영을 위해 캐시 무시
+            refreshFromStore(true);
           }),
       )
       .catch((err: Error) => alert('갱신 실패: ' + err.message))
@@ -559,7 +564,7 @@ function initPage(): void {
         }
         invalidateAccountsCache();
         closeDialog();
-        refreshFromStore();
+        refreshFromStore(true);
       });
   });
 
@@ -578,7 +583,7 @@ function initPage(): void {
         }
         invalidateAccountsCache();
         closeDialog();
-        refreshFromStore();
+        refreshFromStore(true);
       });
   });
 
@@ -672,7 +677,7 @@ function initPage(): void {
             invalidateAccountsCache();
             searchData = null;
             closeModal();
-            refreshFromStore();
+            refreshFromStore(true);
           });
       });
   });
