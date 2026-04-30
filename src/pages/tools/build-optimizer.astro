@@ -3,13 +3,15 @@ import AppLayout from '@/layouts/AppLayout.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
 import '@/styles/tools.css';
 
-const tools = tabs.find((t) => t.id === 'tools')!;
-const active = findActiveSubmenu(tools, Astro.url.pathname);
-const navItems = tools.submenus!.map((s) => ({
-  title: s.title,
-  path: s.path,
-  active: active?.id === s.id,
-}));
+// 트랙 3 진행 중 — navigation 에서 tools 임시 제거. fallback 처리.
+const tools = tabs.find((t) => t.id === 'tools');
+const active = tools ? findActiveSubmenu(tools, Astro.url.pathname) : undefined;
+const navItems =
+  tools?.submenus?.map((s) => ({
+    title: s.title,
+    path: s.path,
+    active: active?.id === s.id,
+  })) ?? [];
 ---
 
 <AppLayout
@@ -21,6 +23,13 @@ const navItems = tools.submenus!.map((s) => ({
   <div class="manage-page" id="page-build-optimizer">
     <div class="members-header">
       <h1>건설 최적화</h1>
+    </div>
+
+    <!-- 트랙 3 진행 중 — 운영 미공개 안내 (개발 완료 시 제거) -->
+    <div
+      style="margin: 12px 0; padding: 12px 16px; background: rgba(245, 158, 11, 0.12); border-left: 4px solid #f59e0b; border-radius: 6px; font-size: 13px; color: #92400e;"
+    >
+      🚧 <strong>현재 개발 중</strong>인 도구입니다. 정식 공개 전까지 결과가 정확하지 않을 수 있어요.
     </div>
 
     <div class="page-intro">

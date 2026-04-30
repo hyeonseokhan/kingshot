@@ -217,15 +217,63 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
    - **남은 영역 (다음 트랙들에서 자연스럽게)**: balance store, equipment store, ranking store,
      daily-state store. 각 도메인 자체 작업 시 같은 패턴으로 추출
 
-3. **트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화** (`/tools/build-optimizer/`) ← **다음 시작 지점**
-   - **현재 상태**: 메뉴/placeholder 페이지만 추가됨 (commit `a7c2e5b`). 본문 미구현
+3. **트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화** (`/tools/build-optimizer/`) ← **진행 중**
    - **개발 가이드**: `신규서비스.md` (repo root) — 17개 섹션, MVP 범위는 §13 참조
-   - **핵심 컨텐츠**:
-     - 입력: 기본 건설속도 / 펫 / 법령 / 총리대신 대기 / 건축 큐 2개 / 후보 건축물 / 가속권
-     - 계산: 즉시 vs 총리대신 대기 비교, 손익분기 대기 시간, 가속권 사용 순이득
-     - 출력: 행동 추천 중심 (수식 X, "지금 시작하세요 / 기다리세요" 형식)
-   - **클라이언트 전용** — 서버/DB/Edge Function 무관 (브라우저 계산만)
-   - **위치**: `src/pages/tools/build-optimizer.astro` + `src/scripts/pages/build-optimizer.ts` + 필요 시 `src/styles/tools.css`
+
+   #### Phase 1 (코어 알고리즘) ✅ 완료 (commits `3ead677` ~ `99fd8c9`)
+   - `src/lib/build-optimizer.ts`:
+     - 시간 변환 (toSeconds/fromSeconds/formatTime) — 가이드 §5
+     - calculateBuildTime — 가이드 §2.3 공식
+     - analyzeBuilding — 단일 건물 즉시 vs 총리대신 비교
+     - **evaluateAssignment** — 4 시점 비교 (큐 빔 시각 더한 현실 시간 기준)
+     - **recommendForCandidates** — 후보 1~2개 + 큐 2개 → 결정적 매칭 + 패턴 분류 (A/B/C/D/single)
+     - 타입: BuildQueue / BuildingCandidate / BuildingAnalysis / CandidateAssignment / OptimizationResult / RecommendationPattern / AccelerationAnalysis
+   - `src/lib/build-optimizer.test.ts` — **48 테스트 모두 통과**
+     - 가이드 §16 시나리오 1/2 + §8.3 패턴 A/B/C/D
+     - 사용자 실사용 케이스 A (큐 빔 2h + 총리 8h, 도시센터/7일 둘 다)
+     - 상위 사용자 속도 61.8%
+     - 극단 1일 / 60일 건축 시간
+
+   #### Phase 2-A (UI 입력 폼 재구성) ← **다음 시작 지점**
+   PR 2.5 의 UI 는 "큐=후보" 잘못된 매핑 → 입력 폼 재구성:
+   - **공통 버프** 섹션 (현재와 동일)
+   - **총리대신 임명 시각** — 텍스트 입력 (placeholder `2026-05-01 06:41:29`).
+     게임 화면 표기 그대로 복붙 가능 + parseDatetime 헬퍼로 다양한 포맷 허용
+   - **현재 건축 큐** 섹션 ← 신규
+     - 큐 1: radio (비어있음 / 건축 중) + 건축 중 시 시간/분 입력 활성
+     - 큐 2: 동일
+   - **다음 건축 후보** 섹션 — 라벨 변경 (큐1/큐2 → 후보1/후보2)
+   - **보유 가속권** 섹션 ← 신규 (일/시간/분 합산. Phase 3 에서 사용, 입력만 미리)
+   - `SavedState` 확장 + `STORAGE_KEY` v2 → v3 (호환성 끊고 새로 시작)
+   - `calculate()` → `recommendForCandidates` 호출 (결과 표시는 임시, Phase 2-B 에서 다듬기)
+
+   #### Phase 2-B (결과 메시지) ← Phase 2-A 후
+   - 패턴별 헤더 메시지 (§17 행동 추천 중심)
+   - 큐 배정 카드 + 상세 펼치기
+   - 색상 (이득=초록 / 손해=빨강 / 동률=회색, 가이드 §12.2)
+   - "PM" 약자 → "총리대신" 풀어쓰기 일관 적용
+
+   #### Phase 3 (가속권) ← Phase 2-B 후
+   - `evaluateAccelerationTicket` — 큐를 PM 시각에 맞춰 가속
+   - 가이드 §9 + §16 시나리오 3 단위 테스트 4개
+   - UI 결과 카드에 가속권 권장 라인 추가
+
+   #### 모델 한계 (§14 추후 확장)
+   - **케이스 B (수면 시간)** — 사용자 비활성 시간대 처리. 현재는 UI 안내로만 처리 예정 ("예상 큐 빔 시각: ..." 표시). 알고리즘 차원 추가는 추후.
+
+   #### 운영 노출 정책
+   - 트랙 3 진행 중엔 `navigation.ts` 의 tools 탭 주석 처리 → **메뉴에 보이지 않음**
+   - URL 직접 진입 시엔 페이지 상단에 "🚧 개발 중" 배너 노출
+   - Phase 3 완료 + 검증 후 navigation 주석 해제 + 배너 제거
+
+   #### 다음 PC 합류 시 빠른 진입
+   ```bash
+   git pull origin main
+   npm install
+   npm test                # 48 테스트 통과 확인
+   npm run dev             # 로컬에서 /tools/build-optimizer/ 진입
+   # Phase 2-A 부터 시작. 위 'Phase 2-A' 섹션의 항목 순서대로.
+   ```
 
 4. **트랙 4: 데이터베이스 최적화 — 누적된 dead column / index 정리**
    - **목표**: Phase A/B/C 진행 중 누적된 **사용하지 않는 컬럼 / 인덱스 / RLS 정책 정리**

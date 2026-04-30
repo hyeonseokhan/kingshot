@@ -49,15 +49,17 @@ export const tabs: NavTab[] = [
       { id: 'partner-draw', title: '운명의 파트너', path: '/minigame/partner-draw/' },
     ],
   },
-  {
-    id: 'tools',
-    title: '게임도구',
-    path: '/tools/build-optimizer/',
-    pathPrefix: '/tools/',
-    submenus: [
-      { id: 'build-optimizer', title: '건설 최적화', path: '/tools/build-optimizer/' },
-    ],
-  },
+  // 트랙 3 (건설 최적화) 완료 시까지 임시 숨김 — 페이지는 빌드되지만 메뉴 노출 X.
+  // 작업 완료 후 이 블록 주석 해제.
+  // {
+  //   id: 'tools',
+  //   title: '게임도구',
+  //   path: '/tools/build-optimizer/',
+  //   pathPrefix: '/tools/',
+  //   submenus: [
+  //     { id: 'build-optimizer', title: '건설 최적화', path: '/tools/build-optimizer/' },
+  //   ],
+  // },
 ];
 
 /** 현재 path 기준 활성 탭. 루트("/")는 첫 가이드 탭으로 간주. */
