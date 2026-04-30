@@ -142,8 +142,8 @@ function setStageState(state: 'loading' | 'ready' | 'auth-required'): void {
 
 function renderAllSlots(): void {
   EQUIPMENT_SLOTS.forEach((slot) => renderSlot(slot));
-  // 6슬롯 등급 검사 후 아바타 uniform 효과 갱신
-  applyAvatarUniformEffect();
+  // 6슬롯 최저 등급 검사 후 아바타 글로우 갱신
+  applyAvatarTierEffect();
 }
 
 const ALL_TIER_CLASSES: ReadonlyArray<string> = (
@@ -154,21 +154,35 @@ const ALL_AVATAR_TIER_CLASSES: ReadonlyArray<string> = (
   ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const
 ).map((t) => 'eq-avatar-tier-' + t);
 
-/** 6 슬롯 모두 같은 등급일 때 그 tier 반환. 일반(common) 은 효과 X. */
-function uniformTier(): EquipmentTier | null {
+const TIER_ORDER: EquipmentTier[] = [
+  'common',
+  'uncommon',
+  'rare',
+  'epic',
+  'legendary',
+  'mythic',
+];
+
+/** 6 슬롯 중 최저 등급 반환. 하나라도 common(일반/+0)이면 효과 X. */
+function lowestTier(): EquipmentTier | null {
   if (slotState.size < EQUIPMENT_SLOTS.length) return null;
   const tiers = Array.from(slotState.values()).map((s) => tierForLevel(s.level));
-  const first = tiers[0];
-  if (!first || first === 'common') return null;
-  return tiers.every((t) => t === first) ? first : null;
+  let minIdx = TIER_ORDER.length - 1;
+  for (const t of tiers) {
+    const i = TIER_ORDER.indexOf(t);
+    if (i < minIdx) minIdx = i;
+  }
+  const min = TIER_ORDER[minIdx];
+  if (!min || min === 'common') return null;
+  return min;
 }
 
 /** 6 슬롯 등급 검사 후 아바타 글로우 효과 적용/해제. */
-function applyAvatarUniformEffect(): void {
+function applyAvatarTierEffect(): void {
   const avatar = document.querySelector<HTMLElement>('.eq-avatar');
   if (!avatar) return;
   ALL_AVATAR_TIER_CLASSES.forEach((c) => avatar.classList.remove(c));
-  const tier = uniformTier();
+  const tier = lowestTier();
   if (tier) avatar.classList.add('eq-avatar-tier-' + tier);
 }
 
@@ -400,8 +414,8 @@ function handleEnhance(): void {
       const total = Array.from(slotState.values()).reduce((s, v) => s + v.power, 0);
       renderTotalPower(total);
       renderSlot(slot);
-      // 한 슬롯 등급 변화 → 6 슬롯 uniform 검사 다시 (아바타 효과 갱신)
-      applyAvatarUniformEffect();
+      // 한 슬롯 등급 변화 → 6 슬롯 최저 등급 재검사 (아바타 효과 갱신)
+      applyAvatarTierEffect();
 
       if (res.success) {
         const successMsg = '✨ +' + res.new_level + ' 강화 성공!';
