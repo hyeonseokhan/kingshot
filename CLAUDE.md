@@ -22,7 +22,8 @@ src/
   layouts/      # AppLayout, BaseLayout, GuideLayout
   pages/
     manage/     # members, coupons (관리자 도구)
-    minigame/   # tile-match, partner-draw (+ 신규: equipment, pvp)
+    minigame/   # tile-match, partner-draw, equipment, pvp
+    tools/      # build-optimizer (트랙 3 — 본문 미구현)
     beginner/   # 가이드
     events/
   scripts/
@@ -169,7 +170,14 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
     `tile_match_records` 는 건드리지 않음. 강화/잔액/거래 모두 새 시스템 기준 재지급
   - [x] Stage 46+ 반복 파밍 (100/회, ref_key NULL) — 일상 활동 재화
   - [x] **브라우저 회귀 검증** (사용자 직접, 2026-04-29 OK)
-- [ ] **Phase C** — PvP 카드 대결 + 랭킹 섹션 (`/minigame/pvp/`) ← **다음 시작 지점**
+- [x] **Phase C** — PvP 카드 대결 + 랭킹 섹션 (`/minigame/pvp/`) (commit `e8923ff` + 후속 fix 다수)
+  - [x] DB 마이그레이션 (`pvp_battles`, `pvp_daily_state`, `is_ranked` 컬럼)
+  - [x] Edge Function `pvp/` — 데미지/카드효과/크리/보상 모두 서버측 계산
+  - [x] `/minigame/pvp/` 페이지 — 매칭 → 배틀 → 결과 → 랭킹 통합
+  - [x] **밸런스 재설계** — share-based 데미지 + chip floor (1턴 즉사 차단)
+  - [x] cooldown (enhance/defend 직후 attack 만) + 격돌 메커닉
+  - [x] 연습 모드 (일일 5회 후 자유 매칭, 보상/승수 X) + `is_ranked` 분리
+  - [x] **브라우저 회귀 검증** + 모바일 컬럼 줄바꿈/연습승수 합산 fix (commit `b05f450`)
 
 ### 보안 / 무결성 체크리스트
 - [x] anon key로 통화 테이블 직접 변경 차단 (RLS write 차단)
@@ -177,22 +185,21 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 - [x] 강화 race condition 방지 (DB 함수 단일 트랜잭션 + `target == current+1` 검증)
 - [x] **무료 강화 hole 차단** — 음수 amount + 잔액 row 미존재 케이스를 명시적 `check_violation` 으로 거부
   (마이그레이션 `20260429120000_fix_apply_crystal_transaction.sql`)
-- [ ] PvP 데미지 계산 서버측 강제 (클라이언트는 카드 선택만 전송) — Phase C
-- [ ] PvP 자기공격 / 일일 한도 위반 차단 — Phase C
+- [x] PvP 데미지 계산 서버측 강제 (클라이언트는 카드 선택만 전송)
+- [x] PvP 자기공격 (`self_attack_forbidden`) / 일일 한도 위반 차단 + 멱등 보상 (`ref_key=pvp:<battle_id>:reward`)
 
 ### 후속 작업 트랙 (Phase A/B/C 완료 이후)
 
-신규 콘텐츠 구현이 끝나면 위에서 아래 순서로 진행:
+위에서 아래로 순차 진행. 각 트랙은 **이전 트랙 완료 + 사용자 회귀 검증** 후 시작.
 
-1. **트랙 X-1: 웹 프로젝트 설계 재검토 — 깜박임 100% 제거**
+1. **트랙 1: 웹 프로젝트 설계 재검토 — 깜박임 100% 제거** ← **현재 시작 지점**
    - **목표**: 데이터 갱신 시 화면 깜박임/플리커 **완전 제거**. 새로고침 같은 시각적 단절 없음
    - **현재 상태**: ISSUES #6 으로 1차 패치 완료 (헤더 위젯 스켈레톤 + 타일매치 랭킹 keyed 갱신).
      멤버 관리 리스트 / 쿠폰 히스토리 등 잔여 페이지는 미적용
    - **접근**: 단순 `patchList` 확장이 아니라 **데이터 흐름·SSR/CSR 경계·캐시 정책 전반 재설계** 검토.
      Astro 의 정적 prerender 와 클라이언트 hydration 사이의 경계, 페이지 간 상태 공유 방식 등
-   - **트리거**: Phase C 머지 + 검증 완료
 
-2. **트랙 X-2: 메모리 / Supabase I/O 최적화**
+2. **트랙 2: 메모리 / Supabase I/O 최적화**
    - **목표**:
      - 사이트 전체를 페이지별로 회귀하며 **네트워크 I/O 디버깅**
      - **불필요하게 동일한 데이터를 가져오는 패턴 제거** (예: members 로스터를 페이지마다 매번 fetch)
@@ -202,16 +209,29 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
      - 같은 데이터 반복 fetch → 공유 캐시(`src/lib/cache.ts` 활용 또는 확장)로 통합
      - Edge Function 호출 빈도 점검 (`economy/get-balance` 같이 페이지 진입마다 호출되는 패턴 우선)
      - Supabase Dashboard "Reports" 탭으로 before/after 사용량 측정
-   - **트리거**: 트랙 X-1 완료 후
+   - **트랙 1 의 캐시 정책 재설계와 자연스럽게 이어짐 — 같은 도구로 측정 가능**
 
-3. **트랙 X-3: 100단계 이후 신소재 강화 시스템** (한 두 달 뒤 기획 예정)
-   - **트리거**: 연맹원 일부가 신화 등급 (+71~100) 까지 도달한 시점
-   - **목표**: 100단계 cap 이후 다음 강화 컨텐츠 — 크리스탈이 아닌 별도 재료
-   - **구상 (잠정)**:
-     - 신소재(보석/룬/전설의 파편 등) 인벤토리 신규 테이블
-     - 재료 획득 채널 — 신규 미니게임? PvP 시즌 보상? 신화 강화 부산물?
-     - 등급 추가 (예: '초월') 또는 +101+ 단계 확장
-   - 현재 단계: 미정. 100단계 도달자가 나오면 본격 설계
+3. **트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화** (`/tools/build-optimizer/`)
+   - **현재 상태**: 메뉴/placeholder 페이지만 추가됨 (commit `a7c2e5b`). 본문 미구현
+   - **개발 가이드**: `신규서비스.md` (repo root) — 17개 섹션, MVP 범위는 §13 참조
+   - **핵심 컨텐츠**:
+     - 입력: 기본 건설속도 / 펫 / 법령 / 총리대신 대기 / 건축 큐 2개 / 후보 건축물 / 가속권
+     - 계산: 즉시 vs 총리대신 대기 비교, 손익분기 대기 시간, 가속권 사용 순이득
+     - 출력: 행동 추천 중심 (수식 X, "지금 시작하세요 / 기다리세요" 형식)
+   - **클라이언트 전용** — 서버/DB/Edge Function 무관 (브라우저 계산만)
+   - **위치**: `src/pages/tools/build-optimizer.astro` + `src/scripts/pages/build-optimizer.ts` + 필요 시 `src/styles/tools.css`
+
+4. **트랙 4: 데이터베이스 최적화 — 누적된 dead column / index 정리**
+   - **목표**: Phase A/B/C 진행 중 누적된 **사용하지 않는 컬럼 / 인덱스 / RLS 정책 정리**
+   - **점검 대상 (예시)**:
+     - `members` 테이블의 더 이상 안 쓰는 필드
+     - 마이그레이션 중간에 만들었다가 dead 가 된 인덱스
+     - PvP `is_ranked` 도입 전 인덱스 (winner_id only) — 새 인덱스 (winner_id, is_ranked) 와 중복 검토
+   - **방법론**:
+     - `information_schema` 쿼리로 컬럼 사용 여부 확인 (`pg_stat_user_tables`, `pg_stat_user_indexes`)
+     - production Supabase Dashboard 의 query stats 로 실제 사용 패턴 확인
+     - **삭제 전 백업 마이그레이션 1건 = 컬럼/인덱스 추가 마이그레이션 1건** 패턴 (rollback 가능)
+   - **트랙 1~3 완료 후 진행** — 신규 서비스 코드도 안정화된 뒤 dead 판정 정확도 ↑
 
 ### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
 
@@ -252,17 +272,15 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 - **DOM diff 헬퍼 도입**: `src/lib/dom-diff.ts` 의 `patchList`/`patchText`. Phase B 의 장비 강화
   결과 갱신, 인벤토리 표시 등에서도 처음부터 이 헬퍼로 갱신 — `innerHTML=''` 패턴 사용 금지.
 
-- **Phase C 시작 절차**:
-  1. `git pull origin main`
-  2. `npm install`
-  3. 새 브랜치: `git checkout -b feat/minigame-pvp`
-  4. 본 문서 "디자인 결정사항 → PvP" 섹션 기준으로 작업
-- **Phase C 의 production 적용** — 옵션 두 가지:
-  * `/tmp/supabase` 의 CLI 사용 (이전 작업 흐름) — `db push` + `functions deploy pvp`
-  * 또는 Management API 로 SQL 직접 실행 + `functions deploy` (더 빠름)
-- **Phase C 신규 테이블** (CLAUDE.md "데이터 모델" 섹션 참조):
-  `pvp_battles` (30일 자동 청소 — pg_cron) + `pvp_daily_state`
-- **Phase C 데미지 공식** — 서버측 `random()` + 등급별 `accumulatedPower(level)` 활용 가능
+### Phase C 운영 메모 (트랙 1 작업 시 알아둘 것)
+
+- **`is_ranked` 분리** — `pvp_battles.is_ranked` 가 ranked(일일 5회 안) / 연습(자유) 매치 구분.
+  보상 적립도 ranked 만, 클라이언트 승수 집계 쿼리도 `is_ranked=eq.true` 필터 필수
+  (한번 빠뜨려서 fix 한 적 있음 — commit `b05f450`).
+- **share-based 데미지 공식** — `pvp/index.ts` 의 `rollCardDamage()` 가 share + chip 합산.
+  단순 (MyPower - EnemyDefense) 곱셈에서 변경됨. 트랙 1/2 에서 PvP 화면 손볼 때 참조.
+- **격돌(collision) 메커닉** — 양쪽 동시 attack 시 일반 데미지 X, 양쪽 정액 200 (HP 의 20%).
+  화면에 별도 banner 노출. 깜박임 제거 작업 시 이 banner 도 keyed 갱신 대상.
 
 ---
 
@@ -279,10 +297,12 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 ## 참고 문서
 
 - `MIGRATION_PLAN.md` — 과거 Jekyll → Astro 마이그레이션 기록
+- `신규서비스.md` — **트랙 3 (건설 최적화) 개발 가이드** (사용자 작성, repo root)
 - 신규 미니게임 확장 기획서 (PDF, 사내 문서 — repo 외부 보관). 핵심 내용은 본 문서의 "디자인 결정사항" 섹션에 모두 반영됨
-- `supabase/migrations/` — 기존 스키마 (가장 최근: `20260428100000_create_crystal_economy.sql`)
+- `supabase/migrations/` — 기존 스키마 (가장 최근: `20260429160000_pvp_is_ranked.sql`)
 - `supabase/functions/tile-match-auth/index.ts` — Edge Function 패턴 레퍼런스
-- `supabase/functions/economy/index.ts` — Phase A 의 stage→reward 매핑 + RPC 호출 패턴 (Phase B/C 가 따라갈 템플릿)
+- `supabase/functions/economy/index.ts` — Phase A 의 stage→reward 매핑 + RPC 호출 패턴
+- `supabase/functions/pvp/index.ts` — Phase C 의 서버측 데미지 계산 + 멱등 보상 패턴
 
 ## 다른 PC 합류 시 setup
 
