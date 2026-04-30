@@ -3,6 +3,7 @@
 ## 보류 중
 
 ### 1. 연맹원 등급(R1~R5) OCR/매칭 정확도 개선
+
 - 현재 alliance scraper 에 template matching 으로 R 등급 인식이 들어가 있으나 false positive 가 다수.
 - 원인: 5개 R 템플릿이 배경 색상 동일 + 숫자만 다름 → matchTemplate 의 score 만으로 분류 안 됨.
 - centurygame APK (com.run.tower.defense) 의 .unity3d 번들이 자체 LZ4 변형 압축으로 보호되어 표준 도구(UnityPy 등) 추출 불가.
