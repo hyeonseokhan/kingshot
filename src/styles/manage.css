@@ -245,24 +245,31 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* grid 로 자식(empty placeholder + img) 을 같은 셀에 stack — img.onload 시 그 위로 페이드 인 */
+  display: grid;
+  place-items: center;
+}
+.mc-photo-wrap > .mc-photo,
+.mc-photo-wrap > .mc-photo-empty {
+  grid-area: 1 / 1;
 }
 .mc-photo-wrap .mc-photo {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  position: relative;
   z-index: 1;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.mc-photo-wrap .mc-photo.mc-photo-loaded {
+  opacity: 1;
 }
 .mc-photo-wrap .mc-photo-empty {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  position: relative;
-  z-index: 1;
+  z-index: 0; /* img 가 onload 되면 위에 덮음 */
 }
 .mc-photo-wrap.lv-28,
 .mc-photo-wrap.lv-29,

@@ -148,26 +148,37 @@ function updateRow(row: HTMLElement, m: Member): void {
   patchText(row.querySelector<HTMLElement>('.mc-power'), powerStr);
 }
 
-/** photo wrap 안의 <img> 또는 <div.mc-photo-empty> 토글. 같은 url 이면 src 재할당 X. */
+/**
+ * photo wrap 안 placeholder + img stack.
+ * - .mc-photo-empty 는 항상 존재 (nickname 첫 글자) — 이미지 fetch 중에도 빈 박스 노출 차단
+ * - <img> 는 url 있을 때만 생성, onload 시 .mc-photo-loaded 로 페이드 인
+ * - 같은 url 이면 src 재할당 X (브라우저 재로드 차단)
+ */
 function syncPhoto(wrap: HTMLElement, m: Member): void {
   const url = m.profile_photo;
-  let img = wrap.querySelector<HTMLImageElement>('img.mc-photo');
   let empty = wrap.querySelector<HTMLElement>('.mc-photo-empty');
+  if (!empty) {
+    empty = document.createElement('div');
+    empty.className = 'mc-photo-empty';
+    wrap.appendChild(empty);
+  }
+  patchText(empty, m.nickname.charAt(0));
+
+  let img = wrap.querySelector<HTMLImageElement>('img.mc-photo');
   if (url) {
     if (!img) {
       img = document.createElement('img');
       img.className = 'mc-photo';
+      img.decoding = 'async';
+      img.addEventListener('load', () => img!.classList.add('mc-photo-loaded'));
+      img.addEventListener('error', () => img!.classList.remove('mc-photo-loaded'));
       wrap.appendChild(img);
     }
-    if (img.src !== url) img.src = url;
-    empty?.remove();
-  } else {
-    if (!empty) {
-      empty = document.createElement('div');
-      empty.className = 'mc-photo-empty';
-      wrap.appendChild(empty);
+    if (img.src !== url) {
+      img.classList.remove('mc-photo-loaded');
+      img.src = url;
     }
-    patchText(empty, m.nickname.charAt(0));
+  } else {
     img?.remove();
   }
 }
