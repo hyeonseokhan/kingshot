@@ -73,7 +73,12 @@ export interface BuildingAnalysis {
    * = breakEvenWaitSeconds - actualWaitSeconds
    */
   netGainSeconds: number;
-  /** 권장: 총리대신을 기다려야 하는가? */
+  /**
+   * 권장: 총리대신을 기다려야 하는가?
+   * - actualWaitSeconds === 0 (즉시 사용 가능) → false (지금 모든 버프 적용해서 시작)
+   * - netGainSeconds > 0 (대기가 이득) → true
+   * - 그 외 → false
+   */
   shouldWaitForPrimeMinister: boolean;
 }
 
@@ -191,6 +196,6 @@ export function analyzeBuilding(
     breakEvenWaitSeconds: breakEven,
     actualWaitSeconds: actualWait,
     netGainSeconds: netGain,
-    shouldWaitForPrimeMinister: netGain > 0,
+    shouldWaitForPrimeMinister: actualWait > 0 && netGain > 0,
   };
 }

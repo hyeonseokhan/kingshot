@@ -243,6 +243,29 @@ describe('analyzeBuilding — 총리대신 0% (사용 안 함)', () => {
   });
 });
 
+describe('analyzeBuilding — actualWait=0 (총리대신 즉시 사용 가능)', () => {
+  // 사용자가 시각 비워둠 → actualWait=0. 지금 모든 버프 적용해서 시작이 답.
+  const building: BuildingCandidate = { id: 'a', baseSeconds: 2_515_920 };
+  const buffs: BuffSettings = {
+    baseSpeedPercent: 54.6,
+    petSpeedPercent: 12,
+    primeMinisterSpeedPercent: 10,
+    lawReductionPercent: 20,
+    primeMinisterWaitSeconds: 0,
+    accelerationTicketSeconds: 0,
+  };
+  const result = analyzeBuilding(building, buffs);
+
+  it('netGain > 0 (≈ 19시간) — 총리대신 효과 자체', () => {
+    expect(result.netGainSeconds).toBeGreaterThan(0);
+  });
+
+  it('shouldWait=false — 대기 자체가 0 이라 기다릴 의미 없음', () => {
+    // actualWait > 0 조건이 없으면 — 즉시 사용 가능 시 권장은 "지금 시작 (모든 버프 적용)"
+    expect(result.shouldWaitForPrimeMinister).toBe(false);
+  });
+});
+
 describe('analyzeBuilding — 동률 케이스', () => {
   // 손익분기 == 실제 대기 → netGain = 0
   const building: BuildingCandidate = { id: 'tie', baseSeconds: 2_515_920 };

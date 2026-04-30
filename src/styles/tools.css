@@ -186,6 +186,15 @@
   font-weight: 600;
   margin-bottom: 8px;
 }
+.bo-result-baseTime {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text3);
+}
+.bo-input-time {
+  /* time picker 너비 — 모바일에서 너무 넓지 않게 */
+  max-width: 200px;
+}
 .bo-tag-positive {
   color: #059669;
   font-weight: 700;

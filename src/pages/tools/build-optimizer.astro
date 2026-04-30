@@ -72,38 +72,35 @@ const navItems = tools.submenus!.map((s) => ({
       </div>
 
       <div class="bo-field">
-        <span class="bo-label">총리대신까지 남은 시간</span>
-        <div class="bo-time-row" data-time-input="bo-pm-wait">
-          <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
-          <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
-          <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
-        </div>
-        <p class="bo-hint">신청 후 권한 부여 예상 시간 — 0 이면 즉시 사용 가능</p>
+        <label for="bo-pm-time" class="bo-label">총리대신 임명 예정 시각</label>
+        <input type="time" id="bo-pm-time" class="bo-input bo-input-time" />
+        <p class="bo-hint">
+          예정 시각(KST) 입력 — 지나간 시각이면 내일로 자동 판단. 비워두면 즉시 사용 가능
+        </p>
       </div>
     </section>
 
-    <!-- ===== 2. 건축 후보 ===== -->
+    <!-- ===== 2. 건축 후보 (큐 2개) ===== -->
     <section class="bo-section">
-      <h2 class="bo-section-title">건축 후보</h2>
+      <h2 class="bo-section-title">다음 건축 후보 (최대 2개)</h2>
 
       <div class="bo-field">
-        <label for="bo-bldg-name" class="bo-label">건물 이름 (선택)</label>
-        <input
-          type="text"
-          id="bo-bldg-name"
-          class="bo-input"
-          placeholder="예: 도시 센터 27레벨"
-        />
-      </div>
-
-      <div class="bo-field">
-        <span class="bo-label">기본 건축 시간</span>
-        <div class="bo-time-row" data-time-input="bo-bldg-time">
+        <span class="bo-label">큐 1 — 기본 건축 시간</span>
+        <div class="bo-time-row" data-time-input="bo-bldg1-time">
           <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
           <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
           <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
         </div>
-        <p class="bo-hint">버프가 적용되지 않은 원본 건축 시간</p>
+      </div>
+
+      <div class="bo-field">
+        <span class="bo-label">큐 2 — 기본 건축 시간</span>
+        <div class="bo-time-row" data-time-input="bo-bldg2-time">
+          <span class="bo-time-cell"><input type="number" min="0" data-unit="d" placeholder="0" /><em>일</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="23" data-unit="h" placeholder="0" /><em>시간</em></span>
+          <span class="bo-time-cell"><input type="number" min="0" max="59" data-unit="m" placeholder="0" /><em>분</em></span>
+        </div>
+        <p class="bo-hint">사용 안 할 큐는 비워둬도 됨 (한 큐만 입력 가능)</p>
       </div>
     </section>
 
