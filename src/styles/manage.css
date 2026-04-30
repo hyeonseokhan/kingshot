@@ -260,10 +260,12 @@
   z-index: 1;
   object-fit: cover;
 }
-/* 페이드 인 — .mc-photo-fade 마커가 있는 img 한정. 다른 페이지(쿠폰 등) 의 .mc-photo 는 영향 X */
+/* 페이드 인 — .mc-photo-fade 마커가 있는 img 한정. 다른 페이지(쿠폰 등) 의 .mc-photo 는 영향 X
+ * 80ms 는 진단 기반 — disk cache hit(0ms) 시에도 transition 자체가 200ms 면 "지연" 인상.
+ * 80ms 는 인지 가능하지만 lag 감각 X (체감 즉시) */
 .mc-photo-wrap .mc-photo.mc-photo-fade {
   opacity: 0;
-  transition: opacity 200ms ease-out;
+  transition: opacity 80ms ease-out;
 }
 .mc-photo-wrap .mc-photo.mc-photo-fade.mc-photo-loaded {
   opacity: 1;
