@@ -289,9 +289,12 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 
 ### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
 
-- **100단계 + 6 RPG 등급 시스템** (2026-04-29 재밸런스) — `src/lib/balance.ts` 의
+- **100단계 + 6 RPG 등급 시스템** (2026-04-29 재밸런스, 2026-04-30 등급 boundary 시프트) — `src/lib/balance.ts` 의
   `ENHANCE_RANGES` 객체 + 선형 보간 함수. Phase C 의 PvP 데미지 공식에서 장비 power
   계산 시 `accumulatedPower(level)` 활용 가능.
+  현재 boundary: 일반(+0) · 고급(+1~9) · 희귀(+10~24) · 영웅(+25~44) · 레전드(+45~69) · 신화(+70~100).
+  변경 시 양쪽 동기 수정 필수: 본 파일 + `supabase/functions/equipment/index.ts` + `src/pages/minigame/equipment.astro` 안내 텍스트.
+  기존 player power 재계산은 `20260430000000_rebalance_equipment_power_tier_shift.sql` 패턴 참조.
 - **`apply_crystal_transaction` 의 PG 동작 함정** — INSERT...ON CONFLICT 의 row CHECK
   는 conflict 분기보다 먼저 검사됨. 음수 amount(차감) 시 INSERT VALUES 의 balance
   컬럼에 raw 값 넣으면 항상 CHECK violation. 향후 통화 차감 마이그레이션 작성 시

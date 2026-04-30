@@ -68,8 +68,8 @@ export const ENHANCE_MAX_LEVEL = 100;
 
 /**
  * 강화 등급 (rarity).
- *   common(+0) → uncommon(+1~10) → rare(+11~25) → epic(+26~45)
- *   → legendary(+46~70) → mythic(+71~100)
+ *   common(+0) → uncommon(+1~9) → rare(+10~24) → epic(+25~44)
+ *   → legendary(+45~69) → mythic(+70~100)
  */
 export type EquipmentTier =
   | 'common'
@@ -90,11 +90,11 @@ export const TIER_LABEL: Record<EquipmentTier, string> = {
 
 export function tierForLevel(level: number): EquipmentTier {
   if (level <= 0) return 'common';
-  if (level <= 10) return 'uncommon';
-  if (level <= 25) return 'rare';
-  if (level <= 45) return 'epic';
-  if (level <= 70) return 'legendary';
-  return 'mythic'; // 71~100
+  if (level <= 9) return 'uncommon';
+  if (level <= 24) return 'rare';
+  if (level <= 44) return 'epic';
+  if (level <= 69) return 'legendary';
+  return 'mythic'; // 70~100
 }
 
 /**
@@ -105,7 +105,7 @@ export function tierForLevel(level: number): EquipmentTier {
  * 참고:
  *   - 비용 곡선 — 등급 사이에 의도적 jump (uncommon 끝 1,000 → rare 시작 1,500)
  *   - 게임 평생 max 재화 ~20,820 + stage 46+ 100/회 반복 파밍 가정
- *   - 한 부위 신화(+71~100) 풀강은 end-game grind 영역 (수백만 ~ 수천만 크리스탈)
+ *   - 한 부위 신화(+70~100) 풀강은 end-game grind 영역 (수백만 ~ 수천만 크리스탈)
  */
 const ENHANCE_RANGES: ReadonlyArray<{
   tier: EquipmentTier;
@@ -118,11 +118,11 @@ const ENHANCE_RANGES: ReadonlyArray<{
   rateFrom: number;
   rateTo: number;
 }> = [
-  { tier: 'uncommon',  from: 3,  to: 10,  costFrom: 300,    costTo: 1000,    powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.80 },
-  { tier: 'rare',      from: 11, to: 25,  costFrom: 1500,   costTo: 4000,    powerFrom: 250,   powerTo: 600,    rateFrom: 0.75, rateTo: 0.55 },
-  { tier: 'epic',      from: 26, to: 45,  costFrom: 5000,   costTo: 15000,   powerFrom: 700,   powerTo: 2000,   rateFrom: 0.50, rateTo: 0.30 },
-  { tier: 'legendary', from: 46, to: 70,  costFrom: 18000,  costTo: 60000,   powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.25, rateTo: 0.10 },
-  { tier: 'mythic',    from: 71, to: 100, costFrom: 70000,  costTo: 400000,  powerFrom: 10000, powerTo: 50000,  rateFrom: 0.08, rateTo: 0.02 },
+  { tier: 'uncommon',  from: 3,  to: 9,   costFrom: 300,    costTo: 1000,    powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.80 },
+  { tier: 'rare',      from: 10, to: 24,  costFrom: 1500,   costTo: 4000,    powerFrom: 250,   powerTo: 600,    rateFrom: 0.75, rateTo: 0.55 },
+  { tier: 'epic',      from: 25, to: 44,  costFrom: 5000,   costTo: 15000,   powerFrom: 700,   powerTo: 2000,   rateFrom: 0.50, rateTo: 0.30 },
+  { tier: 'legendary', from: 45, to: 69,  costFrom: 18000,  costTo: 60000,   powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.25, rateTo: 0.10 },
+  { tier: 'mythic',    from: 70, to: 100, costFrom: 70000,  costTo: 400000,  powerFrom: 10000, powerTo: 50000,  rateFrom: 0.08, rateTo: 0.02 },
 ];
 
 /**
