@@ -192,14 +192,20 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 
 위에서 아래로 순차 진행. 각 트랙은 **이전 트랙 완료 + 사용자 회귀 검증** 후 시작.
 
-1. **트랙 1: 웹 프로젝트 설계 재검토 — 깜박임 100% 제거** ← **현재 시작 지점**
-   - **목표**: 데이터 갱신 시 화면 깜박임/플리커 **완전 제거**. 새로고침 같은 시각적 단절 없음
-   - **현재 상태**: ISSUES #6 으로 1차 패치 완료 (헤더 위젯 스켈레톤 + 타일매치 랭킹 keyed 갱신).
-     멤버 관리 리스트 / 쿠폰 히스토리 등 잔여 페이지는 미적용
-   - **접근**: 단순 `patchList` 확장이 아니라 **데이터 흐름·SSR/CSR 경계·캐시 정책 전반 재설계** 검토.
-     Astro 의 정적 prerender 와 클라이언트 hydration 사이의 경계, 페이지 간 상태 공유 방식 등
+1. **트랙 1: 웹 프로젝트 설계 재검토 — 깜박임 100% 제거** ✅ 완료 (commits 574e0d9 ~ 7697e28)
+   - **달성**: 데이터 갱신 시 row 단위 keyed reconcile + 사진 placeholder + 페이드 인 패턴 적용.
+     `innerHTML = ...` 통째 교체 패턴이 제거된 곳:
+     - 회원 관리 (members.ts) — row + 사진
+     - 쿠폰 받기 (coupons.ts) — 계정 목록 + 쿠폰 카드 + 진행 UI + 수령 이력 + pagination
+     - 타일매치 랭킹 (tile-match.ts) — row 의 부분 patch + 사진 fade
+     - PvP 검색 모드 (pvp.ts) — allMembersCache → membersStore
+   - **남은 곳 (의도적)**: 타일매치 게임 보드 자체는 frame animation 필수라 손대지 않음
+   - **신규 인프라**:
+     - `src/lib/store.ts` — createStore<T> (get/set/subscribe/refresh + sessionStorage TTL + in-flight 보호)
+     - `src/lib/stores/members.ts` — membersStore (4페이지 공유)
+     - `.mc-photo-fade`, `.tm-rank-photo-fade` 마커 — img.onload 시 .loaded 클래스로 페이드 인 (transition 80ms)
 
-2. **트랙 2: 메모리 / Supabase I/O 최적화**
+2. **트랙 2: 메모리 / Supabase I/O 최적화** ← **다음 시작 지점**
    - **목표**:
      - 사이트 전체를 페이지별로 회귀하며 **네트워크 I/O 디버깅**
      - **불필요하게 동일한 데이터를 가져오는 패턴 제거** (예: members 로스터를 페이지마다 매번 fetch)
@@ -271,6 +277,25 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
   `src/lib/balance.ts` 확장 권장.
 - **DOM diff 헬퍼 도입**: `src/lib/dom-diff.ts` 의 `patchList`/`patchText`. Phase B 의 장비 강화
   결과 갱신, 인벤토리 표시 등에서도 처음부터 이 헬퍼로 갱신 — `innerHTML=''` 패턴 사용 금지.
+
+### 트랙 1 운영 메모 (트랙 2~ 작업 시 알아둘 것)
+
+- **단일 store 패턴** — `src/lib/stores/<name>.ts` 가 표준. members 외에 balance/equipment/rankings 등도
+  같은 패턴으로 추가 가능. 트랙 2 의 I/O 최적화는 store 화 안 된 데이터(예: tile-match 의 ranking
+  records, members.ts 의 RANK_WEIGHT 정렬 후 view-model) 를 store 화 하는 것이 자연스럽게 이어짐.
+- **사진 페이드 패턴 일관성** — placeholder(첫 글자) 항상 보이고 `<img>` 가 onload 시
+  `.<X>-photo-loaded` 추가로 페이드 인. transition 80ms (Playwright 진단 기반 — cache hit 시
+  200ms 면 lag 감각). 마커 클래스(`.mc-photo-fade`, `.tm-rank-photo-fade`) 한정 적용 — 다른 페이지의
+  같은 base class(.mc-photo) 는 영향 X.
+- **이미지 cache** — 사진은 Akamai CDN(got-global-avatar.akamaized.net), Cache-Control 헤더 부재지만
+  브라우저 heuristic 으로 disk cache 작동. 두 번째 진입 0~1ms. Supabase 무관.
+- **`.<X>-photo-wrap` grid stack** — flex(단일 자식) → grid + place-items + grid-area:1/1 로 두 자식
+  (empty placeholder + img) 같은 셀에 stack. 다른 페이지에서 같은 wrap class 단일 자식만 쓰면 영향 X.
+- **이벤트 위임** — 인라인 `onclick="X.foo(...)"` 는 신규 코드에서 금지. 대신 컨테이너에 click 위임 +
+  `data-action="..."` + `data-*` 로 정보 전달. members.ts/coupons.ts 가 레퍼런스.
+- **patchList container 안 비-row 자식** — patchList 는 `data-key` 있는 자식만 reconcile. 그 외 자식
+  (status div, label 등) 은 형제 element 로 분리해서 patchList container 밖에 둘 것 (그렇지 않으면
+  새 row appendChild 가 비-row 자식 뒤로 밀어버려 순서 꼬임).
 
 ### Phase C 운영 메모 (트랙 1 작업 시 알아둘 것)
 
