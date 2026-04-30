@@ -1,0 +1,29 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+
+const tools = tabs.find((t) => t.id === 'tools')!;
+const active = findActiveSubmenu(tools, Astro.url.pathname);
+const navItems = tools.submenus!.map((s) => ({
+  title: s.title,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="건설 최적화 — PNX 연맹"
+  description="건설 동선/순서를 최적화하는 도구"
+  navHeader="게임도구"
+  navItems={navItems}
+>
+  <div class="manage-page" id="page-build-optimizer">
+    <div class="members-header">
+      <h1>건설 최적화</h1>
+    </div>
+
+    <div class="page-intro">
+      <p><strong>🚧 준비 중</strong> — 곧 추가될 기능입니다.</p>
+    </div>
+  </div>
+</AppLayout>

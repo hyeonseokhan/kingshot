@@ -49,6 +49,15 @@ export const tabs: NavTab[] = [
       { id: 'partner-draw', title: '운명의 파트너', path: '/minigame/partner-draw/' },
     ],
   },
+  {
+    id: 'tools',
+    title: '게임도구',
+    path: '/tools/build-optimizer/',
+    pathPrefix: '/tools/',
+    submenus: [
+      { id: 'build-optimizer', title: '건설 최적화', path: '/tools/build-optimizer/' },
+    ],
+  },
 ];
 
 /** 현재 path 기준 활성 탭. 루트("/")는 첫 가이드 탭으로 간주. */
