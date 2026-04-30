@@ -138,7 +138,11 @@ const navItems = manage.submenus!.map((s) => ({
           <button class="md-close-btn" id="history-close" type="button">&times;</button>
         </div>
         <div class="history-body" id="history-body">
-          <div class="empty-cell">로딩 중...</div>
+          <table class="history-table" id="history-table" style="display:none">
+            <thead><tr><th>계정</th><th>쿠폰</th><th>수령일시</th></tr></thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+          <div class="empty-cell" id="history-status">로딩 중...</div>
         </div>
         <div class="history-pagination" id="history-pagination"></div>
       </div>

@@ -706,70 +706,123 @@ function startBulkRedeem(skipConfirm: boolean): void {
 }
 
 // ===== 진행 표시 =====
+//
+// info / progress / summary 모드 — element 구조는 한 번만 build, 모드 전환 시
+// 자식 display 토글 + textContent / fill width 만 patch. 1초 단위 진행 갱신 시
+// innerHTML 통째 교체로 인한 깜박임 차단.
+
+interface ProgressPanel {
+  root: HTMLDivElement;
+  textEl: HTMLElement;
+  barEl: HTMLElement;
+  fillEl: HTMLElement;
+  countEl: HTMLElement;
+  summaryEl: HTMLElement;
+}
+
+let progressHideTimer: number | null = null;
+
+function getProgressPanel(): ProgressPanel {
+  let root = maybe<HTMLDivElement>('redeem-progress');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'redeem-progress';
+    root.className = 'redeem-progress';
+    root.innerHTML = `
+      <div class="redeem-progress-text"></div>
+      <div class="redeem-progress-bar"><div class="redeem-progress-fill" style="width:0%"></div></div>
+      <div class="redeem-progress-count"></div>
+      <div class="redeem-summary"></div>
+    `;
+    const toolbar = document.querySelector<HTMLElement>('#page-coupons .members-toolbar');
+    toolbar?.parentNode?.insertBefore(root, toolbar.nextSibling);
+  }
+  return {
+    root,
+    textEl: root.querySelector<HTMLElement>('.redeem-progress-text')!,
+    barEl: root.querySelector<HTMLElement>('.redeem-progress-bar')!,
+    fillEl: root.querySelector<HTMLElement>('.redeem-progress-fill')!,
+    countEl: root.querySelector<HTMLElement>('.redeem-progress-count')!,
+    summaryEl: root.querySelector<HTMLElement>('.redeem-summary')!,
+  };
+}
+
+function scheduleAutoHide(p: ProgressPanel): void {
+  if (progressHideTimer != null) window.clearTimeout(progressHideTimer);
+  progressHideTimer = window.setTimeout(() => {
+    p.root.style.display = 'none';
+    progressHideTimer = null;
+  }, SUMMARY_DISPLAY_MS);
+}
 
 // 즉시 끝난 액션 (활성 쿠폰 0 / 모두 이미 수령)을 사용자에게 알리는 패널.
 // auto-redeem URL 진입 시 화면이 깜깜하지 않도록 보장하는 핵심 — silent return 금지.
 function showInfoPanel(text: string): void {
-  let el = maybe<HTMLDivElement>('redeem-progress');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'redeem-progress';
-    el.className = 'redeem-progress';
-    const toolbar = document.querySelector<HTMLElement>('#page-coupons .members-toolbar');
-    toolbar?.parentNode?.insertBefore(el, toolbar.nextSibling);
+  const p = getProgressPanel();
+  p.root.style.display = '';
+  p.textEl.style.display = 'none';
+  p.barEl.style.display = 'none';
+  p.countEl.style.display = 'none';
+  p.summaryEl.style.display = '';
+  p.summaryEl.className = 'redeem-summary summary-ok';
+  // info 는 한 줄 — span 한 개만 두고 텍스트만 patch
+  let span = p.summaryEl.querySelector<HTMLElement>('span.summary-info');
+  if (!span) {
+    p.summaryEl.replaceChildren();
+    span = document.createElement('span');
+    span.className = 'summary-info';
+    p.summaryEl.appendChild(span);
   }
-  el.innerHTML =
-    '<div class="redeem-summary summary-ok"><span>' + esc(text) + '</span></div>';
-  el.style.display = '';
-  // SUMMARY_DISPLAY_MS 동안 노출 후 자동 숨김 — showSummary 와 동일 라이프사이클
-  setTimeout(() => {
-    if (el && el.parentNode) el.style.display = 'none';
-  }, SUMMARY_DISPLAY_MS);
+  patchText(span, text);
+  scheduleAutoHide(p);
 }
 
 function showProgress(text: string): void {
-  let el = maybe<HTMLDivElement>('redeem-progress');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'redeem-progress';
-    el.className = 'redeem-progress';
-    const toolbar = document.querySelector<HTMLElement>('#page-coupons .members-toolbar');
-    toolbar?.parentNode?.insertBefore(el, toolbar.nextSibling);
+  const p = getProgressPanel();
+  // 진행 중엔 auto-hide 타이머 끄기 — summary 호출 시 다시 schedule
+  if (progressHideTimer != null) {
+    window.clearTimeout(progressHideTimer);
+    progressHideTimer = null;
   }
-  const pct = totalRedeemTasks > 0 ? Math.round((completedRedeemTasks / totalRedeemTasks) * 100) : 0;
-  el.innerHTML =
-    '<div class="redeem-progress-text">' +
-    esc(text) +
-    '</div>' +
-    '<div class="redeem-progress-bar"><div class="redeem-progress-fill" style="width:' +
-    pct +
-    '%"></div></div>' +
-    '<div class="redeem-progress-count">' +
-    completedRedeemTasks +
-    ' / ' +
-    totalRedeemTasks +
-    '</div>';
-  el.style.display = '';
+  p.root.style.display = '';
+  p.textEl.style.display = '';
+  p.barEl.style.display = '';
+  p.countEl.style.display = '';
+  p.summaryEl.style.display = 'none';
+  patchText(p.textEl, text);
+  const pct =
+    totalRedeemTasks > 0 ? Math.round((completedRedeemTasks / totalRedeemTasks) * 100) : 0;
+  p.fillEl.style.width = pct + '%';
+  patchText(p.countEl, completedRedeemTasks + ' / ' + totalRedeemTasks);
 }
 
 function showSummary(): void {
-  const el = maybe('redeem-progress');
-  if (el) {
-    const cls = redeemStats.failed > 0 ? 'summary-warn' : 'summary-ok';
-    el.innerHTML =
-      '<div class="redeem-summary ' +
-      cls +
-      '">' +
-      '<span>✅ 성공 ' +
-      redeemStats.success +
-      '</span>' +
-      (redeemStats.already > 0 ? '<span>📋 이미 수령 ' + redeemStats.already + '</span>' : '') +
-      (redeemStats.failed > 0 ? '<span>⚠️ 실패 ' + redeemStats.failed + '</span>' : '') +
-      '</div>';
-    setTimeout(() => {
-      el.style.display = 'none';
-    }, SUMMARY_DISPLAY_MS);
-  }
+  const p = getProgressPanel();
+  p.root.style.display = '';
+  p.textEl.style.display = 'none';
+  p.barEl.style.display = 'none';
+  p.countEl.style.display = 'none';
+  p.summaryEl.style.display = '';
+  const cls = redeemStats.failed > 0 ? 'summary-warn' : 'summary-ok';
+  p.summaryEl.className = 'redeem-summary ' + cls;
+  // 3개의 span 을 stable key 로 reconcile — 빈도 낮은 호출이지만 일관성 유지
+  const segs = [
+    { key: 'success', text: '✅ 성공 ' + redeemStats.success, show: true },
+    { key: 'already', text: '📋 이미 수령 ' + redeemStats.already, show: redeemStats.already > 0 },
+    { key: 'failed', text: '⚠️ 실패 ' + redeemStats.failed, show: redeemStats.failed > 0 },
+  ];
+  patchList({
+    container: p.summaryEl,
+    items: segs.filter((s) => s.show),
+    key: (s) => s.key,
+    render: (s) => {
+      const span = document.createElement('span');
+      span.textContent = s.text;
+      return span;
+    },
+    update: (el, s) => patchText(el, s.text),
+  });
+  scheduleAutoHide(p);
   if (redeemStats.failed > 0) {
     alert('실패 상세:\n' + redeemStats.errors.join('\n'));
   }
@@ -790,9 +843,18 @@ function openHistoryDialog(): void {
   loadHistoryPage();
 }
 
+interface HistoryRow {
+  kingshot_id: string;
+  coupon_code: string;
+  redeemed_at: string | null;
+}
+
 function loadHistoryPage(): void {
-  const body = $('history-body');
-  body.innerHTML = '<div class="empty-cell">로딩 중...</div>';
+  const status = $('history-status');
+  const table = $('history-table');
+  // 현재 row 는 유지 (깜박임 차단). 로딩 표시는 status 만 가시화.
+  status.style.display = '';
+  status.textContent = '로딩 중...';
 
   const from = (historyCurrentPage - 1) * HISTORY_PAGE_SIZE;
   const to = from + HISTORY_PAGE_SIZE - 1;
@@ -804,98 +866,134 @@ function loadHistoryPage(): void {
     .range(from, to)
     .then((res) => {
       if (res.error) {
-        body.innerHTML = '<div class="empty-cell">조회 실패: ' + res.error.message + '</div>';
+        table.style.display = 'none';
+        status.style.display = '';
+        status.textContent = '조회 실패: ' + res.error.message;
         return;
       }
       historyTotalCount = res.count || 0;
-      $('history-total').textContent = '전체 ' + historyTotalCount + '건';
-      renderHistoryTable(
-        (res.data || []) as Array<{
-          kingshot_id: string;
-          coupon_code: string;
-          redeemed_at: string | null;
-        }>,
-      );
+      patchText($('history-total'), '전체 ' + historyTotalCount + '건');
+      renderHistoryTable((res.data || []) as HistoryRow[]);
       renderHistoryPagination();
     });
 }
 
-function renderHistoryTable(
-  rows: Array<{ kingshot_id: string; coupon_code: string; redeemed_at: string | null }>,
-): void {
-  const body = $('history-body');
+function renderHistoryTable(rows: HistoryRow[]): void {
+  const status = $('history-status');
+  const table = $('history-table');
+  const tbody = $('history-rows');
   if (rows.length === 0) {
-    body.innerHTML = '<div class="empty-cell">수령 이력이 없습니다</div>';
+    table.style.display = 'none';
+    status.style.display = '';
+    status.textContent = '수령 이력이 없습니다';
+    tbody.replaceChildren();
     return;
   }
-  let html =
-    '<table class="history-table">' +
-    '<thead><tr><th>계정</th><th>쿠폰</th><th>수령일시</th></tr></thead><tbody>';
-  html += rows
-    .map((r) => {
-      const nick = nicknameMap[r.kingshot_id] || r.kingshot_id;
-      return (
-        '<tr title="' +
-        formatDateTime(r.redeemed_at) +
-        '">' +
-        '<td>' +
-        esc(nick) +
-        '</td>' +
-        '<td class="col-code">' +
-        esc(r.coupon_code) +
-        '</td>' +
-        '<td class="col-date">' +
-        formatRelativeTime(r.redeemed_at) +
-        '</td>' +
-        '</tr>'
-      );
-    })
-    .join('');
-  html += '</tbody></table>';
-  body.innerHTML = html;
+  status.style.display = 'none';
+  table.style.display = '';
+  patchList({
+    container: tbody,
+    items: rows,
+    // 같은 (kingshot_id, coupon_code, redeemed_at) 조합이 페이지간 같을 가능성 낮음 —
+    // 그래도 page 내부 정렬 변경이나 데이터 갱신 시 안정적인 key 보장
+    key: (r) => r.kingshot_id + ':' + r.coupon_code + ':' + (r.redeemed_at ?? ''),
+    render: (r) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td></td>
+        <td class="col-code"></td>
+        <td class="col-date"></td>
+      `;
+      updateHistoryRow(tr, r);
+      return tr;
+    },
+    update: updateHistoryRow,
+  });
+}
+
+function updateHistoryRow(tr: HTMLElement, r: HistoryRow): void {
+  tr.title = formatDateTime(r.redeemed_at);
+  const cells = tr.querySelectorAll<HTMLElement>('td');
+  patchText(cells[0]!, nicknameMap[r.kingshot_id] || r.kingshot_id);
+  patchText(cells[1]!, r.coupon_code);
+  patchText(cells[2]!, formatRelativeTime(r.redeemed_at));
 }
 
 function renderHistoryPagination(): void {
   const el = $('history-pagination');
   const totalPages = Math.max(1, Math.ceil(historyTotalCount / HISTORY_PAGE_SIZE));
 
-  let html = '';
-  html +=
-    '<button ' +
-    (historyCurrentPage === 1 ? 'disabled' : '') +
-    ' data-page="' +
-    (historyCurrentPage - 1) +
-    '">&lsaquo;</button>';
-
+  // 가시 페이지 범위 계산 (현재 ±2, 끝쪽 보정)
   let start = Math.max(1, historyCurrentPage - 2);
   const end = Math.min(totalPages, start + 4);
   if (end - start < 4) start = Math.max(1, end - 4);
-  for (let i = start; i <= end; i++) {
-    html +=
-      '<button class="' +
-      (i === historyCurrentPage ? 'active' : '') +
-      '" data-page="' +
-      i +
-      '">' +
-      i +
-      '</button>';
+
+  // 버튼 items: prev (page-1) → 페이지번호들 → next (page+1)
+  // 같은 buttons 의 active/disabled 상태만 patch — element 재사용
+  interface PageBtn {
+    key: string;
+    page: number;
+    label: string;
+    disabled: boolean;
+    active: boolean;
   }
+  const items: PageBtn[] = [
+    {
+      key: 'prev',
+      page: historyCurrentPage - 1,
+      label: '‹',
+      disabled: historyCurrentPage === 1,
+      active: false,
+    },
+  ];
+  for (let i = start; i <= end; i++) {
+    items.push({
+      key: 'p' + i,
+      page: i,
+      label: String(i),
+      disabled: false,
+      active: i === historyCurrentPage,
+    });
+  }
+  items.push({
+    key: 'next',
+    page: historyCurrentPage + 1,
+    label: '›',
+    disabled: historyCurrentPage >= totalPages,
+    active: false,
+  });
 
-  html +=
-    '<button ' +
-    (historyCurrentPage >= totalPages ? 'disabled' : '') +
-    ' data-page="' +
-    (historyCurrentPage + 1) +
-    '">&rsaquo;</button>';
+  patchList({
+    container: el,
+    items,
+    key: (b) => b.key,
+    render: (b) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.page = String(b.page);
+      patchText(btn, b.label);
+      btn.disabled = b.disabled;
+      btn.classList.toggle('active', b.active);
+      return btn;
+    },
+    update: (btn, b) => {
+      btn.dataset.page = String(b.page);
+      patchText(btn, b.label);
+      (btn as HTMLButtonElement).disabled = b.disabled;
+      btn.classList.toggle('active', b.active);
+    },
+  });
 
-  el.innerHTML = html;
-  el.querySelectorAll<HTMLButtonElement>('button[data-page]').forEach((btn) => {
-    if (btn.disabled) return;
-    btn.addEventListener('click', () => {
-      historyCurrentPage = parseInt(btn.dataset.page || '1', 10);
+  // 컨테이너 위임 — 한 번만 등록 (idempotent)
+  if (!el.dataset.bound) {
+    el.dataset.bound = '1';
+    el.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-page]');
+      if (!btn || btn.disabled) return;
+      historyCurrentPage = parseInt(btn.dataset.page ?? '1', 10);
       loadHistoryPage();
     });
-  });
+  }
 }
 
 // ===== 초기화 =====
