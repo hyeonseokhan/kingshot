@@ -22,7 +22,8 @@ import {
   invalidateAccountsCache,
 } from '@/lib/cache';
 import { patchList, patchText } from '@/lib/dom-diff';
-import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse } from '@/lib/types';
+import { membersStore, fetchMembers } from '@/lib/stores/members';
+import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
 
 // ===== 상수 =====
 
@@ -255,27 +256,24 @@ function loadAccounts(callback?: () => void): void {
     callback?.();
     return;
   }
+  // members 는 store 활용 (auto_coupon=true 는 client filter), coupon_accounts 는 별도 fetch
   Promise.all([
-    sb
-      .from('members')
-      .select('kingshot_id,nickname,level,kingdom,profile_photo')
-      .eq('auto_coupon', true),
+    membersStore.refresh(fetchMembers),
     sb.from('coupon_accounts').select('*'),
   ])
     .then((results) => {
       allAccounts = [];
-      if (results[0].data) {
-        (results[0].data as Array<Record<string, unknown>>).forEach((m) => {
-          allAccounts.push({
-            kingshot_id: m.kingshot_id as string,
-            nickname: m.nickname as string,
-            level: (m.level as number) ?? null,
-            kingdom: (m.kingdom as string) ?? null,
-            profile_photo: (m.profile_photo as string) ?? null,
-            source: 'member',
-          });
+      const memberRows = (results[0] as Member[]).filter((m) => m.auto_coupon === true);
+      memberRows.forEach((m) => {
+        allAccounts.push({
+          kingshot_id: m.kingshot_id,
+          nickname: m.nickname,
+          level: m.level ?? null,
+          kingdom: m.kingdom ?? null,
+          profile_photo: m.profile_photo ?? null,
+          source: 'member',
         });
-      }
+      });
       if (results[1].data) {
         (results[1].data as Array<Record<string, unknown>>).forEach((a) => {
           allAccounts.push({

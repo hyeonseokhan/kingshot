@@ -8,6 +8,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { rewardForStage } from '@/lib/balance';
 import { patchList, patchText } from '@/lib/dom-diff';
+import { membersStore, fetchMembers } from '@/lib/stores/members';
 
 // ===== 상수 =====
 
@@ -294,15 +295,12 @@ function loadRanking(): void {
           '<div class="tm-ranking-empty">아직 기록이 없습니다 — 첫 클리어의 주인공이 되어보세요!</div>';
         return;
       }
-      const ids = list.map((r) => r.player_id);
-      return fetchSupa(
-        SUPABASE_URL +
-          '/rest/v1/members?kingshot_id=in.(' +
-          ids.map(encodeURIComponent).join(',') +
-          ')&select=kingshot_id,nickname,level,profile_photo',
-      ).then((membersList) => {
+      // ranking 의 player_id 들을 store 에서 매핑 — store 캐시 hit 시 fetch 0번
+      return membersStore.refresh(fetchMembers).then((all) => {
         const map: Record<string, MemberLite> = {};
-        (membersList as MemberLite[]).forEach((m) => (map[m.kingshot_id] = m));
+        for (const m of all as MemberLite[]) {
+          map[m.kingshot_id] = m;
+        }
         renderRanking(list, map);
       });
     })

@@ -3,7 +3,7 @@
  * 슬롯머신 staggered 애니메이션 + tile-match-auth 재사용.
  */
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { membersStore, fetchMembers } from '@/lib/stores/members';
 
 const PARTY_MIN = 2;
 const PARTY_MAX = 4;
@@ -57,22 +57,16 @@ function onSessionReady(session: Session | null): void {
 }
 
 function refreshMemberPool(): void {
-  const cached = window.TileMatchAuth?._cachedMembers || null;
-  if (cached?.length) {
+  // membersStore 캐시 우선, 없으면 fetch (freshness 체크가 자동으로 스킵)
+  const cached = (membersStore.get() ?? []) as MemberLite[];
+  if (cached.length) {
     members = cached.filter((m) => m && String(m.kingshot_id) !== selfId);
     return;
   }
-  fetch(
-    SUPABASE_URL +
-      '/rest/v1/members?select=kingshot_id,nickname,level,profile_photo&limit=200',
-    {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
-    },
-  )
-    .then((r) => r.json())
-    .then((list: unknown) => {
-      const arr = Array.isArray(list) ? (list as MemberLite[]) : [];
-      members = arr.filter((m) => m && String(m.kingshot_id) !== selfId);
+  membersStore
+    .refresh(fetchMembers)
+    .then((list) => {
+      members = (list as MemberLite[]).filter((m) => m && String(m.kingshot_id) !== selfId);
     })
     .catch(() => {
       members = [];
