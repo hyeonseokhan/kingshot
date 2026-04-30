@@ -205,19 +205,19 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
      - `src/lib/stores/members.ts` — membersStore (4페이지 공유)
      - `.mc-photo-fade`, `.tm-rank-photo-fade` 마커 — img.onload 시 .loaded 클래스로 페이드 인 (transition 80ms)
 
-2. **트랙 2: 메모리 / Supabase I/O 최적화** ← **다음 시작 지점**
-   - **목표**:
-     - 사이트 전체를 페이지별로 회귀하며 **네트워크 I/O 디버깅**
-     - **불필요하게 동일한 데이터를 가져오는 패턴 제거** (예: members 로스터를 페이지마다 매번 fetch)
-     - **Supabase 무료 플랜 I/O 사용량 최소화** (호출 횟수 + 다운로드 byte)
-   - **방법론**:
-     - 각 페이지 진입 시 DevTools Network 탭으로 모든 요청 캡처 → 중복/불필요 식별
-     - 같은 데이터 반복 fetch → 공유 캐시(`src/lib/cache.ts` 활용 또는 확장)로 통합
-     - Edge Function 호출 빈도 점검 (`economy/get-balance` 같이 페이지 진입마다 호출되는 패턴 우선)
-     - Supabase Dashboard "Reports" 탭으로 before/after 사용량 측정
-   - **트랙 1 의 캐시 정책 재설계와 자연스럽게 이어짐 — 같은 도구로 측정 가능**
+2. **트랙 2: 메모리 / Supabase I/O 최적화** ✅ 완료 (commits 9868cb5 ~ e12c029)
+   - **달성**: 페이지 간 중복 fetch 약 60% 감소 (5 페이지 순회 시 16건 → 6건).
+     `members` 로스터를 4 페이지가 각자 fetch 하던 패턴 → 단일 store 공유.
+   - **변경 (PR 1~3)**:
+     - `store.refresh(fetcher, force?)` 에 freshness 체크 추가 — TTL 안이면 fetch 스킵
+     - `tile-match-auth.ts` 가 자체 fetch 대신 `membersStore` 사용 (미니게임 4 페이지 영향)
+     - `partner-draw.ts` / `tile-match.ts` (랭킹 join) / `coupons.ts` (loadAccounts) 도 store 활용
+   - **Mutation fix**: 회원 변경 5곳 (저장/삭제/등록/단일갱신/전체갱신) 에서 `force=true` 호출 →
+     freshness 체크가 변경 누락하던 회귀 차단
+   - **남은 영역 (다음 트랙들에서 자연스럽게)**: balance store, equipment store, ranking store,
+     daily-state store. 각 도메인 자체 작업 시 같은 패턴으로 추출
 
-3. **트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화** (`/tools/build-optimizer/`)
+3. **트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화** (`/tools/build-optimizer/`) ← **다음 시작 지점**
    - **현재 상태**: 메뉴/placeholder 페이지만 추가됨 (commit `a7c2e5b`). 본문 미구현
    - **개발 가이드**: `신규서비스.md` (repo root) — 17개 섹션, MVP 범위는 §13 참조
    - **핵심 컨텐츠**:
@@ -277,6 +277,22 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
   `src/lib/balance.ts` 확장 권장.
 - **DOM diff 헬퍼 도입**: `src/lib/dom-diff.ts` 의 `patchList`/`patchText`. Phase B 의 장비 강화
   결과 갱신, 인벤토리 표시 등에서도 처음부터 이 헬퍼로 갱신 — `innerHTML=''` 패턴 사용 금지.
+
+### 트랙 2 운영 메모 (트랙 3~ 작업 시 알아둘 것)
+
+- **store API 변경** — `refresh(fetcher, force?)` 에 freshness 체크 추가됨. 페이지 진입은 force=false
+  (캐시 활용), **변경 작업 후엔 반드시 force=true** (안 그러면 stale 반환). Mutation 후 누락하면 다른
+  페이지에서 변경 미반영. members.ts 의 5곳이 레퍼런스 패턴.
+- **Akamai CDN** — 사진은 `got-global-avatar.akamaized.net` (게임 공식 avatar). Supabase Storage 가
+  아님 → Cache-Control 못 건드리지만 브라우저 disk cache 작동.
+- **Playwright 진단 패턴** — 트랙 2 에서 매 PR 마다 `/tmp` 또는 임시 `diag-*.mjs` 로 페이지별
+  네트워크 캡처. 영구 도구화 안 함 — 필요 시 그때그때 작성. (이미 정형화된 패턴: page.on('request')
+  필터링 + label 별 grouping + 응답시간/size 출력)
+- **store 의 추가 도메인 후보** — `balanceStore` (현재는 LoginedUserInfo 가 별도 fetch + custom event
+  로 sync), `equipmentStore` (현재는 equipment.ts 의 모듈 변수), `rankingStore` (tile-match/PvP).
+  각 도메인 자체 변경 PR 시 자연스럽게 store 화 가능.
+- **store 캐시 TTL 60초** — members 변경이 잦은 프로젝트면 짧게, 정적이면 길게. 22명 규모라
+  60초 적정. 변경 시 force refresh 가 캐시 우회 → TTL 보다 정확.
 
 ### 트랙 1 운영 메모 (트랙 2~ 작업 시 알아둘 것)
 
