@@ -21,6 +21,7 @@ import {
   setAccountsCache,
   invalidateAccountsCache,
 } from '@/lib/cache';
+import { patchList, patchText } from '@/lib/dom-diff';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse } from '@/lib/types';
 
 // ===== 상수 =====
@@ -355,20 +356,126 @@ function saveHistory(
     .then(() => {});
 }
 
+/**
+ * 단일 row 의 수령 버튼 상태만 갱신 — 전체 renderAccounts() 안 부르고 해당 row 의 버튼 클래스만 toggle.
+ * 모든 쿠폰을 받은 상태가 되면 redeem 버튼을 done 으로 swap.
+ */
 function updateAccountRowStatus(kingshotId: string): void {
   if (getRedeemStatus(kingshotId) !== 'done') return;
-  document.querySelectorAll<HTMLElement>('.coupon-account-row').forEach((row) => {
-    const btn = row.querySelector('.cp-btn-redeem[onclick*="' + kingshotId + '"]');
-    if (btn) {
-      btn.outerHTML =
-        '<button class="cp-btn cp-btn-done cp-btn-just-done" disabled title="수령 완료">' +
-        SVG.check +
-        '</button>';
-    }
-  });
+  document
+    .querySelectorAll<HTMLElement>(
+      '.coupon-account-row[data-kingshot-id="' + kingshotId + '"]',
+    )
+    .forEach((row) => {
+      const btn = row.querySelector<HTMLElement>('.cp-btn-redeem');
+      if (btn) {
+        btn.outerHTML =
+          '<button class="cp-btn cp-btn-done cp-btn-just-done" disabled title="수령 완료">' +
+          SVG.check +
+          '</button>';
+      }
+    });
 }
 
-// ===== 계정 목록 렌더링 =====
+// ===== 계정 목록 렌더링 (keyed 갱신) =====
+
+/** photo wrap 안 placeholder + img stack — members.ts 의 syncPhoto 와 동일 패턴 */
+function syncAccountPhoto(wrap: HTMLElement, a: RedeemAccount): void {
+  const url = a.profile_photo;
+  let empty = wrap.querySelector<HTMLElement>('.mc-photo-empty');
+  if (!empty) {
+    empty = document.createElement('div');
+    empty.className = 'mc-photo-empty';
+    wrap.appendChild(empty);
+  }
+  patchText(empty, (a.nickname || '?').charAt(0));
+
+  let img = wrap.querySelector<HTMLImageElement>('img.mc-photo');
+  if (url) {
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'mc-photo mc-photo-fade';
+      img.decoding = 'async';
+      img.addEventListener('load', () => img!.classList.add('mc-photo-loaded'));
+      img.addEventListener('error', () => img!.classList.remove('mc-photo-loaded'));
+      wrap.appendChild(img);
+    }
+    if (img.src !== url) {
+      img.classList.remove('mc-photo-loaded');
+      img.src = url;
+    }
+  } else {
+    img?.remove();
+  }
+}
+
+function createAccountRow(a: RedeemAccount, canDelete: boolean): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'coupon-account-row';
+  row.innerHTML = `
+    <div class="mc-photo-wrap"></div>
+    <div class="mc-row-body">
+      <div class="mc-name"></div>
+      <div class="mc-sub"></div>
+    </div>
+    <div class="coupon-row-actions"></div>
+  `;
+  if (canDelete) row.dataset.canDelete = '1';
+  updateAccountRow(row, a, canDelete);
+  return row;
+}
+
+function updateAccountRow(row: HTMLElement, a: RedeemAccount, canDelete: boolean): void {
+  row.dataset.kingshotId = a.kingshot_id;
+  if (canDelete && a.id) row.dataset.accountId = a.id;
+  const wrap = row.querySelector<HTMLElement>('.mc-photo-wrap')!;
+  syncAccountPhoto(wrap, a);
+
+  patchText(row.querySelector<HTMLElement>('.mc-name'), a.nickname || '');
+  patchText(
+    row.querySelector<HTMLElement>('.mc-sub'),
+    'Lv.' + (a.level || '?') + ' · ' + (a.kingdom || '?'),
+  );
+
+  const status = getEffectiveStatus(a.kingshot_id);
+  const actions = row.querySelector<HTMLElement>('.coupon-row-actions')!;
+  // 버튼 영역은 status / canDelete 에 따라 통째 다시 그림 (작은 영역, 깜박임 영향 미미)
+  const redeemBtn =
+    status === 'done'
+      ? '<button class="cp-btn cp-btn-done" disabled title="수령 완료">' + SVG.check + '</button>'
+      : '<button class="cp-btn cp-btn-redeem" data-action="redeem" title="쿠폰 수령">' +
+        SVG.gift +
+        '</button>';
+  const deleteBtn = canDelete
+    ? '<button class="cp-btn cp-btn-delete" data-action="remove" title="삭제">' + SVG.trash + '</button>'
+    : '';
+  actions.innerHTML = redeemBtn + deleteBtn;
+}
+
+function renderAccountGroup(
+  rowsId: string,
+  labelId: string,
+  items: RedeemAccount[],
+  canDelete: boolean,
+): void {
+  const rowsEl = maybe(rowsId);
+  const labelEl = maybe(labelId);
+  if (!rowsEl || !labelEl) return;
+  if (items.length === 0) {
+    labelEl.style.display = 'none';
+    rowsEl.replaceChildren();
+    return;
+  }
+  labelEl.style.display = '';
+  patchList({
+    container: rowsEl,
+    items,
+    // members 은 kingshot_id, extras 는 a.id (uuid) 가 stable key
+    key: (a) => (canDelete && a.id ? 'x:' + a.id : 'm:' + a.kingshot_id),
+    render: (a) => createAccountRow(a, canDelete),
+    update: (el, a) => updateAccountRow(el, a, canDelete),
+  });
+}
 
 function renderAccounts(): void {
   const listEl = maybe('coupon-members-list');
@@ -383,78 +490,30 @@ function renderAccounts(): void {
   const total = members.length + extras.length;
   const totalAll = allAccounts.length;
 
-  const countText = kw
-    ? '검색 ' + total + ' / 전체 ' + totalAll + '명'
-    : '전체 ' + totalAll + '명';
-  $('coupon-member-count').textContent = countText;
+  patchText(
+    $('coupon-member-count'),
+    kw ? '검색 ' + total + ' / 전체 ' + totalAll + '명' : '전체 ' + totalAll + '명',
+  );
 
+  const status = $('coupon-accounts-status');
   if (totalAll === 0) {
-    listEl.innerHTML = '<div class="empty-cell">쿠폰 수령 대상이 없습니다</div>';
+    renderAccountGroup('coupon-rows-members', 'coupon-group-members', [], false);
+    renderAccountGroup('coupon-rows-extras', 'coupon-group-extras', [], true);
+    status.style.display = '';
+    status.textContent = '쿠폰 수령 대상이 없습니다';
     return;
   }
   if (total === 0) {
-    listEl.innerHTML = '<div class="empty-cell">검색 결과가 없습니다</div>';
+    renderAccountGroup('coupon-rows-members', 'coupon-group-members', [], false);
+    renderAccountGroup('coupon-rows-extras', 'coupon-group-extras', [], true);
+    status.style.display = '';
+    status.textContent = '검색 결과가 없습니다';
     return;
   }
 
-  let html = '';
-  if (members.length > 0) {
-    html += '<div class="coupon-group-label">연맹원</div>';
-    html += members.map((a) => renderAccountRow(a, false)).join('');
-  }
-  if (extras.length > 0) {
-    html += '<div class="coupon-group-label">추가 계정</div>';
-    html += extras.map((a) => renderAccountRow(a, true)).join('');
-  }
-  listEl.innerHTML = html;
-}
-
-function renderAccountRow(a: RedeemAccount, canDelete: boolean): string {
-  const status = getEffectiveStatus(a.kingshot_id);
-  const avatar = a.profile_photo
-    ? '<img src="' + esc(a.profile_photo) + '" class="mc-photo">'
-    : '<div class="mc-photo-empty">' + esc(a.nickname).charAt(0) + '</div>';
-
-  const redeemBtn =
-    status === 'done'
-      ? '<button class="cp-btn cp-btn-done" disabled title="수령 완료">' + SVG.check + '</button>'
-      : "<button class=\"cp-btn cp-btn-redeem\" onclick=\"Coupons.redeemOne('" +
-        esc(a.kingshot_id) +
-        "','" +
-        esc(a.nickname) +
-        "')\" title=\"쿠폰 수령\">" +
-        SVG.gift +
-        '</button>';
-
-  const deleteBtn = canDelete
-    ? "<button class=\"cp-btn cp-btn-delete\" onclick=\"Coupons.removeAccount('" +
-      a.id +
-      "')\" title=\"삭제\">" +
-      SVG.trash +
-      '</button>'
-    : '';
-
-  return (
-    '<div class="coupon-account-row">' +
-    '<div class="mc-photo-wrap">' +
-    avatar +
-    '</div>' +
-    '<div class="mc-row-body">' +
-    '<div class="mc-name">' +
-    esc(a.nickname) +
-    '</div>' +
-    '<div class="mc-sub">Lv.' +
-    (a.level || '?') +
-    ' · ' +
-    (a.kingdom || '?') +
-    '</div>' +
-    '</div>' +
-    '<div class="coupon-row-actions">' +
-    redeemBtn +
-    deleteBtn +
-    '</div>' +
-    '</div>'
-  );
+  status.style.display = 'none';
+  renderAccountGroup('coupon-rows-members', 'coupon-group-members', members, false);
+  renderAccountGroup('coupon-rows-extras', 'coupon-group-extras', extras, true);
 }
 
 // ===== 추가 계정 등록 모달 =====
@@ -852,6 +911,27 @@ function bindEventListeners(): void {
       }
     });
   }
+
+  // 계정 row 의 redeem / remove 버튼 — 인라인 onclick 대신 컨테이너 위임
+  ['coupon-rows-members', 'coupon-rows-extras'].forEach((id) => {
+    maybe(id)?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        'button[data-action]',
+      );
+      if (!btn) return;
+      const row = btn.closest<HTMLElement>('.coupon-account-row');
+      if (!row) return;
+      const action = btn.dataset.action;
+      if (action === 'redeem') {
+        const kingshotId = row.dataset.kingshotId;
+        const nickname = row.querySelector<HTMLElement>('.mc-name')?.textContent ?? '';
+        if (kingshotId) redeemOne(kingshotId, nickname);
+      } else if (action === 'remove') {
+        const accountId = row.dataset.accountId;
+        if (accountId) removeAccount(accountId);
+      }
+    });
+  });
 
   // 추가 계정 등록 모달
   $('btn-add-coupon-account').addEventListener('click', () => {

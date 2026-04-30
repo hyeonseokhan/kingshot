@@ -118,7 +118,11 @@ const navItems = manage.submenus!.map((s) => ({
       </div>
     </div>
     <div class="members-list" id="coupon-members-list">
-      <div class="empty-cell">로딩 중...</div>
+      <div class="coupon-group-label" id="coupon-group-members" style="display:none">연맹원</div>
+      <div class="coupon-rows" id="coupon-rows-members"></div>
+      <div class="coupon-group-label" id="coupon-group-extras" style="display:none">추가 계정</div>
+      <div class="coupon-rows" id="coupon-rows-extras"></div>
+      <div class="empty-cell" id="coupon-accounts-status">로딩 중...</div>
     </div>
 
     <!-- 수령 이력 다이얼로그 -->
