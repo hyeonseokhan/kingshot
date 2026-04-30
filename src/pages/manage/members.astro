@@ -87,7 +87,17 @@ const navItems = manage.submenus!.map((s) => ({
       </div>
     </div>
     <div class="members-list" id="members-list">
-      <div class="empty-cell">로딩 중...</div>
+      <div class="members-thead">
+        <div></div>
+        <div>닉네임</div>
+        <div>등급</div>
+        <div>레벨</div>
+        <div>랭킹</div>
+        <div>전투력</div>
+        <div></div>
+      </div>
+      <div class="members-rows" id="members-rows"></div>
+      <div class="empty-cell" id="members-status">로딩 중...</div>
     </div>
 
     <!-- 관리 다이얼로그 -->

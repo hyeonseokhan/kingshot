@@ -1,6 +1,9 @@
 /**
- * 연맹원 관리 페이지 — members.js 의 TypeScript 이식.
- * 로직 동등성 우선. 타입은 점진적 (Phase 7 에서 강화).
+ * 연맹원 관리 페이지 — membersStore 기반 keyed 갱신.
+ *
+ * 트랙 1 (2/N): 모듈 변수 allMembers/membersData 제거 → 단일 출처는 membersStore.
+ * 행은 patchList 로 keyed reconcile — innerHTML 통째 교체 패턴 제거 → 깜박임 없음.
+ * row 내부도 patchText/photo swap 으로 부분 갱신 — 같은 사진은 재로드 X.
  */
 
 import { supabase as sb, SUPABASE_URL } from '@/lib/supabase';
@@ -11,15 +14,13 @@ import {
   saveFailedRefresh,
   clearFailedRefresh,
 } from '@/lib/cache';
+import { membersStore, fetchMembers } from '@/lib/stores/members';
+import { patchList, patchText } from '@/lib/dom-diff';
 import type { Member, AllianceRank } from '@/lib/types';
 
 const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 500;
-
-// 모듈 상태
-let allMembers: Member[] = [];
-const membersData: Record<string, Member> = {};
 
 interface PlayerInfo {
   playerId: string;
@@ -47,7 +48,7 @@ function $<T extends HTMLElement = HTMLElement>(id: string): T {
   return el as T;
 }
 
-// ===== 플레이어 조회 =====
+// ===== 플레이어 조회 (외부 API) =====
 
 function fetchPlayerInfo(playerId: string): Promise<PlayerInfo> {
   return fetch(REDEEM_API, {
@@ -73,127 +74,167 @@ function fetchPlayerInfo(playerId: string): Promise<PlayerInfo> {
     });
 }
 
-// ===== 목록 로드/렌더 =====
+// ===== view-model =====
 
-function loadMembers(): void {
-  const listEl = $('members-list');
-  listEl.innerHTML = '<div class="empty-cell">로딩 중...</div>';
-  sb.from('members')
-    .select('*')
-    .order('power', { ascending: false })
-    .then((res) => {
-      if (res.error) {
-        listEl.innerHTML = '<div class="empty-cell">오류: ' + res.error.message + '</div>';
-        return;
-      }
-      if (!res.data || res.data.length === 0) {
-        listEl.innerHTML = '<div class="empty-cell">등록된 연맹원이 없습니다</div>';
-        $('member-count').textContent = '';
-        return;
-      }
-      allMembers = res.data as Member[];
-      // 기존 캐시 클리어 후 새로 채움
-      for (const k of Object.keys(membersData)) delete membersData[k];
-      allMembers.forEach((m, idx) => {
-        m.alliance_rank_pos = idx + 1;
-        membersData[m.id] = m;
-      });
-      renderMembers();
-    });
+/** store 값을 power desc 로 정렬 + alliance_rank_pos 부여한 view-model. */
+function buildPositioned(): Member[] {
+  const raw = membersStore.get();
+  if (!raw) return [];
+  return [...raw]
+    .sort((a, b) => (b.power || 0) - (a.power || 0))
+    .map((m, idx) => ({ ...m, alliance_rank_pos: idx + 1 }));
 }
 
+function findMember(id: string): Member | null {
+  return buildPositioned().find((m) => m.id === id) ?? null;
+}
+
+function currentFailedSet(): Set<string> {
+  const data = getFailedRefresh();
+  return new Set(data?.ids ?? []);
+}
+
+// ===== row 생성 / 갱신 =====
+
+function createRow(m: Member): HTMLElement {
+  const row = document.createElement('div');
+  row.innerHTML = `
+    <div class="mc-photo-wrap"></div>
+    <div class="mc-row-body">
+      <div class="mc-name">
+        <span class="mc-name-text"></span>
+        <span class="mc-fail-badge" title="갱신 실패 — 재시도 필요" style="display:none">⚠</span>
+      </div>
+      <div class="mc-sub"></div>
+    </div>
+    <div class="mc-rank-cell"></div>
+    <div class="mc-level"></div>
+    <div class="mc-pos"></div>
+    <div class="mc-power"></div>
+    <button class="mc-manage-btn" title="관리" type="button">⋮</button>
+  `;
+  // wrapper 가 곧 row — `<div>` 자체에 innerHTML 을 박았으니 outer 의 첫 자식들이 row 의 자식
+  // 혼동 방지 위해 outer 를 그대로 row 로 사용
+  row.className = 'member-row';
+  updateRow(row, m);
+  return row;
+}
+
+function updateRow(row: HTMLElement, m: Member): void {
+  const rank = m.alliance_rank || 'R1';
+  const lvl = m.level || 0;
+  const lvClass = getLevelClass(lvl);
+  const pos = m.alliance_rank_pos || '-';
+  const powerStr = m.power ? formatPower(m.power) : '-';
+  const isFailed = currentFailedSet().has(m.id);
+
+  row.className = 'member-row rank-' + rank + (isFailed ? ' member-row-failed' : '');
+  row.dataset.id = m.id;
+
+  const wrap = row.querySelector<HTMLElement>('.mc-photo-wrap')!;
+  wrap.className = 'mc-photo-wrap' + lvClass;
+  syncPhoto(wrap, m);
+
+  patchText(row.querySelector<HTMLElement>('.mc-name-text'), m.nickname);
+  const failBadge = row.querySelector<HTMLElement>('.mc-fail-badge')!;
+  failBadge.style.display = isFailed ? '' : 'none';
+  patchText(
+    row.querySelector<HTMLElement>('.mc-sub'),
+    rank + ' · Lv.' + (lvl || '?') + ' · ' + powerStr + ' · ' + (m.kingdom || '?'),
+  );
+  patchText(row.querySelector<HTMLElement>('.mc-rank-cell'), rank);
+  patchText(row.querySelector<HTMLElement>('.mc-level'), 'Lv.' + (lvl || '?'));
+  patchText(row.querySelector<HTMLElement>('.mc-pos'), String(pos));
+  patchText(row.querySelector<HTMLElement>('.mc-power'), powerStr);
+}
+
+/** photo wrap 안의 <img> 또는 <div.mc-photo-empty> 토글. 같은 url 이면 src 재할당 X. */
+function syncPhoto(wrap: HTMLElement, m: Member): void {
+  const url = m.profile_photo;
+  let img = wrap.querySelector<HTMLImageElement>('img.mc-photo');
+  let empty = wrap.querySelector<HTMLElement>('.mc-photo-empty');
+  if (url) {
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'mc-photo';
+      wrap.appendChild(img);
+    }
+    if (img.src !== url) img.src = url;
+    empty?.remove();
+  } else {
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.className = 'mc-photo-empty';
+      wrap.appendChild(empty);
+    }
+    patchText(empty, m.nickname.charAt(0));
+    img?.remove();
+  }
+}
+
+// ===== render =====
+
 function renderMembers(): void {
-  const listEl = $('members-list');
+  const positioned = buildPositioned();
   const filterSelect = $<HTMLSelectElement>('filter-level');
   const minLevel = parseInt(filterSelect.value, 10) || 0;
-  const failedData = getFailedRefresh();
-  const failedSet: Record<string, boolean> = {};
-  if (failedData?.ids) failedData.ids.forEach((id) => (failedSet[id] = true));
 
-  const filtered = allMembers.filter((m) => (m.level || 0) >= minLevel);
+  const status = $('members-status');
+  const rowsEl = $('members-rows');
 
-  filtered.sort((a, b) => {
-    const ra = a.alliance_rank ? RANK_WEIGHT[a.alliance_rank] : 0;
-    const rb = b.alliance_rank ? RANK_WEIGHT[b.alliance_rank] : 0;
-    if (ra !== rb) return rb - ra;
-    if ((b.power || 0) !== (a.power || 0)) return (b.power || 0) - (a.power || 0);
-    return (b.level || 0) - (a.level || 0);
-  });
+  if (positioned.length === 0) {
+    // 캐시 없음 / 첫 fetch 진행 중 — status 텍스트는 호출자(refreshFromStore) 가 관리
+    rowsEl.replaceChildren();
+    status.style.display = '';
+    $('member-count').textContent = '';
+    syncRefreshBanner();
+    return;
+  }
+
+  const filtered = positioned
+    .filter((m) => (m.level || 0) >= minLevel)
+    .sort((a, b) => {
+      const ra = a.alliance_rank ? RANK_WEIGHT[a.alliance_rank] : 0;
+      const rb = b.alliance_rank ? RANK_WEIGHT[b.alliance_rank] : 0;
+      if (ra !== rb) return rb - ra;
+      if ((b.power || 0) !== (a.power || 0)) return (b.power || 0) - (a.power || 0);
+      return (b.level || 0) - (a.level || 0);
+    });
 
   $('member-count').textContent =
     '전체 ' + filtered.length + '명' + (minLevel > 0 ? ' (Lv.' + minLevel + ' 이상)' : '');
 
   if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="empty-cell">조건에 맞는 연맹원이 없습니다</div>';
+    rowsEl.replaceChildren();
+    status.style.display = '';
+    status.textContent = '조건에 맞는 연맹원이 없습니다';
+    syncRefreshBanner();
     return;
   }
 
-  const thead =
-    '<div class="members-thead">' +
-    '<div></div><div>닉네임</div><div>등급</div><div>레벨</div>' +
-    '<div>랭킹</div><div>전투력</div><div></div>' +
-    '</div>';
-
-  const rows = filtered
-    .map((m) => {
-      const rank = m.alliance_rank || 'R1';
-      const lvl = m.level || 0;
-      const lvClass = getLevelClass(lvl);
-      const pos = m.alliance_rank_pos || '-';
-      const powerStr = m.power ? formatPower(m.power) : '-';
-
-      const avatarInner = m.profile_photo
-        ? '<img src="' + esc(m.profile_photo) + '" class="mc-photo">'
-        : '<div class="mc-photo-empty">' + esc(m.nickname).charAt(0) + '</div>';
-      const avatar = '<div class="mc-photo-wrap' + lvClass + '">' + avatarInner + '</div>';
-
-      const sub =
-        rank + ' · Lv.' + (lvl || '?') + ' · ' + powerStr + ' · ' + (m.kingdom || '?');
-      const isFailed = !!failedSet[m.id];
-      const failedClass = isFailed ? ' member-row-failed' : '';
-      const failBadge = isFailed
-        ? '<span class="mc-fail-badge" title="갱신 실패 — 재시도 필요">⚠</span>'
-        : '';
-
-      return (
-        '<div class="member-row rank-' +
-        rank +
-        failedClass +
-        '" data-id="' +
-        m.id +
-        '">' +
-        avatar +
-        '<div class="mc-row-body">' +
-        '<div class="mc-name">' +
-        esc(m.nickname) +
-        failBadge +
-        '</div>' +
-        '<div class="mc-sub">' +
-        sub +
-        '</div>' +
-        '</div>' +
-        '<div class="mc-rank-cell">' +
-        rank +
-        '</div>' +
-        '<div class="mc-level">Lv.' +
-        (lvl || '?') +
-        '</div>' +
-        '<div class="mc-pos">' +
-        pos +
-        '</div>' +
-        '<div class="mc-power">' +
-        powerStr +
-        '</div>' +
-        "<button class=\"mc-manage-btn\" onclick=\"Members.openDialog('" +
-        m.id +
-        "')\" title=\"관리\">⋮</button>" +
-        '</div>'
-      );
-    })
-    .join('');
-
-  listEl.innerHTML = thead + rows;
+  status.style.display = 'none';
+  patchList({
+    container: rowsEl,
+    items: filtered,
+    key: (m) => m.id,
+    render: createRow,
+    update: updateRow,
+  });
   syncRefreshBanner();
+}
+
+function refreshFromStore(): Promise<Member[]> {
+  const status = $('members-status');
+  // 캐시 없으면 "로딩 중...", 캐시 있으면 백그라운드 갱신이라 status 손대지 않음
+  if (membersStore.get() === null) {
+    status.style.display = '';
+    status.textContent = '로딩 중...';
+  }
+  return membersStore.refresh(fetchMembers).catch((err: Error) => {
+    status.style.display = '';
+    status.textContent = '오류: ' + err.message;
+    throw err;
+  });
 }
 
 // ===== 관리 다이얼로그 =====
@@ -201,7 +242,7 @@ function renderMembers(): void {
 let currentDialogId: string | null = null;
 
 function openDialog(id: string): void {
-  const m = membersData[id];
+  const m = findMember(id);
   if (!m) return;
   currentDialogId = id;
 
@@ -254,19 +295,19 @@ function closeModal(): void {
 // ===== 갱신 (5명 병렬 배치) =====
 
 function refreshAllMembers(): void {
-  if (allMembers.length === 0) {
+  const positioned = buildPositioned();
+  if (positioned.length === 0) {
     alert('갱신할 연맹원이 없습니다.');
     return;
   }
-  if (!confirm(allMembers.length + '명의 프로필을 모두 갱신하시겠습니까?')) return;
-  refreshMembersByIds(allMembers.map((m) => m.id));
+  if (!confirm(positioned.length + '명의 프로필을 모두 갱신하시겠습니까?')) return;
+  refreshMembersByIds(positioned.map((m) => m.id));
 }
 
 function refreshMembersByIds(memberIds: string[]): void {
   if (!memberIds || memberIds.length === 0) return;
-  const idSet: Record<string, boolean> = {};
-  memberIds.forEach((id) => (idSet[id] = true));
-  const targets = allMembers.filter((m) => idSet[m.id]);
+  const idSet = new Set(memberIds);
+  const targets = buildPositioned().filter((m) => idSet.has(m.id));
   if (targets.length === 0) return;
 
   const btn = $<HTMLButtonElement>('btn-refresh-all');
@@ -318,7 +359,7 @@ function refreshMembersByIds(memberIds: string[]): void {
       clearFailedRefresh();
     }
     invalidateAccountsCache();
-    loadMembers();
+    refreshFromStore();
   });
 }
 
@@ -431,6 +472,15 @@ function initPage(): void {
   }
   filterSelect.addEventListener('change', () => renderMembers());
 
+  // 이벤트 위임 — ⋮ 관리 버튼 클릭
+  $('members-rows').addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.mc-manage-btn');
+    if (!btn) return;
+    const row = btn.closest<HTMLElement>('.member-row');
+    const id = row?.dataset.id;
+    if (id) openDialog(id);
+  });
+
   // 다이얼로그 핸들러
   const dialogOverlay = $('manage-dialog-overlay');
   dialogOverlay.addEventListener('click', (e) => {
@@ -441,7 +491,7 @@ function initPage(): void {
   // 다이얼로그: 갱신
   $('md-refresh').addEventListener('click', () => {
     if (!currentDialogId) return;
-    const m = membersData[currentDialogId];
+    const m = findMember(currentDialogId);
     if (!m) return;
     const btn = $<HTMLButtonElement>('md-refresh');
     btn.disabled = true;
@@ -472,6 +522,8 @@ function initPage(): void {
               btn.innerHTML =
                 '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
             }, 1500);
+            // 백그라운드로 store 갱신 — 목록의 해당 row 가 자동 patch
+            refreshFromStore();
           }),
       )
       .catch((err: Error) => alert('갱신 실패: ' + err.message))
@@ -496,14 +548,14 @@ function initPage(): void {
         }
         invalidateAccountsCache();
         closeDialog();
-        loadMembers();
+        refreshFromStore();
       });
   });
 
   // 다이얼로그: 삭제
   $('md-delete').addEventListener('click', () => {
     if (!currentDialogId) return;
-    const m = membersData[currentDialogId];
+    const m = findMember(currentDialogId);
     if (!m || !confirm(m.nickname + '을(를) 삭제하시겠습니까?')) return;
     sb.from('members')
       .delete()
@@ -515,7 +567,7 @@ function initPage(): void {
         }
         invalidateAccountsCache();
         closeDialog();
-        loadMembers();
+        refreshFromStore();
       });
   });
 
@@ -609,7 +661,7 @@ function initPage(): void {
             invalidateAccountsCache();
             searchData = null;
             closeModal();
-            loadMembers();
+            refreshFromStore();
           });
       });
   });
@@ -626,19 +678,22 @@ function initPage(): void {
     });
   });
 
-  loadMembers();
+  // store 변경 구독 → 자동 렌더 (캐시 있으면 즉시 1회 호출 → 깜박임 없는 첫 표시)
+  membersStore.subscribe(() => renderMembers());
+  // 백그라운드 fetch — 캐시 있어도 stale-while-revalidate
+  refreshFromStore();
 }
 
-// 전역 노출 — 인라인 onclick 패턴 유지 (Phase 7 에서 이벤트 위임으로 리팩터)
+// 외부 노출 — 다른 페이지에서 reload 호출용 (현재는 사용 X 지만 보존)
 declare global {
   interface Window {
     Members: {
       openDialog: (id: string) => void;
-      reload: () => void;
+      reload: () => Promise<Member[]>;
     };
   }
 }
-window.Members = { openDialog, reload: loadMembers };
+window.Members = { openDialog, reload: refreshFromStore };
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initPage);
