@@ -76,7 +76,7 @@ supabase/
 
 #### 데이터 보존 전략
 - 장비 / 크리스탈 잔액 / 강화 상태: **영구 누적**
-- `pvp_battles` 만 30일 후 pg_cron 자동 삭제 (시즌제 X)
+- `pvp_battles` 정리 정책: **수동 정리** (시즌 오프 시 사용자가 일괄 삭제). 자동 청소는 운영 복잡도 대비 이득 작아 포기 (트랙 4-2, 2026-04-30).
 
 #### 크리스탈 보상
 - 같은 stage 재클리어는 **첫 클리어만** 지급 (`crystal_transactions.ref_key` UNIQUE 강제)
@@ -135,7 +135,7 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 | `crystal_balances` | 잔액 요약 | player_id PK, balance, total_earned, total_spent |
 | `crystal_transactions` | 거래 원장 (감사 + 멱등성) | id, player_id, amount, source, ref_key UNIQUE, ref_data |
 | `equipment_levels` | 6부위 강화 상태 | (player_id, slot) PK, level, power |
-| `pvp_battles` | 전투 로그 (30일 자동 삭제) | id, attacker_id, defender_id, winner_id, turns_log JSONB |
+| `pvp_battles` | 전투 로그 (시즌 오프 시 수동 정리) | id, attacker_id, defender_id, winner_id, turns_log JSONB |
 | `pvp_daily_state` | 일일 공격 횟수 | (player_id, date) PK, attacks_used |
 
 **RLS 원칙**:
@@ -233,15 +233,10 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
    - 마이그레이션 파일 상단에 ROLLBACK SQL 주석 보존 (필요 시 그대로 실행)
    - **보존**: `idx_crystal_tx_ref_unique` (UNIQUE 제약 핵심), `idx_pvp_battles_winner_ranked` (랭킹 쿼리, 데이터 늘면 활용)
 
-   #### Track 4-2 ⏳ 보류 — pg_cron 결정 필요
-   - 발견: `cleanup_old_pvp_battles()` 함수는 존재하지만 **pg_cron extension 미설치** → 호출 안 됨
-     → `pvp_battles` 영구 누적 + `idx_pvp_battles_finished_at` 미사용 (idx_scan=0)
-   - 결정 옵션:
-     - **A. pg_cron 활성화** + cron job 등록 (Supabase Dashboard)
-     - **B. cleanup 포기** → 함수 + 인덱스 같이 drop
-     - **C. 외부 스케줄러로 호출** (GitHub Actions cron 등)
-     - **D. 보류** — 현재 상태 유지
-   - 사용자 결정 대기 중.
+   #### Track 4-2 ✅ 완료 (2026-04-30, 마이그레이션 `20260430130000_drop_pvp_cleanup.sql`)
+   - 결정: **자동 청소 포기 (옵션 B)**. 운영 복잡도 대비 이득 작음. 시즌 오프 시 사용자가 수동 정리.
+   - 삭제: `idx_pvp_battles_finished_at` 인덱스 + `cleanup_old_pvp_battles()` 함수
+   - 마이그레이션 파일 상단에 ROLLBACK SQL 주석 보존 (필요 시 함수 + 인덱스 복원).
 
 ### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
 

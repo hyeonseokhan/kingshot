@@ -1,0 +1,43 @@
+-- ============================================================
+-- 트랙 4-2: pvp_battles 자동 청소 포기 (2026-04-30)
+-- ============================================================
+-- 결정: pg_cron 활성화 대신 cleanup 자체 포기.
+--   * cleanup_old_pvp_battles() 함수 + idx_pvp_battles_finished_at 인덱스 삭제.
+--   * 운영 정책: 사용자가 시즌 오프 시점에 수동으로 일괄 정리.
+--   * pvp_battles 누적되어도 데이터 크기 작아 큰 영향 없음.
+--
+-- 사유: pg_cron extension 미설치 + GitHub Actions cron 으로 호출 시 인증/엔드포인트
+--   추가 필요. 운영 부담 대비 이득 작음.
+--
+-- 멱등성: IF EXISTS 로 재실행 안전.
+
+-- ============================================================
+-- ROLLBACK SQL (필요 시 아래 블록 SQL 그대로 실행하면 복구됨)
+-- ============================================================
+-- CREATE INDEX IF NOT EXISTS idx_pvp_battles_finished_at
+--   ON pvp_battles (finished_at) WHERE finished_at IS NOT NULL;
+--
+-- CREATE OR REPLACE FUNCTION cleanup_old_pvp_battles()
+-- RETURNS INTEGER
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER
+-- SET search_path = public
+-- AS $$
+-- DECLARE
+--   v_deleted INTEGER;
+-- BEGIN
+--   DELETE FROM pvp_battles
+--   WHERE finished_at IS NOT NULL
+--     AND finished_at < (now() - INTERVAL '30 days');
+--   GET DIAGNOSTICS v_deleted = ROW_COUNT;
+--   RETURN v_deleted;
+-- END;
+-- $$;
+-- REVOKE ALL ON FUNCTION cleanup_old_pvp_battles() FROM PUBLIC;
+-- GRANT EXECUTE ON FUNCTION cleanup_old_pvp_battles() TO service_role;
+
+-- ============================================================
+-- DROP
+-- ============================================================
+DROP INDEX IF EXISTS idx_pvp_battles_finished_at;
+DROP FUNCTION IF EXISTS cleanup_old_pvp_battles();
