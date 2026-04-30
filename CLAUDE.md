@@ -23,7 +23,6 @@ src/
   pages/
     manage/     # members, coupons (관리자 도구)
     minigame/   # tile-match, partner-draw, equipment, pvp
-    tools/      # build-optimizer (트랙 3 — 본문 미구현)
     beginner/   # 가이드
     events/
   scripts/
@@ -217,64 +216,14 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
    - **남은 영역 (다음 트랙들에서 자연스럽게)**: balance store, equipment store, ranking store,
      daily-state store. 각 도메인 자체 작업 시 같은 패턴으로 추출
 
-3. **트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화** (`/tools/build-optimizer/`) ← **진행 중**
-   - **개발 가이드**: `신규서비스.md` (repo root) — 17개 섹션, MVP 범위는 §13 참조
+3. ~~**트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화**~~ ❌ **포기 (2026-04-30)**
+   - Phase 1 (코어 알고리즘 + 48 테스트), Phase 2-A (UI 폼), Phase 2-B (결과 메시지) 까지 구현했으나
+     사용자 검증 결과 추천 결과가 만족스럽지 않다는 판단 → **완전 삭제**.
+   - 삭제 범위: `src/pages/tools/`, `src/scripts/pages/build-optimizer.ts`, `src/lib/build-optimizer*.ts`,
+     `src/styles/tools.css`, `신규서비스.md`, `navigation.ts` 의 tools 탭 항목.
+   - 복구 필요 시 git history 의 `ae830a9` (Phase 2-B 완료) 직전 시점에서 cherry-pick 가능.
 
-   #### Phase 1 (코어 알고리즘) ✅ 완료 (commits `3ead677` ~ `99fd8c9`)
-   - `src/lib/build-optimizer.ts`:
-     - 시간 변환 (toSeconds/fromSeconds/formatTime) — 가이드 §5
-     - calculateBuildTime — 가이드 §2.3 공식
-     - analyzeBuilding — 단일 건물 즉시 vs 총리대신 비교
-     - **evaluateAssignment** — 4 시점 비교 (큐 빔 시각 더한 현실 시간 기준)
-     - **recommendForCandidates** — 후보 1~2개 + 큐 2개 → 결정적 매칭 + 패턴 분류 (A/B/C/D/single)
-     - 타입: BuildQueue / BuildingCandidate / BuildingAnalysis / CandidateAssignment / OptimizationResult / RecommendationPattern / AccelerationAnalysis
-   - `src/lib/build-optimizer.test.ts` — **48 테스트 모두 통과**
-     - 가이드 §16 시나리오 1/2 + §8.3 패턴 A/B/C/D
-     - 사용자 실사용 케이스 A (큐 빔 2h + 총리 8h, 도시센터/7일 둘 다)
-     - 상위 사용자 속도 61.8%
-     - 극단 1일 / 60일 건축 시간
-
-   #### Phase 2-A (UI 입력 폼 재구성) ✅ 완료 (2026-04-30)
-   - 5 섹션 구조: 공통 버프 / 총리대신 임명 시각 / 현재 건축 큐 / 다음 건축 후보 / 보유 가속권
-   - 총리대신 시각: 자유 텍스트 입력 + `parseDatetime` 헬퍼 (YYYY-MM-DD HH:MM[:SS] / HH:MM[:SS] 포맷)
-   - 현재 건축 큐: radio (비어있음 / 건축 중) + 시간 입력 동기 활성/비활성
-   - 후보 라벨 변경 (큐1/큐2 → 후보1/후보2)
-   - 보유 가속권 입력 미리 (Phase 3 에서 활용)
-   - `SavedState` v2 → v3, 기존 v2 데이터는 호환성 끊고 새로 시작
-   - `calculate()` → `recommendForCandidates` 호출, 패턴 A~D + single 결과 표시 (임시 — Phase 2-B 에서 다듬기)
-   - 48 단위 테스트 모두 통과, smoke capture 검증 OK
-
-   #### Phase 2-B (결과 메시지) ✅ 완료 (2026-04-30)
-   - 패턴별 헤드라인 메시지 (가이드 §17 행동 추천 중심) — A/B/C/D/single 5케이스
-   - 큐 배정 카드 — 후보별 한 장. 액션 라벨 + 이득 한 줄 + 큐 빔 시각 + details 펼치기
-   - 색상 톤 (§12.2): 추천 따르면 이득 → 초록 / 강제 override (포기한 이득) → 빨강 / 동률 → 회색
-   - `actionTone()` 부호 해석: `netGain = totalImmediate - totalWithPm` 부호 기준 + chosenStrategy 조합
-   - PM 즉시 사용 가능 (`tPm=0`) corner case: "총리대신 받은 후 시작" 어색 → "지금 시작 (모든 버프 적용)" 으로 분기
-   - "PM" 약자 → "총리대신" 풀어쓰기 일관
-
-   #### Phase 3 (가속권) ← **다음 시작 지점**
-   - `evaluateAccelerationTicket` — 큐를 PM 시각에 맞춰 가속
-   - 가이드 §9 + §16 시나리오 3 단위 테스트 4개
-   - UI 결과 카드에 가속권 권장 라인 추가
-
-   #### 모델 한계 (§14 추후 확장)
-   - **케이스 B (수면 시간)** — 사용자 비활성 시간대 처리. 현재는 UI 안내로만 처리 예정 ("예상 큐 빔 시각: ..." 표시). 알고리즘 차원 추가는 추후.
-
-   #### 운영 노출 정책
-   - 트랙 3 진행 중엔 `navigation.ts` 의 tools 탭 주석 처리 → **메뉴에 보이지 않음**
-   - URL 직접 진입 시엔 페이지 상단에 "🚧 개발 중" 배너 노출
-   - Phase 3 완료 + 검증 후 navigation 주석 해제 + 배너 제거
-
-   #### 다음 PC 합류 시 빠른 진입
-   ```bash
-   git pull origin main
-   npm install
-   npm test                # 48 테스트 통과 확인
-   npm run dev             # 로컬에서 /tools/build-optimizer/ 진입
-   # Phase 2-A 부터 시작. 위 'Phase 2-A' 섹션의 항목 순서대로.
-   ```
-
-4. **트랙 4: 데이터베이스 최적화 — 누적된 dead column / index 정리**
+4. **트랙 4: 데이터베이스 최적화 — 누적된 dead column / index 정리** ← **다음 시작 지점**
    - **목표**: Phase A/B/C 진행 중 누적된 **사용하지 않는 컬럼 / 인덱스 / RLS 정책 정리**
    - **점검 대상 (예시)**:
      - `members` 테이블의 더 이상 안 쓰는 필드
@@ -284,7 +233,7 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
      - `information_schema` 쿼리로 컬럼 사용 여부 확인 (`pg_stat_user_tables`, `pg_stat_user_indexes`)
      - production Supabase Dashboard 의 query stats 로 실제 사용 패턴 확인
      - **삭제 전 백업 마이그레이션 1건 = 컬럼/인덱스 추가 마이그레이션 1건** 패턴 (rollback 가능)
-   - **트랙 1~3 완료 후 진행** — 신규 서비스 코드도 안정화된 뒤 dead 판정 정확도 ↑
+   - 트랙 3 포기로 인해 트랙 4 가 다음 진입 지점.
 
 ### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
 
@@ -388,7 +337,6 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 ## 참고 문서
 
 - `MIGRATION_PLAN.md` — 과거 Jekyll → Astro 마이그레이션 기록
-- `신규서비스.md` — **트랙 3 (건설 최적화) 개발 가이드** (사용자 작성, repo root)
 - 신규 미니게임 확장 기획서 (PDF, 사내 문서 — repo 외부 보관). 핵심 내용은 본 문서의 "디자인 결정사항" 섹션에 모두 반영됨
 - `supabase/migrations/` — 기존 스키마 (가장 최근: `20260429160000_pvp_is_ranked.sql`)
 - `supabase/functions/tile-match-auth/index.ts` — Edge Function 패턴 레퍼런스
