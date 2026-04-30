@@ -244,13 +244,15 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
    - `calculate()` → `recommendForCandidates` 호출, 패턴 A~D + single 결과 표시 (임시 — Phase 2-B 에서 다듬기)
    - 48 단위 테스트 모두 통과, smoke capture 검증 OK
 
-   #### Phase 2-B (결과 메시지) ← **다음 시작 지점**
-   - 패턴별 헤더 메시지 (§17 행동 추천 중심)
-   - 큐 배정 카드 + 상세 펼치기
-   - 색상 (이득=초록 / 손해=빨강 / 동률=회색, 가이드 §12.2)
-   - "PM" 약자 → "총리대신" 풀어쓰기 일관 적용
+   #### Phase 2-B (결과 메시지) ✅ 완료 (2026-04-30)
+   - 패턴별 헤드라인 메시지 (가이드 §17 행동 추천 중심) — A/B/C/D/single 5케이스
+   - 큐 배정 카드 — 후보별 한 장. 액션 라벨 + 이득 한 줄 + 큐 빔 시각 + details 펼치기
+   - 색상 톤 (§12.2): 추천 따르면 이득 → 초록 / 강제 override (포기한 이득) → 빨강 / 동률 → 회색
+   - `actionTone()` 부호 해석: `netGain = totalImmediate - totalWithPm` 부호 기준 + chosenStrategy 조합
+   - PM 즉시 사용 가능 (`tPm=0`) corner case: "총리대신 받은 후 시작" 어색 → "지금 시작 (모든 버프 적용)" 으로 분기
+   - "PM" 약자 → "총리대신" 풀어쓰기 일관
 
-   #### Phase 3 (가속권) ← Phase 2-B 후
+   #### Phase 3 (가속권) ← **다음 시작 지점**
    - `evaluateAccelerationTicket` — 큐를 PM 시각에 맞춰 가속
    - 가이드 §9 + §16 시나리오 3 단위 테스트 4개
    - UI 결과 카드에 가속권 권장 라인 추가

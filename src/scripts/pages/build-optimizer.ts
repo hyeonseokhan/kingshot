@@ -1,9 +1,8 @@
 /**
  * 건설 최적화 페이지 — UI 와 계산 코어(`@/lib/build-optimizer`) 를 연결.
  *
- * Phase 2-A (현재): 5 섹션 입력 폼 (공통 버프 / PM 시각 / 건축 큐 / 후보 / 가속권).
- *   recommendForCandidates 로 패턴 분류 + 큐 배정. 결과 표시는 임시 (Phase 2-B 에서 다듬음).
- * Phase 2-B: 패턴별 헤더 메시지 + 큐 배정 카드 + 색상.
+ * Phase 2-A: 5 섹션 입력 폼 (공통 버프 / 총리대신 시각 / 건축 큐 / 후보 / 가속권) + recommendForCandidates 연결.
+ * Phase 2-B (현재): 패턴별 헤더 메시지 + 큐 배정 카드 (행동 추천 중심) + 색상 + 상세 펼치기.
  * Phase 3:    가속권 분석 (evaluateAccelerationTicket).
  */
 
@@ -356,52 +355,131 @@ function calculate(): void {
   showResult(renderResult(result, buffs));
 }
 
-// Phase 2-A 임시 결과 표시 — Phase 2-B 에서 패턴별 헤더 / 색상 / 카드 형태로 다듬음.
-function renderResult(r: OptimizationResult, buffs: BuffSettings): string {
-  const patternLabel: Record<RecommendationPattern, string> = {
-    A: '패턴 A — 큐 진행 중 + 후보 2개',
-    B: '패턴 B — 긴 건물 단독, PM 대기가 손익분기보다 짧음',
-    C: '패턴 C — 짧은 건물, PM 대기가 손익분기보다 김',
-    D: '패턴 D — 큐 둘 다 비어 + 후보 2개',
-    single: '단일 (PM 미설정 또는 단순 케이스)',
+/**
+ * 패턴별 헤더 메시지 — 가이드 §17 의 "행동 추천 중심" 원칙.
+ * 사용자가 "지금 지을까? 기다릴까?" 질문에 한 줄로 답을 얻을 수 있도록.
+ */
+function patternHeader(r: OptimizationResult, buffs: BuffSettings): string {
+  const tPm = buffs.primeMinisterWaitSeconds;
+  const pmLine =
+    tPm > 0
+      ? `<span class="bo-pm-meta">· 총리대신 대기 ${formatTime(tPm)}</span>`
+      : `<span class="bo-pm-meta">· 총리대신 즉시 사용 가능</span>`;
+
+  const headlines: Record<RecommendationPattern, string> = {
+    A: '큐 비는 즉시 짧은 건축은 시작하고, 긴 건축은 총리대신을 기다리세요',
+    B: '총리대신을 기다렸다가 시작하세요',
+    C: '기다리지 말고 지금 바로 시작하세요',
+    D: '짧은 건축은 지금 시작하고, 긴 건축에 총리대신을 몰아주세요',
+    single: tPm > 0
+      ? '입력 케이스에 따라 즉시 또는 대기 — 아래 카드 참조'
+      : '총리대신 대기 시간이 없어 즉시 시작이 최적',
   };
 
-  const header = `<div class="bo-result-row bo-result-recommend">${patternLabel[r.pattern]}</div>`;
-  const pmLine =
-    buffs.primeMinisterWaitSeconds > 0
-      ? `<div class="bo-result-row">총리대신 대기: <strong>${formatTime(buffs.primeMinisterWaitSeconds)}</strong></div>`
-      : `<div class="bo-result-row">총리대신: <strong>즉시 사용 가능</strong></div>`;
-
-  const blocks = r.assignments.map((a) => renderAssignment(a)).join('<hr class="bo-result-divider" />');
-
-  const note =
-    '<p class="bo-result-note">법령과 펫은 사용 후 5분 이내에 건축을 시작해야 적용됩니다.</p>';
-  return header + pmLine + blocks + note;
+  return `<div class="bo-headline">${headlines[r.pattern]}${pmLine}</div>`;
 }
 
-function renderAssignment(a: CandidateAssignment): string {
+function renderResult(r: OptimizationResult, buffs: BuffSettings): string {
+  const header = patternHeader(r, buffs);
+  const cards = r.assignments
+    .map((a) => renderAssignmentCard(a, buffs))
+    .join('');
+  const note =
+    '<p class="bo-result-note">법령과 펫은 사용 후 5분 이내에 건축을 시작해야 적용됩니다.</p>';
+  return header + cards + note;
+}
+
+/**
+ * 액션 톤 결정 — §12.2 색상 기준.
+ *   netGain = totalImmediate - totalWithPm
+ *     > 0: 총리대신 전략이 빠름
+ *     < 0: 즉시 전략이 빠름
+ *     = 0: 동률
+ *
+ *   - 추천한 전략이 더 빠른 경우 → positive (이득, 초록)
+ *   - 강제 override (chosenStrategy='immediate' 인데 PM 이 더 빨랐던 경우 — 패턴 D) → negative (빨강)
+ *   - 동률 → neutral (회색)
+ */
+function actionTone(a: CandidateAssignment): 'positive' | 'negative' | 'neutral' {
+  if (a.netGainSeconds === 0) return 'neutral';
+  // immediate 강제 override: PM 이 더 빠른데도 짧은 건축이라 즉시 시작 권장 → 약간의 이득 포기
+  if (a.chosenStrategy === 'immediate' && a.netGainSeconds > 0) return 'negative';
+  // 자연 발생: 추천한 전략이 더 빠른 경우
+  return 'positive';
+}
+
+function renderAssignmentCard(a: CandidateAssignment, buffs: BuffSettings): string {
   const queueLabel = a.assignedQueueId === 'queue1' ? '큐 1' : '큐 2';
-  const strategy =
+  const candName = a.candidate.name ?? a.candidate.id;
+  const tone = actionTone(a);
+
+  // 큐 빔 시각 안내 — 0 이면 "지금 비어있음", 그 외엔 시간 표기
+  const queueFreeText =
+    a.queueFreeSeconds === 0
+      ? '큐가 지금 비어있음'
+      : `큐가 ${formatTime(a.queueFreeSeconds)} 후 비움`;
+
+  // 핵심 액션 한 줄 — chosenStrategy + PM 가용 여부 조합
+  //   wait-pm + tPm=0  → 총리대신 즉시 사용 가능 → 그냥 "지금 시작 (모든 버프 적용)"
+  //   wait-pm + tPm>0  → "총리대신을 받은 후 시작"
+  //   immediate        → "지금 바로 시작"
+  const actionLabel =
     a.chosenStrategy === 'wait-pm'
-      ? '<strong class="bo-tag-positive">총리대신 대기 후 시작</strong>'
-      : '<strong class="bo-tag-neutral">즉시 시작</strong>';
-  const gain =
-    a.netGainSeconds > 0
-      ? `예상 이득 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong>`
-      : a.netGainSeconds < 0
-        ? `즉시가 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong> 이득`
-        : '동률 — 어느 쪽이든 결과 같음';
+      ? buffs.primeMinisterWaitSeconds > 0
+        ? '총리대신을 받은 후 시작'
+        : '지금 시작 (모든 버프 적용)'
+      : '지금 바로 시작';
+  const toneClass =
+    tone === 'positive'
+      ? 'bo-card-positive'
+      : tone === 'negative'
+        ? 'bo-card-negative'
+        : 'bo-card-neutral';
+
+  // 이득 한 줄 — netGain 부호 + chosenStrategy + PM 대기 시간 조합으로 케이스 분리.
+  //   netGain = totalImmediate - totalWithPm
+  //     > 0: PM 이 더 빠름 (PM 이득), < 0: immediate 가 더 빠름 (immediate 이득), = 0: 동률
+  let gainLine: string;
+  if (a.netGainSeconds === 0) {
+    gainLine = '동률 — 어느 전략이든 결과 같음';
+  } else if (a.chosenStrategy === 'wait-pm') {
+    // 자연 발생: PM 전략 채택 + netGain > 0 → PM 적용 단축 효과
+    if (buffs.primeMinisterWaitSeconds > 0) {
+      gainLine = `총리대신 + 법령 + 펫 적용으로 약 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong> 단축됩니다`;
+    } else {
+      // PM 즉시 사용 가능 — "단축" 보다는 "이득" 으로 표현
+      gainLine = `총리대신 + 법령 + 펫 적용으로 약 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong> 이득입니다`;
+    }
+  } else if (a.netGainSeconds < 0) {
+    // 자연 발생: immediate 채택 + netGain < 0 → 즉시가 더 빠른 케이스
+    gainLine = `즉시 시작이 약 <strong>${formatTime(Math.abs(a.netGainSeconds))}</strong> 이득입니다`;
+  } else {
+    // 강제 override: immediate 채택했는데 netGain > 0 (PM 이 더 빨랐음) — 패턴 D 의 짧은 후보 케이스
+    gainLine = `짧은 건축이라 즉시 시작 권장 (총리대신 적용 시 약 ${formatTime(Math.abs(a.netGainSeconds))} 추가 이득은 포기)`;
+  }
 
   return `
-    <div class="bo-result-row bo-result-recommend">
-      ${a.candidate.name ?? a.candidate.id} → ${queueLabel}: ${strategy}
-    </div>
-    <div class="bo-result-row">${gain}</div>
-    <div class="bo-result-detail">
-      <div><span>큐 빔 시각 (현재 기준)</span><strong>${formatTime(a.queueFreeSeconds)}</strong></div>
-      <div><span>즉시 전략 — 총 소요</span><strong>${formatTime(a.immediateTotalSeconds)}</strong></div>
-      <div><span>총리대신 전략 — 총 소요</span><strong>${formatTime(a.withPmTotalSeconds)}</strong></div>
-      <div><span>손익분기 대기 시간</span><strong>${formatTime(a.breakEvenWaitSeconds)}</strong></div>
+    <div class="bo-card ${toneClass}">
+      <div class="bo-card-head">
+        <span class="bo-card-name">${candName} (${formatTime(a.candidate.baseSeconds)})</span>
+        <span class="bo-card-arrow">→</span>
+        <span class="bo-card-queue">${queueLabel}</span>
+      </div>
+      <div class="bo-card-action">${actionLabel}</div>
+      <div class="bo-card-gain">${gainLine}</div>
+      <div class="bo-card-meta">${queueFreeText}</div>
+      <details class="bo-card-details">
+        <summary>상세 계산 보기</summary>
+        <div class="bo-result-detail">
+          <div><span>기본 건축 시간</span><strong>${formatTime(a.candidate.baseSeconds)}</strong></div>
+          <div><span>즉시 시작 시 건축 시간</span><strong>${formatTime(a.immediateBuildSeconds)}</strong></div>
+          <div><span>총리대신 적용 시 건축 시간</span><strong>${formatTime(a.withPrimeMinisterBuildSeconds)}</strong></div>
+          <div><span>손익분기 대기 시간</span><strong>${formatTime(a.breakEvenWaitSeconds)}</strong></div>
+          <div><span>큐 빔 시각 (현재 기준)</span><strong>${formatTime(a.queueFreeSeconds)}</strong></div>
+          <div><span>즉시 전략 총 소요</span><strong>${formatTime(a.immediateTotalSeconds)}</strong></div>
+          <div><span>총리대신 전략 총 소요</span><strong>${formatTime(a.withPmTotalSeconds)}</strong></div>
+        </div>
+      </details>
     </div>
   `;
 }

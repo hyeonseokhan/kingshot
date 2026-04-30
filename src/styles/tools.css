@@ -211,43 +211,135 @@
   margin-top: 16px;
 }
 .bo-result-card {
+  background: transparent;
+  padding: 0;
+}
+
+/* 패턴별 헤드라인 — "지금 지을까? 기다릴까?" 한 줄 답 (가이드 §17) */
+.bo-headline {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.bo-pm-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* 큐 배정 카드 — 후보별 한 장 */
+.bo-card {
   background: var(--bg);
   border: 1px solid var(--border2);
+  border-left-width: 4px;
   border-radius: 10px;
-  padding: 16px;
+  padding: 14px 16px;
+  margin-top: 10px;
 }
-.bo-result-row {
-  font-size: 14px;
+.bo-card-positive {
+  border-left-color: #059669;
+}
+.bo-card-negative {
+  border-left-color: #dc2626;
+}
+.bo-card-neutral {
+  border-left-color: #9ca3af;
+}
+
+.bo-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text2);
   margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.bo-card-name {
+  font-weight: 700;
   color: var(--text);
 }
-.bo-result-recommend {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.bo-result-baseTime {
-  font-size: 12px;
-  font-weight: 400;
+.bo-card-arrow {
   color: var(--text3);
 }
-.bo-input-time {
-  /* time picker 너비 — 모바일에서 너무 넓지 않게 */
-  max-width: 200px;
+.bo-card-queue {
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(67, 56, 202, 0.08);
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
-.bo-tag-positive {
+.bo-card-action {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.bo-card-positive .bo-card-action {
   color: #059669;
-  font-weight: 700;
 }
-.bo-tag-neutral {
-  color: var(--accent);
-  font-weight: 700;
+.bo-card-negative .bo-card-action {
+  color: #dc2626;
 }
-.bo-result-divider {
-  border: none;
+.bo-card-gain {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.bo-card-gain strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.bo-card-meta {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+/* details — 상세 계산 펼치기 (§11.1 의 7번째 영역) */
+.bo-card-details {
+  margin-top: 10px;
   border-top: 1px dashed var(--border2);
-  margin: 12px 0;
+  padding-top: 8px;
 }
+.bo-card-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  list-style: none;
+  padding: 4px 0;
+  user-select: none;
+}
+.bo-card-details summary::-webkit-details-marker {
+  display: none;
+}
+.bo-card-details summary::before {
+  content: '▸ ';
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 120ms;
+}
+.bo-card-details[open] summary::before {
+  transform: rotate(90deg);
+}
+.bo-card-details summary:hover {
+  color: #3730a3;
+}
+.bo-card-details .bo-result-detail {
+  margin-top: 8px;
+}
+
+/* (Phase 2-A 잔재 — 일부 셀렉터는 호환성 유지) */
 .bo-result-detail {
   display: flex;
   flex-direction: column;
@@ -256,7 +348,7 @@
 .bo-result-detail > div {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text2);
 }
 .bo-result-detail strong {
