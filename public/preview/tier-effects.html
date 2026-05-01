@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=480, initial-scale=1.0">
+<title>장비 등급별 배경 효과 — 미리보기</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 12px 60px;
+    background: #f1f5f9;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Pretendard', sans-serif;
+    color: #0f172a;
+  }
+  .preview-page {
+    max-width: 460px;
+    margin: 0 auto;
+  }
+  .preview-page h1 {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0 0 6px;
+    text-align: center;
+  }
+  .preview-page .intro {
+    font-size: 12px;
+    color: #475569;
+    text-align: center;
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+
+  .tier-card { margin-bottom: 28px; }
+  .tier-card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 0 4px 8px;
+  }
+  .tier-card-name { font-weight: 800; font-size: 16px; }
+  .tier-card-level { color: #64748b; font-size: 14px; font-weight: 700; }
+  .tier-card-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-left: auto;
+    font-weight: 500;
+  }
+
+  /* ============================================================
+   * .eq-stage 베이스 (minigame.css 에서 추출, self-contained)
+   * ============================================================ */
+  .eq-stage {
+    --eq-slot-radius: 14px;
+    --eq-slot-border: rgba(255, 255, 255, 0.88);
+    --eq-slot-shadow-outer: 0 8px 14px rgba(28, 67, 116, 0.28);
+    --eq-slot-shadow-top-hl: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    --eq-slot-shadow-bot-deep: inset 0 -5px 10px rgba(0, 62, 130, 0.30);
+    --eq-badge-gold-top: #fff0a8;
+    --eq-badge-gold-mid: #ffc542;
+    --eq-badge-gold-bot: #f39b19;
+    --eq-badge-text: #5d3500;
+
+    position: relative;
+    margin: 0 auto;
+    aspect-ratio: 3 / 4;
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      #ffffff 0%,
+      #f1f5f9 35%,
+      #cbd5e1 75%,
+      #94a3b8 100%
+    );
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+      0 14px 28px rgba(15, 23, 42, 0.18),
+      0 2px 6px rgba(15, 23, 42, 0.08);
+  }
+
+  .eq-avatar {
+    position: absolute;
+    left: 36%; top: 34%;
+    width: 28%;
+    aspect-ratio: 1;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
+    border: 2px solid rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.8),
+      0 4px 10px rgba(30, 64, 175, 0.18);
+    z-index: 5;
+  }
+  .eq-avatar-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 12px;
+  }
+
+  .eq-slot {
+    position: absolute;
+    width: 18%;
+    aspect-ratio: 1;
+    border: 2px solid var(--eq-slot-border);
+    border-radius: var(--eq-slot-radius);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      var(--eq-slot-shadow-outer),
+      var(--eq-slot-shadow-top-hl),
+      var(--eq-slot-shadow-bot-deep);
+    z-index: 4;
+  }
+  .eq-slot-icon {
+    width: 78%; height: 78%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.32));
+  }
+  .eq-slot-badge {
+    position: absolute;
+    top: -8px; left: -8px;
+    min-width: 28px; height: 22px;
+    padding: 0 7px;
+    background: linear-gradient(180deg, var(--eq-badge-gold-top) 0%, var(--eq-badge-gold-mid) 52%, var(--eq-badge-gold-bot) 100%);
+    color: var(--eq-badge-text);
+    font-size: 11px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      0 4px 8px rgba(109, 67, 0, 0.30),
+      inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    z-index: 6;
+    letter-spacing: -0.02em;
+  }
+
+  /* slot tier 배경 + 배지 색상 */
+  .eq-slot-tier-common {
+    background: linear-gradient(180deg, #fafbfc 0%, #f1f3f5 48%, #e2e6ea 100%);
+  }
+  .eq-slot-tier-uncommon {
+    background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 48%, #a7f3d0 100%);
+  }
+  .eq-slot-tier-uncommon .eq-slot-badge {
+    background: linear-gradient(180deg, #86efac 0%, #22c55e 50%, #15803d 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+  .eq-slot-tier-rare {
+    background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 48%, #bfdbfe 100%);
+  }
+  .eq-slot-tier-rare .eq-slot-badge {
+    background: linear-gradient(180deg, #93c5fd 0%, #3b82f6 50%, #1e40af 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+  .eq-slot-tier-epic {
+    background: linear-gradient(180deg, #faf5ff 0%, #ede9fe 48%, #ddd6fe 100%);
+  }
+  .eq-slot-tier-epic .eq-slot-badge {
+    background: linear-gradient(180deg, #d8b4fe 0%, #a855f7 50%, #6b21a8 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+  .eq-slot-tier-legendary {
+    background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 48%, #fde68a 100%);
+  }
+  .eq-slot-tier-legendary .eq-slot-badge {
+    background: linear-gradient(180deg, #fde047 0%, #f59e0b 50%, #b45309 100%);
+    color: #5d3500;
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
+  }
+  .eq-slot-tier-mythic {
+    background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 48%, #fecaca 100%);
+  }
+  .eq-slot-tier-mythic .eq-slot-badge {
+    background: linear-gradient(180deg, #fca5a5 0%, #ef4444 50%, #991b1b 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  /* slot 위치 */
+  .eq-slot-left.eq-slot-row-1  { left: 22%; top: 12%; }
+  .eq-slot-left.eq-slot-row-2  { left: 5%;  top: 38%; }
+  .eq-slot-left.eq-slot-row-3  { left: 22%; top: 64%; }
+  .eq-slot-right.eq-slot-row-1 { right: 22%; top: 12%; }
+  .eq-slot-right.eq-slot-row-2 { right: 5%;  top: 38%; }
+  .eq-slot-right.eq-slot-row-3 { right: 22%; top: 64%; }
+
+  /* 총 전투력 패널 */
+  .eq-totalpower {
+    position: absolute;
+    left: 50%;
+    bottom: 7%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 0 20px;
+    height: 42px;
+    min-width: 170px;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(235, 242, 252, 0.90) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 999px;
+    box-shadow:
+      0 10px 18px rgba(28, 55, 91, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+    z-index: 5;
+  }
+  .eq-totalpower-label { font-size: 13px; font-weight: 700; color: #52606d; align-self: center; }
+  .eq-totalpower-value { font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 900; color: #006aa6; align-self: center; }
+
+  /* ============================================================
+   * 아바타 일렁이는 테두리 (등급 글로우) — minigame.css 와 동일
+   * common 은 효과 X (의도)
+   * ============================================================ */
+  .eq-avatar { isolation: isolate; }
+  .eq-avatar.eq-avatar-tier-uncommon::before,
+  .eq-avatar.eq-avatar-tier-rare::before,
+  .eq-avatar.eq-avatar-tier-epic::before,
+  .eq-avatar.eq-avatar-tier-legendary::before,
+  .eq-avatar.eq-avatar-tier-mythic::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 18px;
+    background-size: 300% 300%;
+    animation: gradientMove 3s ease infinite;
+    filter: blur(8px);
+    z-index: -1;
+    pointer-events: none;
+  }
+  .eq-avatar-tier-uncommon::before {
+    background-image: linear-gradient(135deg, #22c55e, #86efac, #15803d, #22c55e);
+    opacity: 0.55;
+  }
+  .eq-avatar-tier-rare::before {
+    background-image: linear-gradient(135deg, #3b82f6, #93c5fd, #1e40af, #3b82f6);
+    opacity: 0.55;
+  }
+  .eq-avatar-tier-epic::before {
+    background-image: linear-gradient(135deg, #a855f7, #d8b4fe, #6b21a8, #a855f7);
+    opacity: 0.65;
+  }
+  .eq-avatar-tier-legendary::before {
+    background-image: linear-gradient(135deg, #f59e0b, #fde047, #b45309, #f59e0b);
+    opacity: 0.7;
+    animation-duration: 2s;
+  }
+  .eq-avatar-tier-mythic::before {
+    background-image: linear-gradient(135deg, #ef4444, #fca5a5, #991b1b, #ef4444);
+    opacity: 0.78;
+    animation-duration: 1.8s;
+    filter: blur(10px);
+  }
+  @keyframes gradientMove {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ============================================================
+   * 등급별 배경 + 모션 — .eq-tier-fx 가 모션 레이어 (avatar/slot 아래)
+   * ============================================================ */
+  .eq-tier-fx {
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* === 일반 (common) === */
+  /* 모션 없음 — 외곽 흰 vignette 만 살짝 (완전 정적은 죽어보여서) */
+  .eq-stage-tier-common .eq-tier-fx {
+    background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(255, 255, 255, 0.05) 100%);
+  }
+
+  /* === 고급 (uncommon) — 옅은 녹색 + 잎새 drift === */
+  .eq-stage-tier-uncommon {
+    background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #f0fdf4 35%, #d1fae5 75%, #86efac 100%);
+  }
+  .eq-stage-tier-uncommon .eq-tier-fx::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(34, 197, 94, 0.08) 100%);
+  }
+  .leaf {
+    position: absolute;
+    width: 14px; height: 14px;
+    top: -10%;
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .leaf svg { width: 100%; height: 100%; display: block; }
+  .leaf path { fill: #16a34a; opacity: 0.55; }
+  .leaf-1 { left: 12%; animation: leafDrift 14s linear infinite; --sway: -10px; --scale: 1; }
+  .leaf-2 { left: 32%; animation: leafDrift 17s linear infinite -3s; --sway: 12px; --scale: 0.7; }
+  .leaf-3 { left: 55%; animation: leafDrift 13s linear infinite -8s; --sway: -8px; --scale: 0.85; }
+  .leaf-4 { left: 75%; animation: leafDrift 16s linear infinite -5s; --sway: 6px; --scale: 0.6; }
+  .leaf-5 { left: 90%; animation: leafDrift 18s linear infinite -11s; --sway: -10px; --scale: 0.8; }
+  @keyframes leafDrift {
+    0%   { transform: translate(0, 0) rotate(0deg) scale(var(--scale, 1)); opacity: 0; }
+    8%   { opacity: 0.5; }
+    50%  { transform: translate(var(--sway, 0), 220px) rotate(180deg) scale(var(--scale, 1)); opacity: 0.5; }
+    92%  { opacity: 0.4; }
+    100% { transform: translate(calc(var(--sway, 0) * 1.6), 460px) rotate(360deg) scale(var(--scale, 1)); opacity: 0; }
+  }
+
+  /* === 희귀 (rare) — 하늘색 + 호수 ripple (강화: 더 넓게 + 진하게 + concentric) === */
+  .eq-stage-tier-rare {
+    background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #e0f2fe 35%, #7dd3fc 75%, #38bdf8 100%);
+  }
+  .eq-stage-tier-rare .eq-tier-fx::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(14, 165, 233, 0.18) 100%),
+      linear-gradient(180deg, transparent 65%, rgba(125, 211, 252, 0.20) 100%);
+  }
+  .ripple {
+    position: absolute;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(14, 165, 233, 0.85);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+    will-change: transform, opacity;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+  }
+  /* 안쪽 동심 ring (delay 약간 줌 — concentric 느낌) */
+  .ripple::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(56, 189, 248, 0.6);
+  }
+  .ripple-1 { left: 28%; top: 38%; animation: rippleExpand 5.5s ease-out infinite; }
+  .ripple-2 { left: 65%; top: 22%; animation: rippleExpand 6s ease-out infinite -1.5s; }
+  .ripple-3 { left: 50%; top: 78%; animation: rippleExpand 6.5s ease-out infinite -3.5s; }
+  .ripple-4 { left: 80%; top: 60%; animation: rippleExpand 6s ease-out infinite -1s; }
+  .ripple-5 { left: 14%; top: 70%; animation: rippleExpand 7s ease-out infinite -4.5s; }
+  .ripple-6 { left: 38%; top: 18%; animation: rippleExpand 5s ease-out infinite -2.5s; }
+  .ripple-7 { left: 88%; top: 30%; animation: rippleExpand 6.5s ease-out infinite -5s; }
+  @keyframes rippleExpand {
+    0%   { transform: translate(-50%, -50%) scale(0);   opacity: 0;    border-width: 2.5px; }
+    8%   { opacity: 0.85; }
+    100% { transform: translate(-50%, -50%) scale(4.5); opacity: 0;    border-width: 0.5px; }
+  }
+
+  /* === 영웅 (epic) — 보라 + 떠오르는 마법 입자 (강화: 입자↑, wisp 추가) === */
+  .eq-stage-tier-epic {
+    background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #ede9fe 35%, #c4b5fd 75%, #8b5cf6 100%);
+  }
+  .eq-stage-tier-epic .eq-tier-fx::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(124, 58, 237, 0.16) 100%);
+  }
+  /* 보라 wisp — 천천히 흐르는 옅은 오로라 같은 띠 (배경 위 추가 레이어) */
+  .eq-stage-tier-epic .eq-tier-fx::after {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    background:
+      radial-gradient(ellipse 50% 25% at 30% 30%, rgba(168, 85, 247, 0.22) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 20% at 70% 70%, rgba(217, 70, 239, 0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 30% 15% at 50% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 70%);
+    background-size: 100% 100%;
+    animation: epicWispFlow 18s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes epicWispFlow {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    33%  { transform: translate(2%, -3%) rotate(2deg); }
+    66%  { transform: translate(-2%, 3%) rotate(-1.5deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+  .epic-particle {
+    position: absolute;
+    border-radius: 50%;
+    bottom: 0;
+    opacity: 0;
+    will-change: transform, opacity;
+    z-index: 2;
+  }
+  .epic-particle.size-s { width: 3px; height: 3px; background: #c084fc; box-shadow: 0 0 4px rgba(192, 132, 252, 0.85); }
+  .epic-particle.size-m { width: 4px; height: 4px; background: #a78bfa; box-shadow: 0 0 6px rgba(167, 139, 250, 0.95); }
+  .epic-particle.size-l { width: 7px; height: 7px; background: #f0abfc; box-shadow: 0 0 10px rgba(240, 171, 252, 1), 0 0 18px rgba(217, 70, 239, 0.7); }
+  .epic-p1  { left: 12%; animation: epicFloat 8s linear infinite -1s;  --sway: 12px;  }
+  .epic-p2  { left: 24%; animation: epicFloat 10s linear infinite -3s; --sway: -14px; }
+  .epic-p3  { left: 38%; animation: epicFloat 7s linear infinite -5s;  --sway: 10px;  }
+  .epic-p4  { left: 50%; animation: epicFloat 11s linear infinite -2s; --sway: -12px; }
+  .epic-p5  { left: 62%; animation: epicFloat 9s linear infinite -7s;  --sway: 14px;  }
+  .epic-p6  { left: 75%; animation: epicFloat 8s linear infinite -4s;  --sway: -10px; }
+  .epic-p7  { left: 88%; animation: epicFloat 12s linear infinite -6s; --sway: 12px;  }
+  .epic-p8  { left: 5%;  animation: epicFloat 7s  linear infinite -8s; --sway: 8px;   }
+  .epic-p9  { left: 95%; animation: epicFloat 10s linear infinite -2.5s; --sway: -8px; }
+  .epic-p10 { left: 45%; animation: epicFloat 13s linear infinite -9s; --sway: 16px; }
+  @keyframes epicFloat {
+    0%   { bottom: -5%;  transform: translateX(0);                      opacity: 0; }
+    12%  {                                                              opacity: 0.85; }
+    50%  {               transform: translateX(var(--sway, 0));         opacity: 0.85; }
+    85%  {                                                              opacity: 0.6; }
+    100% { bottom: 110%; transform: translateX(calc(var(--sway, 0) * 0.4)); opacity: 0; }
+  }
+
+  /* === 레전드 (legendary) — 금 + 반짝이 + 큰 별빛 (강화: dust↑, sparkle 잦게/크게, 광채↑) === */
+  .eq-stage-tier-legendary {
+    background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #fef3c7 30%, #fcd34d 70%, #f59e0b 100%);
+  }
+  .eq-stage-tier-legendary .eq-tier-fx::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(245, 158, 11, 0.20) 100%),
+      radial-gradient(ellipse 60% 40% at 50% 50%, rgba(253, 224, 71, 0.15) 0%, transparent 60%);
+  }
+  /* 황금빛 광선 (radial light beams) — 매우 옅게, 천천히 회전 */
+  .eq-stage-tier-legendary .eq-tier-fx::after {
+    content: '';
+    position: absolute;
+    inset: -10%;
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      transparent 0deg, rgba(253, 224, 71, 0.18) 10deg, transparent 20deg,
+      transparent 60deg, rgba(251, 191, 36, 0.14) 70deg, transparent 80deg,
+      transparent 130deg, rgba(253, 224, 71, 0.16) 140deg, transparent 150deg,
+      transparent 200deg, rgba(251, 191, 36, 0.18) 210deg, transparent 220deg,
+      transparent 280deg, rgba(253, 224, 71, 0.14) 290deg, transparent 300deg
+    );
+    animation: legendaryRays 25s linear infinite;
+    filter: blur(8px);
+  }
+  @keyframes legendaryRays {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .dust {
+    position: absolute;
+    border-radius: 50%;
+    background: #fde047;
+    opacity: 0;
+    will-change: opacity, transform;
+    z-index: 2;
+  }
+  .dust.tiny { width: 2px;  height: 2px;  box-shadow: 0 0 4px rgba(253, 224, 71, 0.95); }
+  .dust.med  { width: 3px;  height: 3px;  box-shadow: 0 0 6px rgba(253, 224, 71, 1), 0 0 12px rgba(245, 158, 11, 0.7); background: #fef08a; }
+  .dust.big  { width: 4px;  height: 4px;  box-shadow: 0 0 8px rgba(253, 224, 71, 1), 0 0 16px rgba(245, 158, 11, 0.85); background: #fef9c3; }
+  .dust.d1  { left: 8%;  top: 12%; animation: dustTwinkle 1.6s ease-in-out infinite; }
+  .dust.d2  { left: 22%; top: 25%; animation: dustTwinkle 2.0s ease-in-out infinite -0.5s; }
+  .dust.d3  { left: 40%; top: 8%;  animation: dustTwinkle 1.8s ease-in-out infinite -1.0s; }
+  .dust.d4  { left: 60%; top: 18%; animation: dustTwinkle 1.7s ease-in-out infinite -1.5s; }
+  .dust.d5  { left: 75%; top: 8%;  animation: dustTwinkle 2.2s ease-in-out infinite -2.0s; }
+  .dust.d6  { left: 88%; top: 28%; animation: dustTwinkle 1.5s ease-in-out infinite -0.8s; }
+  .dust.d7  { left: 12%; top: 88%; animation: dustTwinkle 2.0s ease-in-out infinite -2.5s; }
+  .dust.d8  { left: 30%; top: 92%; animation: dustTwinkle 1.6s ease-in-out infinite -1.2s; }
+  .dust.d9  { left: 55%; top: 88%; animation: dustTwinkle 2.4s ease-in-out infinite -3.0s; }
+  .dust.d10 { left: 78%; top: 92%; animation: dustTwinkle 1.8s ease-in-out infinite -0.4s; }
+  .dust.d11 { left: 93%; top: 70%; animation: dustTwinkle 1.7s ease-in-out infinite -1.8s; }
+  .dust.d12 { left: 5%;  top: 50%; animation: dustTwinkle 2.0s ease-in-out infinite -2.2s; }
+  .dust.d13 { left: 50%; top: 25%; animation: dustTwinkle 1.5s ease-in-out infinite -0.7s; }
+  .dust.d14 { left: 68%; top: 50%; animation: dustTwinkle 2.1s ease-in-out infinite -1.4s; }
+  .dust.d15 { left: 18%; top: 65%; animation: dustTwinkle 1.9s ease-in-out infinite -2.6s; }
+  .dust.d16 { left: 82%; top: 45%; animation: dustTwinkle 1.7s ease-in-out infinite -0.9s; }
+  @keyframes dustTwinkle {
+    0%, 100% { opacity: 0;     transform: scale(0.4); }
+    50%      { opacity: 1;     transform: scale(1.6); }
+  }
+  .sparkle-big {
+    position: absolute;
+    width: 28px; height: 28px;
+    opacity: 0;
+    will-change: opacity, transform;
+    z-index: 3;
+  }
+  .sparkle-big svg { width: 100%; height: 100%; display: block; }
+  .sparkle-big path {
+    fill: #fde047;
+    filter: drop-shadow(0 0 4px rgba(253, 224, 71, 1)) drop-shadow(0 0 8px rgba(251, 191, 36, 0.85));
+  }
+  .sparkle-big-1 { left: 18%; top: 20%; animation: sparkleNova 4s ease-in-out infinite; }
+  .sparkle-big-2 { left: 76%; top: 70%; animation: sparkleNova 4.5s ease-in-out infinite -1.8s; }
+  .sparkle-big-3 { left: 60%; top: 12%; animation: sparkleNova 5s ease-in-out infinite -3.2s; }
+  @keyframes sparkleNova {
+    0%, 70%, 100% { opacity: 0;    transform: scale(0)   rotate(0deg); }
+    78%           { opacity: 1;    transform: scale(1.5) rotate(45deg); }
+    88%           { opacity: 0.5;  transform: scale(1.2) rotate(90deg); }
+  }
+
+  /* === 신화 (mythic) — 붉은+금 churning 마그마 + ember (강화: 더 강렬, ember↑, flare 추가) === */
+  .eq-stage-tier-mythic {
+    background:
+      radial-gradient(ellipse at 30% 70%, rgba(124, 45, 18, 0.65) 0%, transparent 42%),
+      radial-gradient(ellipse at 70% 35%, rgba(234, 88, 12, 0.55) 0%, transparent 47%),
+      radial-gradient(ellipse at 50% 50%, #fef2f2 0%, #fca5a5 30%, #f97316 65%, #9a3412 100%);
+  }
+  .eq-stage-tier-mythic .eq-tier-fx {
+    filter: saturate(0.92) blur(0.3px);
+  }
+  /* churning 마그마 (다층) — 빠르게 + 강하게 */
+  .eq-stage-tier-mythic .eq-tier-fx::before {
+    content: '';
+    position: absolute;
+    inset: -10%;
+    background:
+      radial-gradient(ellipse at 25% 65%, rgba(154, 52, 18, 0.6) 0%, transparent 35%),
+      radial-gradient(ellipse at 70% 35%, rgba(234, 88, 12, 0.5) 0%, transparent 40%),
+      radial-gradient(ellipse at 60% 80%, rgba(124, 45, 18, 0.6) 0%, transparent 32%),
+      radial-gradient(ellipse at 40% 30%, rgba(251, 113, 22, 0.4) 0%, transparent 35%);
+    background-size: 100% 100%;
+    animation: magmaChurn 30s linear infinite;
+    will-change: transform;
+  }
+  /* 가장자리 어두운 vignette + 가운데 백열광 (focal heat) */
+  .eq-stage-tier-mythic .eq-tier-fx::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(254, 215, 170, 0.25) 50%, transparent 70%);
+    box-shadow: inset 0 0 80px rgba(69, 26, 3, 0.7);
+    animation: magmaPulse 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes magmaChurn {
+    0%   { transform: translate(0, 0)       rotate(0deg);   }
+    25%  { transform: translate(-4%, 3%)    rotate(3deg);   }
+    50%  { transform: translate(3%, -3%)    rotate(-2deg);  }
+    75%  { transform: translate(-2%, -4%)   rotate(2deg);   }
+    100% { transform: translate(0, 0)       rotate(0deg);   }
+  }
+  @keyframes magmaPulse {
+    0%, 100% { opacity: 0.7; }
+    50%      { opacity: 1; }
+  }
+  /* 구슬: 색은 따뜻한 흰색 (꼬리와 톤 일치 — 이음새 안 보임). 크기별 부드러운 글로우. */
+  .ember {
+    position: absolute;
+    border-radius: 50%;
+    bottom: 5%;
+    opacity: 0;
+    will-change: transform, opacity;
+    z-index: 2;
+  }
+  .ember.small { width: 3px; height: 3px; background: #fff7ed; box-shadow: 0 0 4px rgba(255, 247, 237, 0.95), 0 0 9px  rgba(254, 215, 170, 0.7); }
+  .ember.med   { width: 5px; height: 5px; background: #fffaf0; box-shadow: 0 0 7px rgba(255, 250, 240, 1),    0 0 14px rgba(254, 215, 170, 0.8); }
+  .ember.big   { width: 7px; height: 7px; background: #ffffff; box-shadow: 0 0 10px rgba(255, 255, 255, 1),   0 0 20px rgba(254, 215, 170, 0.85); }
+  /* contrail — 구슬과 동일한 폭, 색조도 동일한 따뜻한 흰색에서 transparent 로 fade.
+   * 이음새 색차이 X → 한 덩어리 contrail. */
+  .ember::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 250, 240, 0.85) 0%,
+      rgba(255, 248, 230, 0.5) 35%,
+      rgba(255, 245, 220, 0.18) 70%,
+      transparent 100%
+    );
+    filter: blur(0.5px);
+    pointer-events: none;
+  }
+  .ember.small::after { height: 40px; }
+  .ember.med::after   { height: 65px; }
+  .ember.big::after   { height: 95px; }
+
+  /* 모션: linear timing (ease-out 의 위쪽 멈춤 X) + 더 긴 duration 으로 매끄러운 상승.
+   * 각 구슬마다 다른 left + delay → 항상 여러 개가 다른 단계에서 보임. */
+  .ember-1  { left: 15%; animation: emberRise 6.0s linear infinite -0.4s; --esway: 6px;  }
+  .ember-2  { left: 28%; animation: emberRise 7.0s linear infinite -2.5s; --esway: -8px; }
+  .ember-3  { left: 42%; animation: emberRise 5.5s linear infinite -4.0s; --esway: 7px;  }
+  .ember-4  { left: 55%; animation: emberRise 7.5s linear infinite -1.5s; --esway: -5px; }
+  .ember-5  { left: 68%; animation: emberRise 6.2s linear infinite -3.5s; --esway: 6px;  }
+  .ember-6  { left: 82%; animation: emberRise 6.8s linear infinite -1.0s; --esway: -7px; }
+  .ember-7  { left: 22%; animation: emberRise 7.2s linear infinite -5.0s; --esway: 4px;  }
+  .ember-8  { left: 50%; animation: emberRise 8.0s linear infinite -3.0s; --esway: -6px; }
+  .ember-9  { left: 75%; animation: emberRise 5.8s linear infinite -4.5s; --esway: 5px;  }
+  .ember-10 { left: 92%; animation: emberRise 6.5s linear infinite -2.0s; --esway: -4px; }
+  @keyframes emberRise {
+    0%   { bottom: -2%;  opacity: 0;    transform: translateX(0); }
+    15%  {               opacity: 1;    transform: translateX(calc(var(--esway, 5px) * 0.3)); }
+    85%  {               opacity: 0.9;  transform: translateX(var(--esway, 5px)); }
+    100% { bottom: 105%; opacity: 0;    transform: translateX(calc(var(--esway, 5px) * 1.2)); }
+  }
+  /* 큰 flare — 가끔(7~9초) 한 번씩 화면 깊은곳에서 강하게 빛남 */
+  .flare {
+    position: absolute;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(254, 215, 170, 0.85) 0%, rgba(249, 115, 22, 0.5) 30%, transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+    will-change: opacity, transform;
+    filter: blur(2px);
+    z-index: 1;
+  }
+  .flare-1 { left: 30%; top: 60%; animation: magmaFlare 7s ease-in-out infinite; }
+  .flare-2 { left: 70%; top: 35%; animation: magmaFlare 9s ease-in-out infinite -4s; }
+  @keyframes magmaFlare {
+    0%, 80%, 100% { opacity: 0;    transform: scale(0.4); }
+    88%           { opacity: 0.85; transform: scale(1.3); }
+    94%           { opacity: 0.4;  transform: scale(1.6); }
+  }
+
+  /* === 신화 대안 B — 어둠 + 떠오르는 작은 불씨
+   * 베이스: 모든 면적에 고루 붉은 검정. 외곽 검정 dimmer 제거 (R 값 깎아 먹던 것).
+   * 빨강 wash 는 외곽까지 확장 (65% → 90%). */
+  .eq-stage-tier-mythic-b {
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(153, 27, 27, 0.13) 0%, transparent 90%),
+      linear-gradient(180deg, #170a0a 0%, #0d0606 50%, #1f0f0f 100%);
+  }
+  /* 어두운 면적 강조 — 외곽 vignette */
+  .eq-stage-tier-mythic-b .eq-tier-fx::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0, 0, 0, 0.55) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* SVG 균열 */
+  .lava-cracks {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: visible;
+  }
+  .crack {
+    filter:
+      drop-shadow(0 0 2px rgba(254, 240, 138, 1))
+      drop-shadow(0 0 6px rgba(249, 115, 22, 0.95))
+      drop-shadow(0 0 14px rgba(220, 38, 38, 0.7))
+      drop-shadow(0 0 24px rgba(127, 29, 29, 0.45));
+    animation: crackPulse 3s ease-in-out infinite;
+    will-change: opacity;
+  }
+  .crack-1 { animation-duration: 3s;   animation-delay: 0s;    }
+  .crack-2 { animation-duration: 3.5s; animation-delay: -1.2s; }
+  .crack-3 { animation-duration: 4s;   animation-delay: -0.7s; }
+  @keyframes crackPulse {
+    0%, 100% { opacity: 0.7; }
+    50%      { opacity: 1; }
+  }
+
+  /* 작은 빛 — 꼬리 없는 단순한 점. 화면 곳곳에서 짧게 떠올랐다 사라짐 (대안 B 원복). */
+  .leak {
+    position: absolute;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: #fb923c;
+    box-shadow: 0 0 5px rgba(249, 115, 22, 0.95), 0 0 10px rgba(220, 38, 38, 0.7);
+    opacity: 0;
+    z-index: 2;
+    will-change: transform, opacity;
+  }
+  /* 21 개 — 화면 곳곳에 분산 (이전 14 개 대비 50% ↑) */
+  .leak-1  { left: 10%; top: 18%; animation: leakRise 4.8s linear infinite -0.5s; }
+  .leak-2  { left: 22%; top: 32%; animation: leakRise 5.2s linear infinite -2.1s; }
+  .leak-3  { left: 35%; top: 20%; animation: leakRise 4.5s linear infinite -1.3s; }
+  .leak-4  { left: 45%; top: 40%; animation: leakRise 5.0s linear infinite -3.2s; }
+  .leak-5  { left: 58%; top: 24%; animation: leakRise 5.5s linear infinite -2.5s; }
+  .leak-6  { left: 70%; top: 36%; animation: leakRise 4.7s linear infinite -0.8s; }
+  .leak-7  { left: 82%; top: 22%; animation: leakRise 5.3s linear infinite -3.7s; }
+  .leak-8  { left: 92%; top: 30%; animation: leakRise 4.6s linear infinite -1.5s; }
+  .leak-9  { left: 16%; top: 65%; animation: leakRise 5.1s linear infinite -2.8s; }
+  .leak-10 { left: 30%; top: 78%; animation: leakRise 4.8s linear infinite -1.0s; }
+  .leak-11 { left: 48%; top: 70%; animation: leakRise 5.4s linear infinite -3.5s; }
+  .leak-12 { left: 65%; top: 80%; animation: leakRise 4.7s linear infinite -0.4s; }
+  .leak-13 { left: 78%; top: 68%; animation: leakRise 5.0s linear infinite -2.3s; }
+  .leak-14 { left: 90%; top: 82%; animation: leakRise 4.9s linear infinite -1.7s; }
+  /* 추가 7 개 (50% ↑) — 빈 공간 채움 */
+  .leak-15 { left: 5%;  top: 48%; animation: leakRise 5.0s linear infinite -2.4s; }
+  .leak-16 { left: 28%; top: 50%; animation: leakRise 4.7s linear infinite -1.8s; }
+  .leak-17 { left: 38%; top: 60%; animation: leakRise 5.3s linear infinite -3.0s; }
+  .leak-18 { left: 52%; top: 88%; animation: leakRise 4.8s linear infinite -0.6s; }
+  .leak-19 { left: 72%; top: 50%; animation: leakRise 5.1s linear infinite -2.6s; }
+  .leak-20 { left: 84%; top: 50%; animation: leakRise 4.6s linear infinite -1.4s; }
+  .leak-21 { left: 18%; top: 88%; animation: leakRise 5.4s linear infinite -3.3s; }
+  @keyframes leakRise {
+    0%   { opacity: 0;    transform: translateY(0); }
+    10%  { opacity: 0.9; }
+    100% { opacity: 0;    transform: translateY(-70px); }
+  }
+
+  /* 7.5초마다 한 번 강한 빛 폭발 — 깊은 곳에서 한 번 들끓음.
+   * 대기 9s → 4.5s (2배 단축, 빈도 ↑) + flash 자체 timing (fade in 0.84s / dip 0.96s /
+   * fade out 1.2s) 은 그대로 보존하기 위해 duration 7.5s + keyframe 비율 재계산. */
+  .lava-burst {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 80% 50% at 50% 50%,
+      rgba(254, 240, 138, 0.5) 0%,
+      rgba(249, 115, 22, 0.3) 35%,
+      rgba(220, 38, 38, 0.12) 60%,
+      transparent 80%
+    );
+    opacity: 0;
+    animation: lavaBurst 7.5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @keyframes lavaBurst {
+    0%, 60%, 100% { opacity: 0; }   /* 0~4.5s 대기 + 7.5s fade out 끝 */
+    71%           { opacity: 1; }    /* 5.325s peak (fade in 0.825s) */
+    84%           { opacity: 0.4; }  /* 6.3s dip   (peak→dip 0.975s) */
+  }
+
+  /* prefers-reduced-motion — 모션 정지, tint 만 유지 */
+  @media (prefers-reduced-motion: reduce) {
+    .leaf, .ripple, .epic-particle, .dust, .sparkle-big, .ember,
+    .eq-stage-tier-mythic .eq-tier-fx::before {
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <main class="preview-page">
+    <h1>장비 등급별 배경 효과 — 미리보기</h1>
+    <p class="intro">
+      각 등급의 최고 레벨로 6 슬롯 채움. 모든 모션은 잔잔하게 — 배경 일부로만 인지.<br>
+      Toycode 아바타 사용. <code>prefers-reduced-motion</code> 시 모션 정지.
+    </p>
+
+    <!-- ========== 1. 일반 (+0) ========== -->
+    <section class="tier-card">
+      <header class="tier-card-head">
+        <span class="tier-card-name">일반</span>
+        <span class="tier-card-level">+0</span>
+        <span class="tier-card-desc">효과 없음 (현재 모습)</span>
+      </header>
+      <div class="eq-stage eq-stage-tier-common">
+        <div class="eq-tier-fx"></div>
+        <div class="eq-avatar"><img class="eq-avatar-img" src="https://got-global-avatar.akamaized.net/avatar/2026/03/07/jBxqkv_1772879623.png" alt=""></div>
+
+        <div class="eq-slot eq-slot-left  eq-slot-row-1 eq-slot-tier-common"><span class="eq-slot-badge">+0</span><img class="eq-slot-icon" src="/images/items/crown.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-2 eq-slot-tier-common"><span class="eq-slot-badge">+0</span><img class="eq-slot-icon" src="/images/items/top.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-3 eq-slot-tier-common"><span class="eq-slot-badge">+0</span><img class="eq-slot-icon" src="/images/items/ring.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-1 eq-slot-tier-common"><span class="eq-slot-badge">+0</span><img class="eq-slot-icon" src="/images/items/necklace.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-2 eq-slot-tier-common"><span class="eq-slot-badge">+0</span><img class="eq-slot-icon" src="/images/items/bottom.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-3 eq-slot-tier-common"><span class="eq-slot-badge">+0</span><img class="eq-slot-icon" src="/images/items/staff.png" alt=""></div>
+
+        <div class="eq-totalpower"><span class="eq-totalpower-label">총 전투력:</span><span class="eq-totalpower-value">+0</span></div>
+      </div>
+    </section>
+
+    <!-- ========== 2. 고급 (+9) ========== -->
+    <section class="tier-card">
+      <header class="tier-card-head">
+        <span class="tier-card-name">고급</span>
+        <span class="tier-card-level">+9</span>
+        <span class="tier-card-desc">잎새 drift</span>
+      </header>
+      <div class="eq-stage eq-stage-tier-uncommon">
+        <div class="eq-tier-fx">
+          <span class="leaf leaf-1"><svg viewBox="0 0 24 24"><path d="M12 2 C16 5 19 9 19 14 C19 19 14 22 12 22 C10 22 5 19 5 14 C5 9 8 5 12 2Z M12 4 L12 21" stroke="#15803d" stroke-width="0.6" stroke-linecap="round"/></svg></span>
+          <span class="leaf leaf-2"><svg viewBox="0 0 24 24"><path d="M12 2 C16 5 19 9 19 14 C19 19 14 22 12 22 C10 22 5 19 5 14 C5 9 8 5 12 2Z"/></svg></span>
+          <span class="leaf leaf-3"><svg viewBox="0 0 24 24"><path d="M12 2 C16 5 19 9 19 14 C19 19 14 22 12 22 C10 22 5 19 5 14 C5 9 8 5 12 2Z"/></svg></span>
+          <span class="leaf leaf-4"><svg viewBox="0 0 24 24"><path d="M12 2 C16 5 19 9 19 14 C19 19 14 22 12 22 C10 22 5 19 5 14 C5 9 8 5 12 2Z"/></svg></span>
+          <span class="leaf leaf-5"><svg viewBox="0 0 24 24"><path d="M12 2 C16 5 19 9 19 14 C19 19 14 22 12 22 C10 22 5 19 5 14 C5 9 8 5 12 2Z"/></svg></span>
+        </div>
+        <div class="eq-avatar eq-avatar-tier-uncommon"><img class="eq-avatar-img" src="https://got-global-avatar.akamaized.net/avatar/2026/03/07/jBxqkv_1772879623.png" alt=""></div>
+
+        <div class="eq-slot eq-slot-left  eq-slot-row-1 eq-slot-tier-uncommon"><span class="eq-slot-badge">+9</span><img class="eq-slot-icon" src="/images/items/crown.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-2 eq-slot-tier-uncommon"><span class="eq-slot-badge">+9</span><img class="eq-slot-icon" src="/images/items/top.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-3 eq-slot-tier-uncommon"><span class="eq-slot-badge">+9</span><img class="eq-slot-icon" src="/images/items/ring.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-1 eq-slot-tier-uncommon"><span class="eq-slot-badge">+9</span><img class="eq-slot-icon" src="/images/items/necklace.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-2 eq-slot-tier-uncommon"><span class="eq-slot-badge">+9</span><img class="eq-slot-icon" src="/images/items/bottom.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-3 eq-slot-tier-uncommon"><span class="eq-slot-badge">+9</span><img class="eq-slot-icon" src="/images/items/staff.png" alt=""></div>
+
+        <div class="eq-totalpower"><span class="eq-totalpower-label">총 전투력:</span><span class="eq-totalpower-value">+750</span></div>
+      </div>
+    </section>
+
+    <!-- ========== 3. 희귀 (+24) ========== -->
+    <section class="tier-card">
+      <header class="tier-card-head">
+        <span class="tier-card-name">희귀</span>
+        <span class="tier-card-level">+24</span>
+        <span class="tier-card-desc">호수 ripple</span>
+      </header>
+      <div class="eq-stage eq-stage-tier-rare">
+        <div class="eq-tier-fx">
+          <span class="ripple ripple-1"></span>
+          <span class="ripple ripple-2"></span>
+          <span class="ripple ripple-3"></span>
+          <span class="ripple ripple-4"></span>
+          <span class="ripple ripple-5"></span>
+          <span class="ripple ripple-6"></span>
+          <span class="ripple ripple-7"></span>
+        </div>
+        <div class="eq-avatar eq-avatar-tier-rare"><img class="eq-avatar-img" src="https://got-global-avatar.akamaized.net/avatar/2026/03/07/jBxqkv_1772879623.png" alt=""></div>
+
+        <div class="eq-slot eq-slot-left  eq-slot-row-1 eq-slot-tier-rare"><span class="eq-slot-badge">+24</span><img class="eq-slot-icon" src="/images/items/crown.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-2 eq-slot-tier-rare"><span class="eq-slot-badge">+24</span><img class="eq-slot-icon" src="/images/items/top.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-3 eq-slot-tier-rare"><span class="eq-slot-badge">+24</span><img class="eq-slot-icon" src="/images/items/ring.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-1 eq-slot-tier-rare"><span class="eq-slot-badge">+24</span><img class="eq-slot-icon" src="/images/items/necklace.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-2 eq-slot-tier-rare"><span class="eq-slot-badge">+24</span><img class="eq-slot-icon" src="/images/items/bottom.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-3 eq-slot-tier-rare"><span class="eq-slot-badge">+24</span><img class="eq-slot-icon" src="/images/items/staff.png" alt=""></div>
+
+        <div class="eq-totalpower"><span class="eq-totalpower-label">총 전투력:</span><span class="eq-totalpower-value">+3,000</span></div>
+      </div>
+    </section>
+
+    <!-- ========== 4. 영웅 (+44) ========== -->
+    <section class="tier-card">
+      <header class="tier-card-head">
+        <span class="tier-card-name">영웅</span>
+        <span class="tier-card-level">+44</span>
+        <span class="tier-card-desc">떠오르는 마법 입자</span>
+      </header>
+      <div class="eq-stage eq-stage-tier-epic">
+        <div class="eq-tier-fx">
+          <span class="epic-particle size-m epic-p1"></span>
+          <span class="epic-particle size-s epic-p2"></span>
+          <span class="epic-particle size-l epic-p3"></span>
+          <span class="epic-particle size-m epic-p4"></span>
+          <span class="epic-particle size-s epic-p5"></span>
+          <span class="epic-particle size-m epic-p6"></span>
+          <span class="epic-particle size-l epic-p7"></span>
+          <span class="epic-particle size-s epic-p8"></span>
+          <span class="epic-particle size-m epic-p9"></span>
+          <span class="epic-particle size-l epic-p10"></span>
+        </div>
+        <div class="eq-avatar eq-avatar-tier-epic"><img class="eq-avatar-img" src="https://got-global-avatar.akamaized.net/avatar/2026/03/07/jBxqkv_1772879623.png" alt=""></div>
+
+        <div class="eq-slot eq-slot-left  eq-slot-row-1 eq-slot-tier-epic"><span class="eq-slot-badge">+44</span><img class="eq-slot-icon" src="/images/items/crown.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-2 eq-slot-tier-epic"><span class="eq-slot-badge">+44</span><img class="eq-slot-icon" src="/images/items/top.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-3 eq-slot-tier-epic"><span class="eq-slot-badge">+44</span><img class="eq-slot-icon" src="/images/items/ring.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-1 eq-slot-tier-epic"><span class="eq-slot-badge">+44</span><img class="eq-slot-icon" src="/images/items/necklace.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-2 eq-slot-tier-epic"><span class="eq-slot-badge">+44</span><img class="eq-slot-icon" src="/images/items/bottom.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-3 eq-slot-tier-epic"><span class="eq-slot-badge">+44</span><img class="eq-slot-icon" src="/images/items/staff.png" alt=""></div>
+
+        <div class="eq-totalpower"><span class="eq-totalpower-label">총 전투력:</span><span class="eq-totalpower-value">+7,500</span></div>
+      </div>
+    </section>
+
+    <!-- ========== 5. 레전드 (+69) ========== -->
+    <section class="tier-card">
+      <header class="tier-card-head">
+        <span class="tier-card-name">레전드</span>
+        <span class="tier-card-level">+69</span>
+        <span class="tier-card-desc">반짝이 + 별빛 nova</span>
+      </header>
+      <div class="eq-stage eq-stage-tier-legendary">
+        <div class="eq-tier-fx">
+          <span class="dust tiny d1"></span><span class="dust med  d2"></span><span class="dust tiny d3"></span>
+          <span class="dust big  d4"></span><span class="dust tiny d5"></span><span class="dust med  d6"></span>
+          <span class="dust tiny d7"></span><span class="dust big  d8"></span><span class="dust med  d9"></span>
+          <span class="dust tiny d10"></span><span class="dust med  d11"></span><span class="dust tiny d12"></span>
+          <span class="dust big  d13"></span><span class="dust tiny d14"></span><span class="dust med  d15"></span>
+          <span class="dust tiny d16"></span>
+          <span class="sparkle-big sparkle-big-1"><svg viewBox="0 0 24 24"><path d="M12 0 L13 11 L24 12 L13 13 L12 24 L11 13 L0 12 L11 11 Z"/></svg></span>
+          <span class="sparkle-big sparkle-big-2"><svg viewBox="0 0 24 24"><path d="M12 0 L13 11 L24 12 L13 13 L12 24 L11 13 L0 12 L11 11 Z"/></svg></span>
+          <span class="sparkle-big sparkle-big-3"><svg viewBox="0 0 24 24"><path d="M12 0 L13 11 L24 12 L13 13 L12 24 L11 13 L0 12 L11 11 Z"/></svg></span>
+        </div>
+        <div class="eq-avatar eq-avatar-tier-legendary"><img class="eq-avatar-img" src="https://got-global-avatar.akamaized.net/avatar/2026/03/07/jBxqkv_1772879623.png" alt=""></div>
+
+        <div class="eq-slot eq-slot-left  eq-slot-row-1 eq-slot-tier-legendary"><span class="eq-slot-badge">+69</span><img class="eq-slot-icon" src="/images/items/crown.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-2 eq-slot-tier-legendary"><span class="eq-slot-badge">+69</span><img class="eq-slot-icon" src="/images/items/top.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-3 eq-slot-tier-legendary"><span class="eq-slot-badge">+69</span><img class="eq-slot-icon" src="/images/items/ring.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-1 eq-slot-tier-legendary"><span class="eq-slot-badge">+69</span><img class="eq-slot-icon" src="/images/items/necklace.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-2 eq-slot-tier-legendary"><span class="eq-slot-badge">+69</span><img class="eq-slot-icon" src="/images/items/bottom.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-3 eq-slot-tier-legendary"><span class="eq-slot-badge">+69</span><img class="eq-slot-icon" src="/images/items/staff.png" alt=""></div>
+
+        <div class="eq-totalpower"><span class="eq-totalpower-label">총 전투력:</span><span class="eq-totalpower-value">+14,000</span></div>
+      </div>
+    </section>
+
+    <!-- ========== 6. 신화 (+100) ========== -->
+    <section class="tier-card">
+      <header class="tier-card-head">
+        <span class="tier-card-name">신화</span>
+        <span class="tier-card-level">+100</span>
+        <span class="tier-card-desc">마그마 churn + ember</span>
+      </header>
+      <div class="eq-stage eq-stage-tier-mythic">
+        <div class="eq-tier-fx">
+          <span class="flare flare-1"></span>
+          <span class="flare flare-2"></span>
+          <span class="ember small ember-1"></span>
+          <span class="ember med   ember-2"></span>
+          <span class="ember small ember-3"></span>
+          <span class="ember big   ember-4"></span>
+          <span class="ember med   ember-5"></span>
+          <span class="ember small ember-6"></span>
+          <span class="ember big   ember-7"></span>
+          <span class="ember med   ember-8"></span>
+          <span class="ember small ember-9"></span>
+          <span class="ember med   ember-10"></span>
+        </div>
+        <div class="eq-avatar eq-avatar-tier-mythic"><img class="eq-avatar-img" src="https://got-global-avatar.akamaized.net/avatar/2026/03/07/jBxqkv_1772879623.png" alt=""></div>
+
+        <div class="eq-slot eq-slot-left  eq-slot-row-1 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/crown.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-2 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/top.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-3 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/ring.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-1 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/necklace.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-2 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/bottom.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-3 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/staff.png" alt=""></div>
+
+        <div class="eq-totalpower"><span class="eq-totalpower-label">총 전투력:</span><span class="eq-totalpower-value">+30,000</span></div>
+      </div>
+    </section>
+
+    <!-- ========== 7. 신화 (대안 B) — 불타는 균열 ========== -->
+    <section class="tier-card">
+      <header class="tier-card-head">
+        <span class="tier-card-name">신화 (대안 B)</span>
+        <span class="tier-card-level">+100</span>
+        <span class="tier-card-desc">어둠 + 떠오르는 작은 불씨</span>
+      </header>
+      <div class="eq-stage eq-stage-tier-mythic-b">
+        <div class="eq-tier-fx">
+          <span class="leak leak-1"></span>
+          <span class="leak leak-2"></span>
+          <span class="leak leak-3"></span>
+          <span class="leak leak-4"></span>
+          <span class="leak leak-5"></span>
+          <span class="leak leak-6"></span>
+          <span class="leak leak-7"></span>
+          <span class="leak leak-8"></span>
+          <span class="leak leak-9"></span>
+          <span class="leak leak-10"></span>
+          <span class="leak leak-11"></span>
+          <span class="leak leak-12"></span>
+          <span class="leak leak-13"></span>
+          <span class="leak leak-14"></span>
+          <span class="leak leak-15"></span>
+          <span class="leak leak-16"></span>
+          <span class="leak leak-17"></span>
+          <span class="leak leak-18"></span>
+          <span class="leak leak-19"></span>
+          <span class="leak leak-20"></span>
+          <span class="leak leak-21"></span>
+          <div class="lava-burst"></div>
+        </div>
+        <div class="eq-avatar eq-avatar-tier-mythic"><img class="eq-avatar-img" src="https://got-global-avatar.akamaized.net/avatar/2026/03/07/jBxqkv_1772879623.png" alt=""></div>
+
+        <div class="eq-slot eq-slot-left  eq-slot-row-1 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/crown.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-2 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/top.png" alt=""></div>
+        <div class="eq-slot eq-slot-left  eq-slot-row-3 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/ring.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-1 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/necklace.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-2 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/bottom.png" alt=""></div>
+        <div class="eq-slot eq-slot-right eq-slot-row-3 eq-slot-tier-mythic"><span class="eq-slot-badge">+100</span><img class="eq-slot-icon" src="/images/items/staff.png" alt=""></div>
+
+        <div class="eq-totalpower"><span class="eq-totalpower-label">총 전투력:</span><span class="eq-totalpower-value">+30,000</span></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

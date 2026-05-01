@@ -19,6 +19,7 @@ import {
   type EquipmentTier,
 } from '@/lib/balance';
 import { patchText } from '@/lib/dom-diff';
+import { applyStageTier, lowestStageTier } from '@/lib/equipment-tier-fx';
 
 const FN_ECONOMY_URL = SUPABASE_URL + '/functions/v1/economy';
 const FN_EQUIPMENT_URL = SUPABASE_URL + '/functions/v1/equipment';
@@ -142,8 +143,9 @@ function setStageState(state: 'loading' | 'ready' | 'auth-required'): void {
 
 function renderAllSlots(): void {
   EQUIPMENT_SLOTS.forEach((slot) => renderSlot(slot));
-  // 6슬롯 최저 등급 검사 후 아바타 글로우 갱신
+  // 6슬롯 최저 등급 검사 후 아바타 글로우 + stage 배경 효과 갱신
   applyAvatarTierEffect();
+  applyStageBgEffect();
 }
 
 const ALL_TIER_CLASSES: ReadonlyArray<string> = (
@@ -184,6 +186,16 @@ function applyAvatarTierEffect(): void {
   ALL_AVATAR_TIER_CLASSES.forEach((c) => avatar.classList.remove(c));
   const tier = lowestTier();
   if (tier) avatar.classList.add('eq-avatar-tier-' + tier);
+}
+
+/** 6 슬롯 최저 등급 → stage 배경 효과 적용. 모든 슬롯이 채워져야 의미 있음. */
+function applyStageBgEffect(): void {
+  const stage = $('eq-stage');
+  if (!stage) return;
+  const rows: Array<{ slot: string; level: number }> = [];
+  slotState.forEach((s, slot) => rows.push({ slot, level: s.level }));
+  const tier = lowestStageTier(rows);
+  applyStageTier(stage, tier);
 }
 
 function renderSlot(slot: EquipmentSlot): void {

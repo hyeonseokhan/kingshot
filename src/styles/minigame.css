@@ -2570,3 +2570,320 @@
   height: 56px;
   flex-shrink: 0;
 }
+
+/* ============================================================
+ * 장비 stage 등급별 배경 효과 (.eq-stage-bg-tier-*)
+ *
+ * 슬롯 등급 클래스 (.eq-slot-tier-*) 와 별개. 6 슬롯 합산 *최저 등급* 으로 stage 배경에
+ * 적용. fx 는 [src/lib/equipment-tier-fx.ts](../lib/equipment-tier-fx.ts) 가
+ * .eq-tier-fx 컨테이너 안에 자식 element 동적 생성.
+ *
+ * 적용 위치:
+ *   - 장비 강화 페이지 (#eq-stage)
+ *   - PvP 장비 보기 다이얼로그 (#pvp-equipview-stage)
+ *   - 효과 미리보기 다이얼로그 (#tier-preview-stage)
+ *
+ * 일반(common) 은 fx 없음 — 기본 .eq-stage 의 흰→은색 배경 그대로.
+ * ============================================================ */
+
+/* fx 컨테이너 — 모션 element 들의 부모. avatar/slot 보다 뒤(z-index 1) */
+.eq-tier-fx {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* === 고급 (uncommon) — 옅은 녹색 + 잎새 drift === */
+.eq-stage-bg-tier-uncommon {
+  background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #f0fdf4 35%, #d1fae5 75%, #86efac 100%);
+}
+.eq-stage-bg-tier-uncommon .eq-tier-fx::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(34, 197, 94, 0.08) 100%);
+}
+.eq-tier-fx .leaf {
+  position: absolute;
+  width: 14px; height: 14px;
+  top: -10%;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.eq-tier-fx .leaf svg { width: 100%; height: 100%; display: block; }
+.eq-tier-fx .leaf path { fill: #16a34a; opacity: 0.55; }
+.eq-tier-fx .leaf-1 { left: 12%; animation: leafDrift 14s linear infinite;       --sway: -10px; --scale: 1; }
+.eq-tier-fx .leaf-2 { left: 32%; animation: leafDrift 17s linear infinite -3s;   --sway:  12px; --scale: 0.7; }
+.eq-tier-fx .leaf-3 { left: 55%; animation: leafDrift 13s linear infinite -8s;   --sway:  -8px; --scale: 0.85; }
+.eq-tier-fx .leaf-4 { left: 75%; animation: leafDrift 16s linear infinite -5s;   --sway:   6px; --scale: 0.6; }
+.eq-tier-fx .leaf-5 { left: 90%; animation: leafDrift 18s linear infinite -11s;  --sway: -10px; --scale: 0.8; }
+@keyframes leafDrift {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(var(--scale, 1)); opacity: 0; }
+  8%   { opacity: 0.5; }
+  50%  { transform: translate(var(--sway, 0), 220px) rotate(180deg) scale(var(--scale, 1)); opacity: 0.5; }
+  92%  { opacity: 0.4; }
+  100% { transform: translate(calc(var(--sway, 0) * 1.6), 460px) rotate(360deg) scale(var(--scale, 1)); opacity: 0; }
+}
+
+/* === 희귀 (rare) — 하늘색 + 호수 ripple (concentric) === */
+.eq-stage-bg-tier-rare {
+  background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #e0f2fe 35%, #7dd3fc 75%, #38bdf8 100%);
+}
+.eq-stage-bg-tier-rare .eq-tier-fx::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(14, 165, 233, 0.18) 100%),
+    linear-gradient(180deg, transparent 65%, rgba(125, 211, 252, 0.20) 100%);
+}
+.eq-tier-fx .ripple {
+  position: absolute;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(14, 165, 233, 0.85);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+  will-change: transform, opacity;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+.eq-tier-fx .ripple::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(56, 189, 248, 0.6);
+}
+.eq-tier-fx .ripple-1 { left: 28%; top: 38%; animation: rippleExpand 5.5s ease-out infinite; }
+.eq-tier-fx .ripple-2 { left: 65%; top: 22%; animation: rippleExpand 6s   ease-out infinite -1.5s; }
+.eq-tier-fx .ripple-3 { left: 50%; top: 78%; animation: rippleExpand 6.5s ease-out infinite -3.5s; }
+.eq-tier-fx .ripple-4 { left: 80%; top: 60%; animation: rippleExpand 6s   ease-out infinite -1s;   }
+.eq-tier-fx .ripple-5 { left: 14%; top: 70%; animation: rippleExpand 7s   ease-out infinite -4.5s; }
+.eq-tier-fx .ripple-6 { left: 38%; top: 18%; animation: rippleExpand 5s   ease-out infinite -2.5s; }
+.eq-tier-fx .ripple-7 { left: 88%; top: 30%; animation: rippleExpand 6.5s ease-out infinite -5s;   }
+@keyframes rippleExpand {
+  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 0;    border-width: 2.5px; }
+  8%   { opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(4.5); opacity: 0;    border-width: 0.5px; }
+}
+
+/* === 영웅 (epic) — 보라 + 떠오르는 마법 입자 + wisp === */
+.eq-stage-bg-tier-epic {
+  background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #ede9fe 35%, #c4b5fd 75%, #8b5cf6 100%);
+}
+.eq-stage-bg-tier-epic .eq-tier-fx::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(124, 58, 237, 0.16) 100%);
+}
+.eq-stage-bg-tier-epic .eq-tier-fx::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(ellipse 50% 25% at 30% 30%, rgba(168, 85, 247, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 20% at 70% 70%, rgba(217, 70, 239, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 15% at 50% 50%, rgba(167, 139, 250, 0.15) 0%, transparent 70%);
+  background-size: 100% 100%;
+  animation: epicWispFlow 18s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes epicWispFlow {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  33%  { transform: translate(2%, -3%) rotate(2deg); }
+  66%  { transform: translate(-2%, 3%) rotate(-1.5deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.eq-tier-fx .epic-particle {
+  position: absolute;
+  border-radius: 50%;
+  bottom: 0;
+  opacity: 0;
+  will-change: transform, opacity;
+  z-index: 2;
+}
+.eq-tier-fx .epic-particle.size-s { width: 3px; height: 3px; background: #c084fc; box-shadow: 0 0 4px rgba(192, 132, 252, 0.85); }
+.eq-tier-fx .epic-particle.size-m { width: 4px; height: 4px; background: #a78bfa; box-shadow: 0 0 6px rgba(167, 139, 250, 0.95); }
+.eq-tier-fx .epic-particle.size-l { width: 7px; height: 7px; background: #f0abfc; box-shadow: 0 0 10px rgba(240, 171, 252, 1), 0 0 18px rgba(217, 70, 239, 0.7); }
+.eq-tier-fx .epic-p1  { left: 12%; animation: epicFloat 8s  linear infinite -1s;   --sway:  12px; }
+.eq-tier-fx .epic-p2  { left: 24%; animation: epicFloat 10s linear infinite -3s;   --sway: -14px; }
+.eq-tier-fx .epic-p3  { left: 38%; animation: epicFloat 7s  linear infinite -5s;   --sway:  10px; }
+.eq-tier-fx .epic-p4  { left: 50%; animation: epicFloat 11s linear infinite -2s;   --sway: -12px; }
+.eq-tier-fx .epic-p5  { left: 62%; animation: epicFloat 9s  linear infinite -7s;   --sway:  14px; }
+.eq-tier-fx .epic-p6  { left: 75%; animation: epicFloat 8s  linear infinite -4s;   --sway: -10px; }
+.eq-tier-fx .epic-p7  { left: 88%; animation: epicFloat 12s linear infinite -6s;   --sway:  12px; }
+.eq-tier-fx .epic-p8  { left: 5%;  animation: epicFloat 7s  linear infinite -8s;   --sway:   8px; }
+.eq-tier-fx .epic-p9  { left: 95%; animation: epicFloat 10s linear infinite -2.5s; --sway:  -8px; }
+.eq-tier-fx .epic-p10 { left: 45%; animation: epicFloat 13s linear infinite -9s;   --sway:  16px; }
+@keyframes epicFloat {
+  0%   { bottom: -5%;  transform: translateX(0);                              opacity: 0; }
+  12%  {                                                                      opacity: 0.85; }
+  50%  {               transform: translateX(var(--sway, 0));                 opacity: 0.85; }
+  85%  {                                                                      opacity: 0.6; }
+  100% { bottom: 110%; transform: translateX(calc(var(--sway, 0) * 0.4));     opacity: 0; }
+}
+
+/* === 레전드 (legendary) — 금 + 반짝이 + 회전 광선 === */
+.eq-stage-bg-tier-legendary {
+  background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #fef3c7 30%, #fcd34d 70%, #f59e0b 100%);
+}
+.eq-stage-bg-tier-legendary .eq-tier-fx::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(245, 158, 11, 0.20) 100%),
+    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(253, 224, 71, 0.15) 0%, transparent 60%);
+}
+.eq-stage-bg-tier-legendary .eq-tier-fx::after {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,    rgba(253, 224, 71, 0.18) 10deg,  transparent 20deg,
+    transparent 60deg,   rgba(251, 191, 36, 0.14) 70deg,  transparent 80deg,
+    transparent 130deg,  rgba(253, 224, 71, 0.16) 140deg, transparent 150deg,
+    transparent 200deg,  rgba(251, 191, 36, 0.18) 210deg, transparent 220deg,
+    transparent 280deg,  rgba(253, 224, 71, 0.14) 290deg, transparent 300deg
+  );
+  animation: legendaryRays 25s linear infinite;
+  filter: blur(8px);
+}
+@keyframes legendaryRays {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.eq-tier-fx .dust {
+  position: absolute;
+  border-radius: 50%;
+  background: #fde047;
+  opacity: 0;
+  will-change: opacity, transform;
+  z-index: 2;
+}
+.eq-tier-fx .dust.tiny { width: 2px; height: 2px; box-shadow: 0 0 4px rgba(253, 224, 71, 0.95); }
+.eq-tier-fx .dust.med  { width: 3px; height: 3px; background: #fef08a; box-shadow: 0 0 6px rgba(253, 224, 71, 1),    0 0 12px rgba(245, 158, 11, 0.7); }
+.eq-tier-fx .dust.big  { width: 4px; height: 4px; background: #fef9c3; box-shadow: 0 0 8px rgba(253, 224, 71, 1),    0 0 16px rgba(245, 158, 11, 0.85); }
+.eq-tier-fx .dust.d1  { left: 8%;  top: 12%; animation: dustTwinkle 1.6s ease-in-out infinite;       }
+.eq-tier-fx .dust.d2  { left: 22%; top: 25%; animation: dustTwinkle 2.0s ease-in-out infinite -0.5s; }
+.eq-tier-fx .dust.d3  { left: 40%; top: 8%;  animation: dustTwinkle 1.8s ease-in-out infinite -1.0s; }
+.eq-tier-fx .dust.d4  { left: 60%; top: 18%; animation: dustTwinkle 1.7s ease-in-out infinite -1.5s; }
+.eq-tier-fx .dust.d5  { left: 75%; top: 8%;  animation: dustTwinkle 2.2s ease-in-out infinite -2.0s; }
+.eq-tier-fx .dust.d6  { left: 88%; top: 28%; animation: dustTwinkle 1.5s ease-in-out infinite -0.8s; }
+.eq-tier-fx .dust.d7  { left: 12%; top: 88%; animation: dustTwinkle 2.0s ease-in-out infinite -2.5s; }
+.eq-tier-fx .dust.d8  { left: 30%; top: 92%; animation: dustTwinkle 1.6s ease-in-out infinite -1.2s; }
+.eq-tier-fx .dust.d9  { left: 55%; top: 88%; animation: dustTwinkle 2.4s ease-in-out infinite -3.0s; }
+.eq-tier-fx .dust.d10 { left: 78%; top: 92%; animation: dustTwinkle 1.8s ease-in-out infinite -0.4s; }
+.eq-tier-fx .dust.d11 { left: 93%; top: 70%; animation: dustTwinkle 1.7s ease-in-out infinite -1.8s; }
+.eq-tier-fx .dust.d12 { left: 5%;  top: 50%; animation: dustTwinkle 2.0s ease-in-out infinite -2.2s; }
+.eq-tier-fx .dust.d13 { left: 50%; top: 25%; animation: dustTwinkle 1.5s ease-in-out infinite -0.7s; }
+.eq-tier-fx .dust.d14 { left: 68%; top: 50%; animation: dustTwinkle 2.1s ease-in-out infinite -1.4s; }
+.eq-tier-fx .dust.d15 { left: 18%; top: 65%; animation: dustTwinkle 1.9s ease-in-out infinite -2.6s; }
+.eq-tier-fx .dust.d16 { left: 82%; top: 45%; animation: dustTwinkle 1.7s ease-in-out infinite -0.9s; }
+@keyframes dustTwinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50%      { opacity: 1; transform: scale(1.6); }
+}
+.eq-tier-fx .sparkle-big {
+  position: absolute;
+  width: 28px; height: 28px;
+  opacity: 0;
+  will-change: opacity, transform;
+  z-index: 3;
+}
+.eq-tier-fx .sparkle-big svg { width: 100%; height: 100%; display: block; }
+.eq-tier-fx .sparkle-big path {
+  fill: #fde047;
+  filter: drop-shadow(0 0 4px rgba(253, 224, 71, 1)) drop-shadow(0 0 8px rgba(251, 191, 36, 0.85));
+}
+.eq-tier-fx .sparkle-big-1 { left: 18%; top: 20%; animation: sparkleNova 4s   ease-in-out infinite;        }
+.eq-tier-fx .sparkle-big-2 { left: 76%; top: 70%; animation: sparkleNova 4.5s ease-in-out infinite -1.8s;  }
+.eq-tier-fx .sparkle-big-3 { left: 60%; top: 12%; animation: sparkleNova 5s   ease-in-out infinite -3.2s;  }
+@keyframes sparkleNova {
+  0%, 70%, 100% { opacity: 0;    transform: scale(0)   rotate(0deg); }
+  78%           { opacity: 1;    transform: scale(1.5) rotate(45deg); }
+  88%           { opacity: 0.5;  transform: scale(1.2) rotate(90deg); }
+}
+
+/* === 신화 (mythic) — 어둠(붉은 검정) + 떠오르는 작은 불씨 + 번쩍이 (대안 B 확정) === */
+.eq-stage-bg-tier-mythic {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(153, 27, 27, 0.13) 0%, transparent 90%),
+    linear-gradient(180deg, #170a0a 0%, #0d0606 50%, #1f0f0f 100%);
+}
+.eq-tier-fx .leak {
+  position: absolute;
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: #fb923c;
+  box-shadow: 0 0 5px rgba(249, 115, 22, 0.95), 0 0 10px rgba(220, 38, 38, 0.7);
+  opacity: 0;
+  z-index: 2;
+  will-change: transform, opacity;
+}
+.eq-tier-fx .leak-1  { left: 10%; top: 18%; animation: leakRise 4.8s linear infinite -0.5s; }
+.eq-tier-fx .leak-2  { left: 22%; top: 32%; animation: leakRise 5.2s linear infinite -2.1s; }
+.eq-tier-fx .leak-3  { left: 35%; top: 20%; animation: leakRise 4.5s linear infinite -1.3s; }
+.eq-tier-fx .leak-4  { left: 45%; top: 40%; animation: leakRise 5.0s linear infinite -3.2s; }
+.eq-tier-fx .leak-5  { left: 58%; top: 24%; animation: leakRise 5.5s linear infinite -2.5s; }
+.eq-tier-fx .leak-6  { left: 70%; top: 36%; animation: leakRise 4.7s linear infinite -0.8s; }
+.eq-tier-fx .leak-7  { left: 82%; top: 22%; animation: leakRise 5.3s linear infinite -3.7s; }
+.eq-tier-fx .leak-8  { left: 92%; top: 30%; animation: leakRise 4.6s linear infinite -1.5s; }
+.eq-tier-fx .leak-9  { left: 16%; top: 65%; animation: leakRise 5.1s linear infinite -2.8s; }
+.eq-tier-fx .leak-10 { left: 30%; top: 78%; animation: leakRise 4.8s linear infinite -1.0s; }
+.eq-tier-fx .leak-11 { left: 48%; top: 70%; animation: leakRise 5.4s linear infinite -3.5s; }
+.eq-tier-fx .leak-12 { left: 65%; top: 80%; animation: leakRise 4.7s linear infinite -0.4s; }
+.eq-tier-fx .leak-13 { left: 78%; top: 68%; animation: leakRise 5.0s linear infinite -2.3s; }
+.eq-tier-fx .leak-14 { left: 90%; top: 82%; animation: leakRise 4.9s linear infinite -1.7s; }
+.eq-tier-fx .leak-15 { left: 5%;  top: 48%; animation: leakRise 5.0s linear infinite -2.4s; }
+.eq-tier-fx .leak-16 { left: 28%; top: 50%; animation: leakRise 4.7s linear infinite -1.8s; }
+.eq-tier-fx .leak-17 { left: 38%; top: 60%; animation: leakRise 5.3s linear infinite -3.0s; }
+.eq-tier-fx .leak-18 { left: 52%; top: 88%; animation: leakRise 4.8s linear infinite -0.6s; }
+.eq-tier-fx .leak-19 { left: 72%; top: 50%; animation: leakRise 5.1s linear infinite -2.6s; }
+.eq-tier-fx .leak-20 { left: 84%; top: 50%; animation: leakRise 4.6s linear infinite -1.4s; }
+.eq-tier-fx .leak-21 { left: 18%; top: 88%; animation: leakRise 5.4s linear infinite -3.3s; }
+@keyframes leakRise {
+  0%   { opacity: 0;    transform: translateY(0); }
+  10%  { opacity: 0.9; }
+  100% { opacity: 0;    transform: translateY(-70px); }
+}
+.eq-tier-fx .lava-burst {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 50% at 50% 50%,
+    rgba(254, 240, 138, 0.5) 0%,
+    rgba(249, 115, 22, 0.3) 35%,
+    rgba(220, 38, 38, 0.12) 60%,
+    transparent 80%
+  );
+  opacity: 0;
+  animation: lavaBurst 7.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes lavaBurst {
+  0%, 60%, 100% { opacity: 0; }
+  71%           { opacity: 1; }
+  84%           { opacity: 0.4; }
+}
+
+/* prefers-reduced-motion — 모든 모션 정지, tint 만 유지 */
+@media (prefers-reduced-motion: reduce) {
+  .eq-tier-fx .leaf,
+  .eq-tier-fx .ripple,
+  .eq-tier-fx .epic-particle,
+  .eq-tier-fx .dust,
+  .eq-tier-fx .sparkle-big,
+  .eq-tier-fx .leak,
+  .eq-tier-fx .lava-burst,
+  .eq-stage-bg-tier-epic .eq-tier-fx::after,
+  .eq-stage-bg-tier-legendary .eq-tier-fx::after {
+    animation: none !important;
+  }
+}

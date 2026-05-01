@@ -12,6 +12,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import { EQUIPMENT_SLOTS, tierForLevel, type EquipmentSlot, type EquipmentTier } from '@/lib/balance';
+import { applyStageTier, lowestStageTier } from '@/lib/equipment-tier-fx';
 import {
   renderRankingTable,
   setActiveSortPill,
@@ -733,6 +734,9 @@ function openEquipView(playerId: string, nickname: string, profilePhoto: string 
   if (avatarEl) {
     AVATAR_TIER_CLASSES.forEach((c) => avatarEl.classList.remove(c));
   }
+  // stage 배경 효과도 reset (이전 사용자의 잔재 제거 — fetch 동안 깨끗한 상태)
+  const stageElReset = document.getElementById('pvp-equipview-stage');
+  if (stageElReset) applyStageTier(stageElReset, 'common');
 
   dlg.showModal();
 
@@ -774,6 +778,10 @@ function openEquipView(playerId: string, nickname: string, profilePhoto: string 
         const lt = lowestTierFromRows(validRows);
         if (lt) avatarEl2.classList.add('eq-avatar-tier-' + lt);
       }
+
+      // stage 배경 효과 — equipment 페이지와 동일한 lowestStageTier 로직
+      const stageEl = document.getElementById('pvp-equipview-stage');
+      if (stageEl) applyStageTier(stageEl, lowestStageTier(validRows));
     })
     .catch(() => {
       /* 실패해도 빈 다이얼로그 유지 (모든 슬롯 일반) */
