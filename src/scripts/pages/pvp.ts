@@ -11,6 +11,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
+import { EQUIPMENT_SLOTS, tierForLevel, type EquipmentSlot } from '@/lib/balance';
 
 const FN_PVP_URL = SUPABASE_URL + '/functions/v1/pvp';
 const REST_URL = SUPABASE_URL + '/rest/v1';
@@ -651,6 +652,88 @@ function loadRanking(): void {
     });
 }
 
+// HTML attr 안전 이스케이프 — 닉네임 / URL 에 따옴표·HTML 특수문자 들어가도 안전.
+function escapeAttr(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => {
+    const m: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return m[c]!;
+  });
+}
+
+const TIER_CLASSES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
+  .map((t) => 'eq-slot-tier-' + t);
+
+/** PvP 랭킹 row 클릭 시 — 다른 연맹원의 장비를 read-only 다이얼로그로 표시. */
+function openEquipView(playerId: string, nickname: string, profilePhoto: string | null): void {
+  const dlg = document.getElementById('pvp-equipview-dialog') as HTMLDialogElement | null;
+  if (!dlg) return;
+
+  // 헤더 닉네임
+  patchText($('pvp-equipview-name'), nickname);
+
+  // 중앙 아바타 (사진 있으면 표시, 없으면 숨김)
+  const avatarImg = $<HTMLImageElement>('pvp-equipview-avatar-img');
+  if (avatarImg) {
+    if (profilePhoto) {
+      avatarImg.src = profilePhoto;
+      avatarImg.style.display = '';
+    } else {
+      avatarImg.removeAttribute('src');
+      avatarImg.style.display = 'none';
+    }
+  }
+
+  // 모든 슬롯을 일반(+0) 으로 reset — 다른 사람 다이얼로그 열 때 잔재 제거
+  for (const slot of EQUIPMENT_SLOTS) {
+    const el = document.querySelector<HTMLElement>(`[data-pvp-view-slot="${slot}"]`);
+    if (!el) continue;
+    TIER_CLASSES.forEach((c) => el.classList.remove(c));
+    el.classList.add('eq-slot-tier-common');
+    const badge = el.querySelector<HTMLElement>('[data-pvp-view-field="badge"]');
+    if (badge) {
+      badge.hidden = true;
+      patchText(badge, '+0');
+    }
+  }
+  patchText($('pvp-equipview-total'), '+0');
+
+  dlg.showModal();
+
+  // 장비 fetch — anon SELECT 정책으로 누구든 조회 가능 (랭킹 표시 위해 열림)
+  fetch(
+    `${REST_URL}/equipment_levels?select=slot,level,power&player_id=eq.${encodeURIComponent(playerId)}`,
+    {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+    },
+  )
+    .then((r) => (r.ok ? (r.json() as Promise<Array<{ slot: string; level: number; power: number }>>) : []))
+    .then((rows) => {
+      let total = 0;
+      for (const r of rows) {
+        if (!(EQUIPMENT_SLOTS as readonly string[]).includes(r.slot)) continue;
+        total += r.power;
+        const el = document.querySelector<HTMLElement>(`[data-pvp-view-slot="${r.slot}"]`);
+        if (!el) continue;
+        const tier = tierForLevel(r.level);
+        TIER_CLASSES.forEach((c) => el.classList.remove(c));
+        el.classList.add('eq-slot-tier-' + tier);
+        const badge = el.querySelector<HTMLElement>('[data-pvp-view-field="badge"]');
+        if (badge) {
+          if (r.level === 0) {
+            badge.hidden = true;
+          } else {
+            badge.hidden = false;
+            patchText(badge, '+' + r.level);
+          }
+        }
+      }
+      patchText($('pvp-equipview-total'), '+' + total.toLocaleString('ko-KR'));
+    })
+    .catch(() => {
+      /* 실패해도 빈 다이얼로그 유지 (모든 슬롯 일반) */
+    });
+}
+
 function fetchPvpWins(): Promise<Record<string, number>> {
   // is_ranked=true 만 카운트 — 연습 모드(일일 5회 후) 매치는 승수 반영 X
   return fetch(
@@ -692,8 +775,9 @@ function renderRanking(): void {
         const effectCls = i < 3 ? ' rank-effect-' + (i + 1) : '';
         const avatarWrap = `<div class="tm-rank-photo-wrap${effectCls}">${photoInner}</div>`;
         const meCls = myId && r.kingshot_id === myId ? ' pvp-rank-row-me' : '';
+        const photoAttr = r.profile_photo ? ` data-photo="${escapeAttr(r.profile_photo)}"` : '';
         return (
-          `<div class="pvp-rank-row${meCls}">` +
+          `<div class="pvp-rank-row${meCls}" data-rank-id="${r.kingshot_id}" data-rank-name="${escapeAttr(r.nickname)}"${photoAttr} role="button" tabindex="0">` +
           `<span class="pvp-rank-pos">${i + 1}</span>` +
           avatarWrap +
           `<span class="pvp-rank-name">${r.nickname}</span>` +
@@ -744,6 +828,36 @@ export function initPvP(): void {
   $('pvp-refresh-btn')?.addEventListener('click', () => {
     const session = window.TileMatchAuth?.getSession();
     if (session?.player_id) shuffleAndRefetchOpponents(session.player_id);
+  });
+
+  // 랭킹 row 클릭 → 그 연맹원의 장비 보기 다이얼로그 (read-only)
+  $('pvp-ranking-body')?.addEventListener('click', (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.pvp-rank-row[data-rank-id]');
+    if (!row) return;
+    const id = row.dataset.rankId!;
+    const name = row.dataset.rankName ?? '';
+    const photo = row.dataset.photo ?? null;
+    openEquipView(id, name, photo);
+  });
+  // 키보드 접근성 — Enter/Space 로도 열림
+  $('pvp-ranking-body')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.pvp-rank-row[data-rank-id]');
+    if (!row) return;
+    e.preventDefault();
+    const id = row.dataset.rankId!;
+    const name = row.dataset.rankName ?? '';
+    const photo = row.dataset.photo ?? null;
+    openEquipView(id, name, photo);
+  });
+
+  // 장비 보기 다이얼로그 — × 버튼 + backdrop 클릭으로 닫기
+  const equipDlg = document.getElementById('pvp-equipview-dialog') as HTMLDialogElement | null;
+  equipDlg?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.matches('[data-action="close-equipview"]') || target === equipDlg) {
+      equipDlg.close();
+    }
   });
 
   // 대상 검색 트리거 — dialog 열기
