@@ -1389,6 +1389,8 @@
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
   border: 2px solid rgba(255,255,255,0.7);
+  /* z-index 5 — slot (z 4), fx (z 1) 위로. 어떤 모션도 아바타 사진 덮지 않음. */
+  z-index: 5;
   /* overflow: hidden 제거 — uniform tier ::before 글로우가 inset:-6px 으로 박스 외부에
      나가서 보여야 함. 자식 img 는 자체 border-radius 로 코너 round 처리. */
   display: flex;
@@ -1612,6 +1614,8 @@
   height: 42px;
   min-width: 170px;
   justify-content: center;
+  /* z-index 5 — fx (z 1) 위. 어떤 모션도 전투력 패널 덮지 않음. */
+  z-index: 5;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.94) 0%,
