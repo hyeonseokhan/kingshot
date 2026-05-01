@@ -1394,8 +1394,11 @@
 
 /* ===== 장비 강화 (Phase B — 캐릭터 중심 레이아웃) ===== */
 
-/* 디자인 토큰 — 이 페이지 전용. 슬롯 색상/크기/그림자 등 한 곳에서 관리. */
-.manage-page#page-equipment {
+/* 디자인 토큰 — 슬롯 색상/크기/그림자 등 한 곳에서 관리.
+ * .eq-stage 가 있는 모든 컨텍스트(장비 페이지 본문 + PvP 의 read-only 다이얼로그) 에서
+ * 동일하게 적용되도록 .eq-stage 자체에 정의. (이전엔 .manage-page#page-equipment 에만
+ * 정의돼서 PvP 다이얼로그에선 var(...) fallback 으로 border/shadow 가 무효화됐음) */
+.eq-stage {
   --eq-panel-radius: 18px;
   --eq-slot-radius: 14px;
 
