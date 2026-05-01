@@ -2164,16 +2164,24 @@
 }
 
 /* ===== PvP 장비 보기 다이얼로그 (read-only) ===== */
+/* eq-modal 과 동일 패턴 — LeftNav 폭(--left-w) 만큼 좌측 inset 으로 본문 영역 중앙 정렬 */
 .pvp-equipview-dialog {
+  position: fixed;
+  inset: 0 0 0 var(--left-w);
+  margin: auto;
+  width: 380px;
+  max-width: 92vw;
+  height: fit-content;
+  max-height: calc(100dvh - 32px);
   border: 0;
-  border-radius: 16px;
   padding: 0;
   background: transparent;
-  max-width: 380px;
-  width: 92vw;
+  border-radius: 16px;
+  overflow: visible;
 }
 .pvp-equipview-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
 }
 .pvp-equipview-card {
   background: linear-gradient(180deg, #ffffff, #f7f9fc);
