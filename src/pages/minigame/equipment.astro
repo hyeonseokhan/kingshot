@@ -42,6 +42,10 @@ const SLOT_LAYOUT = [
         <li>1~2단계: 100% 성공 / 3단계 이후: 확률 강화 (실패해도 등급 유지)</li>
         <li>크리스탈은 타일매치 stage 클리어 보상 — <strong>stage 46+ 는 매 클리어마다 100 반복 파밍</strong></li>
       </ul>
+      <p class="page-intro-action">
+        장비 강화 등급별 효과를 미리 살펴보세요!
+        <button type="button" class="tier-preview-trigger" id="tier-preview-trigger">✨ 효과 미리보기</button>
+      </p>
     </div>
 
     <!-- 비인증 안내 -->
@@ -147,6 +151,58 @@ const SLOT_LAYOUT = [
         >강화 시도</button>
 
         <div class="eq-modal-result" data-field="result"></div>
+      </div>
+    </dialog>
+
+    <!-- 효과 미리보기 다이얼로그 — 6 등급 (일반~신화) 을 좌/우 화살표 + 스와이프 + dot 으로 전환 -->
+    <dialog class="tier-preview-dialog" id="tier-preview-dialog" aria-labelledby="tier-preview-name">
+      <div class="tier-preview-card">
+        <header class="tier-preview-head">
+          <button type="button" class="tier-preview-prev" id="tier-preview-prev" aria-label="이전 등급">‹</button>
+          <div class="tier-preview-title">
+            <strong class="tier-preview-name" id="tier-preview-name">일반</strong>
+            <span class="tier-preview-level" id="tier-preview-level">+0</span>
+          </div>
+          <button type="button" class="tier-preview-next" id="tier-preview-next" aria-label="다음 등급">›</button>
+          <button type="button" class="tier-preview-close" id="tier-preview-close" aria-label="닫기">×</button>
+        </header>
+
+        <!-- 미리보기 stage — 실제 .eq-stage 와 동일 구조. is-readonly 로 슬롯 hover/active 차단 -->
+        <div class="eq-stage tier-preview-stage is-readonly" id="tier-preview-stage">
+          <div class="eq-avatar">
+            <img class="eq-avatar-img" id="tier-preview-avatar" alt="" />
+          </div>
+          {SLOT_LAYOUT.map(({ slot, side, row }) => (
+            <div
+              class={`eq-slot eq-slot-${side} eq-slot-row-${row} eq-slot-tier-common`}
+              data-tier-preview-slot={slot}
+              aria-label={`${SLOT_LABEL[slot].name} (미리보기)`}
+            >
+              <span class="eq-slot-badge" data-tier-preview-field="badge" hidden>+0</span>
+              <img
+                class="eq-slot-icon"
+                src={SLOT_LABEL[slot].image}
+                alt={SLOT_LABEL[slot].name}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          ))}
+          <div class="eq-totalpower">
+            <span class="eq-totalpower-label">총 전투력:</span>
+            <span class="eq-totalpower-value" id="tier-preview-total">+0</span>
+          </div>
+        </div>
+
+        <!-- 등급 인디케이터 (6 dots) — 클릭으로도 점프 가능 -->
+        <div class="tier-preview-dots" id="tier-preview-dots" role="tablist" aria-label="등급 선택">
+          <button type="button" class="tier-preview-dot active" data-tier-preview-idx="0" role="tab" aria-label="일반"></button>
+          <button type="button" class="tier-preview-dot" data-tier-preview-idx="1" role="tab" aria-label="고급"></button>
+          <button type="button" class="tier-preview-dot" data-tier-preview-idx="2" role="tab" aria-label="희귀"></button>
+          <button type="button" class="tier-preview-dot" data-tier-preview-idx="3" role="tab" aria-label="영웅"></button>
+          <button type="button" class="tier-preview-dot" data-tier-preview-idx="4" role="tab" aria-label="레전드"></button>
+          <button type="button" class="tier-preview-dot" data-tier-preview-idx="5" role="tab" aria-label="신화"></button>
+        </div>
       </div>
     </dialog>
   </div>

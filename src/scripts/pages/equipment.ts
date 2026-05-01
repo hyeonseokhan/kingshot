@@ -529,6 +529,185 @@ export function initEquipment(): void {
   } else {
     showAuthPrompt();
   }
+
+  // 효과 미리보기 다이얼로그 — 6 등급 좌/우 + 스와이프 + 키보드 + dot
+  initTierPreview();
+}
+
+// ============================================================
+// 효과 미리보기 다이얼로그 — 6 등급 (일반~신화) 분위기 미리 살펴보기
+// ============================================================
+
+interface TierPreviewSpec {
+  tier: EquipmentTier;
+  name: string;       // 한글 등급명
+  level: number;      // 대표 레벨 (각 등급의 최고)
+  totalPower: number; // 표시용 대략값 — 실제 power 와 무관 (UI 만)
+}
+
+const TIER_PREVIEW_SPECS: ReadonlyArray<TierPreviewSpec> = [
+  { tier: 'common',    name: '일반',    level: 0,   totalPower: 0     },
+  { tier: 'uncommon',  name: '고급',    level: 9,   totalPower: 750   },
+  { tier: 'rare',      name: '희귀',    level: 24,  totalPower: 3000  },
+  { tier: 'epic',      name: '영웅',    level: 44,  totalPower: 7500  },
+  { tier: 'legendary', name: '레전드',  level: 69,  totalPower: 14000 },
+  { tier: 'mythic',    name: '신화',    level: 100, totalPower: 30000 },
+];
+
+let tierPreviewIdx = 0;
+
+function initTierPreview(): void {
+  const dlg = document.getElementById('tier-preview-dialog') as HTMLDialogElement | null;
+  const trigger = $('tier-preview-trigger');
+  if (!dlg || !trigger) return;
+
+  trigger.addEventListener('click', () => {
+    tierPreviewIdx = 0;
+    renderTierPreview();
+    dlg.showModal();
+  });
+
+  $('tier-preview-prev')?.addEventListener('click', () => {
+    if (tierPreviewIdx > 0) {
+      tierPreviewIdx--;
+      renderTierPreview();
+    }
+  });
+  $('tier-preview-next')?.addEventListener('click', () => {
+    if (tierPreviewIdx < TIER_PREVIEW_SPECS.length - 1) {
+      tierPreviewIdx++;
+      renderTierPreview();
+    }
+  });
+
+  $('tier-preview-close')?.addEventListener('click', () => dlg.close());
+
+  // backdrop 클릭 → 닫기
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg) dlg.close();
+  });
+
+  // dot 클릭 → 해당 인덱스로 점프
+  $('tier-preview-dots')?.addEventListener('click', (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>('.tier-preview-dot');
+    if (!t) return;
+    const idx = parseInt(t.dataset.tierPreviewIdx ?? '-1', 10);
+    if (idx >= 0 && idx < TIER_PREVIEW_SPECS.length) {
+      tierPreviewIdx = idx;
+      renderTierPreview();
+    }
+  });
+
+  // 키보드 ←/→ — dialog open 상태에서만 작동
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' && tierPreviewIdx > 0) {
+      tierPreviewIdx--;
+      renderTierPreview();
+      e.preventDefault();
+    } else if (e.key === 'ArrowRight' && tierPreviewIdx < TIER_PREVIEW_SPECS.length - 1) {
+      tierPreviewIdx++;
+      renderTierPreview();
+      e.preventDefault();
+    }
+  });
+
+  // 스와이프 — pointerdown/up 으로 가로 swipe 감지 (수직 스크롤 방해 X)
+  const stageEl = $('tier-preview-stage');
+  if (stageEl) {
+    let startX = 0;
+    let startY = 0;
+    let active = false;
+    stageEl.addEventListener('pointerdown', (e) => {
+      startX = e.clientX;
+      startY = e.clientY;
+      active = true;
+    });
+    stageEl.addEventListener('pointerup', (e) => {
+      if (!active) return;
+      active = false;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      // 수평 이동이 더 크고 임계값 (40px) 이상이면 스와이프로 인정
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0 && tierPreviewIdx < TIER_PREVIEW_SPECS.length - 1) {
+          // 좌→우 X (→ 손가락이 왼쪽으로) = 다음 등급
+          tierPreviewIdx++;
+          renderTierPreview();
+        } else if (dx > 0 && tierPreviewIdx > 0) {
+          // 우→좌 X (→ 손가락이 오른쪽으로) = 이전 등급
+          tierPreviewIdx--;
+          renderTierPreview();
+        }
+      }
+    });
+    stageEl.addEventListener('pointercancel', () => {
+      active = false;
+    });
+  }
+
+  // 다이얼로그 열릴 때 본인 사진을 미리보기 아바타로 — 비인증이면 placeholder
+  // (트리거 클릭 시점에 갱신 — 이후 같은 사진 유지)
+}
+
+function renderTierPreview(): void {
+  const spec = TIER_PREVIEW_SPECS[tierPreviewIdx];
+  if (!spec) return;
+
+  // 헤더 라벨
+  patchText($('tier-preview-name'), spec.name);
+  patchText($('tier-preview-level'), '+' + spec.level);
+
+  // 화살표 disabled
+  ($('tier-preview-prev') as HTMLButtonElement | null)?.toggleAttribute('disabled', tierPreviewIdx === 0);
+  ($('tier-preview-next') as HTMLButtonElement | null)?.toggleAttribute(
+    'disabled',
+    tierPreviewIdx === TIER_PREVIEW_SPECS.length - 1,
+  );
+
+  // dot active 토글
+  document.querySelectorAll<HTMLElement>('.tier-preview-dot').forEach((d) => {
+    const idx = parseInt(d.dataset.tierPreviewIdx ?? '-1', 10);
+    d.classList.toggle('active', idx === tierPreviewIdx);
+  });
+
+  // stage 자체 — 배경 효과 + 6 슬롯 등급 + 총 전투력
+  const stage = document.getElementById('tier-preview-stage');
+  if (!stage) return;
+  applyStageTier(stage, spec.tier);
+
+  // 6 슬롯 — 모두 spec.tier 로 통일 + 배지에 +level 표시
+  EQUIPMENT_SLOTS.forEach((slot) => {
+    const el = stage.querySelector<HTMLElement>(`[data-tier-preview-slot="${slot}"]`);
+    if (!el) return;
+    ALL_TIER_CLASSES.forEach((c) => el.classList.remove(c));
+    el.classList.add('eq-slot-tier-' + spec.tier);
+    const badge = el.querySelector<HTMLElement>('[data-tier-preview-field="badge"]');
+    if (badge) {
+      if (spec.level === 0) {
+        badge.hidden = true;
+      } else {
+        badge.hidden = false;
+        patchText(badge, '+' + spec.level);
+      }
+    }
+  });
+
+  // 아바타 글로우 — common 은 제외 (의도)
+  const avatar = stage.querySelector<HTMLElement>('.eq-avatar');
+  if (avatar) {
+    ALL_AVATAR_TIER_CLASSES.forEach((c) => avatar.classList.remove(c));
+    if (spec.tier !== 'common') {
+      avatar.classList.add('eq-avatar-tier-' + spec.tier);
+    }
+  }
+
+  // 미리보기 아바타 사진 — 본인 사진 재사용 (이미 #eq-avatar-img 에 src 있음)
+  const mainAvatar = $<HTMLImageElement>('eq-avatar-img');
+  const previewAvatar = $<HTMLImageElement>('tier-preview-avatar');
+  if (previewAvatar && mainAvatar?.src) previewAvatar.src = mainAvatar.src;
+
+  // 총 전투력
+  patchText($('tier-preview-total'), '+' + spec.totalPower.toLocaleString('ko-KR'));
 }
 
 // 다른 페이지(타일 매치 등) / 헤더 위젯에서 잔액 갱신 broadcast 받을 때 동기화.
