@@ -343,7 +343,7 @@ function syncModalCtaState(): void {
   const next = enhanceCostFor(state.level);
   if (!next) {
     cta.disabled = true;
-    cta.textContent = '최대 강화';
+    cta.replaceChildren('최대 강화');
     return;
   }
   const busy = busySlots.has(activeModalSlot);
@@ -351,7 +351,43 @@ function syncModalCtaState(): void {
   // (fetch 전 / 실패 시엔 currentBalance=0 이라 잘못 차단되므로)
   const insufficient = balanceLoaded && currentBalance < next.cost;
   cta.disabled = busy || insufficient;
-  cta.textContent = busy ? '처리 중...' : insufficient ? '크리스탈 부족' : '강화 시도';
+  if (busy) {
+    cta.replaceChildren('처리 중...');
+  } else if (insufficient) {
+    // 메인: "크리스탈 부족" + 서브: "💎 234 / 1,000" (잔액 빨강, 필요량 기본)
+    cta.replaceChildren(
+      buildCtaLine('eq-modal-cta-main', '크리스탈 부족'),
+      buildInsufficientSub(currentBalance, next.cost),
+    );
+  } else {
+    cta.replaceChildren('강화 시도');
+  }
+}
+
+function buildCtaLine(cls: string, text: string): HTMLElement {
+  const el = document.createElement('span');
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+
+function buildInsufficientSub(have: number, need: number): HTMLElement {
+  const sub = document.createElement('span');
+  sub.className = 'eq-modal-cta-sub';
+  const icon = document.createElement('span');
+  icon.className = 'eq-modal-cta-icon';
+  icon.textContent = '💎';
+  const haveEl = document.createElement('span');
+  haveEl.className = 'eq-modal-cta-have';
+  haveEl.textContent = have.toLocaleString('ko-KR');
+  const sep = document.createElement('span');
+  sep.className = 'eq-modal-cta-sep';
+  sep.textContent = '/';
+  const needEl = document.createElement('span');
+  needEl.className = 'eq-modal-cta-need';
+  needEl.textContent = need.toLocaleString('ko-KR');
+  sub.append(icon, haveEl, sep, needEl);
+  return sub;
 }
 
 function showModalResult(kind: 'success' | 'fail' | 'error', msg: string): void {

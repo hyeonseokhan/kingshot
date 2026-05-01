@@ -1785,13 +1785,52 @@
   border-radius: 12px;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.1s;
+  /* 단순 텍스트 / 두 줄 (메인 + 서브) 모두 가운데 정렬 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1.2;
 }
 .eq-modal-cta:hover:not(:disabled) { opacity: 0.92; }
 .eq-modal-cta:active:not(:disabled) { transform: scale(0.98); }
 .eq-modal-cta:disabled {
-  background: #cbd5e1;
+  background: #e2e8f0;
   color: #64748b;
   cursor: not-allowed;
+}
+
+/* 부족 상태 — 메인 "크리스탈 부족" + 서브 "💎 234 / 1,000" */
+.eq-modal-cta-main {
+  font-size: 15px;
+  font-weight: 700;
+}
+.eq-modal-cta-sub {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.eq-modal-cta-icon {
+  font-size: 11px;
+  margin-right: 1px;
+  /* 이모지는 색 영향 X */
+}
+.eq-modal-cta-have {
+  color: #dc2626;        /* 잔액 — 부족분 강조 빨강 */
+  font-weight: 800;
+}
+.eq-modal-cta-sep {
+  color: #94a3b8;
+  font-weight: 500;
+}
+.eq-modal-cta-need {
+  color: #475569;        /* disabled CTA 의 기본 회색 톤 보다 살짝 진하게 */
+  font-weight: 700;
 }
 
 .eq-modal-result {
