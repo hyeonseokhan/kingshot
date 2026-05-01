@@ -1103,8 +1103,27 @@ function onClear(): void {
     player_id: session.player_id,
     stage: clearedStage,
   }).then((res) => {
-    if (res?.ok && typeof res.balance === 'number') broadcastCrystalBalance(res.balance);
+    if (res?.ok && typeof res.balance === 'number') {
+      broadcastCrystalBalance(res.balance);
+      return;
+    }
+    // 청구 실패 — 다이얼로그엔 이미 +N 표시했지만 서버 누적 안 됨.
+    // silent 누적 손실 차단을 위해 사용자에게 명시적 알림 (이전에 stage>200 cap 으로
+    // 무성공 누적된 회귀의 재발 방지).
+    console.warn('[tile-match] claim-stage-reward 실패:', res);
+    showClaimFailureToast(clearedStage, res?.error || 'unknown');
   });
+}
+
+function showClaimFailureToast(stage: number, errorCode: string): void {
+  const host = document.body;
+  if (!host) return;
+  const el = document.createElement('div');
+  el.className = 'tm-claim-fail-toast';
+  el.textContent =
+    '⚠️ Stage ' + stage + ' 보상 처리 실패 (' + errorCode + ') — 운영자에게 알려주세요';
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 5000);
 }
 
 function showOverlay(icon: string, msg: string, isSuccess: boolean, rewardAmount = 0): void {

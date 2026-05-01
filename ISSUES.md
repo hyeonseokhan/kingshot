@@ -155,6 +155,33 @@
 
 ---
 
+## #8 타일매치 stage 201+ 보상 silent 거부 (긴급 수정 완료, 2026-05-01)
+
+- **상태**: ✅ 완료 (서버 cap raise + 클라 토스트 알림 + 누락분 백필)
+- **증상**: best_stage 가 200 을 넘은 사용자가 stage 201+ 클리어 시:
+  - 클라이언트 다이얼로그엔 "+100 크리스탈" 정상 표시 (사전 계산 — `balance.ts.rewardForStage` 는 무한 stage 지원)
+  - 서버는 `economy/index.ts` 의 `stage > 200` 검증으로 `invalid_stage` 반환
+  - 클라이언트 onClear 가 응답 실패를 silent 무시 (`if (res?.ok) ... return;` 패턴)
+  - → 잔액 안 늘어남, 사용자는 "받은 줄 알았는데 누락" 모름
+- **피해 규모 (진단 시점)**:
+  - 268517794 (Ark_아크웨일): stage 201~235 = 35건 (3,500 크리스탈)
+  - 270041574: stage 201~315 = 115건 (11,500 크리스탈)
+  - **총 15,000 크리스탈 누락**
+- **원인**: `economy/index.ts` 의 `stage > 200` cap. Phase A 초기 stage 무한 도입 전 잔재.
+  `balance.ts` 의 `rewardForStage` 와 `isRepeatableRewardStage` 는 무한 지원하는데 서버 입력 검증이 cap 200 — 두 곳 불일치.
+- **수정 내용**:
+  1. `economy/index.ts`: cap 200 → 100,000 (정수 + 양수 + 비현실적 큰 값 차단만 유지)
+  2. `tile-match.ts onClear()`: 청구 실패 시 빨강 토스트 알림 (`showClaimFailureToast`) — silent 누적 손실 차단
+  3. `minigame.css`: `.tm-claim-fail-toast` 스타일 추가 (빨강 알약 + 5s fade)
+  4. **백필** (Management API SQL): 두 사용자 누락분 ref_key=`tile_match:stage_N:cap200_backfill`, source=`tile_match_clear_backfill` 로 정상 적립 (멱등성 ref_key 로 보장)
+  5. **Edge Function 재배포**: `economy` v3 (Management API)
+- **검증**:
+  - stage 100,001 → `invalid_stage` (새 cap)
+  - stage 250 → 정상 적립 +100 (이전엔 거부됐던 케이스)
+  - tx ledger ↔ stored balance 일치 audit 통과 (두 플레이어 모두 diff=0)
+
+---
+
 ## #7 쿠폰 자동 수령 — silent return 시 사용자 피드백 부재
 
 - **상태**: ✅ 적용 (커밋 `f99ff44`, 2026-04-29) | 분류: 버그/UX

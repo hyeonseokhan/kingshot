@@ -254,6 +254,11 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 - **Stage 46+ 반복 파밍** — `claim-stage-reward` 가 stage 46+ 에 ref_key NULL 사용해
   매 클리어마다 새 거래 INSERT. PvP 보상도 비슷하게 ref_key 패턴 결정 필요
   (시즌별 또는 매번).
+- **Stage cap 회귀 함정** (2026-05-01 ISSUES #8) — 서버 입력 검증 cap 이 클라이언트 보상 매핑보다
+  좁게 되어 있으면 silent 손실 발생. `economy/index.ts` 의 stage cap 200 이 무한 stage 도입 후 잔재로
+  남아 stage 201+ 클리어 모두 거부됨 → 클라이언트 다이얼로그엔 "+100" 표시되는데 잔액 안 늘어남
+  (silent 손실). 검증 cap 은 `balance.ts` 의 `rewardForStage` 와 일치 유지 (또는 의도적으로 비현실적 큰 값으로만
+  방어). 또한 클라 onClear() 의 청구 실패 응답을 silent 무시하지 말고 토스트로 알릴 것 (`showClaimFailureToast`).
 - **데이터 백필 표준 패턴** — 두 번 실행됨 (2026-04-29 두 차례).
   `tile_match_records.best_stage` 보고 `crystal_transactions` 행별 INSERT +
   `crystal_balances` 합산 INSERT. `tile_match_records` 는 절대 건드리지 않음.

@@ -736,6 +736,35 @@
   color: var(--text);
 }
 
+/* 보상 청구 실패 토스트 — silent 누적 손실 차단용 (stage cap 회귀 같은 케이스) */
+.tm-claim-fail-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1300;
+  max-width: 90vw;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #fef2f2, #fecaca);
+  border: 1px solid #fca5a5;
+  border-radius: 999px;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(127, 29, 29, 0.25);
+  animation: tmClaimFailToast 5s ease-out forwards;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@keyframes tmClaimFailToast {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  8%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  92%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+}
+
 /* 클리어 다이얼로그 안의 크리스탈 보상 라인 */
 .tm-overlay-reward {
   display: inline-flex;

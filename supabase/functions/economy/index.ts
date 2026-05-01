@@ -87,7 +87,9 @@ async function getBalance(playerId: string) {
 }
 
 async function claimStageReward(playerId: string, stage: unknown) {
-  if (!Number.isInteger(stage) || (stage as number) < 1 || (stage as number) > 200) {
+  // Stage 는 게임 디자인상 무한. 정수성 + 양수 + 비현실적 큰 값 차단만 검증.
+  // (옛 200 cap 은 stage 46+ 반복 파밍 도입 전 잔재 — 2026-05-01 수정)
+  if (!Number.isInteger(stage) || (stage as number) < 1 || (stage as number) > 100000) {
     return { ok: false, error: "invalid_stage" };
   }
   const stageNum = stage as number;
