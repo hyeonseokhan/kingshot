@@ -1720,11 +1720,16 @@
 
 /* ===== PvP 매칭 대결 (Phase C) ===== */
 
+/* matching/battle/result 공통 view 컨테이너.
+ * flex column + gap 으로 자식들 간 간격 일정 (개별 컴포넌트가 각자 margin 가지면 들쭉날쭉) */
 .pvp-view {
   margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* 일일 횟수 패널 */
+/* 일일 횟수 패널 — pill 폭만큼만 차지하도록 align-self */
 .pvp-daily {
   display: inline-flex;
   align-items: baseline;
@@ -1733,7 +1738,7 @@
   background: linear-gradient(180deg, #fef3c7, #fde68a);
   border: 1px solid #fbbf24;
   border-radius: 999px;
-  margin-bottom: 16px;
+  align-self: flex-start;
   font-size: 13px;
   color: #78350f;
 }
@@ -1750,12 +1755,11 @@
   font-weight: 500;
 }
 
-/* 섹션 헤더 (h2 + 우측 컨트롤) */
+/* 섹션 헤더 (h2 + 우측 컨트롤) — margin 은 부모(.pvp-view) 의 gap 이 책임 */
 .pvp-section-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
   gap: 10px;
 }
 .pvp-section-head h2 {
@@ -1785,7 +1789,6 @@
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 10px;
-  margin-bottom: 8px;
 }
 .pvp-opponents {
   display: grid;
@@ -1874,7 +1877,7 @@
 }
 
 .pvp-note {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 12px;
   color: #64748b;
   text-align: center;
@@ -2408,9 +2411,8 @@
   color: #dc2626;
 }
 
-/* 연습 모드 배지 */
+/* 연습 모드 배지 — margin 은 부모(.pvp-view) 의 gap 이 책임 */
 .pvp-practice-banner {
-  margin: 12px 0;
   padding: 10px 14px;
   background: linear-gradient(180deg, #ede9fe, #ddd6fe);
   border: 1px solid #c4b5fd;
