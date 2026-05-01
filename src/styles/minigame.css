@@ -1774,6 +1774,21 @@
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 }
+/* 새로고침 시 셔플 애니메이션 — 카드 미세 흔들림 + 클릭 차단 */
+.pvp-opponents.is-shuffling .pvp-opponent {
+  pointer-events: none;
+  animation: pvpShuffleWobble 0.18s ease-in-out infinite alternate;
+}
+.pvp-opponents.is-shuffling .pvp-opponent:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.pvp-opponents.is-shuffling .pvp-opponent:nth-child(3) {
+  animation-delay: 0.12s;
+}
+@keyframes pvpShuffleWobble {
+  from { transform: translateY(-1px) rotate(-0.6deg); }
+  to   { transform: translateY(1px)  rotate(0.6deg); }
+}
 
 .pvp-opponent {
   appearance: none;
@@ -2103,6 +2118,16 @@
   gap: 6px;
   padding: 8px 10px;
 }
+/* 본인 row 강조 — 타일매치 .tm-ranking-row-me 와 톤 동일 (연두색 배경 + 좌측 border) */
+.pvp-rank-row.pvp-rank-row-me {
+  background: #ecfdf5;
+  box-shadow: inset 3px 0 0 #4ca84a;
+}
+/* 본인이 1·2·3등이면 등수 강조 그라데이션 + 본인 강조 box-shadow 충돌 — 본인 강조 우선 */
+.pvp-rank-row.pvp-rank-row-me:nth-child(-n+3) {
+  background: #ecfdf5;
+  box-shadow: inset 3px 0 0 #4ca84a;
+}
 .pvp-rank-header {
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
@@ -2125,29 +2150,22 @@
   border: none;
   cursor: pointer;
   font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
+  font-weight: 600;
+  color: #94a3b8;
   padding: 0;
   text-align: right;
   font-family: inherit;
   letter-spacing: 0.02em;
   white-space: nowrap;
+  transition: color 0.15s, font-weight 0s;
 }
 .pvp-rank-h-sort:hover {
   color: #4338ca;
 }
+/* 활성 컬럼은 ▼ 화살표 대신 진한 색 + 굵은 글씨로 표시 */
 .pvp-rank-h-sort.active {
   color: #4338ca;
-}
-/* ▼ 화살표는 항상 자리 차지 (visibility hidden), active 일 때만 보임 →
- * 클릭 시 컬럼 width 변화 없어 모바일에서 헤더 wrap 안 됨 */
-.pvp-rank-h-sort::after {
-  content: ' ▼';
-  font-size: 10px;
-  visibility: hidden;
-}
-.pvp-rank-h-sort.active::after {
-  visibility: visible;
+  font-weight: 800;
 }
 
 .pvp-rank-body {

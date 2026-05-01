@@ -117,6 +117,72 @@ function fetchOpponents(playerId: string): Promise<void> {
   });
 }
 
+/**
+ * 새로고침 클릭 시 — 셔플 애니메이션 (~600ms) 동안 카드 내용을 빠르게 무작위 swap →
+ * fetch 결과 도착 후 새 매칭 결과 fix. 슬롯머신 느낌.
+ *   - 첫 진입엔 사용 X (호출 안 함). 명시적 새로고침 버튼 클릭 시에만.
+ *   - fetch 가 600ms 보다 빨리 끝나도 셔플 끝까지 기다렸다 render → 항상 동일한 시각 길이.
+ */
+function shuffleAndRefetchOpponents(playerId: string): void {
+  const host = $('pvp-opponents');
+  const cards = host
+    ? Array.from(host.querySelectorAll<HTMLButtonElement>('.pvp-opponent'))
+    : [];
+  // 셔플 풀 — 현재 매칭 후보 + 캐시된 랭킹 (다양성 확보용)
+  const pool = (currentOpponents || []).slice();
+  cachedRankings.slice(0, 12).forEach((r) => {
+    if (!pool.find((p) => p.kingshot_id === r.kingshot_id)) {
+      pool.push({
+        kingshot_id: r.kingshot_id,
+        nickname: r.nickname,
+        profile_photo: r.profile_photo,
+        power: r.power,
+      });
+    }
+  });
+
+  // 카드가 없거나 pool 이 비면 셔플 스킵하고 일반 fetch
+  if (cards.length === 0 || pool.length === 0) {
+    fetchOpponents(playerId);
+    return;
+  }
+
+  let timer: number | null = null;
+  if (pool.length >= 2) {
+    const interval = 70;
+    timer = window.setInterval(() => {
+      cards.forEach((card) => {
+        const r = pool[Math.floor(Math.random() * pool.length)]!;
+        const img = r.profile_photo
+          ? `<img class="pvp-opponent-avatar" src="${r.profile_photo}" alt="" />`
+          : `<div class="pvp-opponent-avatar pvp-opponent-avatar-placeholder">${r.nickname.charAt(0)}</div>`;
+        card.innerHTML =
+          img +
+          `<strong class="pvp-opponent-name">${r.nickname}</strong>` +
+          `<span class="pvp-opponent-power">⚔️ ${r.power.toLocaleString('ko-KR')}</span>`;
+      });
+    }, interval);
+  }
+  host?.classList.add('is-shuffling');
+
+  const fetchPromise = postJson<OpponentsResp>(FN_PVP_URL, {
+    action: 'list-opponents',
+    player_id: playerId,
+  });
+  const minDelay = new Promise<void>((r) => setTimeout(r, 600));
+
+  Promise.all([fetchPromise, minDelay]).then(([res]) => {
+    if (timer !== null) window.clearInterval(timer);
+    host?.classList.remove('is-shuffling');
+    if (!res.ok || !res.opponents) {
+      renderMatchingError(res.error ?? 'unknown');
+      return;
+    }
+    currentOpponents = res.opponents;
+    renderOpponents(res.opponents, res.my_power ?? 0);
+  });
+}
+
 function fetchDaily(playerId: string): Promise<void> {
   return postJson<DailyResp>(FN_PVP_URL, {
     action: 'get-daily-state',
@@ -617,6 +683,7 @@ function renderRanking(): void {
     const sorted = [...cachedRankings]
       .sort((a, b) => (b[currentRankMode] || 0) - (a[currentRankMode] || 0))
       .slice(0, 20);
+    const myId = window.TileMatchAuth?.getSession()?.player_id ?? null;
     body.innerHTML = sorted
       .map((r, i) => {
         const photoInner = r.profile_photo
@@ -624,8 +691,9 @@ function renderRanking(): void {
           : `<span class="tm-rank-photo tm-rank-photo-empty">${r.nickname.charAt(0)}</span>`;
         const effectCls = i < 3 ? ' rank-effect-' + (i + 1) : '';
         const avatarWrap = `<div class="tm-rank-photo-wrap${effectCls}">${photoInner}</div>`;
+        const meCls = myId && r.kingshot_id === myId ? ' pvp-rank-row-me' : '';
         return (
-          `<div class="pvp-rank-row">` +
+          `<div class="pvp-rank-row${meCls}">` +
           `<span class="pvp-rank-pos">${i + 1}</span>` +
           avatarWrap +
           `<span class="pvp-rank-name">${r.nickname}</span>` +
@@ -672,10 +740,10 @@ export function initPvP(): void {
     if (oppId) onSelectOpponent(oppId);
   });
 
-  // 매칭 — 새로고침
+  // 매칭 — 새로고침 (셔플 애니메이션 + fetch)
   $('pvp-refresh-btn')?.addEventListener('click', () => {
     const session = window.TileMatchAuth?.getSession();
-    if (session?.player_id) fetchOpponents(session.player_id);
+    if (session?.player_id) shuffleAndRefetchOpponents(session.player_id);
   });
 
   // 대상 검색 트리거 — dialog 열기

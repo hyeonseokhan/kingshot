@@ -35,6 +35,44 @@ interface MemberLite {
   profile_photo?: string | null;
 }
 
+// ===== SWR 캐시 (localStorage) =====
+// 페이지 이동(SSR full reload) 시 매번 fetch 하면 깜박임 — 캐시된 값으로 즉시 표시 후
+// 백그라운드 fetch 로 fresh 값 patch.
+const CACHE_KEY = 'pnx-hu-cache-v1';
+
+interface HuCache {
+  player_id: string;
+  balance: number | null;
+  profile_photo: string | null;
+  cached_at: number;
+}
+
+function readCache(playerId: string): HuCache | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw) as HuCache;
+    return c.player_id === playerId ? c : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(patch: Partial<HuCache> & { player_id: string }): void {
+  try {
+    const prev = readCache(patch.player_id) ?? {
+      player_id: patch.player_id,
+      balance: null,
+      profile_photo: null,
+      cached_at: 0,
+    };
+    const next: HuCache = { ...prev, ...patch, cached_at: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
@@ -113,19 +151,33 @@ function renderSession(session: AuthSession | null): void {
     setState('loggedout');
     return;
   }
-  // 1) 동기적으로 즉시 카드 표시 — 닉네임은 세션 정보로 바로 채움.
-  //    아바타는 initial 글자, 크리스탈은 — placeholder 로 같은 폭 유지.
+  // 1) 동기적으로 즉시 카드 표시 — 닉네임은 세션 정보, 캐시된 잔액/아바타로 깜박임 0.
   setState('loggedin');
   patchText($('hu-name'), session.nickname);
   patchText($('hu-dropdown-name'), session.nickname);
   setAvatarPlaceholder(session.nickname);
-  patchText($('hu-crystal-value'), '—');
 
-  // 2) 비동기 fetch — 도착하는 대로 in-place 갱신. 레이아웃은 이미 안정.
+  // 2) SWR — 캐시 있으면 즉시 적용 (깜박임 0), 캐시 miss 면 placeholder 표시.
+  const cache = readCache(session.player_id);
+  if (cache) {
+    if (typeof cache.balance === 'number') setCrystal(cache.balance);
+    else patchText($('hu-crystal-value'), '—');
+    if (cache.profile_photo) loadAvatarImage(cache.profile_photo);
+  } else {
+    patchText($('hu-crystal-value'), '—');
+  }
+
+  // 3) 백그라운드 fetch — fresh 도착하면 patchText (같은 값이면 no-op) + 캐시 업데이트.
   fetchProfilePhoto(session.player_id).then((url) => {
-    if (url) loadAvatarImage(url);
+    if (url) {
+      loadAvatarImage(url);
+      writeCache({ player_id: session.player_id, profile_photo: url });
+    }
   });
-  fetchBalance(session.player_id).then(setCrystal);
+  fetchBalance(session.player_id).then((balance) => {
+    setCrystal(balance);
+    writeCache({ player_id: session.player_id, balance });
+  });
 }
 
 function openDropdown(): void {
@@ -156,6 +208,12 @@ function toggleDropdown(): void {
 function onLogout(): void {
   closeDropdown();
   clearSession();
+  // 캐시도 같이 제거 — 다른 계정으로 로그인 시 옛 잔액/아바타 잠시라도 보이지 않게
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* */
+  }
   setState('loggedout');
   // 사용자가 로그아웃 직후 곧장 다른 계정/같은 계정으로 다시 로그인할 가능성이 높음 → 즉시 다이얼로그
   ensureAuth().then((s) => {
@@ -190,10 +248,14 @@ function init(): void {
     if (e.target instanceof Node && !dd.contains(e.target)) closeDropdown();
   });
 
-  // 잔액 갱신 이벤트 (tile-match 의 보상 응답 등에서 디스패치)
+  // 잔액 갱신 이벤트 (tile-match 의 보상 응답 등에서 디스패치) — UI 갱신 + 캐시도 동시 업데이트
   window.addEventListener('crystal-balance-update', ((e: Event) => {
     const detail = (e as CustomEvent<{ balance: number }>).detail;
-    if (detail && typeof detail.balance === 'number') setCrystal(detail.balance);
+    if (detail && typeof detail.balance === 'number') {
+      setCrystal(detail.balance);
+      const sess = getSession();
+      if (sess?.player_id) writeCache({ player_id: sess.player_id, balance: detail.balance });
+    }
   }) as EventListener);
 
   // 다른 모듈이 setSession/clearSession 할 때마다 알림
