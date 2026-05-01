@@ -2,31 +2,53 @@
 /**
  * 미니게임 랭킹 테이블 — 타일매치/PvP 공통 컴포넌트.
  *
- * 시각/구조 통일을 위한 골격만 제공. 실제 row 렌더는 페이지 ts 가 책임 (data 모양이
- * 페이지별로 달라서 추상화 비용 대비 이득 작음).
+ * 정적 골격(헤더 + 정렬 pill 바 + body 컨테이너) 만 컴포넌트가 그림.
+ * row 본문 렌더는 페이지 ts 가 [src/lib/ranking-table.ts](../lib/ranking-table.ts) 의
+ * `renderRankingTable()` 헬퍼로 처리 (keyed reconcile + 사진 fade-in + 1·2·3등 글로우).
  *
- * 두 가지 variant:
- *   - 'simple' (tile-match): 외곽 카드 + row 사이 gap, 컬럼 헤더 X
- *   - 'table'  (PvP): 외곽 box + 가로 hairline 으로 row 구분, <slot name="header"> 로
- *                     정렬 가능 컬럼 헤더 주입 가능
+ * 공통 (컴포넌트가 자동 처리):
+ *   - 랭킹 번호 (gold/silver/bronze 색상)
+ *   - 아바타 (placeholder + 1·2·3등 글로우 effect-1/2/3 + onload fade-in)
+ *   - 1·2·3등 행 그라데이션 강조 + 본인 강조 (연두색)
+ *   - 닉네임 셀 (Lv. 인라인 표시는 의도적 제외)
+ *   - 새로고침 버튼 (spinning)
  *
- * 그리드 컬럼은 페이지별 modifier 클래스로 정의 (rank-tm-cols / rank-pvp-cols).
- * 헤더 row 와 본문 row 가 같은 grid-template-columns 로 정렬되어야 시각이 깨지지 않음.
+ * 페이지별 (props 로 주입):
+ *   - 추가 컬럼: stage/시간 (타일매치) / 전투력/승수 (PvP)
+ *   - 정렬 가능 컬럼은 자동으로 헤더 위에 pill 바로 렌더 (sortable=true)
+ *   - row 클릭 가능 (clickable=true) — 이벤트는 페이지 ts 가 위임 처리
  */
+
+interface Column {
+  key: string;
+  label: string;
+  /** grid-template-columns 의 한 슬롯 (e.g., '60px' | '1fr' | 'auto') */
+  width: string;
+  align?: 'left' | 'right';
+  sortable?: boolean;
+  cellClass?: string;
+}
 
 interface Props {
   title: string;
   refreshId: string;
   bodyId: string;
-  variant?: 'simple' | 'table';
-  /** row/header 에 추가될 grid modifier 클래스 (예: 'rank-tm-cols', 'rank-pvp-cols') */
-  colsClass: string;
+  /** 추가 컬럼 — rank-num/avatar/name 다음에 자유롭게 끼워넣음 */
+  columns?: Column[];
+  /** row 클릭 가능 (PvP 의 장비 보기) */
+  clickable?: boolean;
+  /** 정렬 pill 의 초기 active 키. sortable 컬럼이 있을 때만 의미 있음 */
+  defaultSort?: string;
 }
 
-const { title, refreshId, bodyId, variant = 'simple', colsClass } = Astro.props;
+const { title, refreshId, bodyId, columns = [], clickable = false, defaultSort } = Astro.props;
+
+const sortableCols = columns.filter((c) => c.sortable);
+// rank-num(24) + photo(32) + name(1fr) + 페이지 컬럼들 — body 에 inline CSS var 로 주입
+const gridCols = ['24px', '32px', 'minmax(0, 1fr)', ...columns.map((c) => c.width)].join(' ');
 ---
 
-<section class:list={['rank', variant === 'table' ? 'rank-table' : 'rank-simple', colsClass]}>
+<section class="rank">
   <header class="rank-head">
     <h3 class="rank-title">{title}</h3>
     <button class="rank-refresh" id={refreshId} type="button" aria-label="새로고침">
@@ -48,9 +70,26 @@ const { title, refreshId, bodyId, variant = 'simple', colsClass } = Astro.props;
     </button>
   </header>
 
-  <slot name="header" />
+  {sortableCols.length > 0 && (
+    <div class="rank-sortbar">
+      <span class="rank-sortbar-label">정렬</span>
+      {sortableCols.map((col) => (
+        <button
+          class:list={['rank-sort-pill', col.key === defaultSort && 'active']}
+          type="button"
+          data-rank-sort={col.key}
+        >
+          {col.label}
+        </button>
+      ))}
+    </div>
+  )}
 
-  <div class="rank-body" id={bodyId}>
+  <div
+    class:list={['rank-body', clickable && 'rank-body-clickable']}
+    id={bodyId}
+    style={`--rank-cols: ${gridCols}`}
+  >
     <div class="rank-empty">로딩 중...</div>
   </div>
 </section>

@@ -48,8 +48,10 @@ const navItems = minigame.submenus!.map((s) => ({
       title="랭킹"
       refreshId="tm-ranking-refresh"
       bodyId="tm-ranking-list"
-      variant="simple"
-      colsClass="rank-tm-cols"
+      columns={[
+        { key: 'stage', label: 'Stage', width: '60px', align: 'right', cellClass: 'rank-cell-stage' },
+        { key: 'time', label: '시간', width: '64px', align: 'right', cellClass: 'rank-cell-time' },
+      ]}
     />
 
     <!-- 옛 marker (id="tm-ranking") 가 다른 코드에서 참조되지 않도록 새 컴포넌트에 흡수됨 -->

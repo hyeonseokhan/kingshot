@@ -7,7 +7,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { rewardForStage } from '@/lib/balance';
-import { patchList, patchText } from '@/lib/dom-diff';
+import { renderRankingTable, type Column, type RankItem } from '@/lib/ranking-table';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 
 // ===== 상수 =====
@@ -276,11 +276,7 @@ function hasRankingRows(): boolean {
 function loadRanking(): void {
   const box = $('tm-ranking-list');
   if (!box) return;
-  // 이미 row 가 그려진 상태면 "로딩 중" placeholder 로 깜빡이지 않게 — refresh 시 stale data 유지
-  if (!hasRankingRows()) {
-    box.innerHTML = '<div class="rank-empty">로딩 중...</div>';
-  }
-  // 새로고침 버튼 spinning 표시 (사용자에게 클릭 동작 인지)
+  // 새로고침 버튼 spinning 표시 (사용자에게 클릭 동작 인지). 본문은 stale 유지 — 갱신 시 keyed reconcile.
   const refreshBtn = $('tm-ranking-refresh');
   if (refreshBtn) refreshBtn.classList.add('is-loading');
 
@@ -290,22 +286,17 @@ function loadRanking(): void {
   )
     .then((records) => {
       const list = records as RankingRecord[];
-      if (!list?.length) {
-        box.innerHTML =
-          '<div class="rank-empty">아직 기록이 없습니다 — 첫 클리어의 주인공이 되어보세요!</div>';
-        return;
-      }
       // ranking 의 player_id 들을 store 에서 매핑 — store 캐시 hit 시 fetch 0번
       return membersStore.refresh(fetchMembers).then((all) => {
         const map: Record<string, MemberLite> = {};
         for (const m of all as MemberLite[]) {
           map[m.kingshot_id] = m;
         }
-        renderRanking(list, map);
+        renderRanking(list ?? [], map);
       });
     })
     .catch((err: Error) => {
-      // refresh 중 실패 — stale row 가 있으면 보존 (사용자에게 빈 화면 보여주는 것보다 나음)
+      // refresh 중 실패 — stale row 가 있으면 보존 (빈 화면 X). 비어있다면 에러 메시지로 채움.
       if (!hasRankingRows()) {
         box.innerHTML =
           '<div class="rank-empty">랭킹 조회 실패: ' +
@@ -337,127 +328,35 @@ function formatRankingDate(iso: string | null): string {
   return Math.floor(diffMon / 12) + '년 전';
 }
 
-function rankNumClass(rank: number): string {
-  if (rank === 1) return 'gold';
-  if (rank === 2) return 'silver';
-  if (rank === 3) return 'bronze';
-  return '';
-}
-
-function rankEffectClass(rank: number): string {
-  if (rank === 1) return 'rank-effect-1';
-  if (rank === 2) return 'rank-effect-2';
-  if (rank === 3) return 'rank-effect-3';
-  return '';
-}
-
-/** photo wrap 의 placeholder + img stack — members.ts/coupons.ts 와 동일 패턴 */
-function syncRankingPhoto(wrap: HTMLElement, member: MemberLite): void {
-  const url = member.profile_photo;
-  const fallbackChar = ((member.nickname || '?').slice(0, 1) || '?').toUpperCase();
-
-  let empty = wrap.querySelector<HTMLElement>('.rank-photo-empty');
-  if (!empty) {
-    empty = document.createElement('span');
-    empty.className = 'rank-photo rank-photo-empty';
-    wrap.appendChild(empty);
-  }
-  patchText(empty, fallbackChar);
-
-  let img = wrap.querySelector<HTMLImageElement>('img.rank-photo');
-  if (url) {
-    if (!img) {
-      img = document.createElement('img');
-      img.className = 'rank-photo rank-photo-fade';
-      img.alt = '';
-      img.decoding = 'async';
-      img.addEventListener('load', () => img!.classList.add('rank-photo-loaded'));
-      img.addEventListener('error', () => img!.classList.remove('rank-photo-loaded'));
-      wrap.appendChild(img);
-    }
-    if (img.src !== url) {
-      img.classList.remove('rank-photo-loaded');
-      img.src = url;
-    }
-  } else {
-    img?.remove();
-  }
-}
-
-function createRankingRow(): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'rank-row';
-  row.innerHTML = `
-    <span class="rank-num"></span>
-    <div class="rank-photo-wrap"></div>
-    <span class="rank-name"><span class="rank-name-text"></span><small class="rank-name-lvl" style="display:none"></small></span>
-    <span class="rank-stage"><span class="rank-stage-num"></span><span> Stage</span></span>
-    <span class="rank-meta"></span>
-  `;
-  return row;
-}
-
-function updateRankingRow(
-  row: HTMLElement,
-  record: RankingRecord,
-  rank: number,
-  member: MemberLite,
-  isMe: boolean,
-): void {
-  row.className = 'rank-row' + (isMe ? ' rank-row-me' : '');
-
-  const numEl = row.querySelector<HTMLElement>('.rank-num')!;
-  numEl.className = 'rank-num' + (rankNumClass(rank) ? ' ' + rankNumClass(rank) : '');
-  patchText(numEl, rank);
-
-  const wrap = row.querySelector<HTMLElement>('.rank-photo-wrap')!;
-  const effect = rankEffectClass(rank);
-  wrap.className = 'rank-photo-wrap' + (effect ? ' ' + effect : '');
-  syncRankingPhoto(wrap, member);
-
-  patchText(
-    row.querySelector<HTMLElement>('.rank-name-text'),
-    member.nickname || record.player_id,
-  );
-  const lvlEl = row.querySelector<HTMLElement>('.rank-name-lvl')!;
-  if (member.level) {
-    lvlEl.style.display = '';
-    patchText(lvlEl, 'Lv.' + member.level);
-  } else {
-    lvlEl.style.display = 'none';
-  }
-
-  patchText(row.querySelector<HTMLElement>('.rank-stage-num'), record.best_stage);
-  patchText(
-    row.querySelector<HTMLElement>('.rank-meta'),
-    record.best_stage_at ? formatRankingDate(record.best_stage_at) : '-',
-  );
-}
+const RANKING_COLUMNS: ReadonlyArray<Column> = [
+  { key: 'stage', label: 'Stage', width: '60px', align: 'right', cellClass: 'rank-cell-stage' },
+  { key: 'time', label: '시간', width: '64px', align: 'right', cellClass: 'rank-cell-time' },
+];
 
 function renderRanking(records: RankingRecord[], memberMap: Record<string, MemberLite>): void {
-  const box = $('tm-ranking-list');
-  if (!box) return;
-  // 이전 placeholder/empty 메시지가 있다면 제거 (data-key 가 없는 자식들)
-  Array.from(box.children).forEach((child) => {
-    if (!(child as HTMLElement).dataset.key) child.remove();
-  });
   const session = window.TileMatchAuth?.getSession();
   const myId = session ? session.player_id : null;
 
-  patchList({
-    container: box,
-    items: records,
-    key: (r) => r.player_id,
-    render: (r, i) => {
-      const row = createRankingRow();
-      const member = memberMap[r.player_id] || ({} as MemberLite);
-      updateRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
-      return row;
-    },
-    update: (row, r, i) => {
-      const member = memberMap[r.player_id] || ({} as MemberLite);
-      updateRankingRow(row, r, i + 1, member, !!myId && r.player_id === myId);
-    },
+  const items: RankItem[] = records.map((r, i) => {
+    const member = memberMap[r.player_id] || ({} as MemberLite);
+    return {
+      id: r.player_id,
+      rank: i + 1,
+      name: member.nickname || r.player_id,
+      photoUrl: member.profile_photo ?? null,
+      isMe: !!myId && r.player_id === myId,
+      cells: {
+        stage: r.best_stage + ' Stage',
+        time: r.best_stage_at ? formatRankingDate(r.best_stage_at) : '-',
+      },
+    };
+  });
+
+  renderRankingTable({
+    bodyId: 'tm-ranking-list',
+    columns: RANKING_COLUMNS,
+    items,
+    emptyMessage: '아직 기록이 없습니다 — 첫 클리어의 주인공이 되어보세요!',
   });
 }
 

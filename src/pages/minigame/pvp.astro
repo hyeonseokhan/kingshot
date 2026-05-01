@@ -185,17 +185,13 @@ const SLOT_LAYOUT = [
       title="랭킹"
       refreshId="pvp-rank-refresh"
       bodyId="pvp-ranking-body"
-      variant="table"
-      colsClass="rank-pvp-cols"
-    >
-      <div slot="header" class="rank-header">
-        <span class="rank-h-pos">#</span>
-        <span class="rank-h-spacer" aria-hidden="true"></span>
-        <span class="rank-h-name">닉네임</span>
-        <button class="rank-h-sort active" type="button" data-sort="power">⚔️ 전투력</button>
-        <button class="rank-h-sort" type="button" data-sort="pvp_wins">🏆 승수</button>
-      </div>
-    </RankingTable>
+      clickable
+      defaultSort="power"
+      columns={[
+        { key: 'power',    label: '⚔️ 전투력', width: '70px', align: 'right', sortable: true, cellClass: 'rank-cell-power' },
+        { key: 'pvp_wins', label: '🏆 승수',   width: '50px', align: 'right', sortable: true, cellClass: 'rank-cell-wins' },
+      ]}
+    />
 
     <!-- 랭킹 row 클릭 시 띄우는 장비 보기 다이얼로그 (read-only) -->
     <dialog class="pvp-equipview-dialog" id="pvp-equipview-dialog" aria-labelledby="pvp-equipview-name">
