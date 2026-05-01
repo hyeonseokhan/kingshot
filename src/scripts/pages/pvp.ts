@@ -11,7 +11,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
-import { EQUIPMENT_SLOTS, tierForLevel, type EquipmentSlot } from '@/lib/balance';
+import { EQUIPMENT_SLOTS, tierForLevel, type EquipmentSlot, type EquipmentTier } from '@/lib/balance';
 
 const FN_PVP_URL = SUPABASE_URL + '/functions/v1/pvp';
 const REST_URL = SUPABASE_URL + '/rest/v1';
@@ -662,6 +662,32 @@ function escapeAttr(s: string): string {
 
 const TIER_CLASSES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
   .map((t) => 'eq-slot-tier-' + t);
+const AVATAR_TIER_CLASSES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
+  .map((t) => 'eq-avatar-tier-' + t);
+const TIER_ORDER: readonly EquipmentTier[] = [
+  'common',
+  'uncommon',
+  'rare',
+  'epic',
+  'legendary',
+  'mythic',
+];
+
+/** 6 슬롯 중 최저 tier 반환 — common 이거나 정보 부족하면 null (글로우 X). equipment.ts 와 동일 로직. */
+function lowestTierFromRows(
+  rows: ReadonlyArray<{ slot: string; level: number }>,
+): EquipmentTier | null {
+  if (rows.length < EQUIPMENT_SLOTS.length) return null;
+  const tiers = rows.map((r) => tierForLevel(r.level));
+  let minIdx = TIER_ORDER.length - 1;
+  for (const t of tiers) {
+    const i = TIER_ORDER.indexOf(t);
+    if (i < minIdx) minIdx = i;
+  }
+  const min = TIER_ORDER[minIdx];
+  if (!min || min === 'common') return null;
+  return min;
+}
 
 /** PvP 랭킹 row 클릭 시 — 다른 연맹원의 장비를 read-only 다이얼로그로 표시. */
 function openEquipView(playerId: string, nickname: string, profilePhoto: string | null): void {
@@ -696,6 +722,11 @@ function openEquipView(playerId: string, nickname: string, profilePhoto: string 
     }
   }
   patchText($('pvp-equipview-total'), '+0');
+  // 아바타 tier 글로우도 reset
+  const avatarEl = document.querySelector<HTMLElement>('#pvp-equipview-stage .eq-avatar');
+  if (avatarEl) {
+    AVATAR_TIER_CLASSES.forEach((c) => avatarEl.classList.remove(c));
+  }
 
   dlg.showModal();
 
@@ -709,8 +740,8 @@ function openEquipView(playerId: string, nickname: string, profilePhoto: string 
     .then((r) => (r.ok ? (r.json() as Promise<Array<{ slot: string; level: number; power: number }>>) : []))
     .then((rows) => {
       let total = 0;
-      for (const r of rows) {
-        if (!(EQUIPMENT_SLOTS as readonly string[]).includes(r.slot)) continue;
+      const validRows = rows.filter((r) => (EQUIPMENT_SLOTS as readonly string[]).includes(r.slot));
+      for (const r of validRows) {
         total += r.power;
         const el = document.querySelector<HTMLElement>(`[data-pvp-view-slot="${r.slot}"]`);
         if (!el) continue;
@@ -728,6 +759,15 @@ function openEquipView(playerId: string, nickname: string, profilePhoto: string 
         }
       }
       patchText($('pvp-equipview-total'), '+' + total.toLocaleString('ko-KR'));
+
+      // 아바타 글로우 — 6 슬롯 모두의 lowestTier 기준 (equipment 페이지와 동일).
+      // 6 슬롯 미만이거나 common 만 있으면 효과 X.
+      const avatarEl2 = document.querySelector<HTMLElement>('#pvp-equipview-stage .eq-avatar');
+      if (avatarEl2) {
+        AVATAR_TIER_CLASSES.forEach((c) => avatarEl2.classList.remove(c));
+        const lt = lowestTierFromRows(validRows);
+        if (lt) avatarEl2.classList.add('eq-avatar-tier-' + lt);
+      }
     })
     .catch(() => {
       /* 실패해도 빈 다이얼로그 유지 (모든 슬롯 일반) */
