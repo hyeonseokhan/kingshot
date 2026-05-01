@@ -1,0 +1,56 @@
+---
+/**
+ * 미니게임 랭킹 테이블 — 타일매치/PvP 공통 컴포넌트.
+ *
+ * 시각/구조 통일을 위한 골격만 제공. 실제 row 렌더는 페이지 ts 가 책임 (data 모양이
+ * 페이지별로 달라서 추상화 비용 대비 이득 작음).
+ *
+ * 두 가지 variant:
+ *   - 'simple' (tile-match): 외곽 카드 + row 사이 gap, 컬럼 헤더 X
+ *   - 'table'  (PvP): 외곽 box + 가로 hairline 으로 row 구분, <slot name="header"> 로
+ *                     정렬 가능 컬럼 헤더 주입 가능
+ *
+ * 그리드 컬럼은 페이지별 modifier 클래스로 정의 (rank-tm-cols / rank-pvp-cols).
+ * 헤더 row 와 본문 row 가 같은 grid-template-columns 로 정렬되어야 시각이 깨지지 않음.
+ */
+
+interface Props {
+  title: string;
+  refreshId: string;
+  bodyId: string;
+  variant?: 'simple' | 'table';
+  /** row/header 에 추가될 grid modifier 클래스 (예: 'rank-tm-cols', 'rank-pvp-cols') */
+  colsClass: string;
+}
+
+const { title, refreshId, bodyId, variant = 'simple', colsClass } = Astro.props;
+---
+
+<section class:list={['rank', variant === 'table' ? 'rank-table' : 'rank-simple', colsClass]}>
+  <header class="rank-head">
+    <h3 class="rank-title">{title}</h3>
+    <button class="rank-refresh" id={refreshId} type="button" aria-label="새로고침">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+    </button>
+  </header>
+
+  <slot name="header" />
+
+  <div class="rank-body" id={bodyId}>
+    <div class="rank-empty">로딩 중...</div>
+  </div>
+</section>

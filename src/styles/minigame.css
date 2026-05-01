@@ -60,26 +60,49 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* 랭킹 표 */
-.tm-ranking {
+/* ============================================================
+ * 랭킹 테이블 — 타일매치/PvP 공통 (RankingTable.astro 컴포넌트)
+ * ============================================================ */
+
+/* 컨테이너 — variant 별 외관 */
+.rank {
   margin-top: 8px;
+}
+.rank-simple {
   background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
 }
-.tm-ranking-header {
+.rank-table {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* 헤드 (제목 + 새로고침) */
+.rank-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
-.tm-ranking-header h3 {
+.rank-table .rank-head {
+  margin-bottom: 12px;
+}
+.rank-title {
   margin: 0;
   font-size: 14px;
   color: var(--text);
+  font-weight: 700;
 }
-.tm-ranking-refresh {
+.rank-table .rank-title {
+  font-size: 16px;
+  color: #0f172a;
+}
+
+/* 새로고침 버튼 */
+.rank-refresh {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -89,38 +112,175 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.12s, color 0.12s;
 }
-.tm-ranking-refresh:hover {
+.rank-refresh:hover {
   background: var(--bg2);
   color: var(--text);
 }
-.tm-ranking-list {
+.rank-refresh.is-loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.rank-refresh.is-loading svg {
+  animation: rankRefreshSpin 0.7s linear infinite;
+}
+@keyframes rankRefreshSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* 본문 컨테이너 */
+.rank-body {
   display: flex;
   flex-direction: column;
+}
+.rank-simple .rank-body {
   gap: 4px;
 }
-.tm-ranking-row {
+.rank-table .rank-body {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* 행 — variant 별 padding/border */
+.rank-row {
   display: grid;
-  grid-template-columns: 24px 32px 1fr auto auto;
-  gap: 8px;
   align-items: center;
+}
+.rank-simple .rank-row {
+  gap: 8px;
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
   background: #fafbfd;
   border: 1px solid transparent;
 }
-.tm-ranking-row.tm-ranking-row-me {
+.rank-table .rank-row {
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid #f1f5f9;
+}
+.rank-table .rank-row:first-child {
+  border-top: none;
+}
+
+/* 그리드 컬럼 — 페이지별 modifier */
+.rank-tm-cols .rank-row,
+.rank-tm-cols .rank-header {
+  grid-template-columns: 24px 32px 1fr auto auto;
+}
+.rank-pvp-cols .rank-row,
+.rank-pvp-cols .rank-header {
+  grid-template-columns: 24px 28px minmax(0, 1fr) 80px 64px;
+}
+
+/* 컬럼 헤더 (PvP 의 정렬 가능 컬럼) — slot="header" 로 주입 */
+.rank-header {
+  display: grid;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+.rank-table .rank-body {
+  border-radius: 0 0 10px 10px;
+  border-top: none;
+}
+.rank-h-pos,
+.rank-h-name {
+  text-align: left;
+  white-space: nowrap;
+}
+.rank-h-sort {
+  appearance: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 0;
+  text-align: right;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.rank-h-sort:hover {
+  color: #4338ca;
+}
+.rank-h-sort.active {
+  color: #4338ca;
+  font-weight: 800;
+}
+
+/* 본인 강조 — 두 variant 모두 */
+.rank-row.rank-row-me {
   background: #ecfdf5;
+}
+.rank-simple .rank-row.rank-row-me {
   border-color: #a7e9c5;
 }
-.tm-rank-num {
+.rank-table .rank-row.rank-row-me {
+  box-shadow: inset 3px 0 0 #4ca84a;
+}
+
+/* 1·2·3등 행 강조 — 좌측 색상 띠 + 좌→우 그라데이션 (양 페이지 공통) */
+.rank-row:nth-child(1) {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.14), transparent 65%);
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+.rank-row:nth-child(2) {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.14), transparent 65%);
+  box-shadow: inset 3px 0 0 #94a3b8;
+}
+.rank-row:nth-child(3) {
+  background: linear-gradient(90deg, rgba(180, 83, 9, 0.14), transparent 65%);
+  box-shadow: inset 3px 0 0 #b45309;
+}
+/* 본인 강조 우선 — 1·2·3 안에 본인이 있어도 연두 톤 */
+.rank-row.rank-row-me:nth-child(-n+3) {
+  background: #ecfdf5;
+  box-shadow: inset 3px 0 0 #4ca84a;
+}
+
+/* 순위 숫자 */
+.rank-num {
   font-weight: 700;
   color: var(--text2);
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
-.tm-rank-photo,
-.tm-rank-photo-empty {
+.rank-num.gold { color: #d4a017; }
+.rank-num.silver { color: #9ca3af; }
+.rank-num.bronze { color: #a66021; }
+
+/* 아바타 wrap (1·2·3등 메달 그라데이션) */
+.rank-photo-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+}
+.rank-table .rank-photo-wrap {
+  width: 28px;
+  height: 28px;
+}
+.rank-photo,
+.rank-photo-empty {
   width: 28px;
   height: 28px;
   border-radius: 6px;
@@ -133,69 +293,51 @@
   font-weight: 700;
   font-size: 11px;
 }
-.tm-rank-num.gold {
-  color: #d4a017;
+.rank-table .rank-photo,
+.rank-table .rank-photo-empty {
+  width: 28px;
+  height: 28px;
 }
-.tm-rank-num.silver {
-  color: #9ca3af;
-}
-.tm-rank-num.bronze {
-  color: #a66021;
-}
-
-/* 1/2/3등 — Lv.30/29/28 그라디언트 테두리 효과 동일 */
-.tm-rank-photo-wrap {
-  position: relative;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  /* grid 로 자식(empty placeholder + img) 같은 셀에 stack — img.onload 시 그 위로 페이드 인 */
-  display: inline-grid;
-  place-items: center;
-}
-.tm-rank-photo-wrap > .tm-rank-photo,
-.tm-rank-photo-wrap > .tm-rank-photo-empty {
+.rank-photo-wrap > .rank-photo,
+.rank-photo-wrap > .rank-photo-empty {
   grid-area: 1 / 1;
   z-index: 1;
 }
-/* 페이드 인 — .tm-rank-photo-fade 마커가 있는 img 한정 */
-.tm-rank-photo-wrap .tm-rank-photo.tm-rank-photo-fade {
+.rank-photo-wrap .rank-photo.rank-photo-fade {
   opacity: 0;
   transition: opacity 80ms ease-out;
 }
-.tm-rank-photo-wrap .tm-rank-photo.tm-rank-photo-fade.tm-rank-photo-loaded {
+.rank-photo-wrap .rank-photo.rank-photo-fade.rank-photo-loaded {
   opacity: 1;
 }
-.tm-rank-photo-wrap.rank-effect-1,
-.tm-rank-photo-wrap.rank-effect-2,
-.tm-rank-photo-wrap.rank-effect-3 {
+.rank-photo-wrap.rank-effect-1,
+.rank-photo-wrap.rank-effect-2,
+.rank-photo-wrap.rank-effect-3 {
   background-size: 300% 300%;
   animation: gradientMove 4s ease infinite;
 }
-/* 메달 색 통일 — 1=Gold, 2=Silver, 3=Bronze. 양 페이지(타일매치/PvP) 공통. */
-.tm-rank-photo-wrap.rank-effect-3 {
+.rank-photo-wrap.rank-effect-3 {
   background-image: linear-gradient(135deg, #d97706, #fbbf24, #92400e, #d97706);
 }
-.tm-rank-photo-wrap.rank-effect-2 {
+.rank-photo-wrap.rank-effect-2 {
   background-image: linear-gradient(135deg, #cbd5e1, #f8fafc, #94a3b8, #cbd5e1);
   animation-duration: 3s;
 }
-.tm-rank-photo-wrap.rank-effect-1 {
+.rank-photo-wrap.rank-effect-1 {
   background-image: linear-gradient(135deg, #f59e0b, #fde047, #d97706, #fbbf24);
   animation-duration: 2s;
 }
-.tm-rank-photo-wrap.rank-effect-1::before,
-.tm-rank-photo-wrap.rank-effect-2::before,
-.tm-rank-photo-wrap.rank-effect-3::before,
-.tm-rank-photo-wrap.rank-effect-1::after {
+.rank-photo-wrap.rank-effect-1::before,
+.rank-photo-wrap.rank-effect-2::before,
+.rank-photo-wrap.rank-effect-3::before,
+.rank-photo-wrap.rank-effect-1::after {
   content: '';
   position: absolute;
   border-radius: 8px;
   z-index: 0;
   pointer-events: none;
 }
-.tm-rank-photo-wrap.rank-effect-3::before {
+.rank-photo-wrap.rank-effect-3::before {
   inset: -1px;
   background: linear-gradient(135deg, #d97706, #fbbf24, #92400e, #d97706);
   background-size: 300% 300%;
@@ -203,7 +345,7 @@
   filter: blur(3px);
   opacity: 0.45;
 }
-.tm-rank-photo-wrap.rank-effect-2::before {
+.rank-photo-wrap.rank-effect-2::before {
   inset: -2px;
   background: linear-gradient(135deg, #cbd5e1, #f8fafc, #94a3b8, #cbd5e1);
   background-size: 300% 300%;
@@ -211,7 +353,7 @@
   filter: blur(4px);
   opacity: 0.5;
 }
-.tm-rank-photo-wrap.rank-effect-1::before {
+.rank-photo-wrap.rank-effect-1::before {
   inset: -2px;
   background: linear-gradient(135deg, #f59e0b, #fde047, #d97706, #fbbf24);
   background-size: 300% 300%;
@@ -219,7 +361,7 @@
   filter: blur(4px);
   opacity: 0.55;
 }
-.tm-rank-photo-wrap.rank-effect-1::after {
+.rank-photo-wrap.rank-effect-1::after {
   inset: -3px;
   background: radial-gradient(
     circle,
@@ -231,7 +373,9 @@
   filter: blur(6px);
   opacity: 0.45;
 }
-.tm-rank-name {
+
+/* 닉네임 */
+.rank-name {
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -239,36 +383,92 @@
   white-space: nowrap;
   min-width: 0;
 }
-.tm-rank-name small {
+.rank-table .rank-name {
+  font-size: 13px;
+  color: #0f172a;
+}
+.rank-name small {
   color: var(--text3);
   font-weight: 400;
   font-size: 11px;
   margin-left: 6px;
 }
-.tm-rank-stage {
+
+/* 데이터 cell — 페이지별 자유 (.rank-cell-* 으로 페이지가 추가) */
+.rank-cell {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* tile-match 스테이지 컬럼 — 단위 'Stage' 작게 */
+.rank-tm-cols .rank-stage {
   font-weight: 700;
   color: var(--text);
   min-width: 60px;
   text-align: right;
   white-space: nowrap;
 }
-.tm-rank-stage span {
+.rank-tm-cols .rank-stage span {
   font-size: 10px;
   color: var(--text3);
   font-weight: 400;
   margin-left: 2px;
 }
-.tm-rank-meta {
+.rank-tm-cols .rank-meta {
   font-size: 10px;
   color: var(--text3);
   min-width: 36px;
   text-align: right;
 }
-.tm-ranking-empty {
+
+/* PvP 의 전투력/승수 cell 색 */
+.rank-pvp-cols .rank-cell-power {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4338ca;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.rank-pvp-cols .rank-cell-wins {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b45309;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+/* PvP 의 1·2·3등 위치 색상 + 폰트 크기 */
+.rank-table .rank-row:nth-child(1) .rank-num { color: #d97706; font-size: 14px; }
+.rank-table .rank-row:nth-child(2) .rank-num { color: #64748b; }
+.rank-table .rank-row:nth-child(3) .rank-num { color: #92400e; }
+
+/* row 클릭 가능 (PvP) */
+.rank-row[data-rank-id] {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.rank-row[data-rank-id]:hover {
+  background: #f1f5f9;
+}
+.rank-row.rank-row-me[data-rank-id]:hover {
+  background: #d1fae5;
+}
+.rank-row[data-rank-id]:focus-visible {
+  outline: 2px solid #4338ca;
+  outline-offset: -2px;
+}
+
+/* 빈 상태 */
+.rank-empty {
   padding: 20px;
   text-align: center;
   color: var(--text3);
   font-size: 12px;
+}
+.rank-table .rank-empty {
+  padding: 16px;
+  color: #94a3b8;
+  font-size: 13px;
 }
 
 /* 게임 다이얼로그 */
@@ -663,7 +863,7 @@
   max-width: none;
 }
 #page-tile-match > .page-intro,
-#page-tile-match > .tm-ranking,
+#page-tile-match > .rank,
 #page-partner-draw > .page-intro,
 #page-partner-draw > .pd-result {
   max-width: 900px;
@@ -2116,55 +2316,8 @@
 }
 .pvp-result-btn:hover { opacity: 0.92; }
 
-/* ===== 랭킹 ===== */
-.pvp-ranking {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
-}
-/* 랭킹 — 한 테이블에 전투력/승수 동시 표시, 컬럼 헤더 클릭으로 내림차순 정렬 */
-.pvp-rank-table {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #ffffff;
-}
-.pvp-rank-header,
-.pvp-rank-row {
-  display: grid;
-  grid-template-columns: 24px 28px minmax(0, 1fr) 80px 64px;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-}
-/* 본인 row 강조 — 타일매치 .tm-ranking-row-me 와 톤 동일 (연두색 배경 + 좌측 border) */
-.pvp-rank-row.pvp-rank-row-me {
-  background: #ecfdf5;
-  box-shadow: inset 3px 0 0 #4ca84a;
-}
-/* 본인이 1·2·3등이면 등수 강조 그라데이션 + 본인 강조 box-shadow 충돌 — 본인 강조 우선 */
-.pvp-rank-row.pvp-rank-row-me:nth-child(-n+3) {
-  background: #ecfdf5;
-  box-shadow: inset 3px 0 0 #4ca84a;
-}
-
-/* row 가 클릭 가능함을 시각적으로 — pointer + 호버 시 미세 강조 */
-.pvp-rank-row[data-rank-id] {
-  cursor: pointer;
-  transition: background 0.12s;
-}
-.pvp-rank-row[data-rank-id]:hover {
-  background: #f1f5f9;
-}
-.pvp-rank-row.pvp-rank-row-me[data-rank-id]:hover {
-  background: #d1fae5;
-}
-.pvp-rank-row[data-rank-id]:focus-visible {
-  outline: 2px solid #4338ca;
-  outline-offset: -2px;
-}
+/* (옛 .pvp-ranking / .pvp-rank-table / .pvp-rank-header / .pvp-rank-row* 블록은 RankingTable.astro 통합 시
+   제거됨 — 위쪽 "랭킹 테이블 — 타일매치/PvP 공통" 섹션의 .rank-* 클래스 세트로 이전.) */
 
 /* ===== PvP 장비 보기 다이얼로그 (read-only) ===== */
 /* eq-modal 과 동일 패턴 — LeftNav 폭(--left-w) 만큼 좌측 inset 으로 본문 영역 중앙 정렬 */
@@ -2234,136 +2387,8 @@
 .pvp-equipview-stage {
   margin: 0 auto;
 }
-.pvp-rank-header {
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.02em;
-}
-.pvp-rank-h-pos,
-.pvp-rank-h-name {
-  text-align: left;
-  white-space: nowrap;
-}
-.pvp-rank-h-spacer {
-  /* 행의 avatar column 자리 — 헤더에선 빈 placeholder, 5-column grid 정렬 */
-}
-.pvp-rank-h-sort {
-  appearance: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-  color: #94a3b8;
-  padding: 0;
-  text-align: right;
-  font-family: inherit;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  transition: color 0.15s, font-weight 0s;
-}
-.pvp-rank-h-sort:hover {
-  color: #4338ca;
-}
-/* 활성 컬럼은 ▼ 화살표 대신 진한 색 + 굵은 글씨로 표시 */
-.pvp-rank-h-sort.active {
-  color: #4338ca;
-  font-weight: 800;
-}
-
-.pvp-rank-body {
-  display: flex;
-  flex-direction: column;
-}
-.pvp-rank-row {
-  border-top: 1px solid #f1f5f9;
-}
-.pvp-rank-row:first-child {
-  border-top: none;
-}
-.pvp-rank-pos {
-  font-weight: 800;
-  color: #475569;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-.pvp-rank-row:nth-child(1) .pvp-rank-pos { color: #d97706; font-size: 14px; }
-.pvp-rank-row:nth-child(2) .pvp-rank-pos { color: #64748b; }
-.pvp-rank-row:nth-child(3) .pvp-rank-pos { color: #92400e; }
-
-/* PvP 의 .tm-rank-photo-wrap 사이즈 — grid 28px column 에 맞춤 */
-.pvp-rank-row .tm-rank-photo-wrap {
-  width: 28px;
-  height: 28px;
-}
-.pvp-rank-row .tm-rank-photo,
-.pvp-rank-row .tm-rank-photo-empty {
-  width: 28px;
-  height: 28px;
-}
-
-/* 1·2·3등 행 강조 — 양 페이지 공통 (타일매치 + PvP). 좌측 색상 띠 + 좌→우 그라데이션 */
-.tm-ranking-row:nth-child(1),
-.pvp-rank-row:nth-child(1) {
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.14), transparent 65%);
-  box-shadow: inset 3px 0 0 #f59e0b;
-}
-.tm-ranking-row:nth-child(2),
-.pvp-rank-row:nth-child(2) {
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.14), transparent 65%);
-  box-shadow: inset 3px 0 0 #94a3b8;
-}
-.tm-ranking-row:nth-child(3),
-.pvp-rank-row:nth-child(3) {
-  background: linear-gradient(90deg, rgba(180, 83, 9, 0.14), transparent 65%);
-  box-shadow: inset 3px 0 0 #b45309;
-}
-.pvp-rank-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  object-fit: cover;
-  background: #e2e8f0;
-}
-.pvp-rank-avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 12px;
-  color: #64748b;
-}
-.pvp-rank-name {
-  font-weight: 600;
-  color: #0f172a;
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pvp-rank-cell-power {
-  font-size: 13px;
-  font-weight: 700;
-  color: #4338ca;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.pvp-rank-cell-wins {
-  font-size: 13px;
-  font-weight: 700;
-  color: #b45309;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.pvp-ranking-empty {
-  padding: 16px;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 13px;
-}
+/* (옛 .pvp-rank-* / .pvp-ranking-empty 블록은 RankingTable.astro 통합 시 제거됨 —
+   .rank-* 클래스 세트로 이전. 위쪽 "랭킹 테이블 — 타일매치/PvP 공통" 섹션 참조.) */
 
 /* ===== PvP cooldown / 격돌 / 검색 / 연습 모드 ===== */
 
@@ -2572,39 +2597,8 @@
   font-size: 13px;
 }
 
-/* ===== 랭킹 새로고침 버튼 — 타일매치/PvP 공통 spinning =====
- * 타일매치(.tm-ranking-refresh) 와 톤 통일: transparent 배경 + 미세한 outline. */
-.pvp-rank-refresh {
-  appearance: none;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text2);
-  border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.12s, color 0.12s;
-}
-.pvp-rank-refresh:hover {
-  background: var(--bg2);
-  color: var(--text);
-}
-
-.tm-ranking-refresh.is-loading,
-.pvp-rank-refresh.is-loading {
-  pointer-events: none;
-  opacity: 0.6;
-}
-.tm-ranking-refresh.is-loading svg,
-.pvp-rank-refresh.is-loading svg {
-  animation: minigameRefreshSpin 0.7s linear infinite;
-}
-@keyframes minigameRefreshSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
+/* (옛 .pvp-rank-refresh / .tm-ranking-refresh 블록은 .rank-refresh 통합 — RankingTable.astro 섹션 참조.
+   spinning 애니메이션은 .rank-refresh.is-loading svg 의 rankRefreshSpin 으로 일원화됨.) */
 
 /* ===== 장비 강화 — 6 슬롯 uniform 등급 시 아바타 글로우 효과 ===== */
 /* common 은 효과 X (너무 약함). uncommon ~ mythic 만 적용. */

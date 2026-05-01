@@ -9,7 +9,7 @@
  *   5. 랭킹 — 페이지 하단, 전투력 / 스테이지 / PvP 승수 탭 전환
  */
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
-import { patchText } from '@/lib/dom-diff';
+import { patchText, patchList } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import { EQUIPMENT_SLOTS, tierForLevel, type EquipmentSlot, type EquipmentTier } from '@/lib/balance';
 
@@ -797,39 +797,117 @@ function fetchPvpWins(): Promise<Record<string, number>> {
 }
 
 /** cachedRankings 를 currentRankMode 기준 내림차순으로 정렬해 렌더. */
+/** 사진 wrap 의 placeholder + img stack — 타일매치와 동일 패턴 (fade-in) */
+function syncPvpRankPhoto(wrap: HTMLElement, row: RankingRow): void {
+  const url = row.profile_photo;
+  const fallbackChar = ((row.nickname || '?').slice(0, 1) || '?').toUpperCase();
+
+  let empty = wrap.querySelector<HTMLElement>('.rank-photo-empty');
+  if (!empty) {
+    empty = document.createElement('span');
+    empty.className = 'rank-photo rank-photo-empty';
+    wrap.appendChild(empty);
+  }
+  patchText(empty, fallbackChar);
+
+  let img = wrap.querySelector<HTMLImageElement>('img.rank-photo');
+  if (url) {
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'rank-photo rank-photo-fade';
+      img.alt = '';
+      img.decoding = 'async';
+      img.addEventListener('load', () => img!.classList.add('rank-photo-loaded'));
+      img.addEventListener('error', () => img!.classList.remove('rank-photo-loaded'));
+      wrap.appendChild(img);
+    }
+    if (img.src !== url) {
+      img.classList.remove('rank-photo-loaded');
+      img.src = url;
+    }
+  } else {
+    img?.remove();
+  }
+}
+
+function createPvpRankRow(): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'rank-row';
+  row.setAttribute('role', 'button');
+  row.tabIndex = 0;
+  row.innerHTML = `
+    <span class="rank-num"></span>
+    <div class="rank-photo-wrap"></div>
+    <span class="rank-name"></span>
+    <span class="rank-cell-power"></span>
+    <span class="rank-cell-wins"></span>
+  `;
+  return row;
+}
+
+function updatePvpRankRow(
+  row: HTMLElement,
+  data: RankingRow,
+  rank: number,
+  isMe: boolean,
+): void {
+  // 본인 강조 클래스 + data-* attr (다이얼로그 트리거)
+  row.className = 'rank-row' + (isMe ? ' rank-row-me' : '');
+  row.dataset.rankId = data.kingshot_id;
+  row.dataset.rankName = data.nickname;
+  if (data.profile_photo) row.dataset.photo = data.profile_photo;
+  else delete row.dataset.photo;
+
+  patchText(row.querySelector<HTMLElement>('.rank-num'), rank);
+
+  const wrap = row.querySelector<HTMLElement>('.rank-photo-wrap')!;
+  const effectCls = rank <= 3 ? 'rank-effect-' + rank : '';
+  wrap.className = 'rank-photo-wrap' + (effectCls ? ' ' + effectCls : '');
+  syncPvpRankPhoto(wrap, data);
+
+  patchText(row.querySelector<HTMLElement>('.rank-name'), data.nickname);
+  patchText(
+    row.querySelector<HTMLElement>('.rank-cell-power'),
+    data.power.toLocaleString('ko-KR'),
+  );
+  patchText(
+    row.querySelector<HTMLElement>('.rank-cell-wins'),
+    data.pvp_wins.toLocaleString('ko-KR'),
+  );
+}
+
 function renderRanking(): void {
   const body = $('pvp-ranking-body');
   if (!body) return;
+
   if (cachedRankings.length === 0) {
-    body.innerHTML = '<div class="pvp-ranking-empty">데이터 없음</div>';
+    // patchList 가 데이터 0개 일 때 row 모두 제거하지만, 빈 상태 메시지는 직접 마운트 필요
+    body.innerHTML = '<div class="rank-empty">데이터 없음</div>';
   } else {
+    // 빈 상태 marker 가 있으면 제거 (data-key 없는 자식)
+    Array.from(body.children).forEach((child) => {
+      if (!(child as HTMLElement).dataset.key) child.remove();
+    });
     const sorted = [...cachedRankings]
       .sort((a, b) => (b[currentRankMode] || 0) - (a[currentRankMode] || 0))
       .slice(0, 20);
     const myId = window.TileMatchAuth?.getSession()?.player_id ?? null;
-    body.innerHTML = sorted
-      .map((r, i) => {
-        const photoInner = r.profile_photo
-          ? `<img class="tm-rank-photo" src="${r.profile_photo}" alt="" />`
-          : `<span class="tm-rank-photo tm-rank-photo-empty">${r.nickname.charAt(0)}</span>`;
-        const effectCls = i < 3 ? ' rank-effect-' + (i + 1) : '';
-        const avatarWrap = `<div class="tm-rank-photo-wrap${effectCls}">${photoInner}</div>`;
-        const meCls = myId && r.kingshot_id === myId ? ' pvp-rank-row-me' : '';
-        const photoAttr = r.profile_photo ? ` data-photo="${escapeAttr(r.profile_photo)}"` : '';
-        return (
-          `<div class="pvp-rank-row${meCls}" data-rank-id="${r.kingshot_id}" data-rank-name="${escapeAttr(r.nickname)}"${photoAttr} role="button" tabindex="0">` +
-          `<span class="pvp-rank-pos">${i + 1}</span>` +
-          avatarWrap +
-          `<span class="pvp-rank-name">${r.nickname}</span>` +
-          `<span class="pvp-rank-cell-power">${r.power.toLocaleString('ko-KR')}</span>` +
-          `<span class="pvp-rank-cell-wins">${r.pvp_wins.toLocaleString('ko-KR')}</span>` +
-          `</div>`
-        );
-      })
-      .join('');
+    patchList({
+      container: body,
+      items: sorted,
+      key: (r) => r.kingshot_id,
+      render: (r, i) => {
+        const row = createPvpRankRow();
+        updatePvpRankRow(row, r, i + 1, !!myId && r.kingshot_id === myId);
+        return row;
+      },
+      update: (row, r, i) => {
+        updatePvpRankRow(row, r, i + 1, !!myId && r.kingshot_id === myId);
+      },
+    });
   }
-  // 헤더 active 표시 (정렬 ▼ 화살표는 CSS ::after 로)
-  document.querySelectorAll<HTMLButtonElement>('.pvp-rank-h-sort').forEach((b) => {
+  // 헤더 active 표시
+  document.querySelectorAll<HTMLButtonElement>('.rank-h-sort').forEach((b) => {
     b.classList.toggle('active', b.dataset.sort === currentRankMode);
   });
 }
@@ -872,7 +950,7 @@ export function initPvP(): void {
 
   // 랭킹 row 클릭 → 그 연맹원의 장비 보기 다이얼로그 (read-only)
   $('pvp-ranking-body')?.addEventListener('click', (e) => {
-    const row = (e.target as HTMLElement).closest<HTMLElement>('.pvp-rank-row[data-rank-id]');
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.rank-row[data-rank-id]');
     if (!row) return;
     const id = row.dataset.rankId!;
     const name = row.dataset.rankName ?? '';
@@ -882,7 +960,7 @@ export function initPvP(): void {
   // 키보드 접근성 — Enter/Space 로도 열림
   $('pvp-ranking-body')?.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const row = (e.target as HTMLElement).closest<HTMLElement>('.pvp-rank-row[data-rank-id]');
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.rank-row[data-rank-id]');
     if (!row) return;
     e.preventDefault();
     const id = row.dataset.rankId!;
@@ -955,7 +1033,7 @@ export function initPvP(): void {
   });
 
   // 랭킹 컬럼 헤더 클릭 → 그 컬럼 기준 내림차순 재정렬 (fetch 안 함, cachedRankings 재렌더만)
-  document.querySelectorAll<HTMLButtonElement>('.pvp-rank-h-sort').forEach((b) => {
+  document.querySelectorAll<HTMLButtonElement>('.rank-h-sort').forEach((b) => {
     b.addEventListener('click', () => {
       const mode = b.dataset.sort as 'power' | 'pvp_wins' | undefined;
       if (!mode || mode === currentRankMode) return;

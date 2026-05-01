@@ -1,6 +1,7 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
 import MinigameLaunchCard from '@/components/MinigameLaunchCard.astro';
+import RankingTable from '@/components/RankingTable.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
 // 공통 컴포넌트 스타일은 BaseLayout 에서 자동 import. 게임 전용만 추가.
 import '@/styles/minigame.css';
@@ -43,22 +44,15 @@ const navItems = minigame.submenus!.map((s) => ({
       <span slot="value" id="tm-launch-stage">1</span>
     </MinigameLaunchCard>
 
-    <!-- 랭킹 -->
-    <div class="tm-ranking" id="tm-ranking">
-      <div class="tm-ranking-header">
-        <h3>랭킹</h3>
-        <button class="tm-ranking-refresh" id="tm-ranking-refresh" type="button" aria-label="새로고침">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="tm-ranking-list" id="tm-ranking-list">
-        <div class="tm-ranking-empty">로딩 중...</div>
-      </div>
-    </div>
+    <RankingTable
+      title="랭킹"
+      refreshId="tm-ranking-refresh"
+      bodyId="tm-ranking-list"
+      variant="simple"
+      colsClass="rank-tm-cols"
+    />
+
+    <!-- 옛 marker (id="tm-ranking") 가 다른 코드에서 참조되지 않도록 새 컴포넌트에 흡수됨 -->
 
     <!-- 게임 다이얼로그 -->
     <div class="tm-dialog-overlay" id="tm-dialog-overlay" style="display:none">

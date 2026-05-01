@@ -270,7 +270,7 @@ interface MemberLite {
 
 function hasRankingRows(): boolean {
   const box = $('tm-ranking-list');
-  return !!box && !!box.querySelector('.tm-ranking-row');
+  return !!box && !!box.querySelector('.rank-row');
 }
 
 function loadRanking(): void {
@@ -278,7 +278,7 @@ function loadRanking(): void {
   if (!box) return;
   // 이미 row 가 그려진 상태면 "로딩 중" placeholder 로 깜빡이지 않게 — refresh 시 stale data 유지
   if (!hasRankingRows()) {
-    box.innerHTML = '<div class="tm-ranking-empty">로딩 중...</div>';
+    box.innerHTML = '<div class="rank-empty">로딩 중...</div>';
   }
   // 새로고침 버튼 spinning 표시 (사용자에게 클릭 동작 인지)
   const refreshBtn = $('tm-ranking-refresh');
@@ -292,7 +292,7 @@ function loadRanking(): void {
       const list = records as RankingRecord[];
       if (!list?.length) {
         box.innerHTML =
-          '<div class="tm-ranking-empty">아직 기록이 없습니다 — 첫 클리어의 주인공이 되어보세요!</div>';
+          '<div class="rank-empty">아직 기록이 없습니다 — 첫 클리어의 주인공이 되어보세요!</div>';
         return;
       }
       // ranking 의 player_id 들을 store 에서 매핑 — store 캐시 hit 시 fetch 0번
@@ -308,7 +308,7 @@ function loadRanking(): void {
       // refresh 중 실패 — stale row 가 있으면 보존 (사용자에게 빈 화면 보여주는 것보다 나음)
       if (!hasRankingRows()) {
         box.innerHTML =
-          '<div class="tm-ranking-empty">랭킹 조회 실패: ' +
+          '<div class="rank-empty">랭킹 조회 실패: ' +
           (err.message || String(err)) +
           '</div>';
       }
@@ -356,27 +356,27 @@ function syncRankingPhoto(wrap: HTMLElement, member: MemberLite): void {
   const url = member.profile_photo;
   const fallbackChar = ((member.nickname || '?').slice(0, 1) || '?').toUpperCase();
 
-  let empty = wrap.querySelector<HTMLElement>('.tm-rank-photo-empty');
+  let empty = wrap.querySelector<HTMLElement>('.rank-photo-empty');
   if (!empty) {
     empty = document.createElement('span');
-    empty.className = 'tm-rank-photo tm-rank-photo-empty';
+    empty.className = 'rank-photo rank-photo-empty';
     wrap.appendChild(empty);
   }
   patchText(empty, fallbackChar);
 
-  let img = wrap.querySelector<HTMLImageElement>('img.tm-rank-photo');
+  let img = wrap.querySelector<HTMLImageElement>('img.rank-photo');
   if (url) {
     if (!img) {
       img = document.createElement('img');
-      img.className = 'tm-rank-photo tm-rank-photo-fade';
+      img.className = 'rank-photo rank-photo-fade';
       img.alt = '';
       img.decoding = 'async';
-      img.addEventListener('load', () => img!.classList.add('tm-rank-photo-loaded'));
-      img.addEventListener('error', () => img!.classList.remove('tm-rank-photo-loaded'));
+      img.addEventListener('load', () => img!.classList.add('rank-photo-loaded'));
+      img.addEventListener('error', () => img!.classList.remove('rank-photo-loaded'));
       wrap.appendChild(img);
     }
     if (img.src !== url) {
-      img.classList.remove('tm-rank-photo-loaded');
+      img.classList.remove('rank-photo-loaded');
       img.src = url;
     }
   } else {
@@ -386,13 +386,13 @@ function syncRankingPhoto(wrap: HTMLElement, member: MemberLite): void {
 
 function createRankingRow(): HTMLElement {
   const row = document.createElement('div');
-  row.className = 'tm-ranking-row';
+  row.className = 'rank-row';
   row.innerHTML = `
-    <span class="tm-rank-num"></span>
-    <div class="tm-rank-photo-wrap"></div>
-    <span class="tm-rank-name"><span class="tm-rank-name-text"></span><small class="tm-rank-name-lvl" style="display:none"></small></span>
-    <span class="tm-rank-stage"><span class="tm-rank-stage-num"></span><span> Stage</span></span>
-    <span class="tm-rank-meta"></span>
+    <span class="rank-num"></span>
+    <div class="rank-photo-wrap"></div>
+    <span class="rank-name"><span class="rank-name-text"></span><small class="rank-name-lvl" style="display:none"></small></span>
+    <span class="rank-stage"><span class="rank-stage-num"></span><span> Stage</span></span>
+    <span class="rank-meta"></span>
   `;
   return row;
 }
@@ -404,22 +404,22 @@ function updateRankingRow(
   member: MemberLite,
   isMe: boolean,
 ): void {
-  row.className = 'tm-ranking-row' + (isMe ? ' tm-ranking-row-me' : '');
+  row.className = 'rank-row' + (isMe ? ' rank-row-me' : '');
 
-  const numEl = row.querySelector<HTMLElement>('.tm-rank-num')!;
-  numEl.className = 'tm-rank-num' + (rankNumClass(rank) ? ' ' + rankNumClass(rank) : '');
+  const numEl = row.querySelector<HTMLElement>('.rank-num')!;
+  numEl.className = 'rank-num' + (rankNumClass(rank) ? ' ' + rankNumClass(rank) : '');
   patchText(numEl, rank);
 
-  const wrap = row.querySelector<HTMLElement>('.tm-rank-photo-wrap')!;
+  const wrap = row.querySelector<HTMLElement>('.rank-photo-wrap')!;
   const effect = rankEffectClass(rank);
-  wrap.className = 'tm-rank-photo-wrap' + (effect ? ' ' + effect : '');
+  wrap.className = 'rank-photo-wrap' + (effect ? ' ' + effect : '');
   syncRankingPhoto(wrap, member);
 
   patchText(
-    row.querySelector<HTMLElement>('.tm-rank-name-text'),
+    row.querySelector<HTMLElement>('.rank-name-text'),
     member.nickname || record.player_id,
   );
-  const lvlEl = row.querySelector<HTMLElement>('.tm-rank-name-lvl')!;
+  const lvlEl = row.querySelector<HTMLElement>('.rank-name-lvl')!;
   if (member.level) {
     lvlEl.style.display = '';
     patchText(lvlEl, 'Lv.' + member.level);
@@ -427,9 +427,9 @@ function updateRankingRow(
     lvlEl.style.display = 'none';
   }
 
-  patchText(row.querySelector<HTMLElement>('.tm-rank-stage-num'), record.best_stage);
+  patchText(row.querySelector<HTMLElement>('.rank-stage-num'), record.best_stage);
   patchText(
-    row.querySelector<HTMLElement>('.tm-rank-meta'),
+    row.querySelector<HTMLElement>('.rank-meta'),
     record.best_stage_at ? formatRankingDate(record.best_stage_at) : '-',
   );
 }
