@@ -179,13 +179,29 @@ function lowestTier(): EquipmentTier | null {
   return min;
 }
 
-/** 6 슬롯 등급 검사 후 아바타 글로우 효과 적용/해제. */
+/** 6 슬롯 등급 검사 후 아바타 글로우 효과 적용/해제. iOS Safari 색 잔상 방지 위해
+ *  tier 변경 직전 .eq-avatar-glow 의 animation 을 명시적으로 reset. */
 function applyAvatarTierEffect(): void {
   const avatar = document.querySelector<HTMLElement>('.eq-avatar');
   if (!avatar) return;
   ALL_AVATAR_TIER_CLASSES.forEach((c) => avatar.classList.remove(c));
   const tier = lowestTier();
-  if (tier) avatar.classList.add('eq-avatar-tier-' + tier);
+  if (tier) {
+    restartAvatarGlow(avatar);
+    avatar.classList.add('eq-avatar-tier-' + tier);
+  }
+}
+
+/** glow element 의 animation 을 강제 재시작 — none 적용 + reflow + 원복. iOS Safari
+ *  의 ::before 또는 자식 element 의 background-image 전환 시 이전 색이 잔상으로 남는
+ *  현상 (ex: epic 보라 위에 uncommon 녹색 잔상) 회피. */
+function restartAvatarGlow(avatar: HTMLElement): void {
+  const glow = avatar.querySelector<HTMLElement>('.eq-avatar-glow');
+  if (!glow) return;
+  glow.style.animation = 'none';
+  // Force reflow — 브라우저가 두 상태 사이에 연속성을 끊도록
+  void glow.offsetWidth;
+  glow.style.animation = '';
 }
 
 /** 6 슬롯 최저 등급 → stage 배경 효과 적용. 모든 슬롯이 채워져야 의미 있음. */
@@ -598,9 +614,22 @@ function initTierPreview(): void {
   if (!dlg || !trigger) return;
 
   trigger.addEventListener('click', () => {
-    tierPreviewIdx = 0;
-    renderTierPreview();
-    dlg.showModal();
+    // 미리보기는 본인 아바타 사진을 사용 — 비인증 시 사진이 없어 빈 화면이 됨.
+    // 우선 인증 다이얼로그로 유도하고, 인증 완료 후에만 미리보기 열기.
+    const ensure = window.TileMatchAuth?.ensureAuth?.();
+    if (!ensure) {
+      // TileMatchAuth 미초기화 — fallback 으로 그냥 열기 (placeholder 보임)
+      tierPreviewIdx = 0;
+      renderTierPreview();
+      dlg.showModal();
+      return;
+    }
+    ensure.then((session) => {
+      if (!session) return; // 사용자가 인증 취소 → 미리보기 열지 않음
+      tierPreviewIdx = 0;
+      renderTierPreview();
+      dlg.showModal();
+    });
   });
 
   $('tier-preview-prev')?.addEventListener('click', () => {
@@ -728,11 +757,12 @@ function renderTierPreview(): void {
     }
   });
 
-  // 아바타 글로우 — common 은 제외 (의도)
+  // 아바타 글로우 — common 은 제외 (의도). iOS Safari 색 잔상 방지 위해 animation reset.
   const avatar = stage.querySelector<HTMLElement>('.eq-avatar');
   if (avatar) {
     ALL_AVATAR_TIER_CLASSES.forEach((c) => avatar.classList.remove(c));
     if (spec.tier !== 'common') {
+      restartAvatarGlow(avatar);
       avatar.classList.add('eq-avatar-tier-' + spec.tier);
     }
   }

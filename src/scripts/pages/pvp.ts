@@ -772,11 +772,20 @@ function openEquipView(playerId: string, nickname: string, profilePhoto: string 
 
       // 아바타 글로우 — 6 슬롯 모두의 lowestTier 기준 (equipment 페이지와 동일).
       // 6 슬롯 미만이거나 common 만 있으면 효과 X.
+      // iOS Safari 색 잔상 방지 위해 .eq-avatar-glow 의 animation reset 후 클래스 부여.
       const avatarEl2 = document.querySelector<HTMLElement>('#pvp-equipview-stage .eq-avatar');
       if (avatarEl2) {
         AVATAR_TIER_CLASSES.forEach((c) => avatarEl2.classList.remove(c));
         const lt = lowestTierFromRows(validRows);
-        if (lt) avatarEl2.classList.add('eq-avatar-tier-' + lt);
+        if (lt) {
+          const glow = avatarEl2.querySelector<HTMLElement>('.eq-avatar-glow');
+          if (glow) {
+            glow.style.animation = 'none';
+            void glow.offsetWidth;
+            glow.style.animation = '';
+          }
+          avatarEl2.classList.add('eq-avatar-tier-' + lt);
+        }
       }
 
       // stage 배경 효과 — equipment 페이지와 동일한 lowestStageTier 로직

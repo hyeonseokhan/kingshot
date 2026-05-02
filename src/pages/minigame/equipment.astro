@@ -57,6 +57,7 @@ const SLOT_LAYOUT = [
     <div class="eq-stage" id="eq-stage" data-state="loading">
       <!-- 가운데 아바타 -->
       <div class="eq-avatar">
+        <span class="eq-avatar-glow" aria-hidden="true"></span>
         <img class="eq-avatar-img" id="eq-avatar-img" alt="" />
       </div>
 
@@ -158,18 +159,17 @@ const SLOT_LAYOUT = [
     <dialog class="tier-preview-dialog" id="tier-preview-dialog" aria-labelledby="tier-preview-name">
       <div class="tier-preview-card">
         <header class="tier-preview-head">
-          <button type="button" class="tier-preview-prev" id="tier-preview-prev" aria-label="이전 등급">‹</button>
           <div class="tier-preview-title">
             <strong class="tier-preview-name" id="tier-preview-name">일반</strong>
             <span class="tier-preview-level" id="tier-preview-level">+0</span>
           </div>
-          <button type="button" class="tier-preview-next" id="tier-preview-next" aria-label="다음 등급">›</button>
           <button type="button" class="tier-preview-close" id="tier-preview-close" aria-label="닫기">×</button>
         </header>
 
         <!-- 미리보기 stage — 실제 .eq-stage 와 동일 구조. is-readonly 로 슬롯 hover/active 차단 -->
         <div class="eq-stage tier-preview-stage is-readonly" id="tier-preview-stage">
           <div class="eq-avatar">
+            <span class="eq-avatar-glow" aria-hidden="true"></span>
             <img class="eq-avatar-img" id="tier-preview-avatar" alt="" />
           </div>
           {SLOT_LAYOUT.map(({ slot, side, row }) => (
@@ -194,15 +194,19 @@ const SLOT_LAYOUT = [
           </div>
         </div>
 
-        <!-- 등급 인디케이터 (6 dots) — 클릭으로도 점프 가능 -->
-        <div class="tier-preview-dots" id="tier-preview-dots" role="tablist" aria-label="등급 선택">
-          <button type="button" class="tier-preview-dot active" data-tier-preview-idx="0" role="tab" aria-label="일반"></button>
-          <button type="button" class="tier-preview-dot" data-tier-preview-idx="1" role="tab" aria-label="고급"></button>
-          <button type="button" class="tier-preview-dot" data-tier-preview-idx="2" role="tab" aria-label="희귀"></button>
-          <button type="button" class="tier-preview-dot" data-tier-preview-idx="3" role="tab" aria-label="영웅"></button>
-          <button type="button" class="tier-preview-dot" data-tier-preview-idx="4" role="tab" aria-label="레전드"></button>
-          <button type="button" class="tier-preview-dot" data-tier-preview-idx="5" role="tab" aria-label="신화"></button>
-        </div>
+        <!-- 하단 네비게이션: ‹  [● ○ ○ ○ ○ ○]  › -->
+        <nav class="tier-preview-nav" aria-label="등급 전환">
+          <button type="button" class="tier-preview-prev" id="tier-preview-prev" aria-label="이전 등급">‹</button>
+          <div class="tier-preview-dots" id="tier-preview-dots" role="tablist" aria-label="등급 선택">
+            <button type="button" class="tier-preview-dot active" data-tier-preview-idx="0" role="tab" aria-label="일반"></button>
+            <button type="button" class="tier-preview-dot" data-tier-preview-idx="1" role="tab" aria-label="고급"></button>
+            <button type="button" class="tier-preview-dot" data-tier-preview-idx="2" role="tab" aria-label="희귀"></button>
+            <button type="button" class="tier-preview-dot" data-tier-preview-idx="3" role="tab" aria-label="영웅"></button>
+            <button type="button" class="tier-preview-dot" data-tier-preview-idx="4" role="tab" aria-label="레전드"></button>
+            <button type="button" class="tier-preview-dot" data-tier-preview-idx="5" role="tab" aria-label="신화"></button>
+          </div>
+          <button type="button" class="tier-preview-next" id="tier-preview-next" aria-label="다음 등급">›</button>
+        </nav>
       </div>
     </dialog>
   </div>

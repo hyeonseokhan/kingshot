@@ -2564,48 +2564,52 @@
 /* (옛 .pvp-rank-refresh / .tm-ranking-refresh 블록은 .rank-refresh 통합 — RankingTable.astro 섹션 참조.
    spinning 애니메이션은 .rank-refresh.is-loading svg 의 rankRefreshSpin 으로 일원화됨.) */
 
-/* ===== 장비 강화 — 6 슬롯 uniform 등급 시 아바타 글로우 효과 ===== */
-/* common 은 효과 X (너무 약함). uncommon ~ mythic 만 적용. */
-.eq-avatar.eq-avatar-tier-uncommon::before,
-.eq-avatar.eq-avatar-tier-rare::before,
-.eq-avatar.eq-avatar-tier-epic::before,
-.eq-avatar.eq-avatar-tier-legendary::before,
-.eq-avatar.eq-avatar-tier-mythic::before {
-  content: '';
+/* ===== 장비 강화 — 6 슬롯 uniform 등급 시 아바타 글로우 효과 =====
+ * common 은 효과 X. uncommon ~ mythic 만 적용.
+ * iOS Safari 의 ::before + animation + filter:blur 색 잔상 버그 회피를 위해
+ * *진짜 자식 element* (.eq-avatar-glow) 로 구현. 등급 전환 시 JS 가 명시적으로
+ * 애니메이션을 재시작 → 이전 등급 색이 잔상으로 남는 문제 차단. */
+.eq-avatar {
+  /* z-index isolation — glow 가 사진 뒤로 가게 */
+  isolation: isolate;
+}
+.eq-avatar-glow {
   position: absolute;
   inset: -6px;
   border-radius: 18px;
   background-size: 300% 300%;
-  animation: gradientMove 3s ease infinite;
   filter: blur(8px);
   z-index: -1;
   pointer-events: none;
+  opacity: 0;                  /* 기본 hidden — tier 클래스가 opt-in */
+  /* iOS Safari GPU 레이어 강제 — filter blur 색상 잔상 회피 */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
-.eq-avatar {
-  /* z-index isolation — ::before 가 아바타 뒤로 가게 */
-  isolation: isolate;
-}
-.eq-avatar-tier-uncommon::before {
+.eq-avatar-tier-uncommon .eq-avatar-glow {
   background-image: linear-gradient(135deg, #22c55e, #86efac, #15803d, #22c55e);
   opacity: 0.55;
+  animation: gradientMove 3s ease infinite;
 }
-.eq-avatar-tier-rare::before {
+.eq-avatar-tier-rare .eq-avatar-glow {
   background-image: linear-gradient(135deg, #3b82f6, #93c5fd, #1e40af, #3b82f6);
   opacity: 0.55;
+  animation: gradientMove 3s ease infinite;
 }
-.eq-avatar-tier-epic::before {
+.eq-avatar-tier-epic .eq-avatar-glow {
   background-image: linear-gradient(135deg, #a855f7, #d8b4fe, #6b21a8, #a855f7);
   opacity: 0.6;
+  animation: gradientMove 3s ease infinite;
 }
-.eq-avatar-tier-legendary::before {
+.eq-avatar-tier-legendary .eq-avatar-glow {
   background-image: linear-gradient(135deg, #f59e0b, #fde047, #b45309, #f59e0b);
   opacity: 0.65;
-  animation-duration: 2s;
+  animation: gradientMove 2s ease infinite;
 }
-.eq-avatar-tier-mythic::before {
+.eq-avatar-tier-mythic .eq-avatar-glow {
   background-image: linear-gradient(135deg, #ef4444, #fca5a5, #991b1b, #ef4444);
   opacity: 0.7;
-  animation-duration: 1.8s;
+  animation: gradientMove 1.8s ease infinite;
   filter: blur(10px);
 }
 
@@ -2996,12 +3000,72 @@
 }
 .tier-preview-head {
   display: grid;
-  grid-template-columns: 36px 1fr 36px 36px;
+  grid-template-columns: 1fr 36px;       /* 제목 가운데 + 닫기 버튼 우측 */
   align-items: center;
   gap: 6px;
   padding: 0 4px 8px;
   margin-bottom: 4px;
   border-bottom: 1px solid #e2e8f0;
+}
+.tier-preview-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  justify-content: center;
+  /* 닫기 버튼이 우측에 있으므로 시각적 가운데 정렬 위해 padding-left */
+  padding-left: 36px;
+}
+.tier-preview-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+}
+.tier-preview-level {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+}
+.tier-preview-close {
+  appearance: none;
+  background: none;
+  border: 0;
+  font-size: 26px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-family: inherit;
+  justify-self: end;
+}
+.tier-preview-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* 미리보기 stage — 실제 stage 와 동일 마크업/스타일. 다만 클릭 비활성화. */
+.tier-preview-stage {
+  /* .eq-stage 의 max-width 420 → 다이얼로그 안에서 100% 활용 */
+  max-width: 100%;
+  margin: 8px auto;
+  /* touch-action 확보 — 스와이프 인식 */
+  touch-action: pan-y;
+}
+.tier-preview-stage.is-readonly .eq-slot {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* 하단 네비게이션 — [‹]  [● ○ ○ ○ ○ ○]  [›]
+ * stage 와 충분한 간격(20px) 확보 — 사용자 피드백 반영 */
+.tier-preview-nav {
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 0 4px;
 }
 .tier-preview-prev,
 .tier-preview-next {
@@ -3031,59 +3095,12 @@
   opacity: 0.35;
   cursor: default;
 }
-.tier-preview-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  justify-content: center;
-}
-.tier-preview-name {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--text);
-}
-.tier-preview-level {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text2);
-  font-variant-numeric: tabular-nums;
-}
-.tier-preview-close {
-  appearance: none;
-  background: none;
-  border: 0;
-  font-size: 26px;
-  line-height: 1;
-  color: #64748b;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  font-family: inherit;
-}
-.tier-preview-close:hover {
-  background: rgba(0, 0, 0, 0.06);
-}
 
-/* 미리보기 stage — 실제 stage 와 동일 마크업/스타일. 다만 클릭 비활성화. */
-.tier-preview-stage {
-  /* .eq-stage 의 max-width 420 → 다이얼로그 안에서 100% 활용 */
-  max-width: 100%;
-  margin: 8px auto;
-  /* touch-action 확보 — 스와이프 인식 */
-  touch-action: pan-y;
-}
-.tier-preview-stage.is-readonly .eq-slot {
-  cursor: default;
-  pointer-events: none;
-}
-
-/* 등급 인디케이터 (6 dots) */
+/* 등급 인디케이터 (6 dots) — 가운데 정렬 */
 .tier-preview-dots {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 12px;
 }
 .tier-preview-dot {
   appearance: none;
