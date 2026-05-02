@@ -6,15 +6,17 @@ interface Props {
   title?: string;
   description?: string;
   navHeader: string;
-  navItems: Array<{ title: string; path: string; active?: boolean }>;
+  /** i18n 키 (있으면 클라이언트 swap 시 자동 갱신). */
+  navHeaderKey?: string;
+  navItems: Array<{ title: string; titleKey?: string; path: string; active?: boolean }>;
 }
 
-const { title, description, navHeader, navItems } = Astro.props;
+const { title, description, navHeader, navHeaderKey, navItems } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
   <div class="tab-content active">
-    <LeftNav header={navHeader} items={navItems} />
+    <LeftNav header={navHeader} headerKey={navHeaderKey} items={navItems} />
     <main class="center-content manage-content">
       <slot />
     </main>

@@ -7,6 +7,7 @@ const manage = tabs.find((t) => t.id === 'manage')!;
 const active = findActiveSubmenu(manage, Astro.url.pathname);
 const navItems = manage.submenus!.map((s) => ({
   title: s.title,
+  titleKey: s.titleKey,
   path: s.path,
   active: active?.id === s.id,
 }));
@@ -15,23 +16,24 @@ const navItems = manage.submenus!.map((s) => ({
 <AppLayout
   title="쿠폰 받기 — PNX 연맹"
   description="PNX 연맹원 쿠폰 자동 수령"
-  navHeader="연맹관리"
+  navHeader={manage.title}
+  navHeaderKey={manage.titleKey}
   navItems={navItems}
 >
   <div class="manage-page" id="page-coupons">
     <div class="members-header">
-      <h1>쿠폰 받기</h1>
-      <button class="btn btn-primary" id="btn-add-coupon-account" type="button">+ 계정 등록</button>
+      <h1 data-i18n="coupons.heading">쿠폰 받기</h1>
+      <button class="btn btn-primary" id="btn-add-coupon-account" type="button" data-i18n="coupons.addButton">+ 계정 등록</button>
     </div>
 
     <div class="page-intro">
-      <p>PNX 연맹원의 <strong>쿠폰 수령을 자동화</strong>하는 페이지입니다.</p>
+      <p data-i18n-html="coupons.intro.paragraph">PNX 연맹원의 <strong>쿠폰 수령을 자동화</strong>하는 페이지입니다.</p>
       <ul>
-        <li><strong>전체 수령</strong> 버튼을 한 번 누르면 등록된 모든 계정이 자동으로 쿠폰을 받습니다</li>
-        <li><strong>수령 이력</strong>에서 누가 언제 받았는지 확인할 수 있어요</li>
-        <li><strong>농장 계정, 지인</strong> 등 PNX 외부 계정도 등록 가능합니다</li>
+        <li data-i18n-html="coupons.intro.item1"><strong>전체 수령</strong> 버튼을 한 번 누르면 등록된 모든 계정이 자동으로 쿠폰을 받습니다</li>
+        <li data-i18n-html="coupons.intro.item2"><strong>수령 이력</strong>에서 누가 언제 받았는지 확인할 수 있어요</li>
+        <li data-i18n-html="coupons.intro.item3"><strong>농장 계정, 지인</strong> 등 PNX 외부 계정도 등록 가능합니다</li>
       </ul>
-      <p class="page-intro-hint">
+      <p class="page-intro-hint" data-i18n="coupons.intro.hint">
         이미 등록된 연맹원은 별도 등록이 필요 없어요. 연맹원 페이지에서 "쿠폰 자동 수령"이
         켜져 있으면 자동으로 목록에 포함됩니다.
       </p>
@@ -41,50 +43,60 @@ const navItems = manage.submenus!.map((s) => ({
     <div class="modal-overlay" id="coupon-modal-overlay">
       <div class="modal">
         <div class="modal-header">
-          <h3>계정 등록</h3>
+          <h3 data-i18n="coupons.modal.title">계정 등록</h3>
           <button class="modal-close" id="coupon-modal-close" type="button">&times;</button>
         </div>
         <div class="modal-body">
           <div class="modal-notice">
-            <strong>안내</strong>
-            <p>
+            <strong data-i18n="coupons.modal.noticeLabel">안내</strong>
+            <p data-i18n-html="coupons.modal.notice1">
               <strong>PNX 연맹원</strong>은 <strong>연맹원 페이지</strong>에서 등록하면 자동으로
               추가됩니다.
             </p>
-            <p>이 페이지는 <strong>농장 계정, 지인 등 추가 인원</strong> 등록용입니다.</p>
+            <p data-i18n-html="coupons.modal.notice2">이 페이지는 <strong>농장 계정, 지인 등 추가 인원</strong> 등록용입니다.</p>
           </div>
-          <label for="coupon-input-id">킹샷 ID</label>
+          <label for="coupon-input-id" data-i18n="coupons.modal.idLabel">킹샷 ID</label>
           <div class="input-row">
-            <input type="text" id="coupon-input-id" placeholder="킹샷 아이디 입력" />
-            <button class="btn btn-secondary" id="coupon-btn-search" type="button">조회</button>
+            <input
+              type="text"
+              id="coupon-input-id"
+              placeholder="킹샷 아이디 입력"
+              data-i18n-attr-placeholder="coupons.modal.idPlaceholder"
+            />
+            <button
+              class="btn btn-secondary"
+              id="coupon-btn-search"
+              type="button"
+              data-i18n="coupons.modal.searchButton"
+            >조회</button>
           </div>
           <div id="coupon-search-result" class="player-card" style="display:none">
             <img id="coupon-res-photo" class="player-card-photo" src="" alt="" />
             <div class="player-card-info">
               <div class="player-card-name" id="coupon-res-nickname">-</div>
               <div class="player-card-detail">
-                도시 센터 레벨: <strong id="coupon-res-level">-</strong>
+                <span data-i18n="coupons.modal.cityLevelLabel">도시 센터 레벨:</span> <strong id="coupon-res-level">-</strong>
               </div>
               <div class="player-card-detail">
-                소속 왕국: <strong id="coupon-res-kingdom">-</strong>
+                <span data-i18n="coupons.modal.kingdomLabel">소속 왕국:</span> <strong id="coupon-res-kingdom">-</strong>
               </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="coupon-modal-cancel" type="button">취소</button>
-          <button class="btn btn-primary" id="coupon-modal-save" type="button">저장</button>
+          <button class="btn btn-secondary" id="coupon-modal-cancel" type="button" data-i18n="common.cancel">취소</button>
+          <button class="btn btn-primary" id="coupon-modal-save" type="button" data-i18n="common.save">저장</button>
         </div>
       </div>
     </div>
 
     <!-- 입력 가능한 쿠폰 -->
     <div class="coupon-section">
-      <h3 class="coupon-title">입력 가능한 쿠폰</h3>
+      <h3 class="coupon-title" data-i18n="coupons.list.title">입력 가능한 쿠폰</h3>
       <div class="coupon-list" id="coupon-list">
         <div class="coupon-cards" id="coupon-cards"></div>
         <div class="coupon-select-hint" id="coupon-select-hint" style="display:none"></div>
-        <div class="empty-cell" id="coupon-list-status">로딩 중...</div>
+        <div class="empty-cell" id="coupon-list-status" data-i18n="common.loading">로딩 중...</div>
       </div>
     </div>
 
@@ -92,9 +104,26 @@ const navItems = manage.submenus!.map((s) => ({
     <div class="members-toolbar">
       <div class="member-count" id="coupon-member-count"></div>
       <div class="members-toolbar-right">
-        <input type="text" id="coupon-search" class="coupon-search-input" placeholder="닉네임 검색..." />
-        <button class="btn btn-secondary btn-sm" id="btn-redeem-all" type="button">🎁 전체 수령</button>
-        <button class="btn-icon-only" id="btn-history" title="수령 이력" type="button">
+        <input
+          type="text"
+          id="coupon-search"
+          class="coupon-search-input"
+          placeholder="닉네임 검색..."
+          data-i18n-attr-placeholder="coupons.toolbar.searchPlaceholder"
+        />
+        <button
+          class="btn btn-secondary btn-sm"
+          id="btn-redeem-all"
+          type="button"
+          data-i18n="coupons.toolbar.redeemAll"
+        >🎁 전체 수령</button>
+        <button
+          class="btn-icon-only"
+          id="btn-history"
+          title="수령 이력"
+          data-i18n-attr-title="coupons.toolbar.historyTitle"
+          type="button"
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 3v5h5"></path>
             <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
@@ -104,11 +133,11 @@ const navItems = manage.submenus!.map((s) => ({
       </div>
     </div>
     <div class="members-list" id="coupon-members-list">
-      <div class="coupon-group-label" id="coupon-group-members" style="display:none">연맹원</div>
+      <div class="coupon-group-label" id="coupon-group-members" style="display:none" data-i18n="coupons.group.members">연맹원</div>
       <div class="coupon-rows" id="coupon-rows-members"></div>
-      <div class="coupon-group-label" id="coupon-group-extras" style="display:none">추가 계정</div>
+      <div class="coupon-group-label" id="coupon-group-extras" style="display:none" data-i18n="coupons.group.extras">추가 계정</div>
       <div class="coupon-rows" id="coupon-rows-extras"></div>
-      <div class="empty-cell" id="coupon-accounts-status">로딩 중...</div>
+      <div class="empty-cell" id="coupon-accounts-status" data-i18n="common.loading">로딩 중...</div>
     </div>
 
     <!-- 수령 이력 다이얼로그 -->
@@ -116,17 +145,31 @@ const navItems = manage.submenus!.map((s) => ({
       <div class="manage-dialog history-dialog">
         <div class="history-header">
           <div class="history-title">
-            <h3>수령 이력</h3>
+            <h3 data-i18n="coupons.history.title">수령 이력</h3>
             <span class="history-total" id="history-total"></span>
           </div>
           <button class="md-close-btn" id="history-close" type="button">&times;</button>
         </div>
+        <div class="history-search-row">
+          <input
+            type="text"
+            id="history-search"
+            class="history-search-input"
+            placeholder="닉네임 또는 ID 검색"
+            data-i18n-attr-placeholder="coupons.history.searchPlaceholder"
+            autocomplete="off"
+          />
+        </div>
         <div class="history-body" id="history-body">
           <table class="history-table" id="history-table" style="display:none">
-            <thead><tr><th>계정</th><th>쿠폰</th><th>수령일시</th></tr></thead>
+            <thead><tr>
+              <th data-i18n="coupons.history.thead.account">계정</th>
+              <th data-i18n="coupons.history.thead.code">쿠폰</th>
+              <th data-i18n="coupons.history.thead.date">수령일시</th>
+            </tr></thead>
             <tbody id="history-rows"></tbody>
           </table>
-          <div class="empty-cell" id="history-status">로딩 중...</div>
+          <div class="empty-cell" id="history-status" data-i18n="common.loading">로딩 중...</div>
         </div>
         <div class="history-pagination" id="history-pagination"></div>
       </div>

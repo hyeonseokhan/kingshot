@@ -1,20 +1,24 @@
 ---
 type Item = {
   title: string;
+  /** i18n 키 (있으면 클라이언트 lang swap 시 자동 갱신). */
+  titleKey?: string;
   path: string;
   active?: boolean;
 };
 
 interface Props {
   header: string;
+  /** i18n 키 (있으면 클라이언트 lang swap 시 자동 갱신). */
+  headerKey?: string;
   items: Item[];
 }
 
-const { header, items } = Astro.props;
+const { header, headerKey, items } = Astro.props;
 ---
 
 <nav class="left-nav">
-  <div class="left-nav-header">{header}</div>
+  <div class="left-nav-header" data-i18n={headerKey}>{header}</div>
   <div class="left-nav-items">
     {
       items.map((item) => (
@@ -22,7 +26,7 @@ const { header, items } = Astro.props;
           href={item.path}
           class:list={['left-nav-item', { active: item.active }]}
         >
-          <span class="step-label">{item.title}</span>
+          <span class="step-label" data-i18n={item.titleKey}>{item.title}</span>
         </a>
       ))
     }

@@ -9,6 +9,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { rewardForStage } from '@/lib/balance';
 import { renderRankingTable, type Column, type RankItem } from '@/lib/ranking-table';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
+import { formatRelativeTime } from '@/lib/utils';
+import { t, getLang, onLangChange } from '@/i18n';
 
 // ===== 상수 =====
 
@@ -205,6 +207,14 @@ export function initTileMatch(): void {
     window.TileMatchAuth.ensureAuth().then(onSessionReady);
   }
   loadRanking();
+
+  // 언어 변경 시 동적 텍스트 (랭킹 시간 / Free 배지 / 아바타 힌트 등) 재계산.
+  // 정적 마크업 라벨은 applyTranslations() 가 swap, 동적 textContent 는 마커 없어 이 경로로 갱신.
+  onLangChange(() => {
+    loadRanking();
+    updateItemButtons();
+    updateAvatarHint();
+  });
 }
 
 interface Session {
@@ -299,8 +309,8 @@ function loadRanking(): void {
       // refresh 중 실패 — stale row 가 있으면 보존 (빈 화면 X). 비어있다면 에러 메시지로 채움.
       if (!hasRankingRows()) {
         box.innerHTML =
-          '<div class="rank-empty">랭킹 조회 실패: ' +
-          (err.message || String(err)) +
+          '<div class="rank-empty">' +
+          t('tileMatch.ranking.queryFailed', { message: err.message || String(err) }) +
           '</div>';
       }
     })
@@ -310,24 +320,8 @@ function loadRanking(): void {
     });
 }
 
-function formatRankingDate(iso: string | null): string {
-  if (!iso) return '-';
-  const t = new Date(iso).getTime();
-  if (isNaN(t)) return '-';
-  const diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
-  if (diffSec < 30) return '방금 전';
-  if (diffSec < 60) return diffSec + '초 전';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return diffMin + '분 전';
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return diffHr + '시간 전';
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 30) return diffDay + '일 전';
-  const diffMon = Math.floor(diffDay / 30);
-  if (diffMon < 12) return diffMon + '개월 전';
-  return Math.floor(diffMon / 12) + '년 전';
-}
-
+// 랭킹 컬럼 — label 은 SSR 골격용, 클라이언트 swap 은 RankingTable 의 data-i18n 으로 처리.
+// renderRankingTable 헬퍼는 SSR 마크업 위에 cells 만 갱신하므로 label 은 변경 안 함.
 const RANKING_COLUMNS: ReadonlyArray<Column> = [
   { key: 'stage', label: 'Stage', width: '60px', align: 'right', cellClass: 'rank-cell-stage' },
   { key: 'time', label: '시간', width: '64px', align: 'right', cellClass: 'rank-cell-time' },
@@ -346,8 +340,8 @@ function renderRanking(records: RankingRecord[], memberMap: Record<string, Membe
       photoUrl: member.profile_photo ?? null,
       isMe: !!myId && r.player_id === myId,
       cells: {
-        stage: r.best_stage + ' Stage',
-        time: r.best_stage_at ? formatRankingDate(r.best_stage_at) : '-',
+        stage: t('tileMatch.ranking.stageSuffix', { n: r.best_stage }),
+        time: r.best_stage_at ? formatRelativeTime(r.best_stage_at) : '-',
       },
     };
   });
@@ -356,7 +350,7 @@ function renderRanking(records: RankingRecord[], memberMap: Record<string, Membe
     bodyId: 'tm-ranking-list',
     columns: RANKING_COLUMNS,
     items,
-    emptyMessage: '아직 기록이 없습니다 — 첫 클리어의 주인공이 되어보세요!',
+    emptyMessage: t('tileMatch.ranking.empty'),
   });
 }
 
@@ -370,7 +364,7 @@ function openDialog(): void {
 
 function requestClose(): void {
   if (isGameInProgress()) {
-    if (!window.confirm('정말 나가시겠습니까? 진행 상황이 사라집니다.')) return;
+    if (!window.confirm(t('tileMatch.dialog.confirmExit'))) return;
   }
   forceClose();
 }
@@ -432,10 +426,10 @@ function pickAvatarTile(): void {
 
 function updateAvatarHint(): void {
   const box = $('tm-avatar-hint');
-  const nameEl = $('tm-avatar-hint-name');
-  if (!box || !nameEl) return;
+  const textEl = $('tm-avatar-hint-text');
+  if (!box || !textEl) return;
   if (avatarMemberName && avatarTileValue >= 0) {
-    nameEl.textContent = avatarMemberName;
+    textEl.textContent = t('tileMatch.dialog.avatarHint', { name: avatarMemberName });
     box.style.display = '';
   } else {
     box.style.display = 'none';
@@ -916,7 +910,7 @@ function hideShufflePopup(): void {
 
 function onShufflePopupAction(): void {
   hideShufflePopup();
-  showToast('농담입니다 껄.껄.껄');
+  showToast(t('tileMatch.dialog.shufflePopup.joke'));
   actuallyShuffle();
 }
 
@@ -960,9 +954,9 @@ function updateItemButtons(): void {
   rb.disabled = freeUses.remove <= 0 || buffer.length === 0 || removedQueue.length > 0;
   ub.disabled = freeUses.undo <= 0 || !canUndo || !lastPick;
   sb.disabled = freeUses.shuffle <= 0;
-  $('tm-item-remove-badge')!.textContent = 'Free ×' + freeUses.remove;
-  $('tm-item-undo-badge')!.textContent = 'Free ×' + freeUses.undo;
-  $('tm-item-shuffle-badge')!.textContent = 'Free ×' + freeUses.shuffle;
+  $('tm-item-remove-badge')!.textContent = t('tileMatch.dialog.items.freeBadge', { n: freeUses.remove });
+  $('tm-item-undo-badge')!.textContent = t('tileMatch.dialog.items.freeBadge', { n: freeUses.undo });
+  $('tm-item-shuffle-badge')!.textContent = t('tileMatch.dialog.items.freeBadge', { n: freeUses.shuffle });
 }
 
 function checkEnd(): void {
@@ -974,7 +968,7 @@ function checkEnd(): void {
   }
   if (buffer.length >= BUFFER_SIZE) {
     gameOver = true;
-    showOverlay('💥', '슬롯이 가득 찼습니다.', false);
+    showOverlay('💥', t('tileMatch.dialog.overlay.slotFull'), false);
   }
 }
 
@@ -984,7 +978,7 @@ function onClear(): void {
   // 클라이언트 측 사전 계산 — 서버 응답 기다리지 않고 다이얼로그를 즉시 완성형으로 표시.
   // (재플레이 X 도메인 가정: 같은 stage 두 번 클리어 시나리오 없음 → duplicate 분기 불필요)
   const reward = session?.player_id ? rewardForStage(clearedStage) : 0;
-  showOverlay('🎉', 'Stage ' + clearedStage + ' 클리어!', true, reward);
+  showOverlay('🎉', t('tileMatch.dialog.overlay.win', { n: clearedStage }), true, reward);
 
   if (!session?.player_id) return;
 
@@ -1019,8 +1013,7 @@ function showClaimFailureToast(stage: number, errorCode: string): void {
   if (!host) return;
   const el = document.createElement('div');
   el.className = 'tm-claim-fail-toast';
-  el.textContent =
-    '⚠️ Stage ' + stage + ' 보상 처리 실패 (' + errorCode + ') — 운영자에게 알려주세요';
+  el.textContent = t('tileMatch.claimFailToast', { stage, error: errorCode });
   host.appendChild(el);
   setTimeout(() => el.remove(), 5000);
 }
@@ -1033,13 +1026,17 @@ function showOverlay(icon: string, msg: string, isSuccess: boolean, rewardAmount
   if (msgEl) msgEl.textContent = msg;
   if (ov) ov.style.display = '';
   const primaryBtn = $('tm-overlay-restart');
-  if (primaryBtn) primaryBtn.textContent = isSuccess ? '다음 단계' : '다시 하기';
+  if (primaryBtn)
+    primaryBtn.textContent = isSuccess
+      ? t('tileMatch.dialog.overlay.next')
+      : t('tileMatch.dialog.overlay.restart');
 
   const rewardBox = $('tm-overlay-reward');
   const rewardAmt = $('tm-overlay-reward-amount');
   if (rewardBox && rewardAmt) {
     if (rewardAmount > 0) {
-      rewardAmt.textContent = '+' + rewardAmount.toLocaleString('ko-KR');
+      const locale = getLang() === 'ko' ? 'ko-KR' : 'en-US';
+      rewardAmt.textContent = '+' + rewardAmount.toLocaleString(locale);
       rewardBox.style.display = '';
       // 매번 다이얼로그가 뜰 때마다 슬라이드업 애니메이션 재시작
       restartAnimation(rewardAmt);

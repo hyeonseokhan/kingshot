@@ -3,6 +3,8 @@
  * Phase 7 에서 도메인별로 분할 검토.
  */
 
+import { t } from '@/i18n';
+
 /** 쿠폰 교환 상태 코드 */
 export const REDEEM_STATUS = {
   SUCCESS: 'success',
@@ -132,15 +134,15 @@ export function formatDateTime(iso: string | null | undefined): string {
   );
 }
 
-/** ISO → 상대 시간 ("3분 전", "어제", "3일 전" 등) */
+/** ISO → 상대 시간 ("3분 전", "어제", "3일 전" 등). lang 별 사전(time.*) 사용. */
 export function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return '-';
   const now = Date.now();
   const then = new Date(iso).getTime();
   const diffSec = Math.floor((now - then) / 1000);
-  if (diffSec < 60) return '방금 전';
-  if (diffSec < 3600) return Math.floor(diffSec / 60) + '분 전';
-  if (diffSec < 86400) return Math.floor(diffSec / 3600) + '시간 전';
+  if (diffSec < 60) return t('time.justNow');
+  if (diffSec < 3600) return t('time.minutesAgo', { n: Math.floor(diffSec / 60) });
+  if (diffSec < 86400) return t('time.hoursAgo', { n: Math.floor(diffSec / 3600) });
 
   const nowDate = new Date(now);
   const thenDate = new Date(then);
@@ -149,10 +151,10 @@ export function formatRelativeTime(iso: string | null | undefined): string {
       Date.UTC(thenDate.getFullYear(), thenDate.getMonth(), thenDate.getDate())) /
       86_400_000,
   );
-  if (diffDays === 1) return '어제';
-  if (diffDays === 2) return '그제';
-  if (diffDays < 7) return diffDays + '일 전';
-  if (diffDays < 30) return Math.floor(diffDays / 7) + '주 전';
-  if (diffDays < 365) return Math.floor(diffDays / 30) + '개월 전';
-  return Math.floor(diffDays / 365) + '년 전';
+  if (diffDays === 1) return t('time.yesterday');
+  if (diffDays === 2) return t('time.dayBeforeYesterday');
+  if (diffDays < 7) return t('time.daysAgo', { n: diffDays });
+  if (diffDays < 30) return t('time.weeksAgo', { n: Math.floor(diffDays / 7) });
+  if (diffDays < 365) return t('time.monthsAgo', { n: Math.floor(diffDays / 30) });
+  return t('time.yearsAgo', { n: Math.floor(diffDays / 365) });
 }

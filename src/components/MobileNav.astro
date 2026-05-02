@@ -11,6 +11,8 @@ const eventsGuides = await getGuidesByCategory('events');
 
 type Child = {
   title: string;
+  /** i18n 키 (앱 탭 서브메뉴만). 가이드 항목은 undefined → 한글 유지 (마크다운 데이터). */
+  titleKey?: string;
   path: string;
   active: boolean;
   /** 앱 탭의 서브메뉴 id (있는 경우만) */
@@ -25,6 +27,7 @@ function buildChildren(tabId: string): Child[] {
     const activeSub = findActiveSubmenu(tab, pathname);
     return tab.submenus.map((s) => ({
       title: s.title,
+      titleKey: s.titleKey,
       path: s.path,
       active: activeSub?.id === s.id,
       submenu: s.id,
@@ -51,7 +54,12 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
 <div class="mobile-nav-overlay" id="mobile-nav-overlay"></div>
 <aside class="mobile-nav-panel" id="mobile-nav-panel">
   <div class="mobile-nav-close">
-    <button id="mobile-nav-close" type="button" aria-label="메뉴 닫기">&times;</button>
+    <span class="mobile-nav-close-label" data-i18n="header.menuOpen">메뉴</span>
+    <button
+      id="mobile-nav-close"
+      type="button"
+      aria-label="메뉴 닫기"
+      data-i18n-attr-aria-label="header.menuClose">&times;</button>
   </div>
   {
     tabsWithChildren.map((tab) => {
@@ -63,7 +71,7 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
             data-tab={tab.id}
             type="button"
           >
-            <span>{tab.title}</span>
+            <span data-i18n={tab.titleKey}>{tab.title}</span>
             <span class="mobile-nav-toggle">▸</span>
           </button>
           <div
@@ -77,6 +85,7 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
                 data-tab={tab.id}
                 data-submenu={c.submenu}
                 data-section={c.section}
+                data-i18n={c.titleKey}
               >
                 {c.title}
               </a>
@@ -86,6 +95,24 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
       );
     })
   }
+
+  <!-- 언어 선택 — 헤더의 LangSwitcher 가 모바일에선 숨겨지고 여기로 이동.
+       폰 설정 화면 패턴: row [🌐 Language ............ 한국어 ▾]
+       native <select> 라 OS 별 picker (iOS wheel / Android 모달) 가 자동 노출됨.
+       동기화: lang-switcher.ts 의 [data-set-lang-select] 핸들러. -->
+  <div class="mobile-nav-langs">
+    <label class="mobile-nav-lang-row">
+      <span class="mobile-nav-lang-icon" aria-hidden="true">🌐</span>
+      <span class="mobile-nav-lang-label" data-i18n="langSwitcher.label">언어</span>
+      <span class="mobile-nav-lang-select-wrap">
+        <select class="mobile-nav-lang-select" data-set-lang-select>
+          <option value="ko">한국어</option>
+          <option value="en">English</option>
+        </select>
+        <span class="mobile-nav-lang-caret" aria-hidden="true">▾</span>
+      </span>
+    </label>
+  </div>
 </aside>
 
 <script>
@@ -171,8 +198,8 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
     padding: 16px 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
-  .mobile-nav-close::before {
-    content: '메뉴';
+  /* "메뉴" 라벨 — pseudo content 는 i18n 처리 못 해서 실제 element 로 분리 */
+  .mobile-nav-close-label {
     font-size: 13px;
     font-weight: 600;
     text-transform: uppercase;
@@ -253,5 +280,79 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
   .mobile-nav-section.active {
     color: var(--accent-light);
     font-weight: 600;
+  }
+
+  /* === 언어 선택 (메뉴 하단) — 폰 설정 row 패턴 === */
+  .mobile-nav-langs {
+    margin-top: 12px;
+    padding: 12px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .mobile-nav-langs::before {
+    content: 'SETTING';
+    display: block;
+    padding: 0 20px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.4);
+  }
+  .mobile-nav-lang-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .mobile-nav-lang-icon {
+    font-size: 15px;
+    line-height: 1;
+  }
+  .mobile-nav-lang-label {
+    flex: 1;
+  }
+
+  /* select wrapper — caret 을 직접 그려서 OS 기본 화살표 대신 일관된 외관 */
+  .mobile-nav-lang-select-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .mobile-nav-lang-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 6px 26px 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: background 0.15s;
+  }
+  .mobile-nav-lang-select:hover,
+  .mobile-nav-lang-select:focus {
+    background: rgba(255, 255, 255, 0.12);
+    outline: none;
+  }
+  .mobile-nav-lang-select option {
+    background: #2a2f36;
+    color: #fff;
+  }
+  .mobile-nav-lang-caret {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    pointer-events: none;
   }
 </style>

@@ -24,6 +24,7 @@ import {
 import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
+import { t, onLangChange } from '@/i18n';
 
 // ===== 상수 =====
 
@@ -49,6 +50,8 @@ let searchKeyword = '';
 let couponSearchData: SearchData | null = null;
 let historyCurrentPage = 1;
 let historyTotalCount = 0;
+let historySearch = '';
+let historySearchDebounce: number | null = null;
 let nicknameMap: Record<string, string> = {};
 
 interface SearchData {
@@ -181,13 +184,15 @@ function updateCouponCard(card: HTMLElement, c: ActiveCoupon): void {
 
   patchText(
     card.querySelector<HTMLElement>('.coupon-badge-active'),
-    selected ? '선택됨' : 'ACTIVE',
+    selected ? t('coupons.card.selected') : t('coupons.card.active'),
   );
   patchText(card.querySelector<HTMLElement>('.coupon-code'), c.code);
 
   // 만료 영역은 텍스트 + 옵션 배지 → outerHTML 대신 자식 두 개로 분리
   const expiresEl = card.querySelector<HTMLElement>('.coupon-expires')!;
-  const baseText = '만료: ' + (c.expiresAt ? formatDate(c.expiresAt) : '무기한');
+  const baseText = t('coupons.card.expires', {
+    date: c.expiresAt ? formatDate(c.expiresAt) : t('coupons.card.unlimited'),
+  });
   // 텍스트 노드만 갱신 (배지는 별도)
   let textNode = expiresEl.firstChild;
   if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
@@ -203,7 +208,10 @@ function updateCouponCard(card: HTMLElement, c: ActiveCoupon): void {
       badge.className = 'coupon-badge-expiring';
       expiresEl.appendChild(badge);
     }
-    patchText(badge, days! <= 0 ? '곧 만료' : 'D-' + days);
+    patchText(
+      badge,
+      days! <= 0 ? t('coupons.card.expiringSoon') : t('coupons.card.daysLeft', { n: days! }),
+    );
   } else {
     badge?.remove();
   }
@@ -219,7 +227,7 @@ function renderCoupons(): void {
     cardsEl.replaceChildren();
     hintEl.style.display = 'none';
     statusEl.style.display = '';
-    statusEl.textContent = '현재 사용 가능한 쿠폰이 없습니다';
+    statusEl.textContent = t('coupons.list.none');
     return;
   }
 
@@ -235,15 +243,9 @@ function renderCoupons(): void {
   hintEl.style.display = '';
   // hint 는 텍스트 + 옵션 strong → 한 번 build, selectedCouponCode 변화 시 patch
   if (selectedCouponCode) {
-    hintEl.innerHTML =
-      '<strong>' +
-      esc(selectedCouponCode) +
-      '</strong> 만 수령합니다. 다시 클릭하면 전체 모드로 돌아갑니다.';
+    hintEl.innerHTML = t('coupons.hint.selected', { code: esc(selectedCouponCode) });
   } else {
-    patchText(
-      hintEl,
-      '쿠폰 카드를 클릭하면 해당 쿠폰만 받게 됩니다 (자격 미달 쿠폰 분리 수령용).',
-    );
+    patchText(hintEl, t('coupons.hint.default'));
   }
 }
 
@@ -394,7 +396,9 @@ function updateAccountRowStatus(kingshotId: string): void {
       const btn = row.querySelector<HTMLElement>('.cp-btn-redeem');
       if (btn) {
         btn.outerHTML =
-          '<button class="cp-btn cp-btn-done cp-btn-just-done" disabled title="수령 완료">' +
+          '<button class="cp-btn cp-btn-done cp-btn-just-done" disabled title="' +
+          esc(t('coupons.rowAction.done')) +
+          '">' +
           SVG.check +
           '</button>';
       }
@@ -466,12 +470,22 @@ function updateAccountRow(row: HTMLElement, a: RedeemAccount, canDelete: boolean
   // 버튼 영역은 status / canDelete 에 따라 통째 다시 그림 (작은 영역, 깜박임 영향 미미)
   const redeemBtn =
     status === 'done'
-      ? '<button class="cp-btn cp-btn-done" disabled title="수령 완료">' + SVG.check + '</button>'
-      : '<button class="cp-btn cp-btn-redeem" data-action="redeem" title="쿠폰 수령">' +
+      ? '<button class="cp-btn cp-btn-done" disabled title="' +
+        esc(t('coupons.rowAction.done')) +
+        '">' +
+        SVG.check +
+        '</button>'
+      : '<button class="cp-btn cp-btn-redeem" data-action="redeem" title="' +
+        esc(t('coupons.rowAction.redeem')) +
+        '">' +
         SVG.gift +
         '</button>';
   const deleteBtn = canDelete
-    ? '<button class="cp-btn cp-btn-delete" data-action="remove" title="삭제">' + SVG.trash + '</button>'
+    ? '<button class="cp-btn cp-btn-delete" data-action="remove" title="' +
+      esc(t('coupons.rowAction.delete')) +
+      '">' +
+      SVG.trash +
+      '</button>'
     : '';
   actions.innerHTML = redeemBtn + deleteBtn;
 }
@@ -516,7 +530,9 @@ function renderAccounts(): void {
 
   patchText(
     $('coupon-member-count'),
-    kw ? '검색 ' + total + ' / 전체 ' + totalAll + '명' : '전체 ' + totalAll + '명',
+    kw
+      ? t('coupons.count.search', { found: total, total: totalAll })
+      : t('coupons.count.all', { n: totalAll }),
   );
 
   const status = $('coupon-accounts-status');
@@ -524,14 +540,14 @@ function renderAccounts(): void {
     renderAccountGroup('coupon-rows-members', 'coupon-group-members', [], false);
     renderAccountGroup('coupon-rows-extras', 'coupon-group-extras', [], true);
     status.style.display = '';
-    status.textContent = '쿠폰 수령 대상이 없습니다';
+    status.textContent = t('coupons.empty.noTargets');
     return;
   }
   if (total === 0) {
     renderAccountGroup('coupon-rows-members', 'coupon-group-members', [], false);
     renderAccountGroup('coupon-rows-extras', 'coupon-group-extras', [], true);
     status.style.display = '';
-    status.textContent = '검색 결과가 없습니다';
+    status.textContent = t('coupons.empty.noSearch');
     return;
   }
 
@@ -550,13 +566,13 @@ function closeCouponModal(): void {
 // ===== 계정 삭제 =====
 
 function removeAccount(id: string): void {
-  if (!confirm('이 계정을 삭제하시겠습니까?')) return;
+  if (!confirm(t('coupons.confirm.deleteAccount'))) return;
   sb.from('coupon_accounts')
     .delete()
     .eq('id', id)
     .then((res) => {
       if (res.error) {
-        alert('삭제 실패: ' + res.error.message);
+        alert(t('coupons.msg.deleteFailed', { message: res.error.message }));
         return;
       }
       invalidateAccountsCache();
@@ -571,16 +587,16 @@ function redeemOne(fid: string, nickname: string): void {
   if (codes.length === 0) {
     const sel = getSelectedCoupon();
     alert(
-      nickname +
-        ': ' +
-        (sel ? sel.code + ' 쿠폰을 이미 수령했습니다.' : '모든 쿠폰이 이미 수령되었습니다.'),
+      sel
+        ? t('coupons.msg.onePersonAlready', { name: nickname, code: sel.code })
+        : t('coupons.msg.onePersonAllAlready', { name: nickname }),
     );
     return;
   }
   redeemStats = { success: 0, already: 0, failed: 0, errors: [] };
   totalRedeemTasks = codes.length;
   completedRedeemTasks = 0;
-  showProgress(nickname + ' 수령 시작...');
+  showProgress(t('coupons.progress.onePersonStart', { name: nickname }));
   redeemForMember(fid, nickname).then(() => {
     showSummary();
     renderAccounts();
@@ -610,7 +626,7 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
           redeemStats.failed++;
           redeemStats.errors.push(nickname + ' — ' + code + ': ' + topLabel);
         });
-        showProgress('⚠️ ' + nickname + ' 오류: ' + topLabel);
+        showProgress(t('coupons.progress.onePersonError', { name: nickname, label: topLabel }));
         return;
       }
       json.results.forEach((r) => {
@@ -620,16 +636,18 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
         if (r.code === 0) {
           redeemStats.success++;
           saveHistory(fid, code, REDEEM_STATUS.SUCCESS, r.msg);
-          showProgress('✅ ' + nickname + ' — ' + code + ' 수령 완료');
+          showProgress(t('coupons.progress.couponDone', { name: nickname, code }));
         } else if (isAlreadyRedeemed(fakeJson)) {
           redeemStats.already++;
           saveHistory(fid, code, REDEEM_STATUS.ALREADY, r.msg);
-          showProgress('✅ ' + nickname + ' — ' + code + ' 이미 수령됨');
+          showProgress(t('coupons.progress.couponAlready', { name: nickname, code }));
         } else {
           const label = describeRedeemError(fakeJson);
           redeemStats.failed++;
           redeemStats.errors.push(nickname + ' — ' + code + ': ' + label);
-          showProgress('⚠️ ' + nickname + ' — ' + code + ': ' + label);
+          showProgress(
+            t('coupons.progress.couponFailed', { name: nickname, code, label }),
+          );
         }
       });
       updateAccountRowStatus(fid);
@@ -639,10 +657,10 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
         completedRedeemTasks++;
         redeemStats.failed++;
         redeemStats.errors.push(
-          nickname + ' — ' + code + ': ' + (err.message || '네트워크 오류'),
+          nickname + ' — ' + code + ': ' + (err.message || t('coupons.msg.networkError')),
         );
       });
-      showProgress('⚠️ ' + nickname + ' 네트워크 오류');
+      showProgress(t('coupons.progress.onePersonNetError', { name: nickname }));
     });
 }
 
@@ -652,7 +670,7 @@ function startBulkRedeem(skipConfirm: boolean): void {
   // skipConfirm 의 의미: confirm prompt 만 생략 — 결과 알림은 항상 표시 (URL 트리거든 버튼 클릭이든
   // 사용자가 명시적으로 액션을 취한 상태이므로 묵음 종료는 혼란만 야기)
   if (activeCoupons.length === 0) {
-    showInfoPanel('현재 사용 가능한 활성 쿠폰이 없습니다.');
+    showInfoPanel(t('coupons.msg.noActiveCoupons'));
     return;
   }
   const sel = getSelectedCoupon();
@@ -660,14 +678,14 @@ function startBulkRedeem(skipConfirm: boolean): void {
   if (pending.length === 0) {
     showInfoPanel(
       sel
-        ? sel.code + ' 쿠폰을 모든 계정이 이미 수령했습니다 ✓'
-        : '모든 계정이 모든 활성 쿠폰을 이미 수령했습니다 ✓',
+        ? t('coupons.msg.selectedAlreadyAll', { code: sel.code })
+        : t('coupons.msg.allAlreadyAll'),
     );
     return;
   }
   const confirmMsg = sel
-    ? pending.length + '명에게 ' + sel.code + ' 쿠폰을 수령하시겠습니까?'
-    : pending.length + '명에게 미수령 쿠폰을 수령하시겠습니까?';
+    ? t('coupons.confirm.redeemSelected', { n: pending.length, code: sel.code })
+    : t('coupons.confirm.redeemAll', { n: pending.length });
   if (!skipConfirm && !confirm(confirmMsg)) return;
 
   redeemStats = { success: 0, already: 0, failed: 0, errors: [] };
@@ -677,8 +695,8 @@ function startBulkRedeem(skipConfirm: boolean): void {
   );
   completedRedeemTasks = 0;
   const startMsg = sel
-    ? sel.code + ' 수령 시작 (' + pending.length + '명)...'
-    : '전체 수령 시작 (' + pending.length + '명, ' + totalRedeemTasks + '건)...';
+    ? t('coupons.progress.selectedStart', { code: sel.code, n: pending.length })
+    : t('coupons.progress.allStart', { n: pending.length, tasks: totalRedeemTasks });
   showProgress(startMsg);
 
   const batches: RedeemAccount[][] = [];
@@ -690,7 +708,9 @@ function startBulkRedeem(skipConfirm: boolean): void {
   batches.forEach((batch, idx) => {
     chain = chain
       .then(() => {
-        showProgress('배치 ' + (idx + 1) + '/' + batches.length + ' 처리 중...');
+        showProgress(
+          t('coupons.progress.batch', { idx: idx + 1, total: batches.length }),
+        );
         return Promise.all(batch.map((a) => redeemForMember(a.kingshot_id, a.nickname)));
       })
       .then(() => {
@@ -805,9 +825,17 @@ function showSummary(): void {
   p.summaryEl.className = 'redeem-summary ' + cls;
   // 3개의 span 을 stable key 로 reconcile — 빈도 낮은 호출이지만 일관성 유지
   const segs = [
-    { key: 'success', text: '✅ 성공 ' + redeemStats.success, show: true },
-    { key: 'already', text: '📋 이미 수령 ' + redeemStats.already, show: redeemStats.already > 0 },
-    { key: 'failed', text: '⚠️ 실패 ' + redeemStats.failed, show: redeemStats.failed > 0 },
+    { key: 'success', text: t('coupons.summary.success', { n: redeemStats.success }), show: true },
+    {
+      key: 'already',
+      text: t('coupons.summary.already', { n: redeemStats.already }),
+      show: redeemStats.already > 0,
+    },
+    {
+      key: 'failed',
+      text: t('coupons.summary.failed', { n: redeemStats.failed }),
+      show: redeemStats.failed > 0,
+    },
   ];
   patchList({
     container: p.summaryEl,
@@ -822,7 +850,7 @@ function showSummary(): void {
   });
   scheduleAutoHide(p);
   if (redeemStats.failed > 0) {
-    alert('실패 상세:\n' + redeemStats.errors.join('\n'));
+    alert(t('coupons.summary.detailsHeader', { details: redeemStats.errors.join('\n') }));
   }
 }
 
@@ -836,9 +864,26 @@ function buildNicknameMap(): void {
 function openHistoryDialog(): void {
   buildNicknameMap();
   historyCurrentPage = 1;
+  historySearch = '';
+  const searchInput = maybe<HTMLInputElement>('history-search');
+  if (searchInput) searchInput.value = '';
   const ov = maybe('history-dialog-overlay');
   if (ov) ov.classList.add('open');
   loadHistoryPage();
+}
+
+/** 검색어 → 매칭되는 kingshot_id 집합. 빈 검색이면 null (필터 X).
+ *  매칭 0건이면 빈 배열 — 호출 측이 즉시 빈 결과 처리. */
+function getMatchingKingshotIds(): string[] | null {
+  const q = historySearch.trim().toLowerCase();
+  if (!q) return null;
+  const ids: string[] = [];
+  for (const a of allAccounts) {
+    const id = a.kingshot_id;
+    const name = (a.nickname || '').toLowerCase();
+    if (id.toLowerCase().includes(q) || name.includes(q)) ids.push(id);
+  }
+  return ids;
 }
 
 interface HistoryRow {
@@ -854,26 +899,40 @@ function loadHistoryPage(): void {
   // dialog 가 커졌다 작아지는 깜박임 차단.
   if (tbody.children.length === 0) {
     status.style.display = '';
-    status.textContent = '로딩 중...';
+    status.textContent = t('common.loading');
   }
 
   const from = (historyCurrentPage - 1) * HISTORY_PAGE_SIZE;
   const to = from + HISTORY_PAGE_SIZE - 1;
 
-  sb.from('coupon_history')
+  const matchedIds = getMatchingKingshotIds();
+  // 검색어 있고 매칭 0건 — 서버 query 스킵하고 빈 결과 즉시 표시
+  if (matchedIds !== null && matchedIds.length === 0) {
+    historyTotalCount = 0;
+    patchText($('history-total'), t('coupons.history.total', { n: 0 }));
+    renderHistoryTable([]);
+    renderHistoryPagination();
+    return;
+  }
+
+  let query = sb
+    .from('coupon_history')
     .select('kingshot_id,coupon_code,redeemed_at', { count: 'exact' })
-    .eq('status', REDEEM_STATUS.SUCCESS)
+    .eq('status', REDEEM_STATUS.SUCCESS);
+  if (matchedIds !== null) query = query.in('kingshot_id', matchedIds);
+
+  query
     .order('redeemed_at', { ascending: false })
     .range(from, to)
     .then((res) => {
       if (res.error) {
         $('history-table').style.display = 'none';
         status.style.display = '';
-        status.textContent = '조회 실패: ' + res.error.message;
+        status.textContent = t('coupons.history.queryFailed', { message: res.error.message });
         return;
       }
       historyTotalCount = res.count || 0;
-      patchText($('history-total'), '전체 ' + historyTotalCount + '건');
+      patchText($('history-total'), t('coupons.history.total', { n: historyTotalCount }));
       renderHistoryTable((res.data || []) as HistoryRow[]);
       renderHistoryPagination();
     });
@@ -886,7 +945,9 @@ function renderHistoryTable(rows: HistoryRow[]): void {
   if (rows.length === 0) {
     table.style.display = 'none';
     status.style.display = '';
-    status.textContent = '수령 이력이 없습니다';
+    status.textContent = historySearch.trim()
+      ? t('coupons.history.noSearch')
+      : t('coupons.history.none');
     tbody.replaceChildren();
     return;
   }
@@ -1096,7 +1157,7 @@ function bindEventListeners(): void {
     const id = $<HTMLInputElement>('coupon-input-id').value.trim();
     if (!id) return;
     const btn = $<HTMLButtonElement>('coupon-btn-search');
-    btn.textContent = '조회 중...';
+    btn.textContent = t('coupons.modal.searchingButton');
     btn.disabled = true;
 
     fetch(REDEEM_API, {
@@ -1106,7 +1167,8 @@ function bindEventListeners(): void {
     })
       .then((r) => r.json())
       .then((json) => {
-        if (json.code !== 0 || !json.data) throw new Error(json.msg || '조회 실패');
+        if (json.code !== 0 || !json.data)
+          throw new Error(json.msg || t('members.errors.apiSearchFailed'));
         couponSearchData = {
           kingshot_id: String(json.data.fid),
           nickname: json.data.nickname,
@@ -1128,11 +1190,11 @@ function bindEventListeners(): void {
         $<HTMLButtonElement>('coupon-modal-save').disabled = false;
       })
       .catch((err: Error) => {
-        alert('조회 실패: ' + err.message);
+        alert(t('coupons.msg.searchFailed', { message: err.message }));
         couponSearchData = null;
       })
       .finally(() => {
-        btn.textContent = '조회';
+        btn.textContent = t('coupons.modal.searchButton');
         btn.disabled = false;
       });
   });
@@ -1146,9 +1208,7 @@ function bindEventListeners(): void {
       .eq('kingshot_id', data.kingshot_id)
       .then((res) => {
         if (res.data && res.data.length > 0) {
-          alert(
-            '이 계정은 이미 연맹원으로 등록되어 있습니다.\n연맹원 관리 페이지에서 "쿠폰 자동 받기"를 활성화하세요.',
-          );
+          alert(t('coupons.msg.memberAlreadyRegistered'));
           return;
         }
         sb.from('coupon_accounts')
@@ -1165,9 +1225,9 @@ function bindEventListeners(): void {
                 res2.error.message.indexOf('duplicate') !== -1 ||
                 res2.error.message.indexOf('unique') !== -1
               ) {
-                alert('이미 등록된 계정입니다.');
+                alert(t('coupons.msg.duplicate'));
               } else {
-                alert('저장 실패: ' + res2.error.message);
+                alert(t('coupons.msg.saveFailed', { message: res2.error.message }));
               }
               return;
             }
@@ -1188,6 +1248,27 @@ function bindEventListeners(): void {
     const ov = maybe('history-dialog-overlay');
     if (ov) ov.classList.remove('open');
   });
+
+  // 이력 검색 — debounce 200ms 로 typing 중 과도한 쿼리 방지
+  const historySearchInput = maybe<HTMLInputElement>('history-search');
+  if (historySearchInput) {
+    historySearchInput.addEventListener('input', () => {
+      if (historySearchDebounce !== null) window.clearTimeout(historySearchDebounce);
+      historySearchDebounce = window.setTimeout(() => {
+        historySearch = historySearchInput.value;
+        historyCurrentPage = 1;
+        loadHistoryPage();
+      }, 200);
+    });
+    historySearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        historySearchInput.value = '';
+        historySearch = '';
+        historyCurrentPage = 1;
+        loadHistoryPage();
+      }
+    });
+  }
   $('history-dialog-overlay').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) {
       const ov = maybe('history-dialog-overlay');
@@ -1202,6 +1283,14 @@ function bindEventListeners(): void {
       const el = document.getElementById(id);
       if (el?.classList.contains('open')) el.classList.remove('open');
     });
+  });
+
+  // 언어 변경 시 동적 렌더 텍스트 (hint / count / 카드 라벨 / 시간 등) 재계산.
+  // 정적 마크업의 라벨은 applyTranslations() 가 자동 swap, 동적 textContent 는 마커 없어 이 경로로 수동 갱신.
+  onLangChange(() => {
+    renderCoupons();
+    renderAccounts();
+    if (maybe('history-dialog-overlay')?.classList.contains('open')) loadHistoryPage();
   });
 }
 

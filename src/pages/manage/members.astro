@@ -7,6 +7,7 @@ const manage = tabs.find((t) => t.id === 'manage')!;
 const active = findActiveSubmenu(manage, Astro.url.pathname);
 const navItems = manage.submenus!.map((s) => ({
   title: s.title,
+  titleKey: s.titleKey,
   path: s.path,
   active: active?.id === s.id,
 }));
@@ -15,24 +16,25 @@ const navItems = manage.submenus!.map((s) => ({
 <AppLayout
   title="연맹원 관리 — PNX 연맹"
   description="PNX 연맹원 정보 관리"
-  navHeader="연맹관리"
+  navHeader={manage.title}
+  navHeaderKey={manage.titleKey}
   navItems={navItems}
 >
   <div class="manage-page" id="page-members">
     <div class="members-header">
-      <h1>연맹원 관리</h1>
-      <button class="btn btn-primary" id="btn-add-member" type="button">+ 연맹원 등록</button>
+      <h1 data-i18n="members.heading">연맹원 관리</h1>
+      <button class="btn btn-primary" id="btn-add-member" type="button" data-i18n="members.addButton">+ 연맹원 등록</button>
     </div>
 
     <div class="page-intro">
-      <p><strong>PNX 연맹원 정보</strong>를 한눈에 관리하는 페이지입니다.</p>
+      <p data-i18n-html="members.intro.paragraph"><strong>PNX 연맹원 정보</strong>를 한눈에 관리하는 페이지입니다.</p>
       <ul>
-        <li><strong>연맹원 등록</strong>: 킹샷 ID로 조회하면 닉네임/레벨/서버가 자동 입력됩니다</li>
-        <li><strong>⋮ 관리 버튼</strong>: 등급, 쿠폰 자동 받기를 편집할 수 있어요</li>
-        <li><strong>전체 갱신</strong>: 등록된 모든 연맹원의 프로필을 최신으로 업데이트합니다</li>
-        <li><strong>쿠폰 자동 받기</strong>가 켜져 있으면 <strong>쿠폰 받기 페이지</strong>에 자동 포함됩니다</li>
+        <li data-i18n-html="members.intro.item1"><strong>연맹원 등록</strong>: 킹샷 ID로 조회하면 닉네임/레벨/서버가 자동 입력됩니다</li>
+        <li data-i18n-html="members.intro.item2"><strong>⋮ 관리 버튼</strong>: 등급, 쿠폰 자동 받기를 편집할 수 있어요</li>
+        <li data-i18n-html="members.intro.item3"><strong>전체 갱신</strong>: 등록된 모든 연맹원의 프로필을 최신으로 업데이트합니다</li>
+        <li data-i18n-html="members.intro.item4"><strong>쿠폰 자동 받기</strong>가 켜져 있으면 <strong>쿠폰 받기 페이지</strong>에 자동 포함됩니다</li>
       </ul>
-      <p class="page-intro-hint">
+      <p class="page-intro-hint" data-i18n="members.intro.hint">
         등급이 높고 레벨이 높은 순으로 정렬되며, 레벨 28~30 연맹원은 프로필에 특별한 효과가
         적용됩니다.
       </p>
@@ -42,31 +44,41 @@ const navItems = manage.submenus!.map((s) => ({
     <div class="modal-overlay" id="modal-overlay">
       <div class="modal">
         <div class="modal-header">
-          <h3>연맹원 등록</h3>
+          <h3 data-i18n="members.modal.title">연맹원 등록</h3>
           <button class="modal-close" id="modal-close" type="button">&times;</button>
         </div>
         <div class="modal-body">
-          <label for="input-kingshot-id">킹샷 ID</label>
+          <label for="input-kingshot-id" data-i18n="members.modal.idLabel">킹샷 ID</label>
           <div class="input-row">
-            <input type="text" id="input-kingshot-id" placeholder="킹샷 아이디 입력" />
-            <button class="btn btn-secondary" id="btn-search-id" type="button">조회</button>
+            <input
+              type="text"
+              id="input-kingshot-id"
+              placeholder="킹샷 아이디 입력"
+              data-i18n-attr-placeholder="members.modal.idPlaceholder"
+            />
+            <button
+              class="btn btn-secondary"
+              id="btn-search-id"
+              type="button"
+              data-i18n="members.modal.searchButton"
+            >조회</button>
           </div>
           <div id="search-result" class="player-card" style="display:none">
             <img id="res-photo" class="player-card-photo" src="" alt="" />
             <div class="player-card-info">
               <div class="player-card-name" id="res-nickname">-</div>
               <div class="player-card-detail">
-                도시 센터 레벨: <strong id="res-level">-</strong>
+                <span data-i18n="members.modal.cityLevelLabel">도시 센터 레벨:</span> <strong id="res-level">-</strong>
               </div>
               <div class="player-card-detail">
-                소속 왕국: <strong id="res-kingdom">-</strong>
+                <span data-i18n="members.modal.kingdomLabel">소속 왕국:</span> <strong id="res-kingdom">-</strong>
               </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="btn-modal-cancel" type="button">취소</button>
-          <button class="btn btn-primary" id="btn-modal-save" type="button">저장</button>
+          <button class="btn btn-secondary" id="btn-modal-cancel" type="button" data-i18n="common.cancel">취소</button>
+          <button class="btn btn-primary" id="btn-modal-save" type="button" data-i18n="common.save">저장</button>
         </div>
       </div>
     </div>
@@ -76,28 +88,28 @@ const navItems = manage.submenus!.map((s) => ({
       <div class="member-count" id="member-count"></div>
       <div class="members-toolbar-right">
         <div class="members-filter">
-          <label for="filter-level">최소 레벨</label>
+          <label for="filter-level" data-i18n="members.filter.minLevelLabel">최소 레벨</label>
           <select id="filter-level">
-            <option value="0">전체</option>
+            <option value="0" data-i18n="members.filter.all">전체</option>
           </select>
         </div>
         <button class="btn btn-secondary btn-sm" id="btn-refresh-all" type="button"
-          >전체 갱신</button
+          data-i18n="members.refreshAllButton">전체 갱신</button
         >
       </div>
     </div>
     <div class="members-list" id="members-list">
       <div class="members-thead">
         <div></div>
-        <div>닉네임</div>
-        <div>등급</div>
-        <div>레벨</div>
-        <div>랭킹</div>
-        <div>전투력</div>
+        <div data-i18n="members.thead.nickname">닉네임</div>
+        <div data-i18n="members.thead.rank">등급</div>
+        <div data-i18n="members.thead.level">레벨</div>
+        <div data-i18n="members.thead.position">랭킹</div>
+        <div data-i18n="members.thead.power">전투력</div>
         <div></div>
       </div>
       <div class="members-rows" id="members-rows"></div>
-      <div class="empty-cell" id="members-status">로딩 중...</div>
+      <div class="empty-cell" id="members-status" data-i18n="common.loading">로딩 중...</div>
     </div>
 
     <!-- 관리 다이얼로그 -->
@@ -110,7 +122,13 @@ const navItems = manage.submenus!.map((s) => ({
             <div class="md-profile-id" id="md-id">-</div>
             <div class="md-profile-meta" id="md-meta">-</div>
           </div>
-          <button class="btn btn-secondary md-refresh-btn" id="md-refresh" title="정보 갱신" type="button">
+          <button
+            class="btn btn-secondary md-refresh-btn"
+            id="md-refresh"
+            title="정보 갱신"
+            data-i18n-attr-title="members.dialog.refreshTitle"
+            type="button"
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M23 4v6h-6"></path>
               <path d="M1 20v-6h6"></path>
@@ -120,7 +138,7 @@ const navItems = manage.submenus!.map((s) => ({
         </div>
         <div class="manage-dialog-body">
           <div class="md-form-row">
-            <span class="md-form-label">등급</span>
+            <span class="md-form-label" data-i18n="members.dialog.rank">등급</span>
             <div class="md-form-value">
               <select id="md-rank" class="md-select">
                 <option value="R5">R5</option>
@@ -132,7 +150,7 @@ const navItems = manage.submenus!.map((s) => ({
             </div>
           </div>
           <div class="md-form-row">
-            <span class="md-form-label">쿠폰 자동 수령</span>
+            <span class="md-form-label" data-i18n="members.dialog.autoCoupon">쿠폰 자동 수령</span>
             <div class="md-form-value">
               <label class="md-toggle">
                 <input type="checkbox" id="md-auto-coupon" checked />
@@ -142,9 +160,9 @@ const navItems = manage.submenus!.map((s) => ({
           </div>
         </div>
         <div class="manage-dialog-actions">
-          <button class="md-action-save" id="md-save" type="button">저장</button>
-          <button class="md-action-delete-btn" id="md-delete" type="button">삭제</button>
-          <button class="md-action-close" id="md-close" type="button">닫기</button>
+          <button class="md-action-save" id="md-save" type="button" data-i18n="members.dialog.save">저장</button>
+          <button class="md-action-delete-btn" id="md-delete" type="button" data-i18n="members.dialog.delete">삭제</button>
+          <button class="md-action-close" id="md-close" type="button" data-i18n="members.dialog.close">닫기</button>
         </div>
       </div>
     </div>

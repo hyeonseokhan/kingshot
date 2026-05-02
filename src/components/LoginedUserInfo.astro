@@ -16,7 +16,7 @@
     <span class="hu-sk-line hu-sk-crystal"></span>
   </div>
 
-  <button class="hu-login" id="hu-login" type="button">로그인</button>
+  <button class="hu-login" id="hu-login" type="button" data-i18n="common.login">로그인</button>
 
   <div class="hu-card" id="hu-card">
     <button
@@ -31,7 +31,7 @@
         <span id="hu-avatar-initial" class="hu-avatar-initial"></span>
       </span>
       <span class="hu-name" id="hu-name">-</span>
-      <span class="hu-crystal" aria-label="크리스탈 잔액">
+      <span class="hu-crystal" aria-label="크리스탈 잔액" data-i18n-attr-aria-label="userMenu.crystalAria">
         <span class="hu-crystal-icon">💎</span>
         <span class="hu-crystal-value" id="hu-crystal-value">0</span>
       </span>
@@ -50,11 +50,17 @@
       </svg>
     </button>
 
-    <button class="hu-logout-desktop" id="hu-logout-desktop" type="button">로그아웃</button>
+    <button class="hu-logout-desktop" id="hu-logout-desktop" type="button" data-i18n="common.logout">로그아웃</button>
 
     <div class="hu-dropdown" id="hu-dropdown" role="menu" hidden>
       <div class="hu-dropdown-name" id="hu-dropdown-name">-</div>
-      <button class="hu-dropdown-logout" id="hu-logout-mobile" type="button" role="menuitem">
+      <button
+        class="hu-dropdown-logout"
+        id="hu-logout-mobile"
+        type="button"
+        role="menuitem"
+        data-i18n="common.logout"
+      >
         로그아웃
       </button>
     </div>

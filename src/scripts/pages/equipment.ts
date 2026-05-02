@@ -14,12 +14,23 @@ import {
   ENHANCE_MAX_LEVEL,
   enhanceCostFor,
   tierForLevel,
-  TIER_LABEL,
   type EquipmentSlot,
   type EquipmentTier,
 } from '@/lib/balance';
 import { patchText } from '@/lib/dom-diff';
 import { applyStageTier, lowestStageTier } from '@/lib/equipment-tier-fx';
+import { t, getLang, onLangChange } from '@/i18n';
+
+// 슬롯/등급 라벨 — 사전 키로 즉시 매핑 (lang 변경 시 자동으로 새 값 반환)
+function slotName(slot: EquipmentSlot): string {
+  return t('equipment.slots.' + slot);
+}
+function tierName(tier: EquipmentTier): string {
+  return t('equipment.tiers.' + tier);
+}
+function localeForLang(): string {
+  return getLang() === 'ko' ? 'ko-KR' : 'en-US';
+}
 
 const FN_ECONOMY_URL = SUPABASE_URL + '/functions/v1/economy';
 const FN_EQUIPMENT_URL = SUPABASE_URL + '/functions/v1/equipment';
@@ -146,6 +157,37 @@ function renderAllSlots(): void {
   // 6슬롯 최저 등급 검사 후 아바타 글로우 + stage 배경 효과 갱신
   applyAvatarTierEffect();
   applyStageBgEffect();
+  // aria-label 도 같이 갱신 (lang swap 시 호출되는 진입점)
+  updateAriaLabels();
+}
+
+const TIER_KEYS: ReadonlyArray<EquipmentTier> = [
+  'common',
+  'uncommon',
+  'rare',
+  'epic',
+  'legendary',
+  'mythic',
+];
+
+/** 메인 stage 6 슬롯 + tier-preview stage 6 슬롯 + tier-preview dot 6개 aria-label 일괄 갱신.
+ *  data-i18n-attr 패턴으로는 {name} placeholder 치환 불가라 여기서 수동 처리. */
+function updateAriaLabels(): void {
+  EQUIPMENT_SLOTS.forEach((slot) => {
+    const name = slotName(slot);
+    const main = slotEl(slot);
+    if (main) main.setAttribute('aria-label', t('equipment.slotAria', { name }));
+    const preview = document.querySelector<HTMLElement>(`[data-tier-preview-slot="${slot}"]`);
+    if (preview) preview.setAttribute('aria-label', t('equipment.preview.slotAria', { name }));
+    const modalIcon = modalField('icon') as HTMLImageElement | null;
+    if (modalIcon && activeModalSlot === slot) modalIcon.alt = name;
+  });
+  // tier-preview dot 6개
+  document.querySelectorAll<HTMLElement>('.tier-preview-dot').forEach((dot) => {
+    const idx = parseInt(dot.dataset.tierPreviewIdx ?? '-1', 10);
+    const tier = TIER_KEYS[idx];
+    if (tier) dot.setAttribute('aria-label', tierName(tier));
+  });
 }
 
 const ALL_TIER_CLASSES: ReadonlyArray<string> = (
@@ -238,7 +280,7 @@ function renderSlot(slot: EquipmentSlot): void {
 
 function renderTotalPower(total: number): void {
   const el = $('eq-total-power');
-  if (el) patchText(el, '+' + total.toLocaleString('ko-KR'));
+  if (el) patchText(el, '+' + total.toLocaleString(localeForLang()));
 }
 
 function setBalance(n: number, broadcast = true): void {
@@ -281,7 +323,7 @@ function renderModal(slot: EquipmentSlot): void {
   const iconEl = modalField('icon') as HTMLImageElement | null;
   if (iconEl) {
     iconEl.src = label.image;
-    iconEl.alt = label.name;
+    iconEl.alt = slotName(slot);
   }
   // 모달 슬롯 미니어처 — 페이지 슬롯과 동일한 등급 색상 + 배지 적용
   const iconWrap = modalField('icon-wrap');
@@ -300,14 +342,17 @@ function renderModal(slot: EquipmentSlot): void {
   }
 
   const nameEl = modalField('name');
-  if (nameEl) nameEl.textContent = label.name;
+  if (nameEl) nameEl.textContent = slotName(slot);
   const levelEl = modalField('level-text');
   if (levelEl) {
-    levelEl.textContent = '+' + state.level + ' 단계 · ' + TIER_LABEL[tier];
+    levelEl.textContent = t('equipment.modal.levelText', {
+      level: state.level,
+      tier: tierName(tier),
+    });
   }
 
   const curPowerEl = modalField('cur-power');
-  if (curPowerEl) curPowerEl.textContent = '+' + state.power.toLocaleString('ko-KR');
+  if (curPowerEl) curPowerEl.textContent = '+' + state.power.toLocaleString(localeForLang());
 
   const afterRow = modalField('after-row');
   const costSection = modalField('cost-section');
@@ -318,9 +363,9 @@ function renderModal(slot: EquipmentSlot): void {
     // max 도달
     if (afterRow) afterRow.style.display = 'none';
     if (costSection) costSection.style.display = 'none';
-    if (noteEl) noteEl.textContent = '최대 강화 도달';
+    if (noteEl) noteEl.textContent = t('equipment.modal.maxReached');
     if (cta) {
-      cta.textContent = '최대 강화';
+      cta.textContent = t('equipment.modal.ctaMaxed');
       cta.disabled = true;
     }
     return;
@@ -328,16 +373,17 @@ function renderModal(slot: EquipmentSlot): void {
 
   if (afterRow) afterRow.style.display = '';
   if (costSection) costSection.style.display = '';
-  if (noteEl) noteEl.textContent = '실패해도 등급은 유지 — 크리스탈만 소모';
+  if (noteEl) noteEl.textContent = t('equipment.modal.note');
 
   const newPowerTotal = state.power + next.power;
   const nextPowerEl = modalField('next-power');
-  if (nextPowerEl) nextPowerEl.textContent = '+' + newPowerTotal.toLocaleString('ko-KR');
+  if (nextPowerEl)
+    nextPowerEl.textContent = '+' + newPowerTotal.toLocaleString(localeForLang());
   const deltaEl = modalField('delta');
-  if (deltaEl) deltaEl.textContent = '(↑' + next.power + ')';
+  if (deltaEl) deltaEl.textContent = t('equipment.modal.deltaLabel', { n: next.power });
 
   const costEl = modalField('cost');
-  if (costEl) costEl.textContent = next.cost.toLocaleString('ko-KR');
+  if (costEl) costEl.textContent = next.cost.toLocaleString(localeForLang());
   const rateEl = modalField('rate');
   if (rateEl) rateEl.textContent = Math.round(next.rate * 100) + '%';
 
@@ -359,7 +405,7 @@ function syncModalCtaState(): void {
   const next = enhanceCostFor(state.level);
   if (!next) {
     cta.disabled = true;
-    cta.replaceChildren('최대 강화');
+    cta.replaceChildren(t('equipment.modal.ctaMaxed'));
     return;
   }
   const busy = busySlots.has(activeModalSlot);
@@ -368,15 +414,15 @@ function syncModalCtaState(): void {
   const insufficient = balanceLoaded && currentBalance < next.cost;
   cta.disabled = busy || insufficient;
   if (busy) {
-    cta.replaceChildren('처리 중...');
+    cta.replaceChildren(t('equipment.modal.ctaProcessing'));
   } else if (insufficient) {
     // 메인: "크리스탈 부족" + 서브: "💎 234 / 1,000" (잔액 빨강, 필요량 기본)
     cta.replaceChildren(
-      buildCtaLine('eq-modal-cta-main', '크리스탈 부족'),
+      buildCtaLine('eq-modal-cta-main', t('equipment.modal.ctaInsufficient')),
       buildInsufficientSub(currentBalance, next.cost),
     );
   } else {
-    cta.replaceChildren('강화 시도');
+    cta.replaceChildren(t('equipment.modal.cta'));
   }
 }
 
@@ -392,13 +438,13 @@ function buildInsufficientSub(have: number, need: number): HTMLElement {
   sub.className = 'eq-modal-cta-sub';
   const haveEl = document.createElement('span');
   haveEl.className = 'eq-modal-cta-have';
-  haveEl.textContent = have.toLocaleString('ko-KR');
+  haveEl.textContent = have.toLocaleString(localeForLang());
   const sep = document.createElement('span');
   sep.className = 'eq-modal-cta-sep';
   sep.textContent = '/';
   const needEl = document.createElement('span');
   needEl.className = 'eq-modal-cta-need';
-  needEl.textContent = need.toLocaleString('ko-KR');
+  needEl.textContent = need.toLocaleString(localeForLang());
   sub.append(haveEl, sep, needEl);
   return sub;
 }
@@ -443,7 +489,7 @@ function handleEnhance(): void {
   if (!next) return;
   // 잔액 fetch 완료 + 실제 부족인 경우만 클라이언트 차단. fetch 전엔 서버 응답으로 결정
   if (balanceLoaded && currentBalance < next.cost) {
-    showModalResult('error', '크리스탈이 부족해요');
+    showModalResult('error', t('equipment.modal.insufficient'));
     return;
   }
 
@@ -457,12 +503,15 @@ function handleEnhance(): void {
   })
     .then((res) => {
       if (!res.ok) {
-        if (res.error === 'insufficient_crystals') showModalResult('error', '크리스탈이 부족해요');
-        else if (res.error === 'level_capped') showModalResult('error', '최대 강화 도달');
+        if (res.error === 'insufficient_crystals')
+          showModalResult('error', t('equipment.modal.insufficient'));
+        else if (res.error === 'level_capped')
+          showModalResult('error', t('equipment.modal.maxReached'));
         else if (res.error === 'level_mismatch') {
-          showModalResult('error', '잠시 후 재시도');
+          showModalResult('error', t('equipment.modal.levelMismatch'));
           fetchEquipment(session.player_id);
-        } else showModalResult('error', '오류: ' + (res.error ?? 'unknown'));
+        } else
+          showModalResult('error', t('equipment.modal.error', { error: res.error ?? 'unknown' }));
         return;
       }
       // 성공/실패 처리 — slotState 갱신
@@ -479,11 +528,11 @@ function handleEnhance(): void {
       applyAvatarTierEffect();
 
       if (res.success) {
-        const successMsg = '✨ +' + res.new_level + ' 강화 성공!';
+        const successMsg = t('equipment.modal.success', { level: res.new_level ?? 0 });
         showModalResult('success', successMsg);
         showResultToast('success', successMsg);
       } else {
-        const failMsg = '💔 강화 실패';
+        const failMsg = t('equipment.modal.fail');
         showModalResult('fail', failMsg);
         showResultToast('fail', failMsg);
       }
@@ -581,6 +630,22 @@ export function initEquipment(): void {
 
   // 효과 미리보기 다이얼로그 — 6 등급 좌/우 + 스와이프 + 키보드 + dot
   initTierPreview();
+
+  // 첫 mount 시 aria-label 한 번 갱신 (SSR 한글 → 현재 lang 적용)
+  updateAriaLabels();
+
+  // 언어 변경 시 동적 텍스트 (모달 라벨 / 슬롯 aria / 미리보기 / 총전투력) 재계산.
+  onLangChange(() => {
+    updateAriaLabels();
+    // 총 전투력 재계산 (locale 분기 적용)
+    const total = Array.from(slotState.values()).reduce((s, v) => s + v.power, 0);
+    renderTotalPower(total);
+    // 모달이 열려있으면 현재 슬롯 다시 그림
+    if (activeModalSlot) renderModal(activeModalSlot);
+    // 미리보기 dialog 가 열려있으면 다시 그림
+    const previewDlg = document.getElementById('tier-preview-dialog') as HTMLDialogElement | null;
+    if (previewDlg?.open) renderTierPreview();
+  });
 }
 
 // ============================================================
@@ -589,18 +654,17 @@ export function initEquipment(): void {
 
 interface TierPreviewSpec {
   tier: EquipmentTier;
-  name: string;       // 한글 등급명
   level: number;      // 대표 레벨 (각 등급의 최고)
   totalPower: number; // 표시용 대략값 — 실제 power 와 무관 (UI 만)
 }
 
 const TIER_PREVIEW_SPECS: ReadonlyArray<TierPreviewSpec> = [
-  { tier: 'common',    name: '일반',    level: 0,   totalPower: 0     },
-  { tier: 'uncommon',  name: '고급',    level: 9,   totalPower: 750   },
-  { tier: 'rare',      name: '희귀',    level: 24,  totalPower: 3000  },
-  { tier: 'epic',      name: '영웅',    level: 44,  totalPower: 7500  },
-  { tier: 'legendary', name: '레전드',  level: 69,  totalPower: 14000 },
-  { tier: 'mythic',    name: '신화',    level: 100, totalPower: 30000 },
+  { tier: 'common',    level: 0,   totalPower: 0     },
+  { tier: 'uncommon',  level: 9,   totalPower: 750   },
+  { tier: 'rare',      level: 24,  totalPower: 3000  },
+  { tier: 'epic',      level: 44,  totalPower: 7500  },
+  { tier: 'legendary', level: 69,  totalPower: 14000 },
+  { tier: 'mythic',    level: 100, totalPower: 30000 },
 ];
 
 let tierPreviewIdx = 0;
@@ -716,7 +780,7 @@ function renderTierPreview(): void {
   if (!spec) return;
 
   // 헤더 라벨
-  patchText($('tier-preview-name'), spec.name);
+  patchText($('tier-preview-name'), tierName(spec.tier));
   patchText($('tier-preview-level'), '+' + spec.level);
 
   // 화살표 disabled
@@ -770,7 +834,7 @@ function renderTierPreview(): void {
   if (previewAvatar && mainAvatar?.src) previewAvatar.src = mainAvatar.src;
 
   // 총 전투력
-  patchText($('tier-preview-total'), '+' + spec.totalPower.toLocaleString('ko-KR'));
+  patchText($('tier-preview-total'), '+' + spec.totalPower.toLocaleString(localeForLang()));
 }
 
 // 다른 페이지(타일 매치 등) / 헤더 위젯에서 잔액 갱신 broadcast 받을 때 동기화.

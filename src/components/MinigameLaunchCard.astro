@@ -16,26 +16,31 @@
 
 interface Props {
   label: string;
+  /** i18n 키 (있으면 클라이언트 lang swap 시 자동 갱신). */
+  labelKey?: string;
   metaPrefix?: string;
+  metaPrefixKey?: string;
   metaSuffix?: string;
+  metaSuffixKey?: string;
   ctaLabel: string;
+  ctaLabelKey?: string;
   ctaId: string;
 }
 
-const { label, metaPrefix, metaSuffix, ctaLabel, ctaId } = Astro.props;
+const { label, labelKey, metaPrefix, metaPrefixKey, metaSuffix, metaSuffixKey, ctaLabel, ctaLabelKey, ctaId } = Astro.props;
 ---
 
 <div class="mlc">
   <div class="mlc-head">
-    <span class="mlc-label">{label}</span>
+    <span class="mlc-label" data-i18n={labelKey}>{label}</span>
     <span class="mlc-meta">
-      {metaPrefix && <span class="mlc-meta-prefix">{metaPrefix}</span>}
+      {metaPrefix && <span class="mlc-meta-prefix" data-i18n={metaPrefixKey}>{metaPrefix}</span>}
       <span class="mlc-meta-value"><slot name="value" /></span>
-      {metaSuffix && <span class="mlc-meta-suffix">{metaSuffix}</span>}
+      {metaSuffix && <span class="mlc-meta-suffix" data-i18n={metaSuffixKey}>{metaSuffix}</span>}
     </span>
   </div>
   <slot name="controls" />
-  <button class="mlc-cta" id={ctaId} type="button">{ctaLabel}</button>
+  <button class="mlc-cta" id={ctaId} type="button" data-i18n={ctaLabelKey}>{ctaLabel}</button>
 </div>
 
 <style>

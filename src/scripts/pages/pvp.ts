@@ -19,6 +19,14 @@ import {
   type Column,
   type RankItem,
 } from '@/lib/ranking-table';
+import { t, getLang, onLangChange } from '@/i18n';
+
+function localeForLang(): string {
+  return getLang() === 'ko' ? 'ko-KR' : 'en-US';
+}
+function slotName(slot: EquipmentSlot): string {
+  return t('equipment.slots.' + slot);
+}
 
 const FN_PVP_URL = SUPABASE_URL + '/functions/v1/pvp';
 const REST_URL = SUPABASE_URL + '/rest/v1';
@@ -167,7 +175,7 @@ function shuffleAndRefetchOpponents(playerId: string): void {
         card.innerHTML =
           img +
           `<strong class="pvp-opponent-name">${r.nickname}</strong>` +
-          `<span class="pvp-opponent-power">⚔️ ${r.power.toLocaleString('ko-KR')}</span>`;
+          `<span class="pvp-opponent-power">⚔️ ${r.power.toLocaleString(localeForLang())}</span>`;
       });
     }, interval);
   }
@@ -251,7 +259,7 @@ function renderSearchList(query: string): void {
         (m) => m.nickname.toLowerCase().includes(q) || m.kingshot_id.includes(q),
       );
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="pvp-search-empty">검색 결과 없음</div>';
+    list.innerHTML = '<div class="pvp-search-empty">' + t('pvp.search.empty') + '</div>';
     return;
   }
   list.innerHTML = filtered
@@ -277,7 +285,7 @@ function renderOpponents(list: Opponent[], myPower: number): void {
   host.innerHTML = '';
   if (list.length === 0) {
     host.innerHTML =
-      '<div class="pvp-opponent-empty">매칭 가능한 상대가 없습니다. 잠시 후 다시 시도하세요.</div>';
+      '<div class="pvp-opponent-empty">' + t('pvp.matching.empty') + '</div>';
     return;
   }
   for (const opp of list) {
@@ -291,20 +299,23 @@ function renderOpponents(list: Opponent[], myPower: number): void {
     card.innerHTML =
       img +
       `<strong class="pvp-opponent-name">${opp.nickname}</strong>` +
-      `<span class="pvp-opponent-power">⚔️ ${opp.power.toLocaleString('ko-KR')}</span>`;
+      `<span class="pvp-opponent-power">⚔️ ${opp.power.toLocaleString(localeForLang())}</span>`;
     host.appendChild(card);
   }
   const note = $('pvp-matching-note');
   if (note) {
-    note.textContent = myPower === 0
-      ? '⚠️ 장비 강화 power 가 0 입니다. 강화 후 도전하세요.'
-      : '내 전투력 ⚔️ ' + myPower.toLocaleString('ko-KR');
+    note.textContent =
+      myPower === 0
+        ? t('pvp.matching.noPower')
+        : t('pvp.matching.myPower', { power: myPower.toLocaleString(localeForLang()) });
   }
 }
 
 function renderMatchingError(err: string): void {
   const host = $('pvp-opponents');
-  if (host) host.innerHTML = `<div class="pvp-opponent-empty">상대를 불러오지 못했어요 (${err}).</div>`;
+  if (host)
+    host.innerHTML =
+      '<div class="pvp-opponent-empty">' + t('pvp.matching.error', { error: err }) + '</div>';
 }
 
 // ===== 배틀 시작 =====
@@ -355,7 +366,7 @@ function onSelectOpponent(oppId: string, fallbackInfo?: { nickname: string; prof
   })
     .then((res) => {
       if (!res.ok || !res.battle_id) {
-        alert('배틀 시작 실패: ' + (res.error ?? 'unknown'));
+        alert(t('pvp.battle.startError', { error: res.error ?? 'unknown' }));
         return;
       }
       currentBattle = {
@@ -391,9 +402,9 @@ function renderBattle(myNickname: string, opp: Opponent): void {
   const session = window.TileMatchAuth?.getSession();
   // attacker 정보
   const aName = $('pvp-attacker-name');
-  if (aName) aName.textContent = session?.nickname || myNickname || '나';
+  if (aName) aName.textContent = session?.nickname || myNickname || t('pvp.battle.me');
   const aPow = $('pvp-attacker-power');
-  if (aPow) patchText(aPow, currentBattle.attacker_power.toLocaleString('ko-KR'));
+  if (aPow) patchText(aPow, currentBattle.attacker_power.toLocaleString(localeForLang()));
   const aImg = $('pvp-attacker-avatar') as HTMLImageElement | null;
   if (aImg) {
     fetchAvatarFor(currentBattle.attacker_id).then((url) => {
@@ -404,7 +415,7 @@ function renderBattle(myNickname: string, opp: Opponent): void {
   const dName = $('pvp-defender-name');
   if (dName) dName.textContent = opp.nickname;
   const dPow = $('pvp-defender-power');
-  if (dPow) patchText(dPow, currentBattle.defender_power.toLocaleString('ko-KR'));
+  if (dPow) patchText(dPow, currentBattle.defender_power.toLocaleString(localeForLang()));
   const dImg = $('pvp-defender-avatar') as HTMLImageElement | null;
   if (dImg && opp.profile_photo) dImg.src = opp.profile_photo;
 
@@ -451,8 +462,9 @@ function updateHpBars(): void {
 
 function updateTurnInfo(): void {
   if (!currentBattle) return;
-  const t = $('pvp-turn');
-  if (t) patchText(t, currentBattle.turn);
+  // n 은 숫자라 innerHTML 안전. 사전 패턴이 strong 포함.
+  const el = $('pvp-turn-info');
+  if (el) el.innerHTML = t('pvp.battle.turn', { n: currentBattle.turn });
 }
 
 function setCardsEnabled(enabled: boolean): void {
@@ -495,11 +507,12 @@ interface PlayCardResp {
   error?: string;
 }
 
-const CARD_NAME: Record<string, string> = {
-  attack: '공격',
-  enhance: '강화',
-  defend: '방어',
-};
+function cardName(card: string): string {
+  if (card === 'attack') return t('pvp.battle.attackName');
+  if (card === 'enhance') return t('pvp.battle.enhanceName');
+  if (card === 'defend') return t('pvp.battle.defendName');
+  return '?';
+}
 
 function onSelectCard(card: 'attack' | 'enhance' | 'defend'): void {
   if (busy || !currentBattle) return;
@@ -517,7 +530,7 @@ function onSelectCard(card: 'attack' | 'enhance' | 'defend'): void {
   })
     .then((res) => {
       if (!res.ok) {
-        alert('카드 사용 실패: ' + (res.error ?? 'unknown'));
+        alert(t('pvp.battle.cardError', { error: res.error ?? 'unknown' }));
         setCardsEnabled(true);
         return;
       }
@@ -551,17 +564,21 @@ function onSelectCard(card: 'attack' | 'enhance' | 'defend'): void {
 function renderLastTurn(res: PlayCardResp): void {
   const el = $('pvp-last-turn');
   if (!el) return;
-  const aName = CARD_NAME[res.a_card ?? ''] ?? '?';
-  const dName = CARD_NAME[res.d_card ?? ''] ?? '?';
-  const aCrit = res.a_crit ? ' 💥CRIT' : '';
-  const dCrit = res.d_crit ? ' 💥CRIT' : '';
+  const aName = cardName(res.a_card ?? '');
+  const dName = cardName(res.d_card ?? '');
+  const aCrit = res.a_crit ? t('pvp.battle.crit') : '';
+  const dCrit = res.d_crit ? t('pvp.battle.crit') : '';
+  const me = t('pvp.battle.me');
+  const enemy = t('pvp.battle.enemy');
+  const aDmg = t('pvp.battle.lastTurnDmg', { n: res.a_dmg_to_d ?? 0 });
+  const dDmg = t('pvp.battle.lastTurnDmg', { n: res.d_dmg_to_a ?? 0 });
   const collisionBanner = res.collision
-    ? `<div class="pvp-last-turn-collision">💥 격돌! 양쪽 ${res.a_dmg_to_d ?? 0} 데미지</div>`
+    ? `<div class="pvp-last-turn-collision">${t('pvp.battle.collision', { dmg: res.a_dmg_to_d ?? 0 })}</div>`
     : '';
   el.innerHTML =
     collisionBanner +
-    `<div class="pvp-last-turn-row"><span>나</span><strong>${aName}${aCrit}</strong><span>→ ${res.a_dmg_to_d ?? 0} 데미지</span></div>` +
-    `<div class="pvp-last-turn-row"><span>상대</span><strong>${dName}${dCrit}</strong><span>→ ${res.d_dmg_to_a ?? 0} 데미지</span></div>`;
+    `<div class="pvp-last-turn-row"><span>${me}</span><strong>${aName}${aCrit}</strong><span>${aDmg}</span></div>` +
+    `<div class="pvp-last-turn-row"><span>${enemy}</span><strong>${dName}${dCrit}</strong><span>${dDmg}</span></div>`;
   el.style.display = '';
   el.classList.toggle('pvp-last-turn-collision-active', !!res.collision);
 }
@@ -576,16 +593,16 @@ function showResult(res: PlayCardResp): void {
   const title = $('pvp-result-title');
   if (title) {
     title.textContent = isPractice
-      ? (win ? '연습 승리' : '연습 패배')
-      : (win ? '승리!' : '패배');
+      ? (win ? t('pvp.result.practiceWin') : t('pvp.result.practiceLose'))
+      : (win ? t('pvp.result.win') : t('pvp.result.lose'));
   }
   const reward = $('pvp-result-reward');
   if (reward) {
     if (isPractice) {
-      reward.textContent = '연습 매칭 — 보상 / 승수 X';
+      reward.textContent = t('pvp.result.practiceLabel');
       reward.classList.add('pvp-result-reward-practice');
     } else {
-      reward.textContent = '+' + (res.reward_crystals ?? 0).toLocaleString('ko-KR');
+      reward.textContent = '+' + (res.reward_crystals ?? 0).toLocaleString(localeForLang());
       reward.classList.remove('pvp-result-reward-practice');
     }
   }
@@ -768,7 +785,7 @@ function openEquipView(playerId: string, nickname: string, profilePhoto: string 
           }
         }
       }
-      patchText($('pvp-equipview-total'), '+' + total.toLocaleString('ko-KR'));
+      patchText($('pvp-equipview-total'), '+' + total.toLocaleString(localeForLang()));
 
       // 아바타 글로우 — 6 슬롯 모두의 lowestTier 기준 (equipment 페이지와 동일).
       // 6 슬롯 미만이거나 common 만 있으면 효과 X.
@@ -853,8 +870,8 @@ function renderRanking(): void {
     photoUrl: r.profile_photo,
     isMe: !!myId && r.kingshot_id === myId,
     cells: {
-      power: r.power.toLocaleString('ko-KR'),
-      pvp_wins: r.pvp_wins.toLocaleString('ko-KR'),
+      power: r.power.toLocaleString(localeForLang()),
+      pvp_wins: r.pvp_wins.toLocaleString(localeForLang()),
     },
   }));
 
@@ -863,7 +880,7 @@ function renderRanking(): void {
     columns: PVP_RANKING_COLUMNS,
     items,
     clickable: true,
-    emptyMessage: '데이터 없음',
+    emptyMessage: t('pvp.ranking.empty'),
   });
   // 정렬 pill 의 active 동기화
   setActiveSortPill('pvp-ranking-body', currentRankMode);
@@ -1014,4 +1031,40 @@ export function initPvP(): void {
   } else {
     showAuthPrompt();
   }
+
+  // equipview 슬롯 aria 초기 갱신 (SSR 한글 → 현재 lang 적용)
+  updateEquipviewSlotAria();
+
+  // 언어 변경 시 동적 텍스트 (매칭 노트 / 배틀 turn / 랭킹 / equipview aria) 재계산.
+  onLangChange(() => {
+    updateEquipviewSlotAria();
+    // 매칭 화면 보이면 현재 후보로 재렌더 (fetch 없음 — 캐시 활용)
+    if ($('pvp-view-matching')?.style.display !== 'none' && currentOpponents.length > 0) {
+      const session = window.TileMatchAuth?.getSession();
+      // myPower 정보가 모듈 상태에 없어 재요청 — 노트 라벨 갱신용
+      if (session?.player_id) fetchOpponents(session.player_id);
+    }
+    // 배틀 화면 보이면 turn 갱신 (last turn 은 다음 카드 사용 시 자동 갱신)
+    if (currentBattle) updateTurnInfo();
+    // 랭킹 cache 가 있으면 재렌더 (fetch 없음)
+    if (cachedRankings.length > 0) renderRanking();
+    // 검색 다이얼로그가 열려있으면 다시 렌더
+    const searchDlg = $('pvp-search-dialog') as HTMLDialogElement | null;
+    if (searchDlg?.open) {
+      const inp = $('pvp-search-input') as HTMLInputElement | null;
+      renderSearchList(inp?.value ?? '');
+    }
+  });
+}
+
+/** PvP equipview 다이얼로그의 6 슬롯 aria-label — placeholder 치환이 필요해 수동 갱신.
+ *  data-i18n-attr 패턴은 {name} 못 풀어서 여기서 처리. */
+function updateEquipviewSlotAria(): void {
+  EQUIPMENT_SLOTS.forEach((slot) => {
+    const el = document.querySelector<HTMLElement>(`[data-pvp-view-slot="${slot}"]`);
+    if (!el) return;
+    el.setAttribute('aria-label', t('pvp.equipview.slotAria', { name: slotName(slot) }));
+    const img = el.querySelector<HTMLImageElement>('img.eq-slot-icon');
+    if (img) img.alt = slotName(slot);
+  });
 }
