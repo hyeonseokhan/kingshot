@@ -8,6 +8,7 @@ const minigame = tabs.find((t) => t.id === 'minigame')!;
 const active = findActiveSubmenu(minigame, Astro.url.pathname);
 const navItems = minigame.submenus!.map((s) => ({
   title: s.title,
+  titleKey: s.titleKey,
   path: s.path,
   active: active?.id === s.id,
 }));
@@ -27,29 +28,30 @@ const SLOT_LAYOUT = [
 <AppLayout
   title="장비 강화 — PNX 연맹"
   description="크리스탈로 장비를 강화해 전투력을 올리세요"
-  navHeader="미니게임"
+  navHeader={minigame.title}
+  navHeaderKey={minigame.titleKey}
   navItems={navItems}
 >
   <div class="manage-page" id="page-equipment">
     <div class="members-header">
-      <h1>장비 강화</h1>
+      <h1 data-i18n="equipment.heading">장비 강화</h1>
     </div>
 
     <div class="page-intro">
-      <p><strong>💎 크리스탈로 6부위 장비를 강화해 전투력을 올리세요</strong></p>
+      <p data-i18n-html="equipment.intro.paragraph"><strong>💎 크리스탈로 6부위 장비를 강화해 전투력을 올리세요</strong></p>
       <ul>
-        <li>등급: <strong>일반(+0)</strong> · 고급(+1~9) · 희귀(+10~24) · 영웅(+25~44) · 레전드(+45~69) · <strong>신화(+70~100)</strong></li>
-        <li>1~2단계: 100% 성공 / 3단계 이후: 확률 강화 (실패해도 등급 유지)</li>
-        <li>크리스탈은 타일매치 stage 클리어 보상 — <strong>stage 46+ 는 매 클리어마다 100 반복 파밍</strong></li>
+        <li data-i18n-html="equipment.intro.item1">등급: <strong>일반(+0)</strong> · 고급(+1~9) · 희귀(+10~24) · 영웅(+25~44) · 레전드(+45~69) · <strong>신화(+70~100)</strong></li>
+        <li data-i18n="equipment.intro.item2">1~2단계: 100% 성공 / 3단계 이후: 확률 강화 (실패해도 등급 유지)</li>
+        <li data-i18n-html="equipment.intro.item3">크리스탈은 타일매치 stage 클리어 보상 — <strong>stage 46+ 는 매 클리어마다 100 반복 파밍</strong></li>
       </ul>
       <p class="page-intro-action">
-        장비 강화 등급별 효과를 미리 살펴보세요!
-        <button type="button" class="tier-preview-trigger" id="tier-preview-trigger">✨ 효과 미리보기</button>
+        <span data-i18n="equipment.intro.actionLabel">장비 강화 등급별 효과를 미리 살펴보세요!</span>
+        <button type="button" class="tier-preview-trigger" id="tier-preview-trigger" data-i18n="equipment.intro.previewBtn">✨ 효과 미리보기</button>
       </p>
     </div>
 
     <!-- 비인증 안내 -->
-    <div class="eq-auth-prompt" id="eq-auth-prompt" style="display:none">
+    <div class="eq-auth-prompt" id="eq-auth-prompt" style="display:none" data-i18n-html="equipment.authPrompt">
       헤더의 <strong>로그인</strong> 버튼으로 인증한 뒤 강화할 수 있어요.
     </div>
 
@@ -83,7 +85,7 @@ const SLOT_LAYOUT = [
 
       <!-- 하단: 장비 합산 전투력 — "총 전투력:    +0" -->
       <div class="eq-totalpower" id="eq-totalpower">
-        <span class="eq-totalpower-label">총 전투력:</span>
+        <span class="eq-totalpower-label" data-i18n="equipment.totalPower">총 전투력:</span>
         <span class="eq-totalpower-value" id="eq-total-power">+0</span>
       </div>
     </div>
@@ -105,6 +107,7 @@ const SLOT_LAYOUT = [
             />
           </div>
           <div class="eq-modal-title-wrap">
+            <!-- name / level-text 는 동적 (renderModal 이 t() 로 채움) — SSR 은 한글 fallback -->
             <strong id="eq-modal-title" data-field="name">월계관</strong>
             <span class="eq-modal-level" data-field="level-text">+0 단계</span>
           </div>
@@ -113,16 +116,17 @@ const SLOT_LAYOUT = [
             class="eq-modal-close"
             data-action="close-modal"
             aria-label="닫기"
+            data-i18n-attr-aria-label="equipment.modal.closeAria"
           >×</button>
         </header>
 
         <section class="eq-modal-stats">
           <div class="eq-modal-row">
-            <span class="eq-modal-row-label">현재 전투력</span>
+            <span class="eq-modal-row-label" data-i18n="equipment.modal.currentPower">현재 전투력</span>
             <strong class="eq-modal-row-value" data-field="cur-power">+0</strong>
           </div>
           <div class="eq-modal-row eq-modal-row-after" data-field="after-row">
-            <span class="eq-modal-row-label">강화 후</span>
+            <span class="eq-modal-row-label" data-i18n="equipment.modal.afterEnhance">강화 후</span>
             <strong class="eq-modal-row-value">
               <span data-field="next-power">+0</span>
               <em data-field="delta">(↑0)</em>
@@ -132,20 +136,22 @@ const SLOT_LAYOUT = [
 
         <section class="eq-modal-cost" data-field="cost-section">
           <div class="eq-modal-row">
-            <span class="eq-modal-row-label">비용</span>
+            <span class="eq-modal-row-label" data-i18n="equipment.modal.cost">비용</span>
             <strong class="eq-modal-row-value eq-modal-cost-value">
               <span class="eq-modal-cost-icon" aria-hidden="true">💎</span>
               <span class="eq-modal-cost-num" data-field="cost">0</span>
             </strong>
           </div>
           <div class="eq-modal-row">
-            <span class="eq-modal-row-label">성공 확률</span>
+            <span class="eq-modal-row-label" data-i18n="equipment.modal.successRate">성공 확률</span>
             <strong class="eq-modal-row-value" data-field="rate">0%</strong>
           </div>
         </section>
 
+        <!-- note 텍스트는 동적 (renderModal 이 max 도달 시 "최대 강화 도달" 으로 교체) — SSR fallback 한글 -->
         <p class="eq-modal-note" data-field="note">실패해도 등급은 유지 — 크리스탈만 소모</p>
 
+        <!-- CTA 텍스트는 동적 (syncModalCtaState 가 강화/처리/부족/최대 토글) — SSR fallback 한글 -->
         <button
           type="button"
           class="eq-modal-cta"
@@ -163,10 +169,11 @@ const SLOT_LAYOUT = [
       <div class="tier-preview-card">
         <header class="tier-preview-head">
           <div class="tier-preview-title">
+            <!-- name / level 은 동적 (renderTierPreview 가 t() 로 채움) — SSR fallback 한글 -->
             <strong class="tier-preview-name" id="tier-preview-name">일반</strong>
             <span class="tier-preview-level" id="tier-preview-level">+0</span>
           </div>
-          <button type="button" class="tier-preview-close" id="tier-preview-close" aria-label="닫기">×</button>
+          <button type="button" class="tier-preview-close" id="tier-preview-close" aria-label="닫기" data-i18n-attr-aria-label="equipment.preview.closeAria">×</button>
         </header>
 
         <!-- 미리보기 stage — 실제 .eq-stage 와 동일 구조. is-readonly 로 슬롯 hover/active 차단 -->
@@ -192,15 +199,16 @@ const SLOT_LAYOUT = [
             </div>
           ))}
           <div class="eq-totalpower">
-            <span class="eq-totalpower-label">총 전투력:</span>
+            <span class="eq-totalpower-label" data-i18n="equipment.totalPower">총 전투력:</span>
             <span class="eq-totalpower-value" id="tier-preview-total">+0</span>
           </div>
         </div>
 
-        <!-- 하단 네비게이션: ‹  [● ○ ○ ○ ○ ○]  › -->
-        <nav class="tier-preview-nav" aria-label="등급 전환">
-          <button type="button" class="tier-preview-prev" id="tier-preview-prev" aria-label="이전 등급">‹</button>
-          <div class="tier-preview-dots" id="tier-preview-dots" role="tablist" aria-label="등급 선택">
+        <!-- 하단 네비게이션: ‹  [● ○ ○ ○ ○ ○]  ›
+             dot aria-label 6개는 동적 — equipment.ts 의 onLangChange 에서 일괄 갱신 (등급명 사전 활용). -->
+        <nav class="tier-preview-nav" aria-label="등급 전환" data-i18n-attr-aria-label="equipment.preview.navAria">
+          <button type="button" class="tier-preview-prev" id="tier-preview-prev" aria-label="이전 등급" data-i18n-attr-aria-label="equipment.preview.prevAria">‹</button>
+          <div class="tier-preview-dots" id="tier-preview-dots" role="tablist" aria-label="등급 선택" data-i18n-attr-aria-label="equipment.preview.dotsAria">
             <button type="button" class="tier-preview-dot active" data-tier-preview-idx="0" role="tab" aria-label="일반"></button>
             <button type="button" class="tier-preview-dot" data-tier-preview-idx="1" role="tab" aria-label="고급"></button>
             <button type="button" class="tier-preview-dot" data-tier-preview-idx="2" role="tab" aria-label="희귀"></button>
@@ -208,7 +216,7 @@ const SLOT_LAYOUT = [
             <button type="button" class="tier-preview-dot" data-tier-preview-idx="4" role="tab" aria-label="레전드"></button>
             <button type="button" class="tier-preview-dot" data-tier-preview-idx="5" role="tab" aria-label="신화"></button>
           </div>
-          <button type="button" class="tier-preview-next" id="tier-preview-next" aria-label="다음 등급">›</button>
+          <button type="button" class="tier-preview-next" id="tier-preview-next" aria-label="다음 등급" data-i18n-attr-aria-label="equipment.preview.nextAria">›</button>
         </nav>
       </div>
     </dialog>

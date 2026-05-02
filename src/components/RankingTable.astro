@@ -22,6 +22,8 @@
 interface Column {
   key: string;
   label: string;
+  /** i18n 키 (있으면 클라이언트 lang swap 시 자동 갱신). */
+  labelKey?: string;
   /** grid-template-columns 의 한 슬롯 (e.g., '60px' | '1fr' | 'auto') */
   width: string;
   align?: 'left' | 'right';
@@ -31,6 +33,8 @@ interface Column {
 
 interface Props {
   title: string;
+  /** i18n 키 (있으면 클라이언트 lang swap 시 자동 갱신). */
+  titleKey?: string;
   refreshId: string;
   bodyId: string;
   /** 추가 컬럼 — rank-num/avatar/name 다음에 자유롭게 끼워넣음 */
@@ -41,7 +45,7 @@ interface Props {
   defaultSort?: string;
 }
 
-const { title, refreshId, bodyId, columns = [], clickable = false, defaultSort } = Astro.props;
+const { title, titleKey, refreshId, bodyId, columns = [], clickable = false, defaultSort } = Astro.props;
 
 const sortableCols = columns.filter((c) => c.sortable);
 // rank-num(24) + photo(32) + name(1fr) + 페이지 컬럼들 — body 에 inline CSS var 로 주입
@@ -50,8 +54,8 @@ const gridCols = ['24px', '32px', 'minmax(0, 1fr)', ...columns.map((c) => c.widt
 
 <section class="rank">
   <header class="rank-head">
-    <h3 class="rank-title">{title}</h3>
-    <button class="rank-refresh" id={refreshId} type="button" aria-label="새로고침">
+    <h3 class="rank-title" data-i18n={titleKey}>{title}</h3>
+    <button class="rank-refresh" id={refreshId} type="button" aria-label="새로고침" data-i18n-attr-aria-label="common.refresh">
       <svg
         width="14"
         height="14"
@@ -72,12 +76,13 @@ const gridCols = ['24px', '32px', 'minmax(0, 1fr)', ...columns.map((c) => c.widt
 
   {sortableCols.length > 0 && (
     <div class="rank-sortbar">
-      <span class="rank-sortbar-label">정렬</span>
+      <span class="rank-sortbar-label" data-i18n="common.sortBy">정렬</span>
       {sortableCols.map((col) => (
         <button
           class:list={['rank-sort-pill', col.key === defaultSort && 'active']}
           type="button"
           data-rank-sort={col.key}
+          data-i18n={col.labelKey}
         >
           {col.label}
         </button>
@@ -90,6 +95,6 @@ const gridCols = ['24px', '32px', 'minmax(0, 1fr)', ...columns.map((c) => c.widt
     id={bodyId}
     style={`--rank-cols: ${gridCols}`}
   >
-    <div class="rank-empty">로딩 중...</div>
+    <div class="rank-empty" data-i18n="common.loading">로딩 중...</div>
   </div>
 </section>

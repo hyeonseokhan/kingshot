@@ -9,6 +9,7 @@ const minigame = tabs.find((t) => t.id === 'minigame')!;
 const active = findActiveSubmenu(minigame, Astro.url.pathname);
 const navItems = minigame.submenus!.map((s) => ({
   title: s.title,
+  titleKey: s.titleKey,
   path: s.path,
   active: active?.id === s.id,
 }));
@@ -27,49 +28,50 @@ const SLOT_LAYOUT = [
 <AppLayout
   title="매칭 대결 — PNX 연맹"
   description="장비 강화한 power 로 다른 연맹원과 카드 대결"
-  navHeader="미니게임"
+  navHeader={minigame.title}
+  navHeaderKey={minigame.titleKey}
   navItems={navItems}
 >
   <div class="manage-page" id="page-pvp">
     <div class="members-header">
-      <h1>매칭 대결</h1>
+      <h1 data-i18n="pvp.heading">매칭 대결</h1>
     </div>
 
     <div class="page-intro">
-      <p><strong>⚔️ 장비 강화한 power 로 연맹원과 카드 대결을 펼치세요</strong></p>
+      <p data-i18n-html="pvp.intro.paragraph"><strong>⚔️ 장비 강화한 power 로 연맹원과 카드 대결을 펼치세요</strong></p>
       <ul>
-        <li><strong>일일 5회</strong> 공격 (방어는 무제한). KST 자정 리셋</li>
-        <li>5턴 대결 / HP 1000 / 카드 3종 — 공격·강화·방어</li>
-        <li>승리 +200 / 패배 +50 크리스탈 (참가 보상)</li>
-        <li>방어자는 자동 응전 — 비동기 PvP</li>
+        <li data-i18n-html="pvp.intro.item1"><strong>일일 5회</strong> 공격 (방어는 무제한). KST 자정 리셋</li>
+        <li data-i18n="pvp.intro.item2">5턴 대결 / HP 1000 / 카드 3종 — 공격·강화·방어</li>
+        <li data-i18n="pvp.intro.item3">승리 +200 / 패배 +50 크리스탈 (참가 보상)</li>
+        <li data-i18n="pvp.intro.item4">방어자는 자동 응전 — 비동기 PvP</li>
       </ul>
     </div>
 
     <!-- 비인증 안내 -->
-    <div class="eq-auth-prompt" id="pvp-auth-prompt" style="display:none">
+    <div class="eq-auth-prompt" id="pvp-auth-prompt" style="display:none" data-i18n-html="pvp.authPrompt">
       헤더의 <strong>로그인</strong> 버튼으로 인증한 뒤 대결할 수 있어요.
     </div>
 
     <!-- view: matching (default) -->
     <section class="pvp-view" data-view="matching" id="pvp-view-matching">
       <div class="pvp-daily" id="pvp-daily-panel">
-        <span class="pvp-daily-label">오늘 남은 공격</span>
+        <span class="pvp-daily-label" data-i18n="pvp.daily.label">오늘 남은 공격</span>
         <strong class="pvp-daily-value" id="pvp-daily-remaining">—</strong>
-        <span class="pvp-daily-max">/ 5</span>
+        <span class="pvp-daily-max" data-i18n="pvp.daily.max">/ 5</span>
       </div>
 
       <!-- 연습 모드 안내 (5회 소진 시) -->
-      <div class="pvp-practice-banner" id="pvp-practice-banner" style="display:none">
+      <div class="pvp-practice-banner" id="pvp-practice-banner" style="display:none" data-i18n-html="pvp.practice.banner">
         💡 <strong>연습 모드</strong> — 보상/승수는 적립되지 않아요. 누구든 자유롭게 도전 가능.
       </div>
 
       <div class="pvp-section-head">
-        <h2>도전 상대</h2>
+        <h2 data-i18n="pvp.matching.heading">도전 상대</h2>
         <div class="pvp-section-actions">
-          <button class="pvp-refresh-btn" type="button" id="pvp-search-trigger" style="display:none">
+          <button class="pvp-refresh-btn" type="button" id="pvp-search-trigger" style="display:none" data-i18n="pvp.matching.searchBtn">
             🔍 대상 검색
           </button>
-          <button class="pvp-refresh-btn" type="button" id="pvp-refresh-btn">🔄 새로 고침</button>
+          <button class="pvp-refresh-btn" type="button" id="pvp-refresh-btn" data-i18n="pvp.matching.refreshBtn">🔄 새로 고침</button>
         </div>
       </div>
 
@@ -77,6 +79,7 @@ const SLOT_LAYOUT = [
         <div class="pvp-opponents" id="pvp-opponents"></div>
       </div>
 
+      <!-- note 는 동적 (renderOpponents 가 myPower / noPower t() 로 채움) -->
       <p class="pvp-note" id="pvp-matching-note"></p>
     </section>
 
@@ -84,12 +87,13 @@ const SLOT_LAYOUT = [
     <dialog class="pvp-search-dialog" id="pvp-search-dialog" aria-labelledby="pvp-search-title">
       <div class="pvp-search-dialog-card">
         <header class="pvp-search-dialog-head">
-          <strong id="pvp-search-title">대상 검색</strong>
+          <strong id="pvp-search-title" data-i18n="pvp.search.title">대상 검색</strong>
           <button
             type="button"
             class="pvp-search-dialog-close"
             id="pvp-search-dialog-close"
             aria-label="닫기"
+            data-i18n-attr-aria-label="pvp.search.closeAria"
           >×</button>
         </header>
         <input
@@ -97,10 +101,11 @@ const SLOT_LAYOUT = [
           class="tm-auth-search"
           id="pvp-search-input"
           placeholder="닉네임 또는 ID 검색"
+          data-i18n-attr-placeholder="pvp.search.placeholder"
           autocomplete="off"
         />
         <div class="pvp-search-list" id="pvp-search-list"></div>
-        <p class="pvp-search-dialog-note">선택 시 즉시 도전 시작 — 연습 모드라 보상/승수 적립 X</p>
+        <p class="pvp-search-dialog-note" data-i18n="pvp.practice.note">선택 시 즉시 도전 시작 — 연습 모드라 보상/승수 적립 X</p>
       </div>
     </dialog>
 
@@ -110,6 +115,7 @@ const SLOT_LAYOUT = [
         <div class="pvp-fighter" id="pvp-fighter-attacker">
           <img class="pvp-fighter-avatar" id="pvp-attacker-avatar" alt="" />
           <div class="pvp-fighter-info">
+            <!-- name 은 renderBattle 가 세션 닉네임으로 채움 — fallback "나" -->
             <strong class="pvp-fighter-name" id="pvp-attacker-name">나</strong>
             <span class="pvp-fighter-power">⚔️ <span id="pvp-attacker-power">0</span></span>
           </div>
@@ -134,7 +140,9 @@ const SLOT_LAYOUT = [
         </div>
       </div>
 
-      <div class="pvp-turn-info">
+      <!-- turn 텍스트는 동적 — updateTurnInfo 가 t('pvp.battle.turn', { n }) 로 채움.
+           SSR fallback 한국어 (Turn 1 / 5 형태와 동일) -->
+      <div class="pvp-turn-info" id="pvp-turn-info">
         Turn <strong id="pvp-turn">1</strong> / 5
       </div>
 
@@ -144,22 +152,22 @@ const SLOT_LAYOUT = [
       <div class="pvp-cards">
         <button class="pvp-card pvp-card-attack" type="button" data-card="attack">
           <span class="pvp-card-icon">⚔️</span>
-          <strong class="pvp-card-name">공격</strong>
-          <span class="pvp-card-desc">매턴 사용</span>
+          <strong class="pvp-card-name" data-i18n="pvp.battle.attackName">공격</strong>
+          <span class="pvp-card-desc" data-i18n="pvp.battle.attackDesc">매턴 사용</span>
         </button>
         <button class="pvp-card pvp-card-enhance" type="button" data-card="enhance">
           <span class="pvp-card-icon">✨</span>
-          <strong class="pvp-card-name">강화</strong>
-          <span class="pvp-card-desc">크리 30% / 1턴 쿨</span>
+          <strong class="pvp-card-name" data-i18n="pvp.battle.enhanceName">강화</strong>
+          <span class="pvp-card-desc" data-i18n="pvp.battle.enhanceDesc">크리 30% / 1턴 쿨</span>
         </button>
         <button class="pvp-card pvp-card-defend" type="button" data-card="defend">
           <span class="pvp-card-icon">🛡️</span>
-          <strong class="pvp-card-name">방어</strong>
-          <span class="pvp-card-desc">데미지 절반 / 1턴 쿨</span>
+          <strong class="pvp-card-name" data-i18n="pvp.battle.defendName">방어</strong>
+          <span class="pvp-card-desc" data-i18n="pvp.battle.defendDesc">데미지 절반 / 1턴 쿨</span>
         </button>
       </div>
 
-      <p class="pvp-mechanics-hint">
+      <p class="pvp-mechanics-hint" data-i18n-html="pvp.battle.mechanicsHint">
         💥 양쪽이 <strong>공격</strong> 동시 선택 시 <strong>격돌</strong> — 양쪽 HP 20% 깎임 (전투력 무관)
       </p>
     </section>
@@ -168,28 +176,30 @@ const SLOT_LAYOUT = [
     <section class="pvp-view" data-view="result" id="pvp-view-result" style="display:none">
       <div class="pvp-result-card">
         <div class="pvp-result-icon" id="pvp-result-icon">🎉</div>
+        <!-- title / reward 는 동적 (showResult 가 t() 로 토글) -->
         <h2 class="pvp-result-title" id="pvp-result-title">승리!</h2>
         <div class="pvp-result-reward">
           <span>💎</span>
           <strong id="pvp-result-reward">+200</strong>
-          <span>크리스탈</span>
+          <span data-i18n="pvp.result.crystals">크리스탈</span>
         </div>
         <div class="pvp-result-actions">
-          <button class="pvp-result-btn pvp-result-again" type="button" id="pvp-result-again">다시 도전</button>
-          <button class="pvp-result-btn pvp-result-close" type="button" id="pvp-result-close">매칭으로</button>
+          <button class="pvp-result-btn pvp-result-again" type="button" id="pvp-result-again" data-i18n="pvp.result.again">다시 도전</button>
+          <button class="pvp-result-btn pvp-result-close" type="button" id="pvp-result-close" data-i18n="pvp.result.close">매칭으로</button>
         </div>
       </div>
     </section>
 
     <RankingTable
       title="랭킹"
+      titleKey="tileMatch.ranking.title"
       refreshId="pvp-rank-refresh"
       bodyId="pvp-ranking-body"
       clickable
       defaultSort="power"
       columns={[
-        { key: 'power',    label: '⚔️ 전투력', width: '70px', align: 'right', sortable: true, cellClass: 'rank-cell-power' },
-        { key: 'pvp_wins', label: '🏆 승수',   width: '50px', align: 'right', sortable: true, cellClass: 'rank-cell-wins' },
+        { key: 'power',    label: '⚔️ 전투력', labelKey: 'pvp.ranking.columnPower', width: '70px', align: 'right', sortable: true, cellClass: 'rank-cell-power' },
+        { key: 'pvp_wins', label: '🏆 승수',   labelKey: 'pvp.ranking.columnWins',  width: '50px', align: 'right', sortable: true, cellClass: 'rank-cell-wins' },
       ]}
     />
 
@@ -198,7 +208,7 @@ const SLOT_LAYOUT = [
       <div class="pvp-equipview-card">
         <header class="pvp-equipview-head">
           <strong id="pvp-equipview-name">-</strong>
-          <button class="pvp-equipview-close" type="button" data-action="close-equipview" aria-label="닫기">×</button>
+          <button class="pvp-equipview-close" type="button" data-action="close-equipview" aria-label="닫기" data-i18n-attr-aria-label="pvp.equipview.closeAria">×</button>
         </header>
 
         <!-- equipment 페이지의 .eq-stage 재사용 — read-only 모드 (.is-readonly) -->
@@ -226,7 +236,7 @@ const SLOT_LAYOUT = [
           ))}
 
           <div class="eq-totalpower">
-            <span class="eq-totalpower-label">총 전투력:</span>
+            <span class="eq-totalpower-label" data-i18n="equipment.totalPower">총 전투력:</span>
             <span class="eq-totalpower-value" id="pvp-equipview-total">+0</span>
           </div>
         </div>

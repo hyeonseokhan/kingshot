@@ -9,6 +9,7 @@ const minigame = tabs.find((t) => t.id === 'minigame')!;
 const active = findActiveSubmenu(minigame, Astro.url.pathname);
 const navItems = minigame.submenus!.map((s) => ({
   title: s.title,
+  titleKey: s.titleKey,
   path: s.path,
   active: active?.id === s.id,
 }));
@@ -17,33 +18,38 @@ const navItems = minigame.submenus!.map((s) => ({
 <AppLayout
   title="운명의 파트너 — PNX 연맹"
   description="슬롯머신 파트너 추첨"
-  navHeader="미니게임"
+  navHeader={minigame.title}
+  navHeaderKey={minigame.titleKey}
   navItems={navItems}
 >
   <div class="manage-page" id="page-partner-draw">
     <div class="members-header">
-      <h1>운명의 파트너</h1>
+      <h1 data-i18n="partnerDraw.heading">운명의 파트너</h1>
     </div>
 
     <div class="page-intro">
-      <p><strong>🎰 오늘의 파티원, 운명에 맡겨봐요</strong></p>
+      <p data-i18n-html="partnerDraw.intro.paragraph"><strong>🎰 오늘의 파티원, 운명에 맡겨봐요</strong></p>
       <ul>
-        <li>본인 포함 <strong>2~4명</strong> 인원 선택 — 본인은 자동 제외</li>
-        <li>슬롯이 한 명씩 멈출 때까지 기다리세요</li>
+        <li data-i18n-html="partnerDraw.intro.item1">본인 포함 <strong>2~4명</strong> 인원 선택 — 본인은 자동 제외</li>
+        <li data-i18n="partnerDraw.intro.item2">슬롯이 한 명씩 멈출 때까지 기다리세요</li>
       </ul>
     </div>
 
     <MinigameLaunchCard
       label="파티 인원"
+      labelKey="partnerDraw.launch.label"
       metaPrefix="본인 포함"
+      metaPrefixKey="partnerDraw.launch.metaPrefix"
       metaSuffix="명"
+      metaSuffixKey="partnerDraw.launch.metaSuffix"
       ctaLabel="오늘의 운명의 파트너"
+      ctaLabelKey="partnerDraw.launch.cta"
       ctaId="pd-draw-btn"
     >
       <span slot="value" id="pd-stepper-value">4</span>
       <div slot="controls" class="pd-stepper">
-        <button class="pd-stepper-btn" id="pd-stepper-minus" type="button" aria-label="감소">−</button>
-        <button class="pd-stepper-btn" id="pd-stepper-plus" type="button" aria-label="증가">+</button>
+        <button class="pd-stepper-btn" id="pd-stepper-minus" type="button" aria-label="감소" data-i18n-attr-aria-label="partnerDraw.stepper.minus">−</button>
+        <button class="pd-stepper-btn" id="pd-stepper-plus" type="button" aria-label="증가" data-i18n-attr-aria-label="partnerDraw.stepper.plus">+</button>
       </div>
     </MinigameLaunchCard>
 
@@ -51,8 +57,8 @@ const navItems = minigame.submenus!.map((s) => ({
     <div class="pd-result" id="pd-result" style="display:none">
       <div class="pd-result-card" id="pd-result-card">
         <div class="pd-result-header">
-          <div class="pd-result-title">🎉 오늘의 깐부</div>
-          <div class="pd-result-subtitle">바이킹 같이 가요!</div>
+          <div class="pd-result-title" data-i18n="partnerDraw.result.title">🎉 오늘의 깐부</div>
+          <div class="pd-result-subtitle" data-i18n="partnerDraw.result.subtitle">바이킹 같이 가요!</div>
         </div>
         <div class="pd-slots" id="pd-slots"></div>
         <div class="pd-result-footer">

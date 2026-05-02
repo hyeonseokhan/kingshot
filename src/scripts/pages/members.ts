@@ -17,6 +17,7 @@ import {
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import { patchList, patchText } from '@/lib/dom-diff';
 import type { Member, AllianceRank } from '@/lib/types';
+import { t, onLangChange } from '@/i18n';
 
 const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
 const BATCH_SIZE = 5;
@@ -57,12 +58,12 @@ function fetchPlayerInfo(playerId: string): Promise<PlayerInfo> {
     body: JSON.stringify({ action: 'player', fid: playerId }),
   })
     .then((r) => {
-      if (!r.ok) throw new Error('API 오류 (' + r.status + ')');
+      if (!r.ok) throw new Error(t('members.errors.apiError', { status: r.status }));
       return r.json();
     })
     .then((json) => {
       if (json.code !== 0 || !json.data) {
-        throw new Error(json.msg || 'API 조회 실패');
+        throw new Error(json.msg || t('members.errors.apiSearchFailed'));
       }
       return {
         playerId: String(json.data.fid),
@@ -103,7 +104,7 @@ function createRow(m: Member): HTMLElement {
     <div class="mc-row-body">
       <div class="mc-name">
         <span class="mc-name-text"></span>
-        <span class="mc-fail-badge" title="갱신 실패 — 재시도 필요" style="display:none">⚠</span>
+        <span class="mc-fail-badge" title="${esc(t('members.failBadgeTitle'))}" style="display:none">⚠</span>
       </div>
       <div class="mc-sub"></div>
     </div>
@@ -111,7 +112,7 @@ function createRow(m: Member): HTMLElement {
     <div class="mc-level"></div>
     <div class="mc-pos"></div>
     <div class="mc-power"></div>
-    <button class="mc-manage-btn" title="관리" type="button">⋮</button>
+    <button class="mc-manage-btn" title="${esc(t('members.manageButtonTitle'))}" type="button">⋮</button>
   `;
   // wrapper 가 곧 row — `<div>` 자체에 innerHTML 을 박았으니 outer 의 첫 자식들이 row 의 자식
   // 혼동 방지 위해 outer 를 그대로 row 로 사용
@@ -213,12 +214,14 @@ function renderMembers(): void {
     });
 
   $('member-count').textContent =
-    '전체 ' + filtered.length + '명' + (minLevel > 0 ? ' (Lv.' + minLevel + ' 이상)' : '');
+    minLevel > 0
+      ? t('members.countWithLevel', { n: filtered.length, minLevel })
+      : t('members.count', { n: filtered.length });
 
   if (filtered.length === 0) {
     rowsEl.replaceChildren();
     status.style.display = '';
-    status.textContent = '조건에 맞는 연맹원이 없습니다';
+    status.textContent = t('members.noFiltered');
     syncRefreshBanner();
     return;
   }
@@ -244,11 +247,11 @@ function refreshFromStore(force = false): Promise<Member[]> {
   // 캐시 없으면 "로딩 중...", 캐시 있으면 백그라운드 갱신이라 status 손대지 않음
   if (membersStore.get() === null) {
     status.style.display = '';
-    status.textContent = '로딩 중...';
+    status.textContent = t('common.loading');
   }
   return membersStore.refresh(fetchMembers, force).catch((err: Error) => {
     status.style.display = '';
-    status.textContent = '오류: ' + err.message;
+    status.textContent = t('members.loadError', { message: err.message });
     throw err;
   });
 }
@@ -279,8 +282,9 @@ function openDialog(id: string): void {
   $('md-id').textContent = 'ID: ' + m.kingshot_id;
   const metaParts = ['Lv.' + (lvl || '?')];
   if (m.power) metaParts.push(formatPower(m.power));
-  if (m.alliance_rank_pos) metaParts.push('연맹 ' + m.alliance_rank_pos + '위');
-  if (m.kingdom) metaParts.push('서버 ' + m.kingdom);
+  if (m.alliance_rank_pos)
+    metaParts.push(t('members.metaPosition', { n: m.alliance_rank_pos }));
+  if (m.kingdom) metaParts.push(t('members.metaKingdom', { n: m.kingdom }));
   $('md-meta').textContent = metaParts.join(' · ');
   $<HTMLSelectElement>('md-rank').value = rank;
   $<HTMLInputElement>('md-auto-coupon').checked = m.auto_coupon !== false;
@@ -313,10 +317,10 @@ function closeModal(): void {
 function refreshAllMembers(): void {
   const positioned = buildPositioned();
   if (positioned.length === 0) {
-    alert('갱신할 연맹원이 없습니다.');
+    alert(t('members.refreshAllEmpty'));
     return;
   }
-  if (!confirm(positioned.length + '명의 프로필을 모두 갱신하시겠습니까?')) return;
+  if (!confirm(t('members.refreshAllConfirm', { n: positioned.length }))) return;
   refreshMembersByIds(positioned.map((m) => m.id));
 }
 
@@ -327,7 +331,7 @@ function refreshMembersByIds(memberIds: string[]): void {
   if (targets.length === 0) return;
 
   const btn = $<HTMLButtonElement>('btn-refresh-all');
-  const originalText = btn.textContent || '전체 갱신';
+  const originalText = btn.textContent || t('members.refreshAllButton');
   btn.disabled = true;
 
   const stats: RefreshStats = {
@@ -341,7 +345,7 @@ function refreshMembersByIds(memberIds: string[]): void {
   let done = 0;
 
   const updateBtnText = () => {
-    btn.textContent = '갱신 중 (' + done + '/' + total + ')';
+    btn.textContent = t('members.refreshingButton', { done, total });
   };
   updateBtnText();
   setBannerStatus('progress', done, total);
@@ -428,11 +432,9 @@ function setBannerStatus(mode: BannerMode, done?: number, total?: number): void 
     if (!el) return;
     el.innerHTML =
       '<div class="rfb-icon">↻</div>' +
-      '<div class="rfb-text"><strong>재시도 중</strong> (' +
-      done +
-      '/' +
-      total +
-      ')...</div>';
+      '<div class="rfb-text">' +
+      t('members.banner.retrying', { done: done ?? 0, total: total ?? 0 }) +
+      '</div>';
     return;
   }
   if (mode === 'failure') {
@@ -444,17 +446,19 @@ function setBannerStatus(mode: BannerMode, done?: number, total?: number): void 
     const el = getBannerEl();
     if (!el) return;
     let preview = d.names.slice(0, 3).map(esc).join(', ');
-    if (d.names.length > 3) preview += ' 외 ' + (d.names.length - 3) + '명';
+    if (d.names.length > 3) preview += t('members.banner.failureMore', { n: d.names.length - 3 });
     el.innerHTML =
       '<div class="rfb-icon">⚠</div>' +
-      '<div class="rfb-text"><strong>갱신 실패 ' +
-      d.names.length +
-      '명</strong>: ' +
-      preview +
+      '<div class="rfb-text">' +
+      t('members.banner.failure', { n: d.names.length, preview }) +
       '</div>' +
       '<div class="rfb-actions">' +
-      '<button class="btn btn-primary btn-sm" id="rfb-retry">↻ 실패한 멤버만 다시 갱신</button>' +
-      '<button class="btn btn-secondary btn-sm" id="rfb-close">닫기</button>' +
+      '<button class="btn btn-primary btn-sm" id="rfb-retry">' +
+      esc(t('members.banner.retryButton')) +
+      '</button>' +
+      '<button class="btn btn-secondary btn-sm" id="rfb-close">' +
+      esc(t('members.banner.closeButton')) +
+      '</button>' +
       '</div>';
     document.getElementById('rfb-retry')?.addEventListener('click', () => {
       const data = getFailedRefresh();
@@ -542,7 +546,7 @@ function initPage(): void {
             refreshFromStore(true);
           }),
       )
-      .catch((err: Error) => alert('갱신 실패: ' + err.message))
+      .catch((err: Error) => alert(t('members.errors.refreshFailed', { message: err.message })))
       .finally(() => {
         btn.disabled = false;
       });
@@ -559,7 +563,7 @@ function initPage(): void {
       .eq('id', currentDialogId)
       .then((res) => {
         if (res.error) {
-          alert('저장 실패: ' + res.error.message);
+          alert(t('members.errors.saveFailed', { message: res.error.message }));
           return;
         }
         invalidateAccountsCache();
@@ -572,13 +576,13 @@ function initPage(): void {
   $('md-delete').addEventListener('click', () => {
     if (!currentDialogId) return;
     const m = findMember(currentDialogId);
-    if (!m || !confirm(m.nickname + '을(를) 삭제하시겠습니까?')) return;
+    if (!m || !confirm(t('members.errors.confirmDelete', { name: m.nickname }))) return;
     sb.from('members')
       .delete()
       .eq('id', currentDialogId)
       .then((res) => {
         if (res.error) {
-          alert('삭제 실패: ' + res.error.message);
+          alert(t('members.errors.deleteFailed', { message: res.error.message }));
           return;
         }
         invalidateAccountsCache();
@@ -605,7 +609,7 @@ function initPage(): void {
     const kingshotId = $<HTMLInputElement>('input-kingshot-id').value.trim();
     if (!kingshotId) return;
     const btn = $<HTMLButtonElement>('btn-search-id');
-    btn.textContent = '조회 중...';
+    btn.textContent = t('members.modal.searchingButton');
     btn.disabled = true;
     $('search-result').style.display = 'none';
 
@@ -632,12 +636,12 @@ function initPage(): void {
         $<HTMLButtonElement>('btn-modal-save').disabled = false;
       })
       .catch((err: Error) => {
-        alert('조회 실패: ' + err.message);
+        alert(t('members.errors.refreshFailed', { message: err.message }));
         searchData = null;
         $<HTMLButtonElement>('btn-modal-save').disabled = true;
       })
       .finally(() => {
-        btn.textContent = '조회';
+        btn.textContent = t('members.modal.searchButton');
         btn.disabled = false;
       });
   });
@@ -645,7 +649,7 @@ function initPage(): void {
   // 등록 모달: 저장
   $('btn-modal-save').addEventListener('click', () => {
     if (!searchData) {
-      alert('먼저 킹샷 ID를 조회하세요.');
+      alert(t('members.errors.needSearch'));
       return;
     }
     const data = searchData;
@@ -663,9 +667,9 @@ function initPage(): void {
             res.error.message.indexOf('duplicate') !== -1 ||
             res.error.message.indexOf('unique') !== -1
           ) {
-            alert('이미 등록된 킹샷 ID입니다.');
+            alert(t('members.errors.duplicate'));
           } else {
-            alert('저장 실패: ' + res.error.message);
+            alert(t('members.errors.saveFailed', { message: res.error.message }));
           }
           return;
         }
@@ -698,6 +702,9 @@ function initPage(): void {
   membersStore.subscribe(() => renderMembers());
   // 백그라운드 fetch — 캐시 있어도 stale-while-revalidate
   refreshFromStore();
+
+  // 언어 변경 시 동적 텍스트 (count / 메타 / 배너 등) 재계산.
+  onLangChange(() => renderMembers());
 }
 
 // 외부 노출 — 다른 페이지에서 reload 호출용 (현재는 사용 X 지만 보존)

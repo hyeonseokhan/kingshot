@@ -10,6 +10,7 @@ const minigame = tabs.find((t) => t.id === 'minigame')!;
 const active = findActiveSubmenu(minigame, Astro.url.pathname);
 const navItems = minigame.submenus!.map((s) => ({
   title: s.title,
+  titleKey: s.titleKey,
   path: s.path,
   active: active?.id === s.id,
 }));
@@ -18,27 +19,30 @@ const navItems = minigame.submenus!.map((s) => ({
 <AppLayout
   title="타일 매치 — PNX 연맹"
   description="3매치 마작 미니게임"
-  navHeader="미니게임"
+  navHeader={minigame.title}
+  navHeaderKey={minigame.titleKey}
   navItems={navItems}
 >
   <div class="manage-page" id="page-tile-match">
     <div class="members-header">
-      <h1>타일 매치</h1>
+      <h1 data-i18n="tileMatch.heading">타일 매치</h1>
     </div>
 
     <div class="page-intro">
-      <p><strong>3매치 마작</strong> — 같은 모양 타일 3개를 슬롯에 모아 보드를 비우는 게임</p>
+      <p data-i18n-html="tileMatch.intro.paragraph"><strong>3매치 마작</strong> — 같은 모양 타일 3개를 슬롯에 모아 보드를 비우는 게임</p>
       <ul>
-        <li>활성 타일(밝은 것)만 클릭 가능</li>
-        <li>슬롯 7칸 가득 차면 실패</li>
-        <li>아이템 🧹 ↩️ 🔀 각 1회 무료</li>
+        <li data-i18n="tileMatch.intro.item1">활성 타일(밝은 것)만 클릭 가능</li>
+        <li data-i18n="tileMatch.intro.item2">슬롯 7칸 가득 차면 실패</li>
+        <li data-i18n="tileMatch.intro.item3">아이템 🧹 ↩️ 🔀 각 1회 무료</li>
       </ul>
-      <p class="page-intro-hint">스테이지를 클리어할수록 보드가 커집니다.</p>
+      <p class="page-intro-hint" data-i18n="tileMatch.intro.hint">스테이지를 클리어할수록 보드가 커집니다.</p>
     </div>
 
     <MinigameLaunchCard
       label="다음 스테이지"
+      labelKey="tileMatch.launch.label"
       ctaLabel="게임 시작"
+      ctaLabelKey="tileMatch.launch.cta"
       ctaId="tm-launch-btn"
     >
       <span slot="value" id="tm-launch-stage">1</span>
@@ -46,11 +50,12 @@ const navItems = minigame.submenus!.map((s) => ({
 
     <RankingTable
       title="랭킹"
+      titleKey="tileMatch.ranking.title"
       refreshId="tm-ranking-refresh"
       bodyId="tm-ranking-list"
       columns={[
-        { key: 'stage', label: 'Stage', width: '60px', align: 'right', cellClass: 'rank-cell-stage' },
-        { key: 'time', label: '시간', width: '64px', align: 'right', cellClass: 'rank-cell-time' },
+        { key: 'stage', label: 'Stage', labelKey: 'tileMatch.ranking.columnStage', width: '60px', align: 'right', cellClass: 'rank-cell-stage' },
+        { key: 'time', label: '시간', labelKey: 'tileMatch.ranking.columnTime', width: '64px', align: 'right', cellClass: 'rank-cell-time' },
       ]}
     />
 
@@ -60,8 +65,8 @@ const navItems = minigame.submenus!.map((s) => ({
     <div class="tm-dialog-overlay" id="tm-dialog-overlay" style="display:none">
       <div class="tm-dialog">
         <div class="tm-dlg-bar">
-          <div class="tm-dlg-stage">Stage <span id="tm-dlg-stage">1</span></div>
-          <button class="tm-dlg-close-btn" id="tm-dlg-close" type="button" aria-label="나가기">
+          <div class="tm-dlg-stage"><span data-i18n="tileMatch.dialog.stage">Stage</span> <span id="tm-dlg-stage">1</span></div>
+          <button class="tm-dlg-close-btn" id="tm-dlg-close" type="button" aria-label="나가기" data-i18n-attr-aria-label="tileMatch.dialog.closeAria">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
               <line x1="6" y1="6" x2="18" y2="18"></line>
               <line x1="6" y1="18" x2="18" y2="6"></line>
@@ -73,52 +78,55 @@ const navItems = minigame.submenus!.map((s) => ({
             <div class="tm-board" id="tm-board"></div>
             <div class="tm-avatar-hint" id="tm-avatar-hint" style="display:none">
               <span class="tm-avatar-hint-icon">🎭</span>
-              <span id="tm-avatar-hint-name">-</span>
-              <span class="tm-avatar-hint-suffix">의 아바타 등장!</span>
+              <!-- 텍스트 한 덩어리 — name 포함한 "{name}의 아바타 등장!" / "{name}'s avatar appeared!" 패턴.
+                   tile-match.ts 의 updateAvatarHint() 가 t() 호출로 전체 텍스트 채움. -->
+              <span id="tm-avatar-hint-text">-</span>
             </div>
           </div>
 
           <!-- 제거 큐 -->
           <div class="tm-remove-queue" id="tm-remove-queue" style="display:none">
-            <span class="tm-remove-queue-label">제거됨</span>
+            <span class="tm-remove-queue-label" data-i18n="tileMatch.dialog.removed">제거됨</span>
             <div class="tm-remove-slots" id="tm-remove-slots"></div>
-            <span class="tm-remove-queue-hint">탭하면 다시 슬롯으로</span>
+            <span class="tm-remove-queue-hint" data-i18n="tileMatch.dialog.removedHint">탭하면 다시 슬롯으로</span>
           </div>
 
           <!-- 선택 슬롯 (버퍼) -->
           <div class="tm-buffer" id="tm-buffer"></div>
 
-          <!-- 아이템 버튼 -->
+          <!-- 아이템 버튼 — Free ×N 배지는 updateItemButtons() 가 t() 로 매번 채움. -->
           <div class="tm-items">
             <button class="tm-item" id="tm-item-remove" type="button">
               <span class="tm-item-badge" id="tm-item-remove-badge">Free ×1</span>
               <span class="tm-item-icon">🧹</span>
-              <span class="tm-item-label">제거</span>
+              <span class="tm-item-label" data-i18n="tileMatch.dialog.items.remove">제거</span>
             </button>
             <button class="tm-item" id="tm-item-undo" type="button">
               <span class="tm-item-badge" id="tm-item-undo-badge">Free ×1</span>
               <span class="tm-item-icon">↩️</span>
-              <span class="tm-item-label">되돌리기</span>
+              <span class="tm-item-label" data-i18n="tileMatch.dialog.items.undo">되돌리기</span>
             </button>
             <button class="tm-item" id="tm-item-shuffle" type="button">
               <span class="tm-item-badge" id="tm-item-shuffle-badge">Free ×1</span>
               <span class="tm-item-icon">🔀</span>
-              <span class="tm-item-label">재배치</span>
+              <span class="tm-item-label" data-i18n="tileMatch.dialog.items.shuffle">재배치</span>
             </button>
           </div>
 
           <div class="tm-overlay" id="tm-overlay" style="display:none">
             <div class="tm-overlay-card">
               <div class="tm-overlay-icon" id="tm-overlay-icon"></div>
+              <!-- msg 는 동적 ("Stage N 클리어!" / "슬롯이 가득 찼습니다.") — showOverlay() 가 t() 로 채움 -->
               <div class="tm-overlay-msg" id="tm-overlay-msg"></div>
               <div class="tm-overlay-reward" id="tm-overlay-reward" style="display:none">
                 <span class="tm-overlay-reward-icon">💎</span>
                 <span class="tm-overlay-reward-amount" id="tm-overlay-reward-amount">0</span>
-                <span class="tm-overlay-reward-label">크리스탈 획득</span>
+                <span class="tm-overlay-reward-label" data-i18n="tileMatch.dialog.overlay.crystalReward">크리스탈 획득</span>
               </div>
               <div class="tm-overlay-actions">
+                <!-- 라벨은 동적 — showOverlay() 가 t() 로 "다시 하기" or "다음 단계" 토글 -->
                 <button class="btn btn-primary" id="tm-overlay-restart" type="button">다시 하기</button>
-                <button class="btn btn-secondary" id="tm-overlay-quit" type="button">나가기</button>
+                <button class="btn btn-secondary" id="tm-overlay-quit" type="button" data-i18n="tileMatch.dialog.overlay.quit">나가기</button>
               </div>
             </div>
           </div>
@@ -127,15 +135,15 @@ const navItems = minigame.submenus!.map((s) => ({
           <div class="tm-shuffle-popup-overlay" id="tm-shuffle-popup" style="display:none">
             <div class="tm-shuffle-popup-card">
               <div class="tm-shuffle-popup-icon">⚠</div>
-              <div class="tm-shuffle-popup-title">알림</div>
-              <div class="tm-shuffle-popup-msg">
+              <div class="tm-shuffle-popup-title" data-i18n="tileMatch.dialog.shufflePopup.title">알림</div>
+              <div class="tm-shuffle-popup-msg" data-i18n-html="tileMatch.dialog.shufflePopup.msg">
                 재배치 아이콘을 클릭하면<br />
                 <strong>카카오페이</strong>로 <strong>300원</strong>을<br />
                 개발자에게 선물합니다.
               </div>
               <div class="tm-shuffle-popup-actions">
-                <button class="btn btn-primary" id="tm-shuffle-popup-qr" type="button">QR 화면 이동</button>
-                <button class="btn btn-secondary" id="tm-shuffle-popup-cancel" type="button">취소</button>
+                <button class="btn btn-primary" id="tm-shuffle-popup-qr" type="button" data-i18n="tileMatch.dialog.shufflePopup.qr">QR 화면 이동</button>
+                <button class="btn btn-secondary" id="tm-shuffle-popup-cancel" type="button" data-i18n="tileMatch.dialog.shufflePopup.cancel">취소</button>
               </div>
             </div>
           </div>

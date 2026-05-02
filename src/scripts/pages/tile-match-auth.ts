@@ -5,10 +5,10 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
+import { t } from '@/i18n';
 
 const SESSION_KEY = 'tileMatchAuth';
 const FN_AUTH_URL = SUPABASE_URL + '/functions/v1/tile-match-auth';
-const FAIL_MSG = '비밀번호를 확인해 주세요. 또는 비밀번호 초기화 요청을 해주세요.';
 
 export interface AuthSession {
   player_id: string;
@@ -132,7 +132,7 @@ function loadMembers(): void {
   if (cached.length > 0) {
     renderList(cached);
   } else {
-    box.innerHTML = '<div class="tm-auth-empty">불러오는 중...</div>';
+    box.innerHTML = '<div class="tm-auth-empty">' + escapeHtml(t('authDialog.loadingMembers')) + '</div>';
   }
   membersStore
     .refresh(fetchMembers)
@@ -140,7 +140,9 @@ function loadMembers(): void {
     .catch((err: Error) => {
       if (cached.length === 0) {
         box.innerHTML =
-          '<div class="tm-auth-empty">조회 실패: ' + (err.message || String(err)) + '</div>';
+          '<div class="tm-auth-empty">' +
+          escapeHtml(t('authDialog.loadFailed', { message: err.message || String(err) })) +
+          '</div>';
       }
     });
 }
@@ -168,7 +170,7 @@ function renderList(list: MemberLite[]): void {
   if (!box) return;
   box.innerHTML = '';
   if (!list.length) {
-    box.innerHTML = '<div class="tm-auth-empty">검색 결과가 없습니다</div>';
+    box.innerHTML = '<div class="tm-auth-empty">' + escapeHtml(t('authDialog.searchEmpty')) + '</div>';
     return;
   }
   const frag = document.createDocumentFragment();
@@ -207,7 +209,7 @@ function onSelectMember(m: MemberLite): void {
   const sel = $('tm-auth-selected');
   if (sel) sel.textContent = m.nickname + ' (' + m.kingshot_id + ')';
   const prompt = $('tm-auth-pin-prompt');
-  if (prompt) prompt.textContent = '확인 중...';
+  if (prompt) prompt.textContent = t('authDialog.checking');
   showStep('pin');
   setPinValue('');
   const inp = $<HTMLInputElement>('tm-pin-input');
@@ -217,8 +219,8 @@ function onSelectMember(m: MemberLite): void {
     if (!res.ok) {
       setMsg(
         res.error === 'member_not_found'
-          ? '회원 정보가 없습니다'
-          : '조회 실패: ' + (res.error || ''),
+          ? t('authDialog.memberNotFound')
+          : t('authDialog.loadFailed', { message: res.error || '' }),
       );
       const p = $('tm-auth-pin-prompt');
       if (p) p.textContent = '';
@@ -228,7 +230,7 @@ function onSelectMember(m: MemberLite): void {
     const p = $('tm-auth-pin-prompt');
     if (p)
       p.textContent =
-        pinMode === 'set' ? 'PIN 4자리를 새로 등록하세요' : 'PIN 4자리를 입력하세요';
+        pinMode === 'set' ? t('authDialog.pinSetPrompt') : t('auth.pinPrompt');
     if (pinInput.length === 4) submitPin();
   });
 }
@@ -265,15 +267,15 @@ function submitPin(): void {
     if (firstPin === null) {
       firstPin = pinInput;
       const p = $('tm-auth-pin-prompt');
-      if (p) p.textContent = '확인을 위해 다시 한번 입력하세요';
+      if (p) p.textContent = t('authDialog.pinSetConfirm');
       setMsg('');
       setPinValue('');
       focusPinInput();
     } else if (firstPin !== pinInput) {
-      setMsg('PIN 이 일치하지 않습니다. 처음부터 다시 입력하세요.');
+      setMsg(t('authDialog.pinMismatch'));
       firstPin = null;
       const p = $('tm-auth-pin-prompt');
-      if (p) p.textContent = 'PIN 4자리를 새로 등록하세요';
+      if (p) p.textContent = t('authDialog.pinSetPrompt');
       setPinValue('');
       focusPinInput();
     } else {
@@ -283,7 +285,7 @@ function submitPin(): void {
           setSession({ player_id: member.kingshot_id, nickname: member.nickname });
           closeAuth(true);
         } else {
-          setMsg('등록 실패: ' + (res.error || ''));
+          setMsg(t('authDialog.pinSetFailed', { error: res.error || '' }));
           firstPin = null;
           setPinValue('');
           focusPinInput();
@@ -297,7 +299,7 @@ function submitPin(): void {
         setSession({ player_id: member.kingshot_id, nickname: member.nickname });
         closeAuth(true);
       } else {
-        setMsg(FAIL_MSG);
+        setMsg(t('authDialog.pinVerifyFailed'));
         setPinValue('');
         focusPinInput();
       }
