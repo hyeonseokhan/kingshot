@@ -2625,22 +2625,23 @@
   border-radius: 14px;
 }
 
-/* 비용 행의 값 앞 💎 prefix — 라벨에서 💎 옮긴 효과.
- * 이모지 글리프의 visual center 가 텍스트 cap-height 기준에서 약간 위로 치우쳐 있어
- * align-items: center 만으로는 부족 → translateY 로 미세 보정. */
+/* 비용 행의 값: 💎 + 1,000 을 각자 독립 box 로 감싸 부모에서 vertical-center.
+ * ::before 로 emoji 를 부모 content 로 넣으면 글리프 baseline 이 부모의 font-metrics
+ * 에 끌려가 정렬 깨짐 — 자식 span 으로 분리하면 각자 line-height:1 의 box 가 만들어져
+ * align-items: center 가 정확히 맞음. */
 .eq-modal-cost-value {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.eq-modal-cost-value::before {
-  content: '💎';
+.eq-modal-cost-icon,
+.eq-modal-cost-num {
   display: inline-block;
+  line-height: 1;
+}
+.eq-modal-cost-icon {
   font-size: 0.95em;
   font-weight: 400;
-  line-height: 1;
-  /* 이모지 시각 중심을 숫자(1,000)의 시각 중심에 맞추기 위한 미세 보정 (다이아몬드는 위쪽이 좁음) */
-  transform: translateY(1.5px);
 }
 
 /* ============================================================
