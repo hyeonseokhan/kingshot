@@ -3058,14 +3058,15 @@
 }
 
 /* 하단 네비게이션 — [‹]  [● ○ ○ ○ ○ ○]  [›]
- * stage 와 충분한 간격(20px) 확보 — 사용자 피드백 반영 */
+ * stage 와 충분한 간격(20px) 확보. 좌우 화살표는 카드 가장자리에서 14px 안쪽으로
+ * (사용자 피드백 — 너무 양 끝에 붙어 있던 느낌). */
 .tier-preview-nav {
   display: grid;
   grid-template-columns: 36px 1fr 36px;
   align-items: center;
   gap: 8px;
   margin-top: 20px;
-  padding: 0 4px;
+  padding: 0 14px;
 }
 .tier-preview-prev,
 .tier-preview-next {
