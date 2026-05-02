@@ -344,7 +344,6 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 
 ## 참고 문서
 
-- `MIGRATION_PLAN.md` — 과거 Jekyll → Astro 마이그레이션 기록
 - 신규 미니게임 확장 기획서 (PDF, 사내 문서 — repo 외부 보관). 핵심 내용은 본 문서의 "디자인 결정사항" 섹션에 모두 반영됨
 - `supabase/migrations/` — 기존 스키마 (가장 최근: `20260429160000_pvp_is_ranked.sql`)
 - `supabase/functions/tile-match-auth/index.ts` — Edge Function 패턴 레퍼런스
