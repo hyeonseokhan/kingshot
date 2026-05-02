@@ -2620,20 +2620,26 @@
   width: 56px;
   height: 56px;
   flex-shrink: 0;
-}
-/* 모달 슬롯 미니어처 안의 장비 이미지 — 모서리 라운드 처리 (square PNG 도 부드럽게) */
-.eq-modal-slot-mini .eq-slot-icon {
-  border-radius: 10px;
+  /* 56px 작은 크기에서 14px 라운드는 시각적으로 거의 안 보임 → 18px 로 명확히 둥글게.
+   * 슬롯 *배경 타일* (등급 색이 칠해진 녹색/하늘색/등) 의 모서리가 라운드 사각형으로
+   * 또렷하게 보이게. img 자체는 투명 PNG 라 라운드 무의미 → 적용 안 함. */
+  border-radius: 18px;
 }
 
-/* 비용 행의 값 앞 💎 prefix — 라벨에서 💎 옮긴 효과 */
+/* 비용 행의 값 앞 💎 prefix — 라벨에서 💎 옮긴 효과.
+ * 이모지 글리프의 baseline 이 텍스트와 어긋나서 행 자체를 flex 로 만들어 align-items: center.
+ * 이전에 vertical-align 만으로는 보정이 부족했음. */
+.eq-modal-cost-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .eq-modal-cost-value::before {
   content: '💎';
   display: inline-block;
-  margin-right: 6px;
-  font-size: 0.9em;
+  font-size: 0.95em;
   font-weight: 400;
-  vertical-align: -1px;
+  line-height: 1;
 }
 
 /* ============================================================
