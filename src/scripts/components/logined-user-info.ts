@@ -248,7 +248,8 @@ function init(): void {
     if (e.target instanceof Node && !dd.contains(e.target)) closeDropdown();
   });
 
-  // 잔액 갱신 이벤트 (tile-match 의 보상 응답 등에서 디스패치) — UI 갱신 + 캐시도 동시 업데이트
+  // 잔액 갱신 이벤트 (tile-match 의 보상 응답 / equipment 강화 응답 등에서 디스패치)
+  // — UI 갱신 + 캐시도 동시 업데이트
   window.addEventListener('crystal-balance-update', ((e: Event) => {
     const detail = (e as CustomEvent<{ balance: number }>).detail;
     if (detail && typeof detail.balance === 'number') {
@@ -257,6 +258,20 @@ function init(): void {
       if (sess?.player_id) writeCache({ player_id: sess.player_id, balance: detail.balance });
     }
   }) as EventListener);
+
+  // 잔액 갱신 *요청* 이벤트 (PvP 보상처럼 응답에 새 balance 가 없는 경우) — 직접 fetch 해서 갱신.
+  // PvP 의 play-card 응답은 reward_crystals (Δ) 만 주고 balance 는 안 줘서, 이 이벤트로
+  // 헤더가 알아서 최신 잔액을 가져오도록 한다. 동일 이벤트가 여러 번 발생해도 fetch 가
+  // 멱등이라 문제 없음 (마지막 fetch 결과만 표시됨).
+  window.addEventListener('crystal-balance-refresh-request', () => {
+    const sess = getSession();
+    if (!sess?.player_id) return;
+    fetchBalance(sess.player_id).then((bal) => {
+      if (typeof bal !== 'number') return;
+      setCrystal(bal);
+      writeCache({ player_id: sess.player_id, balance: bal });
+    });
+  });
 
   // 다른 모듈이 setSession/clearSession 할 때마다 알림
   onSessionChange(renderSession);
