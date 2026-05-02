@@ -390,9 +390,6 @@ function buildCtaLine(cls: string, text: string): HTMLElement {
 function buildInsufficientSub(have: number, need: number): HTMLElement {
   const sub = document.createElement('span');
   sub.className = 'eq-modal-cta-sub';
-  const icon = document.createElement('span');
-  icon.className = 'eq-modal-cta-icon';
-  icon.textContent = '💎';
   const haveEl = document.createElement('span');
   haveEl.className = 'eq-modal-cta-have';
   haveEl.textContent = have.toLocaleString('ko-KR');
@@ -402,7 +399,7 @@ function buildInsufficientSub(have: number, need: number): HTMLElement {
   const needEl = document.createElement('span');
   needEl.className = 'eq-modal-cta-need';
   needEl.textContent = need.toLocaleString('ko-KR');
-  sub.append(icon, haveEl, sep, needEl);
+  sub.append(haveEl, sep, needEl);
   return sub;
 }
 

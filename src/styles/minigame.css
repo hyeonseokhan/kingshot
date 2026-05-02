@@ -1809,7 +1809,8 @@
 .eq-modal-cta-sub {
   display: inline-flex;
   align-items: baseline;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -2619,6 +2620,20 @@
   width: 56px;
   height: 56px;
   flex-shrink: 0;
+}
+/* 모달 슬롯 미니어처 안의 장비 이미지 — 모서리 라운드 처리 (square PNG 도 부드럽게) */
+.eq-modal-slot-mini .eq-slot-icon {
+  border-radius: 10px;
+}
+
+/* 비용 행의 값 앞 💎 prefix — 라벨에서 💎 옮긴 효과 */
+.eq-modal-cost-value::before {
+  content: '💎';
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 0.9em;
+  font-weight: 400;
+  vertical-align: -1px;
 }
 
 /* ============================================================
