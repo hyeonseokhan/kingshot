@@ -14,6 +14,7 @@ export const ko = {
     login: '로그인',
     logout: '로그아웃',
     sortBy: '정렬',
+    contents: '목차',
   },
   header: {
     title: '연맹 가이드',

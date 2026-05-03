@@ -3,6 +3,8 @@ type Item = {
   title: string;
   /** i18n 키 (있으면 클라이언트 lang swap 시 자동 갱신). */
   titleKey?: string;
+  /** 가이드 페이지용 — pair 의 영문 title 직접 전달 (마크다운 frontmatter). */
+  titleEn?: string;
   path: string;
   active?: boolean;
 };
@@ -21,14 +23,27 @@ const { header, headerKey, items } = Astro.props;
   <div class="left-nav-header" data-i18n={headerKey}>{header}</div>
   <div class="left-nav-items">
     {
-      items.map((item) => (
-        <a
-          href={item.path}
-          class:list={['left-nav-item', { active: item.active }]}
-        >
-          <span class="step-label" data-i18n={item.titleKey}>{item.title}</span>
-        </a>
-      ))
+      items.map((item) =>
+        item.titleEn ? (
+          // 가이드 페이지 — ko/en title 둘 다 embed, html[lang] selector 로 swap
+          <a
+            href={item.path}
+            class:list={['left-nav-item', { active: item.active }]}
+          >
+            <span class="step-label">
+              <span class="step-label-ko">{item.title}</span>
+              <span class="step-label-en">{item.titleEn}</span>
+            </span>
+          </a>
+        ) : (
+          <a
+            href={item.path}
+            class:list={['left-nav-item', { active: item.active }]}
+          >
+            <span class="step-label" data-i18n={item.titleKey}>{item.title}</span>
+          </a>
+        ),
+      )
     }
   </div>
 </nav>
@@ -77,6 +92,13 @@ const { header, headerKey, items } = Astro.props;
   }
   .step-label {
     line-height: 1.3;
+  }
+
+  /* 가이드 페이지 ko/en pair — 현재 <html lang> 따라 한쪽만 표시.
+     :global() 안에 전체 selector 박아야 child 의 scoping attr 영향 받지 않음. */
+  :global(html[lang='ko'] .step-label-en),
+  :global(html[lang='en'] .step-label-ko) {
+    display: none;
   }
 
   @media (max-width: 768px) {
