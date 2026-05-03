@@ -41,6 +41,10 @@ export const en: Translations = {
     ko: '한국어',
     en: 'English',
   },
+  discord: {
+    label: 'Join Discord',
+    aria: 'Join our Discord server (new tab)',
+  },
   time: {
     justNow: 'just now',
     minutesAgo: '{n}m ago',
