@@ -119,7 +119,7 @@ Combat goes in order: **Infantry → Cavalry → Archer**.
 ### When sending reinforcements
 
 - **Goal is securing kills** → put offensive / rally-join heroes up front
-- Recommended: **Chenko, Amadeus, Yeonu, Amane**
+- Recommended: **Chenko, Amadeus, Yeanwoo, Amane**
 - Defensive specialists are inefficient here
 
 ### When keeping troops at home

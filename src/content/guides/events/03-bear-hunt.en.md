@@ -35,7 +35,7 @@ Damage influence ranking:
 ### Recommended key heroes
 
 - **Chenko**
-- **Yeonu**
+- **Yeanwoo**
 - **Amane**
 - **Amadeus**
 
@@ -61,5 +61,5 @@ Many players think more troops mean more damage, but
 To raise Bear Hunt damage:
 
 1. Prioritize **hero exclusive weapon and skills**
-2. **Manually place key heroes** (Chenko, Yeonu, etc.) leftmost first
+2. **Manually place key heroes** (Chenko, Yeanwoo, etc.) leftmost first
 3. Split troops **evenly across marches**, Archer-centric
