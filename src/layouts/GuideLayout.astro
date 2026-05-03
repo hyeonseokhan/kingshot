@@ -126,9 +126,11 @@ const {
     animation: fadeIn 0.15s ease;
   }
 
-  /* 가이드 페이지 ko/en pair — 현재 <html lang> 따라 한쪽 본문만 표시 */
-  .center-content :global(html[lang='ko'] .guide-body[data-guide-lang='en']),
-  .center-content :global(html[lang='en'] .guide-body[data-guide-lang='ko']) {
+  /* 가이드 페이지 ko/en pair — 현재 <html lang> 따라 한쪽 본문만 표시.
+     .center-content prefix 두면 .center-content[scope] html[lang]... 라는
+     불가능한 selector 로 컴파일됨 (html 이 ancestor 라). selector 전체를 :global() 로 wrap. */
+  :global(html[lang='ko'] .guide-body[data-guide-lang='en']),
+  :global(html[lang='en'] .guide-body[data-guide-lang='ko']) {
     display: none;
   }
 
