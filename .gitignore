@@ -32,3 +32,11 @@ matchjong-master/
 
 # ===== 디자인 자산 원본 (한글 파일명, 작업용) — public/images/ 아래 영문으로 복사해 사용 =====
 /items/
+
+# ===== Ruby/Jekyll 잔재 (Astro 마이그레이션 후 불필요) =====
+.bundle/
+Gemfile.lock
+
+# ===== 브랜드 자산 변환 source (sharp 변환 후 public/ 의 결과물만 commit) =====
+/logo.png
+/로고.png
