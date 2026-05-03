@@ -18,7 +18,7 @@
 
 ```
 src/
-  components/   # AuthDialog, Header, LeftNav, MobileNav, RightToc
+  components/   # AuthDialog, Header, LangSwitcher, LeftNav, MobileNav, RightToc, ...
   layouts/      # AppLayout, BaseLayout, GuideLayout
   pages/
     manage/     # members, coupons (관리자 도구)
@@ -26,11 +26,14 @@ src/
     beginner/   # 가이드
     events/
   scripts/
+    components/ # lang-switcher 등 컴포넌트 클라이언트 로직
     pages/      # 각 페이지의 클라이언트 로직 (TypeScript)
     legacy-hash-redirect.ts
   styles/       # global, components, manage, minigame
-  lib/          # supabase, types, utils, cache, guides
-  content/      # Astro Content Collection (가이드 마크다운)
+  lib/          # supabase, types, utils, cache, store, dom-diff, balance,
+                # equipment-tier-fx, ranking-table, guides, stores/
+  i18n/         # ko / en / index — 다국어 사전 + 헬퍼
+  content/      # Astro Content Collection (가이드 마크다운, ko/en pair)
   data/         # navigation 등 정적 데이터
 
 supabase/
@@ -216,16 +219,9 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
    - **남은 영역 (다음 트랙들에서 자연스럽게)**: balance store, equipment store, ranking store,
      daily-state store. 각 도메인 자체 작업 시 같은 패턴으로 추출
 
-3. ~~**트랙 3: 신규 서비스 개발 — 게임도구 / 건설 최적화**~~ ❌ **포기 (2026-04-30)**
-   - Phase 1 (코어 알고리즘 + 48 테스트), Phase 2-A (UI 폼), Phase 2-B (결과 메시지) 까지 구현했으나
-     사용자 검증 결과 추천 결과가 만족스럽지 않다는 판단 → **완전 삭제**.
-   - 삭제 범위: `src/pages/tools/`, `src/scripts/pages/build-optimizer.ts`, `src/lib/build-optimizer*.ts`,
-     `src/styles/tools.css`, `신규서비스.md`, `navigation.ts` 의 tools 탭 항목.
-   - 복구 필요 시 git history 의 `ae830a9` (Phase 2-B 완료) 직전 시점에서 cherry-pick 가능.
+3. **트랙 3: 데이터베이스 최적화 — 누적된 dead column / index 정리** ✅ 완료 (2026-04-30)
 
-4. **트랙 4: 데이터베이스 최적화 — 누적된 dead column / index 정리**
-
-   #### Track 4-1 ✅ 완료 (2026-04-30, 마이그레이션 `20260430120000_drop_dead_columns_indexes.sql`)
+   #### Track 3-1 ✅ 완료 (마이그레이션 `20260430120000_drop_dead_columns_indexes.sql`)
    - **삭제한 dead 컬럼 4개** (members 테이블, 코드 grep 매칭 0건):
      - `troop_count` (bigint), `kill_points` (bigint), `alliance_role` (text), `last_active_at` (timestamptz)
    - **삭제한 dead 인덱스 2개** (idx_scan=0 + 매칭 쿼리 패턴 없음):
@@ -233,10 +229,17 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
    - 마이그레이션 파일 상단에 ROLLBACK SQL 주석 보존 (필요 시 그대로 실행)
    - **보존**: `idx_crystal_tx_ref_unique` (UNIQUE 제약 핵심), `idx_pvp_battles_winner_ranked` (랭킹 쿼리, 데이터 늘면 활용)
 
-   #### Track 4-2 ✅ 완료 (2026-04-30, 마이그레이션 `20260430130000_drop_pvp_cleanup.sql`)
+   #### Track 3-2 ✅ 완료 (마이그레이션 `20260430130000_drop_pvp_cleanup.sql`)
    - 결정: **자동 청소 포기 (옵션 B)**. 운영 복잡도 대비 이득 작음. 시즌 오프 시 사용자가 수동 정리.
    - 삭제: `idx_pvp_battles_finished_at` 인덱스 + `cleanup_old_pvp_battles()` 함수
    - 마이그레이션 파일 상단에 ROLLBACK SQL 주석 보존 (필요 시 함수 + 인덱스 복원).
+
+4. **트랙 4: KOR/ENG 다국어 지원** ✅ 완료 (2026-05-01 ~ 2026-05-04)
+   - PR #10 ~ #14: 인프라(`src/i18n/{ko,en,index}.ts`) + 페이지 swap + 가이드 ko/en pair + 햄버거 메뉴 + 각종 fix
+   - 모든 페이지에 `data-i18n` / `data-i18n-html` / `data-i18n-attr-*` 마커 + `t()` 함수 적용
+   - `LangSwitcher` 컴포넌트 (헤더 우측) + `lang-switcher.ts` 클라이언트 로직
+   - 가이드 본문도 ko/en pair 로 다국어 (beginner 7 + events 3)
+   - 라우팅: 클라이언트 사이드 swap (URL 그대로) — 자동 감지 (`navigator.language`) + localStorage 기억
 
 ### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
 
@@ -284,6 +287,23 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
   `src/lib/balance.ts` 확장 권장.
 - **DOM diff 헬퍼 도입**: `src/lib/dom-diff.ts` 의 `patchList`/`patchText`. Phase B 의 장비 강화
   결과 갱신, 인벤토리 표시 등에서도 처음부터 이 헬퍼로 갱신 — `innerHTML=''` 패턴 사용 금지.
+
+### 트랙 4 운영 메모 (i18n — 신규 화면/문구 추가 시 알아둘 것)
+
+- **사전 위치**: `src/i18n/ko.ts` (source of truth) + `src/i18n/en.ts`. ko 에 새 키 추가하면 en 의
+  같은 키도 채워야 컴파일 통과 (`Translations` 타입으로 강제). `astro check` 가 누락 검출.
+- **사용 패턴**:
+  - 정적 마크업: `<elem data-i18n="namespace.key">한국어 폴백</elem>`
+  - HTML 포함: `<elem data-i18n-html="key"><strong>...</strong> 등</elem>`
+  - 속성: `data-i18n-attr-placeholder="key"`, `data-i18n-attr-title="key"`
+  - 동적 텍스트: `import { t } from '@/i18n'` + `el.textContent = t('key', { n: 5 })`
+- **언어 변경 시 동적 갱신** — 정적 마크업은 자동 swap 되지만, JS 가 `textContent` 로 직접 박은
+  값(예: `formatRelativeTime` 결과, 카운트 라벨)은 `onLangChange()` 콜백으로 직접 다시 그려야 함.
+  레퍼런스: `tile-match.ts` 의 `onLangChange(() => { loadRanking(); ... })`.
+- **가이드 본문 다국어**: `src/content/{beginner,events}/<slug>.md` (한글) + `<slug>.en.md` (영문) pair.
+  파일명 매칭 + frontmatter 의 `pair` 필드로 swap.
+- **게임 영문 용어**: 한국어판과 영문판 표기가 다른 항목들 (장비명/스킬명 등) 은 en.ts 에 반영됨.
+  새 게임 용어 추가 시 게임 영문판 표기 따르고, 모를 땐 사용자 confirm.
 
 ### 트랙 2 운영 메모 (트랙 3~ 작업 시 알아둘 것)
 
