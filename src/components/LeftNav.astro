@@ -17,34 +17,62 @@ interface Props {
 }
 
 const { header, headerKey, items } = Astro.props;
+
+// Discord 서버 영구 초대 링크 — 만료 없음, 사용 제한 없음.
+const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
 ---
 
 <nav class="left-nav">
-  <div class="left-nav-header" data-i18n={headerKey}>{header}</div>
-  <div class="left-nav-items">
-    {
-      items.map((item) =>
-        item.titleEn ? (
-          // 가이드 페이지 — ko/en title 둘 다 embed, html[lang] selector 로 swap
-          <a
-            href={item.path}
-            class:list={['left-nav-item', { active: item.active }]}
-          >
-            <span class="step-label">
-              <span class="step-label-ko">{item.title}</span>
-              <span class="step-label-en">{item.titleEn}</span>
-            </span>
-          </a>
-        ) : (
-          <a
-            href={item.path}
-            class:list={['left-nav-item', { active: item.active }]}
-          >
-            <span class="step-label" data-i18n={item.titleKey}>{item.title}</span>
-          </a>
-        ),
-      )
-    }
+  <div class="left-nav-scroll">
+    <div class="left-nav-header" data-i18n={headerKey}>{header}</div>
+    <div class="left-nav-items">
+      {
+        items.map((item) =>
+          item.titleEn ? (
+            // 가이드 페이지 — ko/en title 둘 다 embed, html[lang] selector 로 swap
+            <a
+              href={item.path}
+              class:list={['left-nav-item', { active: item.active }]}
+            >
+              <span class="step-label">
+                <span class="step-label-ko">{item.title}</span>
+                <span class="step-label-en">{item.titleEn}</span>
+              </span>
+            </a>
+          ) : (
+            <a
+              href={item.path}
+              class:list={['left-nav-item', { active: item.active }]}
+            >
+              <span class="step-label" data-i18n={item.titleKey}>{item.title}</span>
+            </a>
+          ),
+        )
+      }
+    </div>
+  </div>
+  <!-- 하단 고정 SETTING 섹션 — 모바일 햄버거 SETTING 과 동일 패턴.
+       4개 탭 (입문가이드/이벤트/연맹관리/미니게임) 공통 푸터 영역. -->
+  <div class="left-nav-setting">
+    <div class="left-nav-setting-label">SETTING</div>
+    <a
+      class="left-nav-discord"
+      href={DISCORD_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-i18n-attr-aria-label="discord.aria"
+      aria-label="디스코드 서버 참여 (새 탭)"
+    >
+      <span class="left-nav-discord-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09c-.01-.02-.04-.03-.07-.03c-1.5.26-2.93.71-4.27 1.33c-.01 0-.02.01-.03.02c-2.72 4.07-3.47 8.03-3.1 11.95c0 .02.01.04.03.05c1.8 1.32 3.53 2.12 5.24 2.65c.03.01.06 0 .07-.02c.4-.55.76-1.13 1.07-1.74c.02-.04 0-.08-.04-.09c-.57-.22-1.11-.48-1.64-.78c-.04-.02-.04-.08-.01-.11c.11-.08.22-.17.33-.25c.02-.02.05-.02.07-.01c3.44 1.57 7.15 1.57 10.55 0c.02-.01.05 0 .07.01c.11.09.22.17.33.26c.04.03.04.09-.01.11c-.52.31-1.07.56-1.64.78c-.04.01-.05.06-.04.09c.32.61.68 1.19 1.07 1.74c.03.01.06.02.09.01c1.72-.53 3.45-1.33 5.25-2.65c.02-.01.03-.03.03-.05c.44-4.53-.73-8.46-3.1-11.95c-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.84 2.12-1.89 2.12zm6.97 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.83 2.12-1.89 2.12z"
+          ></path>
+        </svg>
+      </span>
+      <span class="left-nav-discord-label" data-i18n="discord.label">디스코드 참여</span>
+      <span class="left-nav-discord-arrow" aria-hidden="true">↗</span>
+    </a>
   </div>
 </nav>
 
@@ -54,6 +82,14 @@ const { header, headerKey, items } = Astro.props;
     flex-shrink: 0;
     background: var(--bg);
     border-right: 1px solid var(--border2);
+    /* 스크롤 영역 + 하단 고정 버튼 분리 위해 flex column. 기존 overflow:auto 는
+       내부 .left-nav-scroll 로 이동해서 Discord 버튼이 항상 보이도록. */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .left-nav-scroll {
+    flex: 1;
     overflow-y: auto;
     padding: 16px 0;
   }
@@ -99,6 +135,60 @@ const { header, headerKey, items } = Astro.props;
   :global(html[lang='ko'] .step-label-en),
   :global(html[lang='en'] .step-label-ko) {
     display: none;
+  }
+
+  /* === 하단 SETTING 섹션 — 모바일 햄버거 메뉴와 동일 패턴 ===
+     border-top 으로 스크롤 영역과 분리 + "SETTING" 라벨로 푸터임을 명시. */
+  .left-nav-setting {
+    border-top: 1px solid var(--border2);
+    padding: 12px 0;
+  }
+  .left-nav-setting-label {
+    padding: 0 16px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+  }
+  /* Discord row — 모바일 .mobile-nav-discord-row 와 같은 [icon | label flex:1 | arrow] 패턴.
+     아이콘 박스만 #5865F2 브랜드 컬러로 식별, 텍스트는 사이드바 톤에 맞춤. */
+  .left-nav-discord {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    color: var(--text2);
+    font-size: 13.5px;
+    text-decoration: none;
+    transition: all 0.12s;
+  }
+  .left-nav-discord:hover {
+    background: var(--bg2);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .left-nav-discord-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: #5865f2;
+    border-radius: 5px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .left-nav-discord-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+  .left-nav-discord-label {
+    flex: 1;
+  }
+  .left-nav-discord-arrow {
+    font-size: 12px;
+    color: var(--text3);
   }
 
   @media (max-width: 768px) {

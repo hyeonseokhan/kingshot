@@ -40,6 +40,10 @@ export const ko = {
     ko: '한국어',
     en: 'English',
   },
+  discord: {
+    label: '디스코드 참여',
+    aria: '디스코드 서버 참여 (새 탭)',
+  },
   time: {
     justNow: '방금 전',
     minutesAgo: '{n}분 전',
