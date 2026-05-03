@@ -35,12 +35,7 @@ const navItems = buildNavItems(guides, 'beginner', firstSlug, enIndex);
   hasEn={!!ContentEn}
   headingsEn={headingsEn}
 >
-  {ContentEn ? (
-    <>
-      <ContentKo slot="ko" />
-      <ContentEn slot="en" />
-    </>
-  ) : (
-    <ContentKo />
-  )}
+  {ContentEn && <ContentKo slot="ko" />}
+  {ContentEn && <ContentEn slot="en" />}
+  {!ContentEn && <ContentKo />}
 </GuideLayout>
