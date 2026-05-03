@@ -1,18 +1,28 @@
 ---
 import { tabs, findActiveTab, findActiveSubmenu } from '@/data/navigation';
-import { getGuidesByCategory, entryToSlug, type GuideCategory } from '@/lib/guides';
+import {
+  getGuidesByCategory,
+  getEnIndexByCategory,
+  entryToSlug,
+  type GuideCategory,
+  type GuideEntry,
+} from '@/lib/guides';
 
 const pathname = Astro.url.pathname;
 const activeTab = findActiveTab(pathname);
 
-// 가이드 카테고리별 항목 — 빌드 시 한 번 로드.
+// 가이드 카테고리별 항목 + en pair 인덱스 — 빌드 시 한 번 로드.
 const beginnerGuides = await getGuidesByCategory('beginner');
 const eventsGuides = await getGuidesByCategory('events');
+const beginnerEn = await getEnIndexByCategory('beginner');
+const eventsEn = await getEnIndexByCategory('events');
 
 type Child = {
   title: string;
-  /** i18n 키 (앱 탭 서브메뉴만). 가이드 항목은 undefined → 한글 유지 (마크다운 데이터). */
+  /** i18n 키 (앱 탭 서브메뉴만). 가이드 항목은 undefined. */
   titleKey?: string;
+  /** 가이드 탭의 영문 페어 title — 있으면 ko/en 양쪽 span embed + html[lang] selector 로 swap. */
+  titleEn?: string;
   path: string;
   active: boolean;
   /** 앱 탭의 서브메뉴 id (있는 경우만) */
@@ -35,6 +45,7 @@ function buildChildren(tabId: string): Child[] {
   }
   // 가이드 탭(beginner/events) — 마크다운 컬렉션의 order 순 항목을 children 으로
   const guides = tabId === 'beginner' ? beginnerGuides : eventsGuides;
+  const enIndex: Record<string, GuideEntry> = tabId === 'beginner' ? beginnerEn : eventsEn;
   return guides.map((g, idx) => {
     const slug = entryToSlug(g);
     const path = `/${tabId as GuideCategory}/${slug}/`;
@@ -44,7 +55,13 @@ function buildChildren(tabId: string): Child[] {
       if (tabId === 'beginner' && pathname === '/') active = true;
       if (tabId === 'events' && pathname === '/events/') active = true;
     }
-    return { title: g.data.title, path, active, section: slug };
+    return {
+      title: g.data.title,
+      titleEn: enIndex[slug]?.data.title,
+      path,
+      active,
+      section: slug,
+    };
   });
 }
 
@@ -78,18 +95,31 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
             class:list={['mobile-nav-children', { open: isCurrentTab }]}
             data-parent={tab.id}
           >
-            {tab.children.map((c) => (
-              <a
-                href={c.path}
-                class:list={['mobile-nav-section', { active: c.active }]}
-                data-tab={tab.id}
-                data-submenu={c.submenu}
-                data-section={c.section}
-                data-i18n={c.titleKey}
-              >
-                {c.title}
-              </a>
-            ))}
+            {tab.children.map((c) =>
+              c.titleEn ? (
+                // 가이드 항목 — ko/en 양쪽 span embed, html[lang] selector 로 swap
+                <a
+                  href={c.path}
+                  class:list={['mobile-nav-section', { active: c.active }]}
+                  data-tab={tab.id}
+                  data-section={c.section}
+                >
+                  <span class="mns-ko">{c.title}</span>
+                  <span class="mns-en">{c.titleEn}</span>
+                </a>
+              ) : (
+                <a
+                  href={c.path}
+                  class:list={['mobile-nav-section', { active: c.active }]}
+                  data-tab={tab.id}
+                  data-submenu={c.submenu}
+                  data-section={c.section}
+                  data-i18n={c.titleKey}
+                >
+                  {c.title}
+                </a>
+              ),
+            )}
           </div>
         </>
       );
@@ -280,6 +310,13 @@ const tabsWithChildren = tabs.map((t) => ({ ...t, children: buildChildren(t.id) 
   .mobile-nav-section.active {
     color: var(--accent-light);
     font-weight: 600;
+  }
+
+  /* 가이드 항목 ko/en pair — 현재 <html lang> 따라 한쪽만 표시.
+     :global() 안에 selector 전체 박아야 child 의 scoping attr 영향 받지 않음. */
+  :global(html[lang='ko'] .mns-en),
+  :global(html[lang='en'] .mns-ko) {
+    display: none;
   }
 
   /* === 언어 선택 (메뉴 하단) — 폰 설정 row 패턴 === */

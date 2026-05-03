@@ -4,9 +4,9 @@ export type GuideCategory = 'beginner' | 'events';
 export type GuideEntry = CollectionEntry<'guides'>;
 export type GuideLang = 'ko' | 'en';
 
-/** entry.id 의 .en suffix 로 언어 판단. .en.md → en, .md → ko. */
+/** entry.id 의 .en suffix 로 언어 판단. Astro 버전마다 id 가 .md 포함/미포함 둘 다 가능 → 양쪽 모두 매칭. */
 export function langOf(entry: GuideEntry): GuideLang {
-  return /\.en$/.test(entry.id) ? 'en' : 'ko';
+  return /\.en(\.md)?$/.test(entry.id) ? 'en' : 'ko';
 }
 
 /** 언어 suffix 제거한 베이스 slug — '01-overview' (ko/en 페어가 같은 값). */
