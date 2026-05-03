@@ -15,6 +15,7 @@ export const en: Translations = {
     login: 'Sign In',
     logout: 'Sign Out',
     sortBy: 'Sort',
+    contents: 'Contents',
   },
   header: {
     title: 'Alliance Guide',

@@ -8,22 +8,55 @@ interface Props {
   title?: string;
   description?: string;
   navHeader: string;
-  navItems: Array<{ title: string; path: string; active?: boolean }>;
+  navHeaderKey?: string;
+  navItems: Array<{
+    title: string;
+    titleKey?: string;
+    titleEn?: string;
+    path: string;
+    active?: boolean;
+  }>;
   headings?: MarkdownHeading[];
+  /** 영문 본문이 있으면 페어 RightToc / 본문 wrap 분기. */
+  hasEn?: boolean;
+  headingsEn?: MarkdownHeading[];
 }
 
-const { title, description, navHeader, navItems, headings = [] } = Astro.props;
+const {
+  title,
+  description,
+  navHeader,
+  navHeaderKey,
+  navItems,
+  headings = [],
+  hasEn = false,
+  headingsEn = [],
+} = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
   <div class="tab-content active">
-    <LeftNav header={navHeader} items={navItems} />
+    <LeftNav header={navHeader} headerKey={navHeaderKey} items={navItems} />
     <main class="center-content">
-      <div class="section-content">
-        <slot />
-      </div>
+      <!-- 가이드 본문 wrap — ko/en 둘 다 embed, html[lang] selector 로 swap.
+           en 본문 없으면 ko 만 그리고 wrap 마커 안 둠 (다른 영역 영향 X). -->
+      {hasEn ? (
+        <div class="section-content">
+          <div class="guide-body" data-guide-lang="ko">
+            <slot name="ko" />
+          </div>
+          <div class="guide-body" data-guide-lang="en">
+            <slot name="en" />
+          </div>
+        </div>
+      ) : (
+        <div class="section-content">
+          <slot />
+        </div>
+      )}
     </main>
-    <RightToc headings={headings} />
+    <RightToc headings={headings} lang={hasEn ? 'ko' : undefined} />
+    {hasEn && <RightToc headings={headingsEn} lang="en" />}
   </div>
 </BaseLayout>
 
@@ -91,6 +124,12 @@ const { title, description, navHeader, navItems, headings = [] } = Astro.props;
     max-width: 720px;
     margin: 0 auto;
     animation: fadeIn 0.15s ease;
+  }
+
+  /* 가이드 페이지 ko/en pair — 현재 <html lang> 따라 한쪽 본문만 표시 */
+  .center-content :global(html[lang='ko'] .guide-body[data-guide-lang='en']),
+  .center-content :global(html[lang='en'] .guide-body[data-guide-lang='ko']) {
+    display: none;
   }
 
   /* 마크다운 본문 — Astro <Content> 가 렌더하므로 :global() 필수 */
