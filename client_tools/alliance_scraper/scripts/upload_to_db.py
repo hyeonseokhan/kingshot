@@ -39,6 +39,15 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 PLAYER_API = f"{SUPABASE_URL}/functions/v1/redeem-coupon"
 
+# Absent-member allowlist: kingshot_id -> human note.
+# Members in this set are NEVER pruned from DB even if missing from a scrape.
+# Use for members on temporary leave (e.g. 잠시 자리비움) so the website still
+# shows them with their last-known power. Remove from this set when they rejoin
+# (a regular scrape will refresh their power on the next run).
+ABSENT_MEMBER_IDS: dict[str, str] = {
+    "268960114": "Narcissus — temporary leave (since 2026-05-01)",
+}
+
 
 def fetch_player_info(
     player_id: str,
@@ -123,23 +132,28 @@ def clean_scraper_name(raw: str | None) -> str | None:
     return s or None
 
 
-def prune_left_members(sb, current_ids: set[str], dry_run: bool) -> tuple[int, list[str]]:
+def prune_left_members(sb, current_ids: set[str], dry_run: bool) -> tuple[int, list[str], list[str]]:
     """Delete rows in `members` whose kingshot_id is not in `current_ids`.
 
     Why: alliance roster is capped at 100. Members who left between scrapes must
     be removed so the DB reflects the live roster, not a historical superset.
 
-    Returns (deleted_count, left_ids).
+    ABSENT_MEMBER_IDS bypass deletion — they're on temporary leave and the
+    website still shows them.
+
+    Returns (deleted_count, deleted_ids, kept_absent_ids).
     """
     resp = sb.table("members").select("kingshot_id").execute()
     db_ids = {str(row["kingshot_id"]) for row in (resp.data or [])}
-    left_ids = sorted(db_ids - current_ids)
+    missing_ids = db_ids - current_ids
+    kept_absent = sorted(missing_ids & ABSENT_MEMBER_IDS.keys())
+    left_ids = sorted(missing_ids - ABSENT_MEMBER_IDS.keys())
     if not left_ids:
-        return 0, []
+        return 0, [], kept_absent
     if dry_run:
-        return 0, left_ids
+        return 0, left_ids, kept_absent
     sb.table("members").delete().in_("kingshot_id", left_ids).execute()
-    return len(left_ids), left_ids
+    return len(left_ids), left_ids, kept_absent
 
 
 def main() -> int:
@@ -192,7 +206,6 @@ def main() -> int:
                 "profile_photo": None,
             }
 
-        role = m.get("alliance_role")  # "R1"~"R5" or None
         row = {
             "kingshot_id": kid,
             "nickname": info["nickname"],
@@ -201,10 +214,8 @@ def main() -> int:
             "kingdom": info.get("kingdom"),
             "profile_photo": info.get("profile_photo"),
         }
-        if role:
-            row["alliance_role"] = role
 
-        print(f"    -> nickname={row['nickname']!r} lv={row['level']} kingdom={row['kingdom']} role={role or '-'}")
+        print(f"    -> nickname={row['nickname']!r} lv={row['level']} kingdom={row['kingdom']}")
 
         if not args.dry_run:
             try:
@@ -228,7 +239,7 @@ def main() -> int:
 
     if not args.no_prune:
         current_ids = {str(m.get("id")) for m in members if m.get("id")}
-        deleted, left_ids = prune_left_members(sb, current_ids, dry_run=args.dry_run)
+        deleted, left_ids, kept_absent = prune_left_members(sb, current_ids, dry_run=args.dry_run)
         if left_ids:
             preview = ", ".join(left_ids[:10]) + (" ..." if len(left_ids) > 10 else "")
             if args.dry_run:
@@ -237,6 +248,8 @@ def main() -> int:
                 print(f"  pruned {deleted} left members from DB: {preview}")
         else:
             print("  no left members to prune")
+        for kid in kept_absent:
+            print(f"  kept absent: {kid} ({ABSENT_MEMBER_IDS[kid]})")
     elif args.no_prune:
         print("  prune skipped (--no-prune)")
 
