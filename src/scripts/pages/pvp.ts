@@ -618,7 +618,7 @@ function showResult(res: PlayCardResp): void {
 
 // ===== 랭킹 =====
 
-let currentRankMode: 'power' | 'pvp_wins' = 'power';
+let currentRankMode: 'power' | 'pvp_wins' = 'pvp_wins';
 let cachedRankings: RankingRow[] = [];
 
 interface RankingRow {
@@ -839,20 +839,20 @@ function fetchPvpWins(): Promise<Record<string, number>> {
 /** PvP 랭킹의 추가 컬럼 — 정렬 가능. 컴포넌트가 sortable=true 만 보고 정렬 pill 자동 렌더. */
 const PVP_RANKING_COLUMNS: ReadonlyArray<Column> = [
   {
-    key: 'power',
-    label: '⚔️ 전투력',
-    width: '70px',
-    align: 'right',
-    sortable: true,
-    cellClass: 'rank-cell-power',
-  },
-  {
     key: 'pvp_wins',
     label: '🏆 승수',
     width: '50px',
     align: 'right',
     sortable: true,
     cellClass: 'rank-cell-wins',
+  },
+  {
+    key: 'power',
+    label: '⚔️ 전투력',
+    width: '70px',
+    align: 'right',
+    sortable: true,
+    cellClass: 'rank-cell-power',
   },
 ];
 
