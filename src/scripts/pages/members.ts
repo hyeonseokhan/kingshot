@@ -189,6 +189,18 @@ function syncPhoto(wrap: HTMLElement, m: Member): void {
 
 // ===== render =====
 
+// 검색 키워드 — 닉네임 또는 kingshot_id 부분 매칭. 빈 문자열이면 필터 X.
+let searchKeyword = '';
+
+function matchesSearch(m: Member, keyword: string): boolean {
+  if (!keyword) return true;
+  const k = keyword.toLowerCase();
+  return (
+    (m.nickname?.toLowerCase().includes(k) ?? false) ||
+    (m.kingshot_id?.toLowerCase().includes(k) ?? false)
+  );
+}
+
 function renderMembers(): void {
   const positioned = buildPositioned();
   const filterSelect = $<HTMLSelectElement>('filter-level');
@@ -208,6 +220,7 @@ function renderMembers(): void {
 
   const filtered = positioned
     .filter((m) => (m.level || 0) >= minLevel)
+    .filter((m) => matchesSearch(m, searchKeyword))
     .sort((a, b) => {
       const ra = a.alliance_rank ? RANK_WEIGHT[a.alliance_rank] : 0;
       const rb = b.alliance_rank ? RANK_WEIGHT[b.alliance_rank] : 0;
@@ -224,7 +237,9 @@ function renderMembers(): void {
   if (filtered.length === 0) {
     rowsEl.replaceChildren();
     status.style.display = '';
-    status.textContent = t('members.noFiltered');
+    status.textContent = searchKeyword
+      ? t('members.noSearchResult', { keyword: searchKeyword })
+      : t('members.noFiltered');
     syncRefreshBanner();
     return;
   }
@@ -501,6 +516,13 @@ function initPage(): void {
     filterSelect.appendChild(opt);
   }
   filterSelect.addEventListener('change', () => renderMembers());
+
+  // 검색 입력 — 닉네임 / kingshot_id 부분 매칭, 즉시 필터 (22명 규모라 debounce 불필요)
+  const searchInput = document.getElementById('member-search') as HTMLInputElement | null;
+  searchInput?.addEventListener('input', () => {
+    searchKeyword = searchInput.value.trim();
+    renderMembers();
+  });
 
   // 이벤트 위임 — ⋮ 관리 버튼 클릭
   $('members-rows').addEventListener('click', (e) => {

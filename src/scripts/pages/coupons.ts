@@ -554,6 +554,112 @@ function renderAccounts(): void {
   status.style.display = 'none';
   renderAccountGroup('coupon-rows-members', 'coupon-group-members', members, false);
   renderAccountGroup('coupon-rows-extras', 'coupon-group-extras', extras, true);
+
+  // "추가 계정 갱신" 버튼 — extras 가 0건일 때만 hidden, 검색 필터 무관 (전체 기준)
+  const refreshBtn = maybe('btn-refresh-extras');
+  if (refreshBtn) {
+    const totalExtras = allAccounts.filter((a) => a.source === 'extra').length;
+    if (totalExtras > 0) refreshBtn.removeAttribute('hidden');
+    else refreshBtn.setAttribute('hidden', '');
+  }
+}
+
+// ===== 추가 계정 (extras) 일괄 갱신 =====
+// 인게임 프로필 (닉네임/레벨/왕국/사진) 이 변경됐을 때 외부 API 로 재조회 후 DB 업데이트.
+// 연맹원(members) 은 별도 페이지의 "전체 갱신" 버튼이 처리, 여기는 추가 계정만.
+function refreshAllExtras(): void {
+  const extras = allAccounts.filter((a) => a.source === 'extra' && a.id);
+  if (extras.length === 0) {
+    alert(t('coupons.refreshExtras.empty'));
+    return;
+  }
+  if (!confirm(t('coupons.refreshExtras.confirm', { n: extras.length }))) return;
+
+  const btn = $<HTMLButtonElement>('btn-refresh-extras');
+  const originalText = btn.textContent || t('coupons.toolbar.refreshExtras');
+  btn.disabled = true;
+
+  const stats = { success: 0, failed: 0, errors: [] as string[] };
+  const total = extras.length;
+  let done = 0;
+
+  const updateBtnText = () => {
+    btn.textContent = t('coupons.refreshExtras.progress', { done, total });
+  };
+  updateBtnText();
+
+  const batches: RedeemAccount[][] = [];
+  for (let i = 0; i < extras.length; i += BATCH_SIZE) {
+    batches.push(extras.slice(i, i + BATCH_SIZE));
+  }
+
+  let chain: Promise<unknown> = Promise.resolve();
+  batches.forEach((batch, idx) => {
+    chain = chain
+      .then(() =>
+        Promise.all(batch.map((a) => refreshSingleExtra(a, stats))).then(() => {
+          done += batch.length;
+          updateBtnText();
+        }),
+      )
+      .then(() => {
+        if (idx < batches.length - 1) return delay(DELAY_BETWEEN_BATCHES);
+      });
+  });
+
+  chain.then(() => {
+    btn.textContent = originalText;
+    btn.disabled = false;
+    invalidateAccountsCache();
+    loadAccounts(() => renderAccounts());
+    if (stats.failed === 0) {
+      alert(t('coupons.refreshExtras.done', { n: stats.success }));
+    } else {
+      alert(
+        t('coupons.refreshExtras.partial', {
+          ok: stats.success,
+          fail: stats.failed,
+          errors: stats.errors.slice(0, 3).join(', '),
+        }),
+      );
+    }
+  });
+}
+
+function refreshSingleExtra(
+  a: RedeemAccount,
+  stats: { success: number; failed: number; errors: string[] },
+): Promise<void> {
+  return fetch(REDEEM_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'player', fid: a.kingshot_id }),
+  })
+    .then((r) => r.json())
+    .then((json) => {
+      if (json.code !== 0 || !json.data) {
+        throw new Error(json.msg || 'lookup failed');
+      }
+      return sb
+        .from('coupon_accounts')
+        .update({
+          nickname: json.data.nickname,
+          level: json.data.stove_lv || 0,
+          kingdom: json.data.kid || null,
+          profile_photo: json.data.avatar_image || null,
+        })
+        .eq('id', a.id);
+    })
+    .then((res) => {
+      if (res && (res as { error?: { message: string } }).error) {
+        throw new Error((res as { error: { message: string } }).error.message);
+      }
+      stats.success++;
+    })
+    .catch((err: Error) => {
+      stats.failed++;
+      stats.errors.push((a.nickname || a.kingshot_id) + ': ' + err.message);
+    });
 }
 
 // ===== 추가 계정 등록 모달 =====
@@ -1241,6 +1347,7 @@ function bindEventListeners(): void {
 
   // 전체 수령
   $('btn-redeem-all').addEventListener('click', () => startBulkRedeem(false));
+  $('btn-refresh-extras').addEventListener('click', refreshAllExtras);
 
   // 수령 이력
   $('btn-history').addEventListener('click', openHistoryDialog);

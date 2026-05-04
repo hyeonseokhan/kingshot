@@ -87,6 +87,14 @@ const navItems = manage.submenus!.map((s) => ({
     <div class="members-toolbar">
       <div class="member-count" id="member-count"></div>
       <div class="members-toolbar-right">
+        <input
+          type="text"
+          id="member-search"
+          class="member-search-input"
+          placeholder="닉네임 또는 ID 검색..."
+          data-i18n-attr-placeholder="members.toolbar.searchPlaceholder"
+          autocomplete="off"
+        />
         <div class="members-filter">
           <label for="filter-level" data-i18n="members.filter.minLevelLabel">최소 레벨</label>
           <select id="filter-level">

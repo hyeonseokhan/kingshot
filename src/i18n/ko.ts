@@ -108,6 +108,10 @@ export const ko = {
     count: '전체 {n}명',
     countWithLevel: '전체 {n}명 (Lv.{minLevel} 이상)',
     noFiltered: '조건에 맞는 연맹원이 없습니다',
+    noSearchResult: '"{keyword}" 검색 결과 없음',
+    toolbar: {
+      searchPlaceholder: '닉네임 또는 ID 검색...',
+    },
     loadError: '오류: {message}',
     metaPosition: '연맹 {n}위',
     metaKingdom: '서버 {n}',
@@ -210,7 +214,15 @@ export const ko = {
     toolbar: {
       searchPlaceholder: '닉네임 검색...',
       redeemAll: '🎁 전체 수령',
+      refreshExtras: '🔄 추가 계정 갱신',
       historyTitle: '수령 이력',
+    },
+    refreshExtras: {
+      empty: '갱신할 추가 계정이 없습니다.',
+      confirm: '추가 계정 {n}명의 프로필을 모두 갱신하시겠습니까?',
+      progress: '갱신 중... ({done}/{total})',
+      done: '✅ {n}명 갱신 완료',
+      partial: '⚠ {ok}명 성공 / {fail}명 실패\n{errors}',
     },
     count: {
       all: '전체 {n}명',
