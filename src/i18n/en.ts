@@ -109,6 +109,10 @@ export const en: Translations = {
     count: 'Total {n} members',
     countWithLevel: 'Total {n} members (Lv.{minLevel}+)',
     noFiltered: 'No members match the filter',
+    noSearchResult: 'No results for "{keyword}"',
+    toolbar: {
+      searchPlaceholder: 'Search by nickname or ID...',
+    },
     loadError: 'Error: {message}',
     metaPosition: 'Alliance #{n}',
     metaKingdom: 'Server {n}',
@@ -213,7 +217,15 @@ export const en: Translations = {
     toolbar: {
       searchPlaceholder: 'Search nickname...',
       redeemAll: '🎁 Redeem All',
+      refreshExtras: '🔄 Refresh Extras',
       historyTitle: 'History',
+    },
+    refreshExtras: {
+      empty: 'No extra accounts to refresh.',
+      confirm: 'Refresh profiles of {n} extra accounts?',
+      progress: 'Refreshing... ({done}/{total})',
+      done: '✅ Refreshed {n} accounts',
+      partial: '⚠ {ok} succeeded / {fail} failed\n{errors}',
     },
     count: {
       all: 'Total {n} accounts',

@@ -849,8 +849,9 @@
   transform: translateX(16px);
 }
 
-/* ===== 쿠폰 검색 ===== */
-.coupon-search-input {
+/* ===== 검색 입력 (쿠폰 + 연맹원 페이지 공통) ===== */
+.coupon-search-input,
+.member-search-input {
   padding: 5px 10px;
   border: 1px solid var(--border2);
   border-radius: 6px;
@@ -858,14 +859,16 @@
   font-family: var(--font);
   color: var(--text);
   background: var(--bg);
-  width: 140px;
+  width: 160px;
   transition: border-color 0.15s;
 }
-.coupon-search-input:focus {
+.coupon-search-input:focus,
+.member-search-input:focus {
   outline: none;
   border-color: var(--accent);
 }
-.coupon-search-input::placeholder {
+.coupon-search-input::placeholder,
+.member-search-input::placeholder {
   color: var(--text3);
 }
 
@@ -1250,7 +1253,8 @@
     width: 100%;
     flex-wrap: wrap;
   }
-  .members-toolbar-right .coupon-search-input {
+  .members-toolbar-right .coupon-search-input,
+  .members-toolbar-right .member-search-input {
     flex: 1 1 100%;
     min-width: 0;
     order: -1;

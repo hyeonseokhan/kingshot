@@ -117,6 +117,14 @@ const navItems = manage.submenus!.map((s) => ({
           type="button"
           data-i18n="coupons.toolbar.redeemAll"
         >🎁 전체 수령</button>
+        <!-- 추가 계정 (extras) 일괄 갱신 — JS 가 extras 0건일 때 hidden -->
+        <button
+          class="btn btn-secondary btn-sm"
+          id="btn-refresh-extras"
+          type="button"
+          hidden
+          data-i18n="coupons.toolbar.refreshExtras"
+        >🔄 추가 계정 갱신</button>
         <button
           class="btn-icon-only"
           id="btn-history"
