@@ -56,7 +56,7 @@
 }
 .tm-slot-filled {
   background: #ffffff;
-  border: 1px solid #66aaff;
+  border: 1px solid #b8915a;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
@@ -546,11 +546,11 @@
 /* 인증 다이얼로그 스타일은 src/components/AuthDialog.astro 의 <style is:global> 로 이전됨
  * (AuthDialog 가 BaseLayout 에 마운트되어 모든 페이지에서 보이므로 페이지별 CSS 와 분리) */
 
-/* 타일 */
+/* 타일 — Bronze + Cream 톤 (원본 blue/white 에서 색상만 swap, 구조 동일) */
 .tm-tile {
   position: absolute;
   cursor: pointer;
-  background: #66aaff;
+  background: #b8915a;
   border-radius: 6px;
   padding: 2px;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15), inset 0 -3px 0 rgba(0, 0, 0, 0.18);
@@ -565,7 +565,7 @@
   top: 2px;
   right: 2px;
   bottom: 8px;
-  background: #ffffff;
+  background: #fdf6e3;
   border-radius: 4px;
 }
 .tm-tile-glyph {
