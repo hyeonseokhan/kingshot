@@ -129,7 +129,7 @@ export const ko = {
       delete: '삭제',
       close: '닫기',
       refreshTitle: '정보 갱신',
-      adminGrantButton: '💎 크리스탈 지급',
+      adminGrantButton: '💎 지급',
     },
     grantDialog: {
       title: '크리스탈 지급',

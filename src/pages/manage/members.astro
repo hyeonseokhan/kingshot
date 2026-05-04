@@ -158,66 +158,67 @@ const navItems = manage.submenus!.map((s) => ({
               </label>
             </div>
           </div>
-          <!-- 관리자 전용 섹션 (is_admin = true 일 때만 노출 — JS 가 제어) -->
-          <div class="md-admin-section" id="md-admin-section" hidden>
-            <button class="md-admin-grant-btn" id="md-admin-grant" type="button" data-i18n="members.dialog.adminGrantButton">💎 크리스탈 지급</button>
-          </div>
         </div>
         <div class="manage-dialog-actions">
           <button class="md-action-save" id="md-save" type="button" data-i18n="members.dialog.save">저장</button>
           <button class="md-action-delete-btn" id="md-delete" type="button" data-i18n="members.dialog.delete">삭제</button>
+          <!-- 관리자 전용 — JS 가 is_admin = true 일 때만 hidden 해제 -->
+          <button class="md-action-grant" id="md-admin-grant" type="button" hidden data-i18n="members.dialog.adminGrantButton">💎 지급</button>
           <button class="md-action-close" id="md-close" type="button" data-i18n="members.dialog.close">닫기</button>
         </div>
       </div>
     </div>
 
-    <!-- 관리자 크리스탈 지급 다이얼로그 (native <dialog>, top layer) -->
-    <dialog class="grant-dialog" id="grant-dialog">
-      <form method="dialog" class="grant-form">
-        <h3 class="grant-title">
-          <span data-i18n="members.grantDialog.title">크리스탈 지급</span>
+    <!-- 관리자 크리스탈 지급 다이얼로그 (native <dialog>, top layer)
+         — eq-modal 패턴: position:fixed inset:left-w 0 / margin:auto 로 LeftNav 고려한 중앙 정렬 -->
+    <dialog class="grant-dialog" id="grant-dialog" aria-labelledby="grant-title">
+      <div class="grant-card">
+        <header class="grant-head">
+          <strong id="grant-title" data-i18n="members.grantDialog.title">크리스탈 지급</strong>
           <span class="grant-target" id="grant-target">-</span>
-        </h3>
-        <div class="grant-field">
-          <label for="grant-amount" data-i18n="members.grantDialog.amountLabel">지급 수량 (1~300,000)</label>
-          <input
-            type="number"
-            id="grant-amount"
-            min="1"
-            max="300000"
-            step="1"
-            inputmode="numeric"
-            pattern="[0-9]+"
-            required
-            placeholder="예: 5000"
-            data-i18n-attr-placeholder="members.grantDialog.amountPlaceholder"
-          />
+        </header>
+        <div class="grant-body">
+          <div class="grant-field">
+            <label for="grant-amount" data-i18n="members.grantDialog.amountLabel">지급 수량 (1~300,000)</label>
+            <input
+              type="number"
+              id="grant-amount"
+              min="1"
+              max="300000"
+              step="1"
+              inputmode="numeric"
+              pattern="[0-9]+"
+              required
+              placeholder="예: 5000"
+              data-i18n-attr-placeholder="members.grantDialog.amountPlaceholder"
+            />
+          </div>
+          <div class="grant-field">
+            <label for="grant-source" data-i18n="members.grantDialog.sourceLabel">사유 분류</label>
+            <select id="grant-source" required>
+              <option value="event" data-i18n="members.grantDialog.sourceEvent">이벤트 보상</option>
+              <option value="activity" data-i18n="members.grantDialog.sourceActivity">활동 보상</option>
+              <option value="compensation" data-i18n="members.grantDialog.sourceCompensation">보전</option>
+              <option value="misc" data-i18n="members.grantDialog.sourceMisc">기타</option>
+            </select>
+          </div>
+          <div class="grant-field">
+            <label for="grant-memo" data-i18n="members.grantDialog.memoLabel">메모 (선택, 최대 200자)</label>
+            <textarea
+              id="grant-memo"
+              maxlength="200"
+              rows="3"
+              placeholder="지급 사유를 자유롭게 적어두세요"
+              data-i18n-attr-placeholder="members.grantDialog.memoPlaceholder"
+            ></textarea>
+          </div>
+          <div class="grant-status" id="grant-status" role="status" aria-live="polite"></div>
         </div>
-        <div class="grant-field">
-          <label for="grant-source" data-i18n="members.grantDialog.sourceLabel">사유 분류</label>
-          <select id="grant-source" required>
-            <option value="event" data-i18n="members.grantDialog.sourceEvent">이벤트 보상</option>
-            <option value="activity" data-i18n="members.grantDialog.sourceActivity">활동 보상</option>
-            <option value="compensation" data-i18n="members.grantDialog.sourceCompensation">보전</option>
-            <option value="misc" data-i18n="members.grantDialog.sourceMisc">기타</option>
-          </select>
-        </div>
-        <div class="grant-field">
-          <label for="grant-memo" data-i18n="members.grantDialog.memoLabel">메모 (선택, 최대 200자)</label>
-          <textarea
-            id="grant-memo"
-            maxlength="200"
-            rows="3"
-            placeholder="지급 사유를 자유롭게 적어두세요"
-            data-i18n-attr-placeholder="members.grantDialog.memoPlaceholder"
-          ></textarea>
-        </div>
-        <div class="grant-status" id="grant-status" role="status" aria-live="polite"></div>
-        <div class="grant-actions">
+        <footer class="grant-foot">
           <button type="button" id="grant-cancel" class="grant-btn-cancel" data-i18n="common.cancel">취소</button>
           <button type="button" id="grant-submit" class="grant-btn-submit" data-i18n="members.grantDialog.submit">지급</button>
-        </div>
-      </form>
+        </footer>
+      </div>
     </dialog>
   </div>
 </AppLayout>
