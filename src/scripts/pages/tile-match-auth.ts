@@ -48,21 +48,29 @@ function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
+// 세션 저장소 — localStorage (탭 닫혀도 유지). 카톡 in-app 브라우저처럼 매 진입이
+// 새 탭인 환경에서도 자동 로그인 유지. 명시 로그아웃 버튼으로만 세션 종료.
+//
+// 보안 trade-off: PIN 4자리 + 연맹 도구 컨텍스트라 영구 세션 위험도 낮음. 서버는 매 호출시
+// DB 에서 is_admin 등 권한 재검증 → localStorage 캐시 stale 영향은 UI 표시 한정.
+//
+// 다중 탭 sync: 'storage' 이벤트 listener 가 다른 탭 변경을 즉시 반영
+// (현재 탭 변경은 setSession/clearSession 직후 notifyChange() 가 manual trigger).
 export function getSession(): AuthSession | null {
   try {
-    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null') as AuthSession | null;
+    return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null') as AuthSession | null;
   } catch {
     return null;
   }
 }
 
 function setSession(s: AuthSession): void {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  localStorage.setItem(SESSION_KEY, JSON.stringify(s));
   notifyChange();
 }
 
 export function clearSession(): void {
-  sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
   notifyChange();
 }
 
@@ -78,6 +86,14 @@ function notifyChange(): void {
     } catch {
       /* */
     }
+  });
+}
+
+// 다른 탭에서 로그인/로그아웃 시 현재 탭 UI 도 즉시 sync.
+// `storage` 이벤트는 본인 탭 외 다른 탭에서만 발화 (본인 탭은 setSession 직후 notifyChange 로 처리).
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === SESSION_KEY) notifyChange();
   });
 }
 
