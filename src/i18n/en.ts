@@ -283,6 +283,12 @@ export const en: Translations = {
       queryFailed: 'Query failed: {message}',
     },
   },
+  weeklyRankings: {
+    titleSuffix: 'Rankings',
+    weekLabel: 'Week {week}',
+    belowNote: 'Ranks 4–10 receive 2,000 crystals each',
+    empty: 'No results yet',
+  },
   tileMatch: {
     pageDescription: '3-match mahjong mini game',
     heading: 'Tile Match',
