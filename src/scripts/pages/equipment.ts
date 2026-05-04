@@ -524,8 +524,9 @@ function handleEnhance(): void {
       const total = Array.from(slotState.values()).reduce((s, v) => s + v.power, 0);
       renderTotalPower(total);
       renderSlot(slot);
-      // 한 슬롯 등급 변화 → 6 슬롯 최저 등급 재검사 (아바타 효과 갱신)
+      // 한 슬롯 등급 변화 → 6 슬롯 최저 등급 재검사 (아바타 글로우 + stage 배경 둘 다 갱신)
       applyAvatarTierEffect();
+      applyStageBgEffect();
 
       if (res.success) {
         const successMsg = t('equipment.modal.success', { level: res.new_level ?? 0 });
