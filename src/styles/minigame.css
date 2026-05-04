@@ -3149,7 +3149,9 @@
    주간 랭킹 안내 패널 (Track 7) — 컴팩트 단일 라인 레이아웃
    ============================================================ */
 .wrp {
-  margin: 12px 0 16px;
+  /* MinigameLaunchCard (.mlc) 의 max-width: 900px 와 일관 — 페이지 컴포넌트 폭 통일. */
+  max-width: 900px;
+  margin: 12px auto 16px;
 }
 .wrp-card {
   background: var(--bg2);
