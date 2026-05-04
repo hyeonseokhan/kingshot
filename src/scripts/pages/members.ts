@@ -292,11 +292,11 @@ function openDialog(id: string): void {
   $<HTMLSelectElement>('md-rank').value = rank;
   $<HTMLInputElement>('md-auto-coupon').checked = m.auto_coupon !== false;
 
-  // 관리자 섹션 — 로그인 세션의 is_admin 만 노출
-  const adminSection = document.getElementById('md-admin-section');
-  if (adminSection) {
-    if (isAdminSession(getSession())) adminSection.removeAttribute('hidden');
-    else adminSection.setAttribute('hidden', '');
+  // 관리자 버튼 — 로그인 세션의 is_admin 만 노출
+  const grantBtn = document.getElementById('md-admin-grant');
+  if (grantBtn) {
+    if (isAdminSession(getSession())) grantBtn.removeAttribute('hidden');
+    else grantBtn.setAttribute('hidden', '');
   }
 
   toggleOverlay('manage-dialog-overlay', true);

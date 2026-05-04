@@ -130,7 +130,7 @@ export const en: Translations = {
       delete: 'Delete',
       close: 'Close',
       refreshTitle: 'Refresh info',
-      adminGrantButton: '💎 Grant Crystals',
+      adminGrantButton: '💎 Grant',
     },
     grantDialog: {
       title: 'Grant Crystals',
