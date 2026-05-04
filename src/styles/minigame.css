@@ -777,6 +777,7 @@
   max-width: none;
 }
 #page-tile-match > .page-intro,
+#page-tile-match > .wrp,
 #page-tile-match > .rank,
 #page-partner-draw > .page-intro,
 #page-partner-draw > .pd-result {
