@@ -7,6 +7,7 @@
  */
 
 import { supabase as sb, SUPABASE_URL } from '@/lib/supabase';
+import { SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { esc, getLevelClass, formatPower, delay, toggleOverlay } from '@/lib/utils';
 import {
   invalidateAccountsCache,
@@ -18,8 +19,10 @@ import { membersStore, fetchMembers } from '@/lib/stores/members';
 import { patchList, patchText } from '@/lib/dom-diff';
 import type { Member, AllianceRank } from '@/lib/types';
 import { t, onLangChange } from '@/i18n';
+import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
 
 const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
+const FN_ECONOMY_URL = SUPABASE_URL + '/functions/v1/economy';
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 500;
 
@@ -288,6 +291,13 @@ function openDialog(id: string): void {
   $('md-meta').textContent = metaParts.join(' · ');
   $<HTMLSelectElement>('md-rank').value = rank;
   $<HTMLInputElement>('md-auto-coupon').checked = m.auto_coupon !== false;
+
+  // 관리자 섹션 — 로그인 세션의 is_admin 만 노출
+  const adminSection = document.getElementById('md-admin-section');
+  if (adminSection) {
+    if (isAdminSession(getSession())) adminSection.removeAttribute('hidden');
+    else adminSection.setAttribute('hidden', '');
+  }
 
   toggleOverlay('manage-dialog-overlay', true);
 }
@@ -689,6 +699,9 @@ function initPage(): void {
   // 전체 갱신
   $('btn-refresh-all').addEventListener('click', refreshAllMembers);
 
+  // 관리자 — 크리스탈 지급
+  initAdminGrant();
+
   // Esc → 모든 오버레이 닫기
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
@@ -705,6 +718,141 @@ function initPage(): void {
 
   // 언어 변경 시 동적 텍스트 (count / 메타 / 배너 등) 재계산.
   onLangChange(() => renderMembers());
+}
+
+// ===== 관리자 — 크리스탈 지급 =====
+
+interface AdminGrantResp {
+  ok: boolean;
+  error?: string;
+  amount_applied?: number;
+  duplicate?: boolean;
+  target_balance?: number;
+  target_kingshot_id?: string;
+}
+
+function setGrantStatus(text: string, tone: 'idle' | 'error' | 'success' = 'idle'): void {
+  const el = document.getElementById('grant-status');
+  if (!el) return;
+  el.textContent = text;
+  el.dataset.tone = tone;
+}
+
+function openGrantDialog(): void {
+  if (!currentDialogId) return;
+  const m = findMember(currentDialogId);
+  if (!m) return;
+  if (!isAdminSession(getSession())) return;
+
+  const dlg = document.getElementById('grant-dialog') as HTMLDialogElement | null;
+  if (!dlg) return;
+
+  // 매번 신선한 상태로 — 이전 입력 잔재 제거
+  const targetEl = document.getElementById('grant-target');
+  if (targetEl) targetEl.textContent = '→ ' + m.nickname + ' (' + m.kingshot_id + ')';
+  (document.getElementById('grant-amount') as HTMLInputElement).value = '';
+  (document.getElementById('grant-source') as HTMLSelectElement).value = 'event';
+  (document.getElementById('grant-memo') as HTMLTextAreaElement).value = '';
+  setGrantStatus('');
+  const submitBtn = document.getElementById('grant-submit') as HTMLButtonElement;
+  if (submitBtn) submitBtn.disabled = false;
+
+  dlg.showModal();
+}
+
+function closeGrantDialog(): void {
+  const dlg = document.getElementById('grant-dialog') as HTMLDialogElement | null;
+  if (dlg?.open) dlg.close();
+}
+
+function submitGrant(): void {
+  if (!currentDialogId) return;
+  const target = findMember(currentDialogId);
+  const session = getSession();
+  if (!target || !session?.player_id || !isAdminSession(session)) return;
+
+  const amountInput = document.getElementById('grant-amount') as HTMLInputElement;
+  const sourceSelect = document.getElementById('grant-source') as HTMLSelectElement;
+  const memoInput = document.getElementById('grant-memo') as HTMLTextAreaElement;
+  const submitBtn = document.getElementById('grant-submit') as HTMLButtonElement;
+
+  const amountStr = amountInput.value.trim();
+  // 정규식: 1~99,999 | 100,000~299,999 | 300000
+  const amountRegex = /^([1-9][0-9]{0,4}|[1-2][0-9]{5}|300000)$/;
+  if (!amountRegex.test(amountStr)) {
+    setGrantStatus(t('members.grantDialog.errors.invalidAmount'), 'error');
+    amountInput.setAttribute('aria-invalid', 'true');
+    amountInput.focus();
+    return;
+  }
+  amountInput.removeAttribute('aria-invalid');
+  const amount = parseInt(amountStr, 10);
+  const sourceKind = sourceSelect.value;
+  const memo = memoInput.value.trim();
+  // UUID — 행위 1회당 새로 생성. 재시도(네트워크 등)는 같은 키 재사용 → 서버 UNIQUE 가 중복 차단.
+  const idempotencyKey = (crypto as Crypto & { randomUUID?: () => string }).randomUUID
+    ? crypto.randomUUID()
+    : 'fallback-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+
+  submitBtn.disabled = true;
+  setGrantStatus(t('members.grantDialog.status.sending'), 'idle');
+
+  fetch(FN_ECONOMY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      action: 'admin-grant',
+      player_id: session.player_id,
+      target_kingshot_id: target.kingshot_id,
+      amount,
+      source_kind: sourceKind,
+      memo,
+      idempotency_key: idempotencyKey,
+    }),
+  })
+    .then((r) => r.json() as Promise<AdminGrantResp>)
+    .then((res) => {
+      if (!res.ok) {
+        setGrantStatus(t('members.grantDialog.errors.serverError', { error: res.error || '' }), 'error');
+        submitBtn.disabled = false;
+        return;
+      }
+      // 자기 자신에게 지급한 경우 헤더 잔액 즉시 갱신
+      if (res.target_kingshot_id === session.player_id && typeof res.target_balance === 'number') {
+        window.dispatchEvent(
+          new CustomEvent('crystal-balance-update', { detail: { balance: res.target_balance } }),
+        );
+      }
+      const msgKey = res.duplicate
+        ? 'members.grantDialog.status.duplicate'
+        : 'members.grantDialog.status.success';
+      setGrantStatus(
+        t(msgKey, { amount: amount.toLocaleString('ko-KR'), name: target.nickname }),
+        'success',
+      );
+      // 잠시 보여준 뒤 자동 닫기
+      setTimeout(() => closeGrantDialog(), 1200);
+    })
+    .catch((err: Error) => {
+      setGrantStatus(t('members.grantDialog.errors.networkError', { message: err.message }), 'error');
+      submitBtn.disabled = false;
+    });
+}
+
+function initAdminGrant(): void {
+  document.getElementById('md-admin-grant')?.addEventListener('click', openGrantDialog);
+  document.getElementById('grant-cancel')?.addEventListener('click', () => closeGrantDialog());
+  document.getElementById('grant-submit')?.addEventListener('click', submitGrant);
+
+  // backdrop 클릭 시 닫기
+  document.getElementById('grant-dialog')?.addEventListener('click', (e) => {
+    const dlg = e.currentTarget as HTMLDialogElement;
+    if (e.target === dlg) closeGrantDialog();
+  });
 }
 
 // 외부 노출 — 다른 페이지에서 reload 호출용 (현재는 사용 X 지만 보존)

@@ -74,19 +74,19 @@ function isValidPin(pin: unknown): pin is string {
 
 async function pinStatus(playerId: string) {
   const member = await dbSelectOne(
-    `members?kingshot_id=eq.${encodeURIComponent(playerId)}&select=kingshot_id,nickname`
+    `members?kingshot_id=eq.${encodeURIComponent(playerId)}&select=kingshot_id,nickname,is_admin`
   );
   if (!member) return { ok: false, error: "member_not_found" };
   const cred = await dbSelectOne(
     `member_credentials?player_id=eq.${encodeURIComponent(playerId)}&select=player_id`
   );
-  return { ok: true, nickname: member.nickname, registered: !!cred };
+  return { ok: true, nickname: member.nickname, registered: !!cred, is_admin: !!member.is_admin };
 }
 
 async function setPin(playerId: string, pin: unknown) {
   if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
   const member = await dbSelectOne(
-    `members?kingshot_id=eq.${encodeURIComponent(playerId)}&select=kingshot_id`
+    `members?kingshot_id=eq.${encodeURIComponent(playerId)}&select=kingshot_id,is_admin`
   );
   if (!member) return { ok: false, error: "member_not_found" };
   const existing = await dbSelectOne(
@@ -96,7 +96,7 @@ async function setPin(playerId: string, pin: unknown) {
   const salt = randomSaltHex();
   const hash = await sha256Hex(pin + salt);
   await dbInsert("member_credentials", { player_id: playerId, pin_hash: hash, pin_salt: salt });
-  return { ok: true };
+  return { ok: true, is_admin: !!member.is_admin };
 }
 
 async function verifyPin(playerId: string, pin: unknown) {
@@ -107,7 +107,11 @@ async function verifyPin(playerId: string, pin: unknown) {
   if (!cred) return { ok: false, error: "not_registered" };
   const computed = await sha256Hex(pin + cred.pin_salt);
   if (computed !== cred.pin_hash) return { ok: false, error: "invalid_pin" };
-  return { ok: true };
+  // 인증 성공 → admin 플래그 같이 반환 (클라이언트 세션에 박제)
+  const member = await dbSelectOne(
+    `members?kingshot_id=eq.${encodeURIComponent(playerId)}&select=is_admin`
+  );
+  return { ok: true, is_admin: !!member?.is_admin };
 }
 
 async function getRecord(playerId: string) {

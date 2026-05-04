@@ -13,6 +13,13 @@ const FN_AUTH_URL = SUPABASE_URL + '/functions/v1/tile-match-auth';
 export interface AuthSession {
   player_id: string;
   nickname: string;
+  /** 관리자 여부 — 기존 sessionStorage 의 구버전 세션은 undefined → false 로 취급. */
+  is_admin?: boolean;
+}
+
+/** 세션 객체에서 admin 여부를 안전하게 읽음 (구버전 세션 호환). */
+export function isAdminSession(s: AuthSession | null | undefined): boolean {
+  return !!s?.is_admin;
 }
 
 // 인증 다이얼로그가 표시하는 멤버 정보 — Member 의 subset.
@@ -282,7 +289,11 @@ function submitPin(): void {
       const member = selectedMember;
       callAuth('set-pin', { player_id: member.kingshot_id, pin: pinInput }).then((res) => {
         if (res.ok) {
-          setSession({ player_id: member.kingshot_id, nickname: member.nickname });
+          setSession({
+            player_id: member.kingshot_id,
+            nickname: member.nickname,
+            is_admin: !!res.is_admin,
+          });
           closeAuth(true);
         } else {
           setMsg(t('authDialog.pinSetFailed', { error: res.error || '' }));
@@ -296,7 +307,11 @@ function submitPin(): void {
     const member = selectedMember;
     callAuth('verify-pin', { player_id: member.kingshot_id, pin: pinInput }).then((res) => {
       if (res.ok) {
-        setSession({ player_id: member.kingshot_id, nickname: member.nickname });
+        setSession({
+          player_id: member.kingshot_id,
+          nickname: member.nickname,
+          is_admin: !!res.is_admin,
+        });
         closeAuth(true);
       } else {
         setMsg(t('authDialog.pinVerifyFailed'));
@@ -316,6 +331,7 @@ interface AuthResponse {
   ok: boolean;
   error?: string;
   registered?: boolean;
+  is_admin?: boolean;
 }
 
 function callAuth(action: string, body: Record<string, unknown>): Promise<AuthResponse> {
