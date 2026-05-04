@@ -471,7 +471,9 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  background: var(--bg2);
+  /* Medieval parchment 배경 — public/images/tile-match/board-bg.{svg|webp}
+     SVG 플레이스홀더가 즉시 적용. AI 이미지 생성 후 board-bg.webp 로 교체 + 아래 경로 수정. */
+  background: var(--bg2) url('/images/tile-match/board-bg.svg') no-repeat center / cover;
   border: 1px solid var(--border);
   border-radius: 8px;
   position: relative;
@@ -546,27 +548,20 @@
 /* 인증 다이얼로그 스타일은 src/components/AuthDialog.astro 의 <style is:global> 로 이전됨
  * (AuthDialog 가 BaseLayout 에 마운트되어 모든 페이지에서 보이므로 페이지별 CSS 와 분리) */
 
-/* 타일 */
+/* 타일 — Medieval mahjong frame
+   public/images/tile-match/tile-frame.{svg|png} 의 cream + gold border + inset panel + 3D depth
+   가 기존 #66aaff 박스 + 흰 inner area + box-shadow 를 모두 대체. */
 .tm-tile {
   position: absolute;
   cursor: pointer;
-  background: #66aaff;
+  background: url('/images/tile-match/tile-frame.svg') no-repeat center / 100% 100%;
+  /* 이미지가 자체 모서리 라운딩 / shadow 포함 — 추가 box-shadow 불필요.
+     이미지 로드 실패 fallback 만 가볍게: */
+  background-color: #f5e8c8;
   border-radius: 6px;
-  padding: 2px;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15), inset 0 -3px 0 rgba(0, 0, 0, 0.18);
   transition: transform 0.12s ease, opacity 0.12s ease;
   user-select: none;
   -webkit-user-select: none;
-}
-.tm-tile::before {
-  content: '';
-  position: absolute;
-  left: 2px;
-  top: 2px;
-  right: 2px;
-  bottom: 8px;
-  background: #ffffff;
-  border-radius: 4px;
 }
 .tm-tile-glyph {
   position: relative;
