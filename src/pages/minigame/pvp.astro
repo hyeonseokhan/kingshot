@@ -199,10 +199,10 @@ const SLOT_LAYOUT = [
       refreshId="pvp-rank-refresh"
       bodyId="pvp-ranking-body"
       clickable
-      defaultSort="power"
+      defaultSort="pvp_wins"
       columns={[
-        { key: 'power',    label: '⚔️ 전투력', labelKey: 'pvp.ranking.columnPower', width: '70px', align: 'right', sortable: true, cellClass: 'rank-cell-power' },
         { key: 'pvp_wins', label: '🏆 승수',   labelKey: 'pvp.ranking.columnWins',  width: '50px', align: 'right', sortable: true, cellClass: 'rank-cell-wins' },
+        { key: 'power',    label: '⚔️ 전투력', labelKey: 'pvp.ranking.columnPower', width: '70px', align: 'right', sortable: true, cellClass: 'rank-cell-power' },
       ]}
     />
 
