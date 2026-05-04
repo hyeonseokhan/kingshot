@@ -7,11 +7,14 @@
  * 액션:
  *   { action: "get-balance",         player_id }              → { ok, balance }
  *   { action: "claim-stage-reward",  player_id, stage }       → { ok, amount, balance, duplicate, stage }
+ *   { action: "admin-grant",         player_id, target_kingshot_id, amount, source_kind, memo, idempotency_key }
+ *                                                              → { ok, amount_applied, duplicate, target_balance, target_kingshot_id }
  *
  * 보안 모델 (Phase A):
  *   * 호출자가 본인이라는 검증은 클라이언트 sessionStorage 신뢰 + DB FK 제약 (members) 으로 한정.
  *     기존 tile-match-auth 의 record-clear 와 동일 수준. 추후 토큰 검증으로 강화 예정.
  *   * 보상 중복 청구는 crystal_transactions 의 (player_id, ref_key) UNIQUE 인덱스로 강제.
+ *   * admin-grant: caller 의 members.is_admin = true 검증 + UUID idempotency_key 로 중복 차단.
  */
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -136,6 +139,74 @@ async function claimStageReward(playerId: string, stage: unknown) {
 }
 
 // ============================================================
+// admin-grant — 관리자 임의 지급
+// ============================================================
+//   - caller(player_id) 의 members.is_admin = true 검증
+//   - amount 1~300_000 (오타 사고 방지 cap; 그 이상은 DB 마이그레이션으로 직접)
+//   - idempotency_key (클라이언트 UUID) 로 ref_key 멱등성 보장 → 네트워크 재시도 시 중복 INSERT 차단
+//   - source_kind enum + 자유 메모 → ref_data 에 박제 (감사 trail)
+
+const VALID_SOURCE_KINDS = ["event", "activity", "compensation", "misc"] as const;
+type SourceKind = typeof VALID_SOURCE_KINDS[number];
+
+function isValidSourceKind(s: unknown): s is SourceKind {
+  return typeof s === "string" && (VALID_SOURCE_KINDS as readonly string[]).includes(s);
+}
+
+async function adminGrant(callerId: string, body: Record<string, unknown>) {
+  // 1. caller 가 admin 인지 검증
+  const caller = (await dbSelectOne(
+    `members?kingshot_id=eq.${encodeURIComponent(callerId)}&select=is_admin`
+  )) as { is_admin: boolean } | null;
+  if (!caller) return { ok: false, error: "caller_not_found" };
+  if (!caller.is_admin) return { ok: false, error: "not_admin" };
+
+  // 2. 입력 검증
+  const targetId = body.target_kingshot_id;
+  const amount = body.amount;
+  const sourceKind = body.source_kind;
+  const memo = body.memo;
+  const idempotencyKey = body.idempotency_key;
+
+  if (typeof targetId !== "string" || targetId.length === 0)
+    return { ok: false, error: "missing_target" };
+  if (!Number.isInteger(amount) || (amount as number) < 1 || (amount as number) > 300_000)
+    return { ok: false, error: "invalid_amount" };
+  if (!isValidSourceKind(sourceKind)) return { ok: false, error: "invalid_source_kind" };
+  if (typeof memo !== "string" || memo.length > 200) return { ok: false, error: "invalid_memo" };
+  if (typeof idempotencyKey !== "string" || idempotencyKey.length < 8 || idempotencyKey.length > 64)
+    return { ok: false, error: "invalid_idempotency_key" };
+
+  // 3. target 존재 확인
+  const target = await dbSelectOne(
+    `members?kingshot_id=eq.${encodeURIComponent(targetId)}&select=kingshot_id`
+  );
+  if (!target) return { ok: false, error: "target_not_found" };
+
+  // 4. 적용 — ref_key UNIQUE 가 멱등성 강제
+  const refKey = `admin_grant:${idempotencyKey}`;
+  const result = await dbRpc<{
+    duplicate: boolean;
+    amount_applied: number;
+    balance: number;
+  }>("apply_crystal_transaction", {
+    p_player_id: targetId,
+    p_amount: amount,
+    p_source: "admin_grant",
+    p_ref_key: refKey,
+    p_ref_data: { granted_by: callerId, source_kind: sourceKind, memo },
+  });
+
+  return {
+    ok: true,
+    amount_applied: result.amount_applied,
+    duplicate: result.duplicate,
+    target_balance: result.balance,
+    target_kingshot_id: targetId,
+  };
+}
+
+// ============================================================
 // 엔트리
 // ============================================================
 Deno.serve(async (req: Request) => {
@@ -153,6 +224,7 @@ Deno.serve(async (req: Request) => {
     switch (action) {
       case "get-balance":        result = await getBalance(player_id); break;
       case "claim-stage-reward": result = await claimStageReward(player_id, body.stage); break;
+      case "admin-grant":        result = await adminGrant(player_id, body); break;
       default:                   result = { ok: false, error: "unknown_action" };
     }
     return new Response(JSON.stringify(result), {
