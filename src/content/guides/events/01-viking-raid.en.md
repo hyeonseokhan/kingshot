@@ -98,9 +98,9 @@ Combat goes in order: **Infantry → Cavalry → Archer**.
 
 ### Recommended ratio
 
-| Round   | Recommended ratio   |
-| -------- | ------------------- |
-| Round 10 | 100% Infantry      |
+| Round    | Recommended ratio          |
+| -------- | -------------------------- |
+| Round 10 | 100% Infantry              |
 | Round 20 | **Infantry 5 : Cavalry 5** |
 
 ### 📌 PNX Alliance HQ defense protocol
@@ -191,4 +191,3 @@ Combat goes in order: **Infantry → Cavalry → Archer**.
 5. Strong specs → use the
    **1:1 direct switching strategy**
 6. **No healing during the event** (loses reinforcement points)
-7. Currently progresses up to **difficulty 21**
