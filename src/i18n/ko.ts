@@ -279,6 +279,12 @@ export const ko = {
       queryFailed: '조회 실패: {message}',
     },
   },
+  weeklyRankings: {
+    titleSuffix: '순위결과',
+    weekLabel: '{week}주차',
+    belowNote: '4~10등은 각 2,000 크리스탈 지급',
+    empty: '아직 집계된 결과가 없습니다',
+  },
   tileMatch: {
     pageDescription: '3매치 마작 미니게임',
     heading: '타일 매치',

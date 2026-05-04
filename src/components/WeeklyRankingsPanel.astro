@@ -1,0 +1,158 @@
+---
+// 주간 랭킹 안내 컴포넌트 (Track 7)
+//   - 미니게임 페이지 상단의 게임 설명 바로 아래에 배치
+//   - 가장 최근 주차의 1·2·3등 + 보상 표시
+//   - 4~10등은 "각 2,000 지급" 문구만 표기 (계획서 결정사항)
+//   - 데이터 0건이면 "아직 집계된 결과가 없습니다" 표시
+//
+// 동작 로직: src/scripts/components/weekly-rankings-panel.ts
+interface Props {
+  game: 'tile_match' | 'pvp';
+}
+const { game } = Astro.props;
+---
+
+<section class="wrp" data-game={game} aria-busy="true">
+  <div class="wrp-card">
+    <div class="wrp-header">
+      <span class="wrp-icon" aria-hidden="true">🏆</span>
+      <h3 class="wrp-title">
+        <span class="wrp-week" data-field="week-label">—</span>
+        <span data-i18n="weeklyRankings.titleSuffix">순위결과</span>
+      </h3>
+    </div>
+    <ol class="wrp-podium" data-field="podium" hidden>
+      <!-- 동적 — 1·2·3등 row 삽입 -->
+    </ol>
+    <p class="wrp-note" data-field="bottom-note" hidden data-i18n="weeklyRankings.belowNote">
+      4~10등은 각 2,000 크리스탈 지급
+    </p>
+    <p class="wrp-empty" data-field="empty" hidden data-i18n="weeklyRankings.empty">
+      아직 집계된 결과가 없습니다
+    </p>
+  </div>
+</section>
+
+<style>
+  .wrp {
+    margin: 12px 0 16px;
+  }
+  .wrp-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08));
+    border: 1px solid rgba(165, 180, 252, 0.25);
+    border-radius: 12px;
+    padding: 14px 18px;
+  }
+  .wrp-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .wrp-icon {
+    font-size: 18px;
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4));
+  }
+  .wrp-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #f9fafb;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .wrp-week {
+    color: #a5b4fc;
+  }
+  .wrp-podium {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .wrp-row {
+    display: grid;
+    grid-template-columns: 28px 28px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .wrp-rank {
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .wrp-rank[data-rank='1'] {
+    color: #fbbf24;
+  }
+  .wrp-rank[data-rank='2'] {
+    color: #d1d5db;
+  }
+  .wrp-rank[data-rank='3'] {
+    color: #fb923c;
+  }
+  .wrp-photo-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.1);
+    display: grid;
+    place-items: center;
+  }
+  .wrp-photo-wrap > * {
+    grid-area: 1 / 1;
+  }
+  .wrp-photo-empty {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .wrp-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 80ms ease-out;
+  }
+  .wrp-photo.loaded {
+    opacity: 1;
+  }
+  .wrp-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #f3f4f6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .wrp-reward {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #fde68a;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .wrp-note {
+    margin: 0;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.55);
+    text-align: right;
+  }
+  .wrp-empty {
+    margin: 0;
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.55);
+    text-align: center;
+    padding: 8px 0;
+  }
+</style>
+
+<script>
+  import '@/scripts/components/weekly-rankings-panel';
+</script>
