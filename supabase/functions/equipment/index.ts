@@ -67,11 +67,11 @@ const ENHANCE_RANGES: ReadonlyArray<{
   powerFrom: number; powerTo: number;
   rateFrom: number; rateTo: number;
 }> = [
-  { from: 3,  to: 9,   costFrom: 300,    costTo: 1000,   powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.80 },
-  { from: 10, to: 24,  costFrom: 1500,   costTo: 4000,   powerFrom: 250,   powerTo: 600,    rateFrom: 0.75, rateTo: 0.55 },
-  { from: 25, to: 44,  costFrom: 5000,   costTo: 15000,  powerFrom: 700,   powerTo: 2000,   rateFrom: 0.50, rateTo: 0.30 },
-  { from: 45, to: 69,  costFrom: 18000,  costTo: 60000,  powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.25, rateTo: 0.10 },
-  { from: 70, to: 100, costFrom: 70000,  costTo: 400000, powerFrom: 10000, powerTo: 50000,  rateFrom: 0.08, rateTo: 0.02 },
+  { from: 3,  to: 9,   costFrom: 300,    costTo: 1000,   powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.70 },
+  { from: 10, to: 24,  costFrom: 1500,   costTo: 4000,   powerFrom: 250,   powerTo: 600,    rateFrom: 0.90, rateTo: 0.55 },
+  { from: 25, to: 44,  costFrom: 5000,   costTo: 15000,  powerFrom: 700,   powerTo: 2000,   rateFrom: 0.75, rateTo: 0.25 },
+  { from: 45, to: 69,  costFrom: 18000,  costTo: 60000,  powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.65, rateTo: 0.08 },
+  { from: 70, to: 100, costFrom: 70000,  costTo: 400000, powerFrom: 10000, powerTo: 50000,  rateFrom: 0.50, rateTo: 0.04 },
 ];
 
 interface EnhanceStep {

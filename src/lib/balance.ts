@@ -118,11 +118,11 @@ const ENHANCE_RANGES: ReadonlyArray<{
   rateFrom: number;
   rateTo: number;
 }> = [
-  { tier: 'uncommon',  from: 3,  to: 9,   costFrom: 300,    costTo: 1000,    powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.80 },
-  { tier: 'rare',      from: 10, to: 24,  costFrom: 1500,   costTo: 4000,    powerFrom: 250,   powerTo: 600,    rateFrom: 0.75, rateTo: 0.55 },
-  { tier: 'epic',      from: 25, to: 44,  costFrom: 5000,   costTo: 15000,   powerFrom: 700,   powerTo: 2000,   rateFrom: 0.50, rateTo: 0.30 },
-  { tier: 'legendary', from: 45, to: 69,  costFrom: 18000,  costTo: 60000,   powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.25, rateTo: 0.10 },
-  { tier: 'mythic',    from: 70, to: 100, costFrom: 70000,  costTo: 400000,  powerFrom: 10000, powerTo: 50000,  rateFrom: 0.08, rateTo: 0.02 },
+  { tier: 'uncommon',  from: 3,  to: 9,   costFrom: 300,    costTo: 1000,    powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.70 },
+  { tier: 'rare',      from: 10, to: 24,  costFrom: 1500,   costTo: 4000,    powerFrom: 250,   powerTo: 600,    rateFrom: 0.90, rateTo: 0.55 },
+  { tier: 'epic',      from: 25, to: 44,  costFrom: 5000,   costTo: 15000,   powerFrom: 700,   powerTo: 2000,   rateFrom: 0.75, rateTo: 0.25 },
+  { tier: 'legendary', from: 45, to: 69,  costFrom: 18000,  costTo: 60000,   powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.65, rateTo: 0.08 },
+  { tier: 'mythic',    from: 70, to: 100, costFrom: 70000,  costTo: 400000,  powerFrom: 10000, powerTo: 50000,  rateFrom: 0.50, rateTo: 0.04 },
 ];
 
 /**
