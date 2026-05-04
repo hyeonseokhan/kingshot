@@ -99,13 +99,17 @@ export function tierForLevel(level: number): EquipmentTier {
 
 /**
  * 강화 단계 비용/전투력/확률 — 등급별 range 정의 + 선형 보간.
- *   - 튜토리얼 (+1, +2): 무조건 100% 성공 (특별 처리)
- *   - 그 외: 등급별 시작/끝 값 사이 보간
+ *
+ * 모델 (로스트아크 "계승" 패턴):
+ *   - 각 등급은 "해당 등급의 rate 가 적용되는 target range" 로 정의
+ *   - 등급 끝 = 다음 등급으로 승급하는 시도 (예: target 10 = 고급의 마지막 = 70%)
+ *   - 등급 진입 = 승급 직후 첫 강화 시도 (예: target 11 = 희귀의 첫 단계 = 90% fresh)
+ *   - 따라서 9→10 시도 rate=70% 였다가 10→11 시도 rate=90% 로 점프 ✨
  *
  * 참고:
- *   - 비용 곡선 — 등급 사이에 의도적 jump (uncommon 끝 1,000 → rare 시작 1,500)
- *   - 게임 평생 max 재화 ~20,820 + stage 46+ 100/회 반복 파밍 가정
- *   - 한 부위 신화(+70~100) 풀강은 end-game grind 영역 (수백만 ~ 수천만 크리스탈)
+ *   - tutorial (+1) cost 100/power 50/rate 100% — 별도 특수 케이스 없이 곡선 자연 시작점
+ *   - 신화(+71~100) 풀강 기댓 시도수 약 92회, 전체 풀강 약 213회
+ *   - 곡선 변경 시 기존 player 누적 power 백필 X — stored 값 그대로 보존
  */
 const ENHANCE_RANGES: ReadonlyArray<{
   tier: EquipmentTier;
@@ -118,24 +122,24 @@ const ENHANCE_RANGES: ReadonlyArray<{
   rateFrom: number;
   rateTo: number;
 }> = [
-  { tier: 'uncommon',  from: 3,  to: 9,   costFrom: 300,    costTo: 1000,    powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.70 },
-  { tier: 'rare',      from: 10, to: 24,  costFrom: 1500,   costTo: 4000,    powerFrom: 250,   powerTo: 600,    rateFrom: 0.90, rateTo: 0.55 },
-  { tier: 'epic',      from: 25, to: 44,  costFrom: 5000,   costTo: 15000,   powerFrom: 700,   powerTo: 2000,   rateFrom: 0.75, rateTo: 0.25 },
-  { tier: 'legendary', from: 45, to: 69,  costFrom: 18000,  costTo: 60000,   powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.65, rateTo: 0.08 },
-  { tier: 'mythic',    from: 70, to: 100, costFrom: 70000,  costTo: 400000,  powerFrom: 10000, powerTo: 50000,  rateFrom: 0.50, rateTo: 0.04 },
+  { tier: 'uncommon',  from: 1,  to: 10,  costFrom: 100,    costTo: 1000,   powerFrom: 50,    powerTo: 200,    rateFrom: 1.00, rateTo: 0.70 },
+  { tier: 'rare',      from: 11, to: 25,  costFrom: 1500,   costTo: 4000,   powerFrom: 250,   powerTo: 600,    rateFrom: 0.90, rateTo: 0.60 },
+  { tier: 'epic',      from: 26, to: 45,  costFrom: 5000,   costTo: 15000,  powerFrom: 700,   powerTo: 2000,   rateFrom: 0.80, rateTo: 0.40 },
+  { tier: 'legendary', from: 46, to: 70,  costFrom: 18000,  costTo: 60000,  powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.70, rateTo: 0.20 },
+  { tier: 'mythic',    from: 71, to: 100, costFrom: 70000,  costTo: 400000, powerFrom: 10000, powerTo: 50000,  rateFrom: 0.60, rateTo: 0.05 },
 ];
 
 /**
  * 현재 레벨에서 한 단계 강화 시도 시 cost/power/rate 반환.
  * 이미 max 면 null.
+ *
+ * range lookup 은 target level 기준. target 10 → 고급 range (rateTo = 70%, 끝점),
+ * target 11 → 희귀 range (rateFrom = 90%, 시작점). 이 시프트가 "승급 시도는 이전
+ * 등급의 끝 / 승급 후 첫 단계는 새 등급의 시작" 모델을 구현.
  */
 export function enhanceCostFor(currentLevel: number): EnhanceStep | null {
   const next = currentLevel + 1;
   if (next < 1 || next > ENHANCE_MAX_LEVEL) return null;
-
-  // 튜토리얼 — +1, +2 는 100% 성공 보장
-  if (next === 1) return { level: 1, cost: 100, power: 50, rate: 1.0 };
-  if (next === 2) return { level: 2, cost: 200, power: 60, rate: 1.0 };
 
   const range = ENHANCE_RANGES.find((r) => next >= r.from && next <= r.to);
   if (!range) return null;

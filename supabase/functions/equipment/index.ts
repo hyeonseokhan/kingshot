@@ -61,17 +61,19 @@ async function dbRpc<T = unknown>(fnName: string, args: Record<string, unknown>)
 //   - 100단계 cap (그 이후는 후속 트랙 — 신소재 시스템)
 const ENHANCE_MAX_LEVEL = 100;
 
+// 모델: 등급 끝 = 승급 시도 (이전 등급의 마지막 rate), 등급 진입 = fresh start (점프).
+// 자세한 설명은 src/lib/balance.ts 의 ENHANCE_RANGES 주석 참조.
 const ENHANCE_RANGES: ReadonlyArray<{
   from: number; to: number;
   costFrom: number; costTo: number;
   powerFrom: number; powerTo: number;
   rateFrom: number; rateTo: number;
 }> = [
-  { from: 3,  to: 9,   costFrom: 300,    costTo: 1000,   powerFrom: 80,    powerTo: 200,    rateFrom: 0.95, rateTo: 0.70 },
-  { from: 10, to: 24,  costFrom: 1500,   costTo: 4000,   powerFrom: 250,   powerTo: 600,    rateFrom: 0.90, rateTo: 0.55 },
-  { from: 25, to: 44,  costFrom: 5000,   costTo: 15000,  powerFrom: 700,   powerTo: 2000,   rateFrom: 0.75, rateTo: 0.25 },
-  { from: 45, to: 69,  costFrom: 18000,  costTo: 60000,  powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.65, rateTo: 0.08 },
-  { from: 70, to: 100, costFrom: 70000,  costTo: 400000, powerFrom: 10000, powerTo: 50000,  rateFrom: 0.50, rateTo: 0.04 },
+  { from: 1,  to: 10,  costFrom: 100,    costTo: 1000,   powerFrom: 50,    powerTo: 200,    rateFrom: 1.00, rateTo: 0.70 },
+  { from: 11, to: 25,  costFrom: 1500,   costTo: 4000,   powerFrom: 250,   powerTo: 600,    rateFrom: 0.90, rateTo: 0.60 },
+  { from: 26, to: 45,  costFrom: 5000,   costTo: 15000,  powerFrom: 700,   powerTo: 2000,   rateFrom: 0.80, rateTo: 0.40 },
+  { from: 46, to: 70,  costFrom: 18000,  costTo: 60000,  powerFrom: 2500,  powerTo: 8000,   rateFrom: 0.70, rateTo: 0.20 },
+  { from: 71, to: 100, costFrom: 70000,  costTo: 400000, powerFrom: 10000, powerTo: 50000,  rateFrom: 0.60, rateTo: 0.05 },
 ];
 
 interface EnhanceStep {
@@ -83,8 +85,6 @@ interface EnhanceStep {
 
 function enhanceStepFor(targetLevel: number): EnhanceStep | null {
   if (targetLevel < 1 || targetLevel > ENHANCE_MAX_LEVEL) return null;
-  if (targetLevel === 1) return { level: 1, cost: 100, power: 50, rate: 1.0 };
-  if (targetLevel === 2) return { level: 2, cost: 200, power: 60, rate: 1.0 };
   const range = ENHANCE_RANGES.find((r) => targetLevel >= r.from && targetLevel <= r.to);
   if (!range) return null;
   const span = Math.max(1, range.to - range.from);
