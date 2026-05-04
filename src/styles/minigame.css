@@ -596,11 +596,7 @@
 }
 .tm-tile.tm-inactive {
   cursor: not-allowed;
-  /* 기존 brightness(0.6) saturate(0.45) sepia(0.28) 은 파란 타일엔 적정했지만
-     cream 마작 타일을 muddy 갈색으로 만들어 비활성 타일이 거의 안 보였음.
-     opacity 부드럽게 + 살짝 desaturate 로 "secondary 하지만 식별 가능" 효과. */
-  opacity: 0.55;
-  filter: saturate(0.65);
+  filter: brightness(0.6) saturate(0.45) sepia(0.28);
 }
 .tm-tile.tm-inactive:hover {
   transform: none;
