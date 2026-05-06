@@ -4,7 +4,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "config.json"
 OUTPUT_DIR = PROJECT_ROOT / "output"
-PROBE_DIR = PROJECT_ROOT / "_probe"
+PROBE_DIR = PROJECT_ROOT / "_probe"  # 기존 prototype 디버그용 (잔재)
+CAPTURES_DIR = PROJECT_ROOT / "captures"  # 새 hybrid 스크래핑 캡처 저장
 
 
 def load() -> dict:

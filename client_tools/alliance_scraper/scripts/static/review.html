@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>연맹원 랭킹 검수</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1c212c;
+    --border: #2a3140;
+    --text: #e7ecf3;
+    --muted: #8a96aa;
+    --accent: #4f9dff;
+    --good: #3fb950;
+    --warn: #f0b429;
+    --bad: #f25c54;
+    --row-conflict: #3a2620;
+    --row-needs: #2c2a18;
+    --row-matched: #1a2620;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+  }
+  header {
+    display: flex; gap: 12px; align-items: center;
+    padding: 8px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+  header .stats { color: var(--muted); font-size: 12px; }
+  header .stats b { color: var(--text); }
+  header .spacer { flex: 1; }
+  button, .btn {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  button:hover { background: #232938; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #3a8eef; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(280px, 30%) 1fr;
+    height: calc(100vh - 47px);
+  }
+
+  /* 좌측 — 사진 패널 */
+  .photo-pane {
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    background: var(--panel);
+  }
+  .photo-toolbar {
+    display: flex; gap: 8px; align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+  .photo-toolbar .index { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .photo-toolbar .index b { color: var(--text); font-size: 14px; }
+  .photo-toolbar .filename { color: var(--muted); font-size: 11px; word-break: break-all; }
+  .photo-wrap {
+    flex: 1;
+    overflow: auto;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 10px;
+    background: #0a0c10;
+  }
+  .photo-wrap img {
+    max-width: 100%;
+    image-rendering: -webkit-optimize-contrast;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .photo-wrap .empty { color: var(--muted); padding: 40px; }
+
+  /* 우측 — 표 패널 */
+  .table-pane {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .table-toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+  .table-toolbar label {
+    color: var(--muted);
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px;
+  }
+  .table-toolbar input[type="text"] {
+    background: #0a0c10; color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px; font-family: inherit; font-size: 12px;
+    width: 120px;
+  }
+  .table-toolbar .legend { display: inline-flex; gap: 8px; align-items: center; font-size: 11px; }
+  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+  .dot.matched { background: var(--good); }
+  .dot.needs { background: var(--warn); }
+  .dot.conflict { background: var(--bad); }
+
+  .table-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+  table {
+    border-collapse: separate; border-spacing: 0;
+    width: 100%;
+    font-size: 12px;
+  }
+  thead th {
+    position: sticky; top: 0;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 6px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--muted);
+    z-index: 1;
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 3px 6px;
+    border-bottom: 1px solid #1a1f29;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  tbody tr:hover { background: #1a1f29; }
+  tbody tr.active { background: #1f2a3d !important; }
+  tbody tr.matched td.status { color: var(--good); }
+  tbody tr.needs td.status { color: var(--warn); }
+  tbody tr.conflict { background: var(--row-conflict); }
+  tbody tr.medal td.rank { color: var(--warn); font-weight: 600; }
+
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.conf { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  td.nick { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+  /* 표 자체는 가로 스크롤 안 생기게 — 콘텐츠가 컬럼 폭에 맞춰 자르도록 */
+  table { table-layout: auto; width: 100%; }
+
+  td input.edit {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid transparent;
+    padding: 2px 4px; border-radius: 3px;
+    font-family: inherit; font-size: 12px;
+    width: 100%; min-width: 60px;
+  }
+  td input.edit:focus {
+    background: #0a0c10;
+    border-color: var(--accent);
+    outline: none;
+  }
+  /* dirty (편집 중/대기) — focus 와 구분되게 약한 하단 underline 만 */
+  td input.edit.dirty {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: inset 0 -2px 0 var(--warn);
+  }
+  td input.edit.dirty:focus {
+    background: #0a0c10;
+    border-color: var(--accent);
+    box-shadow: inset 0 -2px 0 var(--warn);
+  }
+
+  td input.kid { width: 80px; min-width: 70px; }
+  td input.nick-in { width: 100%; min-width: 80px; }
+  td input.power-in { width: 90px; min-width: 80px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .row-action {
+    background: transparent; border: none;
+    color: var(--muted); cursor: pointer;
+    padding: 2px 6px; font-size: 14px;
+  }
+  .row-action:hover { color: var(--bad); }
+
+  .footer-add {
+    padding: 8px 12px; border-top: 1px solid var(--border);
+    background: var(--panel-2); display: flex; gap: 8px; align-items: center;
+  }
+
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 200ms ease, transform 200ms ease;
+    pointer-events: none;
+    font-size: 12px;
+    max-width: 320px;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { border-color: var(--bad); }
+  .toast.ok { border-color: var(--good); }
+</style>
+</head>
+<body>
+<header>
+  <h1>연맹원 랭킹 검수</h1>
+  <span class="stats" id="stats">로딩…</span>
+  <span class="spacer"></span>
+  <button id="btn-reload">↻ 다시 불러오기</button>
+  <button id="btn-save" class="primary">💾 저장</button>
+</header>
+<main>
+  <!-- 좌측 사진 패널 -->
+  <section class="photo-pane">
+    <div class="photo-toolbar">
+      <button id="btn-prev">◀ 이전</button>
+      <button id="btn-next">다음 ▶</button>
+      <span class="index">캡처 <b id="cap-idx">-</b> / <span id="cap-total">-</span></span>
+      <span class="spacer" style="flex:1"></span>
+      <span class="filename" id="cap-filename">—</span>
+    </div>
+    <div class="photo-wrap" id="photo-wrap">
+      <span class="empty">캡처 이미지 로딩 중…</span>
+    </div>
+  </section>
+
+  <!-- 우측 표 패널 -->
+  <section class="table-pane">
+    <div class="table-toolbar">
+      <label>필터:
+        <select id="filter-status">
+          <option value="all">전체</option>
+          <option value="matched">매칭 성공</option>
+          <option value="needs_review">검수 필요</option>
+          <option value="conflict">rank conflict</option>
+        </select>
+      </label>
+      <label>검색:
+        <input type="text" id="filter-text" placeholder="닉/ID/rank" />
+      </label>
+      <span class="spacer" style="flex:1"></span>
+      <span class="legend">
+        <span class="dot matched"></span>매칭
+        <span class="dot needs"></span>검수
+        <span class="dot conflict"></span>충돌
+      </span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>power</th>
+            <th>OCR 닉네임</th>
+            <th>DB 닉네임</th>
+            <th>kingshot_id</th>
+            <th>상태</th>
+            <th>캡처</th>
+            <th>conf</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="footer-add">
+      <button id="btn-add-row">＋ 빈 row 추가 (누락 보정)</button>
+      <span class="stats" id="missing-info"></span>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const tbody = $('#tbody');
+  const photoWrap = $('#photo-wrap');
+  const statsEl = $('#stats');
+  const missingInfoEl = $('#missing-info');
+
+  let state = {
+    raw: null,        // 원본 review.json 페이로드 (저장 시 schema_version 등 보존)
+    rows: [],         // 화면 row 들 (medal + ranked + pinned 합친 단일 list, power desc 정렬)
+    captures: [],     // 캡처 파일명 list
+    capIdx: 0,        // 현재 사진 index
+    filter: { status: 'all', text: '' },
+    membersByKid: new Map(), // kingshot_id → nickname (DB lookup, kid 직접 입력 시 닉 자동 채움)
+    uidCounter: 0,    // row 영구 식별자 (sort 후 focus 회복 / DOM 추적)
+  };
+
+  function nextUid() { return ++state.uidCounter; }
+
+  // power desc 정렬. null 은 끝, 동률은 _uid 안정 정렬.
+  // _afterUid 가 있는 power-null row 는 가리킨 row 의 power 를 빌려와 그 row 바로 아래에 sticky.
+  function rowSortKey(r) {
+    if (r.power != null) return r.power;
+    if (r._afterUid != null) {
+      const ref = state.rows.find(x => x._uid === r._afterUid);
+      if (ref && ref.power != null) return ref.power;
+    }
+    return null;
+  }
+  function sortRows() {
+    state.rows.sort((a, b) => {
+      const ka = rowSortKey(a), kb = rowSortKey(b);
+      if (ka == null && kb == null) return (a._uid || 0) - (b._uid || 0);
+      if (ka == null) return 1;  // a 끝으로
+      if (kb == null) return -1; // b 끝으로
+      if (kb !== ka) return kb - ka;
+      return (a._uid || 0) - (b._uid || 0);
+    });
+  }
+
+  // members.json 을 fetch 해서 kid → nickname map 만든다.
+  // 없으면 무시 (graceful fallback) — 검수 도구는 정상 동작하지만 kid 직접 입력 시 닉 자동 채움 X.
+  async function loadMembers() {
+    try {
+      const res = await fetch('/api/members', { cache: 'no-store' });
+      if (!res.ok) return;
+      const arr = await res.json();
+      const map = new Map();
+      for (const m of arr) {
+        const kid = String(m.kingshot_id || '').trim();
+        if (kid) map.set(kid, m.nickname || '');
+      }
+      state.membersByKid = map;
+    } catch (_) { /* members.json 없으면 무시 */ }
+  }
+
+  // ============================================================
+  // 데이터 로드
+  // ============================================================
+  async function loadReview() {
+    photoWrap.innerHTML = '<span class="empty">로딩…</span>';
+    try {
+      const res = await fetch('/api/review', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      state.raw = data;
+      state.captures = data.captures || [];
+
+      // 단일 list 로 평탄화 (medal + ranked + pinned)
+      // group 메타로 보존 → 저장 시 다시 분리
+      const rows = [];
+      (data.medal_rows || []).forEach(r => rows.push({ ...r, _group: 'medal' }));
+      (data.ranked_rows || []).forEach(r => rows.push({ ...r, _group: 'ranked' }));
+      if (data.pinned) rows.push({ ...data.pinned, _group: 'pinned' });
+      // 영구 식별자 부여 + 신규 마킹 초기화
+      state.uidCounter = 0;
+      rows.forEach(r => {
+        r._uid = nextUid();
+        r._dirty = r._dirty || false;
+        r._new = false;
+      });
+      state.rows = rows;
+      state.capIdx = 0;
+      sortRows();
+
+      computeConflicts();
+      renderAll();
+      const stats = data.stats || {};
+      statsEl.innerHTML = `수집 <b>${stats.total_collected ?? '-'}</b>/${data.target_total ?? '-'} · 매칭 <b>${stats.matched ?? 0}</b> · 검수 <b>${stats.needs_review ?? 0}</b> · 캡처 <b>${data.captures_count ?? state.captures.length}</b>장`;
+      missingInfoEl.textContent = (stats.missing_ranks && stats.missing_ranks.length)
+        ? `누락된 rank ${stats.missing_ranks.length}건: ${stats.missing_ranks.join(', ')}`
+        : '';
+    } catch (e) {
+      statsEl.textContent = '로딩 실패';
+      photoWrap.innerHTML = `<span class="empty" style="color:var(--bad)">review.json 로딩 실패: ${e.message}<br/>먼저 test_capture_loop.py 를 실행하세요.</span>`;
+    }
+  }
+
+  // 같은 rank 가 여러 row 에 등장 → conflict 표시 (편집 따라 실시간 갱신)
+  function computeConflicts() {
+    const counter = new Map();
+    state.rows.forEach(r => {
+      if (r.rank == null || r.rank === '') return;
+      const k = String(r.rank);
+      counter.set(k, (counter.get(k) || 0) + 1);
+    });
+    state.rows.forEach(r => {
+      r._conflict = (r.rank != null && r.rank !== '' && counter.get(String(r.rank)) > 1);
+    });
+  }
+
+  // ============================================================
+  // 렌더 — 사진
+  // ============================================================
+  function renderPhoto() {
+    if (!state.captures.length) {
+      photoWrap.innerHTML = '<span class="empty">캡처 없음</span>';
+      $('#cap-idx').textContent = '-';
+      $('#cap-total').textContent = '-';
+      $('#cap-filename').textContent = '—';
+      return;
+    }
+    const idx = Math.max(0, Math.min(state.capIdx, state.captures.length - 1));
+    state.capIdx = idx;
+    const fname = state.captures[idx];
+    photoWrap.innerHTML = `<img src="/captures/${encodeURIComponent(fname)}?t=${Date.now()}" alt="${fname}" />`;
+    $('#cap-idx').textContent = String(idx + 1);
+    $('#cap-total').textContent = String(state.captures.length);
+    $('#cap-filename').textContent = fname;
+
+    // 표에서 active 행 표시 갱신
+    document.querySelectorAll('tr.active').forEach(tr => tr.classList.remove('active'));
+    document.querySelectorAll(`tr[data-cap="${cssSafe(fname)}"]`).forEach(tr => tr.classList.add('active'));
+  }
+
+  function cssSafe(s) {
+    return (s || '').replace(/"/g, '\\"');
+  }
+
+  function jumpToCapture(fname) {
+    if (!fname) return;
+    const idx = state.captures.indexOf(fname);
+    if (idx >= 0) {
+      state.capIdx = idx;
+      renderPhoto();
+    }
+  }
+
+  // ============================================================
+  // 렌더 — 표
+  // ============================================================
+  function renderTable() {
+    sortRows(); // 항상 power desc 로 정렬된 상태 유지
+    const filtered = state.rows.filter(applyFilter);
+    tbody.innerHTML = '';
+    filtered.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.dataset.idx = state.rows.indexOf(r); // 원본 index 보존
+      tr.dataset.uid = r._uid;
+      if (r.source_capture) tr.dataset.cap = r.source_capture;
+      const status = r.match_status || (r.kingshot_id ? 'matched' : 'needs_review');
+      tr.classList.add(status === 'matched' ? 'matched' : 'needs');
+      if (r._conflict) tr.classList.add('conflict');
+      if (r._group === 'medal') tr.classList.add('medal');
+
+      const groupTag = r._group === 'pinned' ? ' 📌' : (r._group === 'medal' ? ' 🏅' : '');
+
+      tr.innerHTML = `
+        <td class="num">${i + 1}${groupTag}</td>
+        <td class="num"><input class="edit power-in" data-field="power" value="${escAttr(formatPower(r.power))}" /></td>
+        <td class="nick"><input class="edit nick-in" data-field="nickname_raw" value="${escAttr(r.nickname_raw || '')}" /></td>
+        <td class="nick" title="${escAttr(r.db_nickname || '')}">${escHtml((r.db_nickname || '').slice(0, 22))}</td>
+        <td>${kidCell(r)}</td>
+        <td class="status">${statusLabel(status, r._conflict)}</td>
+        <td><a href="#" class="cap-link" data-cap="${escAttr(r.source_capture || '')}">${escHtml(captureShort(r.source_capture))}</a></td>
+        <td class="conf">p${(r.power_conf ?? 0).toFixed(2)} · n${(r.nickname_conf ?? 0).toFixed(2)}</td>
+        <td>
+          <button class="row-action" data-action="insert-below" title="이 row 아래에 빈 row 삽입 (누락 보정)">↓＋</button>
+          <button class="row-action" data-action="delete" title="삭제">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // 신규 row 가 있으면 input 의 dirty 표시
+    state.rows.forEach((r, idx) => {
+      if (!r._dirty) return;
+      const tr = tbody.querySelector(`tr[data-idx="${idx}"]`);
+      if (!tr) return;
+      tr.querySelectorAll('input.edit').forEach(inp => inp.classList.add('dirty'));
+    });
+
+    if (state.captures[state.capIdx]) {
+      const fname = state.captures[state.capIdx];
+      tbody.querySelectorAll(`tr[data-cap="${cssSafe(fname)}"]`).forEach(tr => tr.classList.add('active'));
+    }
+  }
+
+  function kidCell(r) {
+    const cur = r.kingshot_id || '';
+    return `<input class="edit kid" data-field="kingshot_id" value="${escAttr(cur)}" placeholder="입력" />`;
+  }
+
+  function statusLabel(s, conflict) {
+    if (conflict) return '⚠️ 충돌';
+    if (s === 'matched') return '✓ 매칭';
+    if (s === 'no_nickname') return '· 닉없음';
+    return '✗ 검수';
+  }
+
+  function captureShort(fname) {
+    if (!fname) return '—';
+    const m = /_(\d{2})\.png$/.exec(fname);
+    return m ? '#' + parseInt(m[1], 10) : fname;
+  }
+
+  function formatPower(p) {
+    if (p == null || p === '') return '';
+    return Number(p).toLocaleString('en-US');
+  }
+
+  function escAttr(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+  function escHtml(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+
+  function applyFilter(r) {
+    const f = state.filter;
+    if (f.status !== 'all') {
+      if (f.status === 'conflict') {
+        if (!r._conflict) return false;
+      } else {
+        const status = r.match_status || (r.kingshot_id ? 'matched' : 'needs_review');
+        if (status !== f.status) return false;
+      }
+    }
+    if (f.text) {
+      const t = f.text.toLowerCase();
+      const haystack = [
+        r.nickname_raw, r.db_nickname, r.kingshot_id, r.rank, r.power
+      ].map(v => String(v ?? '').toLowerCase()).join(' ');
+      if (!haystack.includes(t)) return false;
+    }
+    return true;
+  }
+
+  function renderAll() {
+    renderPhoto();
+    renderTable();
+  }
+
+  // ============================================================
+  // 이벤트
+  // ============================================================
+  $('#btn-prev').addEventListener('click', () => {
+    if (state.capIdx > 0) { state.capIdx--; renderPhoto(); }
+  });
+  $('#btn-next').addEventListener('click', () => {
+    if (state.capIdx < state.captures.length - 1) { state.capIdx++; renderPhoto(); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'ArrowLeft' || e.key === 'a') $('#btn-prev').click();
+    else if (e.key === 'ArrowRight' || e.key === 'd') $('#btn-next').click();
+  });
+
+  $('#btn-reload').addEventListener('click', () => {
+    if (state.rows.some(r => r._dirty || r._new)) {
+      if (!confirm('편집 내용이 있어요. 저장 안 하고 다시 불러올까요?')) return;
+    }
+    loadReview();
+  });
+
+  $('#btn-save').addEventListener('click', saveReview);
+
+  $('#filter-status').addEventListener('change', (e) => {
+    state.filter.status = e.target.value;
+    renderTable();
+  });
+  $('#filter-text').addEventListener('input', (e) => {
+    state.filter.text = e.target.value.trim();
+    renderTable();
+  });
+
+  $('#btn-add-row').addEventListener('click', () => {
+    state.rows.push({
+      rank: '', power: null, power_conf: 0, nickname_raw: '', nickname_conf: 0,
+      row_cy: 0, is_pinned: false, source_capture: state.captures[state.capIdx] || null,
+      rank_conf: 0, kingshot_id: '', db_nickname: '', match_score: 0,
+      match_status: 'needs_review', candidates: [],
+      _group: 'ranked', _new: true, _dirty: true, _uid: nextUid(),
+    });
+    computeConflicts();
+    renderTable();
+    toast('빈 row 추가됨. 표 하단으로 스크롤', 'ok');
+    setTimeout(() => {
+      const sc = document.querySelector('.table-scroll');
+      sc.scrollTop = sc.scrollHeight;
+    }, 30);
+  });
+
+  // power input blur → 자동 재정렬 (사용자가 OCR 오류 수정 후 위치가 즉시 갱신되도록)
+  tbody.addEventListener('focusout', (e) => {
+    const inp = e.target.closest('input.edit[data-field="power"]');
+    if (!inp) return;
+    const tr = inp.closest('tr'); if (!tr) return;
+    const editedUid = tr.dataset.uid;
+    // 다음 focus 가 다른 input 이면 그 input 의 uid+field 도 기록 → 정렬 후 회복
+    const next = e.relatedTarget;
+    let nextInfo = null;
+    if (next && next.matches && next.matches('input.edit')) {
+      const nextTr = next.closest('tr');
+      if (nextTr) {
+        nextInfo = { uid: nextTr.dataset.uid, field: next.dataset.field };
+      }
+    }
+    renderTable();
+    // focus 회복: 다음 input 으로 Tab 이동했다면 그쪽 우선, 아니면 편집한 row 자체에
+    const targetInfo = nextInfo || { uid: editedUid, field: 'power' };
+    if (targetInfo.uid) {
+      const newTr = tbody.querySelector(`tr[data-uid="${targetInfo.uid}"]`);
+      if (newTr) {
+        const newInp = newTr.querySelector(`input[data-field="${targetInfo.field}"]`);
+        if (newInp && nextInfo) newInp.focus();
+        // 편집했던 row 자체엔 다시 focus 안 줌 (사용자가 다른 곳 클릭한 것)
+        newTr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  });
+
+  // 표 위임 이벤트 — input/click
+  tbody.addEventListener('input', (e) => {
+    const inp = e.target.closest('input.edit');
+    if (!inp) return;
+    const tr = inp.closest('tr'); if (!tr) return;
+    const idx = +tr.dataset.idx;
+    const r = state.rows[idx]; if (!r) return;
+    const field = inp.dataset.field;
+    let val = inp.value.trim();
+
+    if (field === 'power') {
+      // 입력 중에는 정렬 안 함 (blur 시 정렬). 매 keystroke 정렬은 어수선.
+      r.power = val === '' ? null : parseInt(val.replace(/[,_]/g, ''), 10);
+      // power 가 채워졌으면 sticky 해제 — 자기 power 위치로 자유 이동
+      if (r.power != null) delete r._afterUid;
+    } else {
+      r[field] = val;
+    }
+    r._dirty = true;
+    inp.classList.add('dirty');
+    // kingshot_id 가 채워졌으면 status 갱신 + DB 닉 + OCR 닉 자동 lookup
+    if (field === 'kingshot_id') {
+      r.match_status = val ? 'matched' : 'needs_review';
+      const dbCells = tr.querySelectorAll('td.nick'); // 0=OCR(input), 1=DB(text)
+      if (val && state.membersByKid.has(val)) {
+        const dbNick = state.membersByKid.get(val);
+        r.db_nickname = dbNick;
+        // OCR 닉네임도 같은 값으로 자동 채움 (사용자 요청 — DB 매칭 확정 = OCR 도 정정)
+        r.nickname_raw = dbNick;
+        if (dbCells.length >= 2) {
+          const ocrInput = dbCells[0].querySelector('input[data-field="nickname_raw"]');
+          if (ocrInput) {
+            ocrInput.value = dbNick;
+            ocrInput.classList.add('dirty');
+          }
+          dbCells[1].title = dbNick;
+          dbCells[1].textContent = dbNick.slice(0, 22);
+        }
+      } else if (!val) {
+        // kid 비우면 DB 닉만 비움. OCR 닉은 사용자가 손댔을 수 있으니 보존.
+        r.db_nickname = '';
+        if (dbCells.length >= 2) {
+          dbCells[1].title = '';
+          dbCells[1].textContent = '';
+        }
+      }
+      const stCell = tr.querySelector('td.status');
+      if (stCell) stCell.innerHTML = statusLabel(r.match_status, r._conflict);
+      tr.classList.toggle('matched', r.match_status === 'matched');
+      tr.classList.toggle('needs', r.match_status !== 'matched');
+    }
+  });
+
+  tbody.addEventListener('click', (e) => {
+    // row 의 캡처 링크 클릭 → 좌측 사진 점프
+    const cap = e.target.closest('.cap-link');
+    if (cap) {
+      e.preventDefault();
+      jumpToCapture(cap.dataset.cap);
+      return;
+    }
+
+    // 아래 row 삽입 버튼 (누락 보정용)
+    const ins = e.target.closest('button.row-action[data-action="insert-below"]');
+    if (ins) {
+      const tr = ins.closest('tr'); if (!tr) return;
+      const idx = +tr.dataset.idx;
+      const above = state.rows[idx]; if (!above) return;
+      // 위 row 의 rank+1 자동 채움 (있을 때만)
+      const nextRank = (typeof above.rank === 'number') ? above.rank + 1 : '';
+      const newRow = {
+        rank: nextRank, power: null, power_conf: 0,
+        nickname_raw: '', nickname_conf: 0,
+        row_cy: 0, is_pinned: false,
+        source_capture: above.source_capture || state.captures[state.capIdx] || null,
+        rank_conf: 0, kingshot_id: '', db_nickname: '',
+        match_score: 0, match_status: 'needs_review', candidates: [],
+        _group: 'ranked', _new: true, _dirty: true, _uid: nextUid(),
+        _afterUid: above._uid, // power 입력 전까지 above 바로 아래에 sticky
+      };
+      state.rows.splice(idx + 1, 0, newRow);
+      computeConflicts();
+      renderTable();
+      // 새 row 의 _uid 로 찾기 (sort 후에도 동일 row 보장)
+      setTimeout(() => {
+        const newTr = tbody.querySelector(`tr[data-uid="${newRow._uid}"]`);
+        if (newTr) {
+          newTr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          const inp = newTr.querySelector('input[data-field="nickname_raw"]');
+          if (inp) inp.focus();
+        }
+      }, 30);
+      return;
+    }
+
+    // 삭제 버튼
+    const del = e.target.closest('button.row-action[data-action="delete"]');
+    if (del) {
+      const tr = del.closest('tr'); if (!tr) return;
+      const idx = +tr.dataset.idx;
+      const r = state.rows[idx]; if (!r) return;
+      if (!confirm(`#${idx + 1} (${r.nickname_raw || r.db_nickname || 'empty'}) 삭제할까요?`)) return;
+      state.rows.splice(idx, 1);
+      computeConflicts();
+      renderTable();
+      return;
+    }
+
+    // 그냥 row 클릭 → 좌측 사진 점프 (위에서 cap-link 가 우선)
+    const row = e.target.closest('tr');
+    if (row && row.dataset.cap) {
+      jumpToCapture(row.dataset.cap);
+    }
+  });
+
+  // ============================================================
+  // 저장
+  // ============================================================
+  async function saveReview() {
+    if (!state.raw) { toast('아직 로드 안 됐어요', 'error'); return; }
+
+    // 검증 — power 가 숫자인지
+    for (let i = 0; i < state.rows.length; i++) {
+      const r = state.rows[i];
+      if (r.power !== null && r.power !== undefined && r.power !== '' && Number.isNaN(r.power)) {
+        toast(`#${i + 1} row: power 숫자만 입력`, 'error');
+        return;
+      }
+    }
+
+    // group 별로 분리해서 저장 (_ 프리픽스 메타는 제거)
+    const medal = [], ranked = [];
+    let pinned = null;
+    state.rows.forEach(r => {
+      const { _group, _dirty, _new, _conflict, _uid, _afterUid, ...clean } = r;
+      if (_group === 'medal') medal.push(clean);
+      else if (_group === 'pinned') pinned = clean;
+      else ranked.push(clean);
+    });
+
+    const payload = {
+      ...state.raw,
+      medal_rows: medal,
+      ranked_rows: ranked,
+      pinned,
+      stats: {
+        ...(state.raw.stats || {}),
+        total_collected: medal.length + ranked.length,
+        medal_count: medal.length,
+        ranked_count: ranked.length,
+        matched: state.rows.filter(r => (r.kingshot_id || '').trim()).length,
+        needs_review: state.rows.filter(r => !(r.kingshot_id || '').trim() && r.nickname_raw).length,
+      },
+      reviewed_at: new Date().toISOString(),
+    };
+
+    try {
+      const res = await fetch('/api/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        toast(`저장 실패: ${data.error || res.status}`, 'error');
+        return;
+      }
+      toast(`저장 완료 → ${data.saved_path}`, 'ok');
+      // dirty 플래그 클리어
+      state.rows.forEach(r => { r._dirty = false; r._new = false; });
+      renderTable();
+    } catch (e) {
+      toast(`저장 실패: ${e.message}`, 'error');
+    }
+  }
+
+  // ============================================================
+  // 토스트
+  // ============================================================
+  let toastTimer = null;
+  function toast(msg, kind = '') {
+    const el = $('#toast');
+    el.textContent = msg;
+    el.className = `toast show ${kind}`;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  // members lookup 먼저 로드 (없어도 graceful), 이후 review 로드.
+  loadMembers().finally(() => loadReview());
+})();
+</script>
+</body>
+</html>

@@ -9,5 +9,9 @@ __pycache__/
 # Scraped data & debug artifacts — may contain sensitive member IDs/power
 output/
 _probe/
+captures/
 *.log
 .scrape.lock
+
+# DB dump (members.json) — kingshot_id 등 민감 정보 포함
+members.json
