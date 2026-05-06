@@ -38,17 +38,18 @@
   justify-content: center;
   gap: 6px;
   padding: 10px;
-  background: linear-gradient(180deg, var(--bg2), var(--bg3));
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  /* 분리 박스 제거 — dlg-body 의 배경 (트레이 영역) 그대로 비침 */
+  background: transparent;
+  border: none;
   margin: 8px 0;
 }
 .tm-slot {
   width: 46px;
   height: 54px;
   border-radius: 7px;
-  background: var(--bg);
-  border: 1px dashed var(--border);
+  /* 빈 슬롯도 transparent — 트레이 위에 자연스럽게 비어있는 자국처럼 */
+  background: transparent;
+  border: 1px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -461,6 +462,13 @@
   flex-direction: column;
   min-height: 0;
   position: relative;
+  /* Medieval garden 씬 배경 — 헤더 제외한 dialog 전체에 단일 이미지.
+     - 110% 110%: 살짝 확대 → overflow 더 만들어 트레이 위치 조정 여지 확보
+     - center bottom: 이미지 하단(트레이)을 body 하단에 정렬
+     - 상단 데코는 일부 잘리지만 트레이 + 잔디 가시성 우선 */
+  background: url('/images/tile-match/board-scene-bg.png') no-repeat;
+  background-size: 110% 110%;
+  background-position: center bottom;
 }
 .tm-dlg-body > * {
   margin: 0;
@@ -471,9 +479,9 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  /* 분리 박스 제거 — dlg-body 의 배경이 그대로 비침 */
+  background: transparent;
+  border: none;
   position: relative;
 }
 .tm-board {
@@ -618,21 +626,22 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
+  /* 배경 이미지의 wooden 톤과 어울리는 짙은 bronze 반투명 plaque */
+  background: rgba(120, 81, 41, 0.6);
+  border: 1px solid rgba(120, 81, 41, 0.35);
   border-radius: 8px;
   margin: 8px 0;
   flex-wrap: wrap;
 }
 .tm-remove-queue-label {
   font-size: 12px;
-  color: var(--text3);
-  font-weight: 600;
+  color: #fff8e6;
+  font-weight: 700;
   flex: 0 0 auto;
 }
 .tm-remove-queue-hint {
   font-size: 11px;
-  color: var(--text3);
+  color: rgba(255, 248, 230, 0.75);
   margin-left: auto;
 }
 .tm-remove-slots {
@@ -665,9 +674,9 @@
   gap: 14px;
   padding: 14px 8px;
   margin: 8px 0 16px;
-  background: linear-gradient(180deg, var(--bg2), var(--bg3));
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  /* 분리 박스 제거 — 버튼들이 배경 이미지(잔디+꽃) 위에 떠있음 */
+  background: transparent;
+  border: none;
   flex-wrap: wrap;
 }
 .tm-item {
@@ -696,7 +705,7 @@
 .tm-item:disabled {
   background: linear-gradient(180deg, #b8b8b8, #909090);
   cursor: not-allowed;
-  opacity: 0.75;
+  /* opacity 제거 — disabled 도 불투명. 회색 톤만으로 비활성 식별 */
 }
 .tm-item-icon {
   font-size: 24px;
