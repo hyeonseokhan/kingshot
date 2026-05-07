@@ -183,6 +183,10 @@ export function initTileMatch(): void {
   if (initialized) return;
   initialized = true;
 
+  // 다이얼로그 배경 이미지 사전 fetch — CSS background 는 lazy 로딩이라
+  // 시작 클릭 직후 빈 배경이 노출되는 frame 갭 발생. 페이지 진입 시 미리 캐시.
+  new Image().src = '/images/tile-match/board-scene-bg.webp';
+
   $('tm-launch-btn')?.addEventListener('click', onLaunchClick);
   $('tm-dlg-close')?.addEventListener('click', requestClose);
   $('tm-overlay-restart')?.addEventListener('click', onOverlayPrimary);

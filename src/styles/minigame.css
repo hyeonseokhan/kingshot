@@ -465,8 +465,9 @@
   /* Medieval garden 씬 배경 — 헤더 제외한 dialog 전체에 단일 이미지.
      - 110% 110%: 살짝 확대 → overflow 더 만들어 트레이 위치 조정 여지 확보
      - center bottom: 이미지 하단(트레이)을 body 하단에 정렬
-     - 상단 데코는 일부 잘리지만 트레이 + 잔디 가시성 우선 */
-  background: url('/images/tile-match/board-scene-bg.png') no-repeat;
+     - 상단 데코는 일부 잘리지만 트레이 + 잔디 가시성 우선
+     - WebP 800w q88 — 원본 PNG 2.1MB 대비 93% 감소 (153KB) */
+  background: url('/images/tile-match/board-scene-bg.webp') no-repeat;
   background-size: 110% 110%;
   background-position: center bottom;
 }
