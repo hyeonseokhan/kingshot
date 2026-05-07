@@ -339,9 +339,17 @@ export const en: Translations = {
         crystalReward: 'Crystals earned',
         restart: 'Try again',
         next: 'Next stage',
+        start: 'Start',
         quit: 'Quit',
         win: 'Stage {n} cleared!',
         slotFull: 'Slots are full.',
+        intro1000:
+          '<div class="tm-intro-title">Stage 1,000 Challenge!</div>' +
+          '<div class="tm-intro-body">Slot capacity drops by <strong>1</strong></div>' +
+          '<div class="tm-intro-stats">' +
+            '<span class="tm-intro-stat"><span class="tm-intro-stat-label">Difficulty</span><span class="tm-intro-stat-arrow up">▲</span></span>' +
+            '<span class="tm-intro-stat"><span class="tm-intro-stat-label">Reward</span><span class="tm-intro-stat-arrow up">▲</span></span>' +
+          '</div>',
       },
       confirmExit: 'Quit now? Your progress will be lost.',
       shufflePopup: {

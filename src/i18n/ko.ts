@@ -335,9 +335,17 @@ export const ko = {
         crystalReward: '크리스탈 획득',
         restart: '다시 하기',
         next: '다음 단계',
+        start: '시작',
         quit: '나가기',
         win: 'Stage {n} 클리어!',
         slotFull: '슬롯이 가득 찼습니다.',
+        intro1000:
+          '<div class="tm-intro-title">스테이지 1,000 도전!</div>' +
+          '<div class="tm-intro-body">등록 가능한 블록이 <strong>1개 줄어듭니다</strong></div>' +
+          '<div class="tm-intro-stats">' +
+            '<span class="tm-intro-stat"><span class="tm-intro-stat-label">난이도</span><span class="tm-intro-stat-arrow up">▲</span></span>' +
+            '<span class="tm-intro-stat"><span class="tm-intro-stat-label">보상</span><span class="tm-intro-stat-arrow up">▲</span></span>' +
+          '</div>',
       },
       confirmExit: '정말 나가시겠습니까? 진행 상황이 사라집니다.',
       shufflePopup: {

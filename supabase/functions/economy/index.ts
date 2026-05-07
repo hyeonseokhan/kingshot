@@ -57,7 +57,8 @@ async function dbRpc<T = unknown>(fnName: string, args: Record<string, unknown>)
 //   Stage 2~10    : 10, 15, 20, 25, 30, 35, 40, 45, 50 (5씩 점진, 각 1회)
 //   Stage 11~20   : 100, 120, 140, 160, 180, 200, 220, 250, 280, 300 (각 1회)
 //   Stage 21~45   : 500 부터 +20씩 → stage 45 = 980 (각 1회)
-//   Stage 46+     : 100 (고정, 매 클리어 반복 파밍 — 연맹원 일상 활동 재화)
+//   Stage 46~999  : 100 (반복 파밍, d10)
+//   Stage 1000+   : 1000 (D11 진입 — slot 6칸으로 축소, 보상 10배 반복 파밍)
 const STAGE_11_20: readonly number[] = [100, 120, 140, 160, 180, 200, 220, 250, 280, 300];
 
 function rewardForStage(stage: number): number {
@@ -65,6 +66,7 @@ function rewardForStage(stage: number): number {
   if (stage >= 2 && stage <= 10) return (stage - 1) * 5 + 5;
   if (stage >= 11 && stage <= 20) return STAGE_11_20[stage - 11]!;
   if (stage >= 21 && stage <= 45) return 500 + (stage - 21) * 20;
+  if (stage >= 1000) return 1000;
   if (stage >= 46) return 100;
   return 0;
 }

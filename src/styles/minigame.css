@@ -777,6 +777,55 @@
   line-height: 1.5;
 }
 
+/* Intro overlay (stage 1000+ 진입 안내) */
+.tm-intro-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ef4444;
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+.tm-intro-body {
+  font-size: 13.5px;
+  color: var(--text);
+  margin-bottom: 14px;
+  line-height: 1.55;
+}
+.tm-intro-body strong {
+  color: #ef4444;
+}
+.tm-intro-stats {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  padding: 10px 0;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.12);
+}
+.tm-intro-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+.tm-intro-stat-label {
+  font-weight: 600;
+}
+.tm-intro-stat-arrow {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.tm-intro-stat-arrow.up {
+  color: #ef4444;
+  animation: tmIntroArrowBounce 1.4s ease-in-out infinite;
+}
+@keyframes tmIntroArrowBounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
 /* 보드 부모 */
 #page-tile-match {
   position: relative;

@@ -81,7 +81,8 @@ let bestStage = 0;
 let currentStage = 1;
 
 let currentDifficulty = 3;
-const DIFFICULTY_PARAMS: Record<number, { cols: number; rows: number; layers: number; sets: number }> = {
+let currentBufferSize = BUFFER_SIZE;
+const DIFFICULTY_PARAMS: Record<number, { cols: number; rows: number; layers: number; sets: number; bufferSize?: number }> = {
   1: { cols: 10, rows: 7, layers: 3, sets: 5 },
   2: { cols: 10, rows: 7, layers: 3, sets: 7 },
   3: { cols: 11, rows: 8, layers: 4, sets: 9 },
@@ -92,6 +93,8 @@ const DIFFICULTY_PARAMS: Record<number, { cols: number; rows: number; layers: nu
   8: { cols: 16, rows: 11, layers: 6, sets: 26 },
   9: { cols: 17, rows: 12, layers: 7, sets: 30 },
   10: { cols: 18, rows: 13, layers: 7, sets: 34 },
+  // D11: 보드는 d10 동일, bufferSize 만 7→6 (slack 박탈로 운 의존도 ↑, 아이템 사실상 필수)
+  11: { cols: 18, rows: 13, layers: 7, sets: 34, bufferSize: 6 },
 };
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
@@ -182,7 +185,7 @@ export function initTileMatch(): void {
 
   $('tm-launch-btn')?.addEventListener('click', onLaunchClick);
   $('tm-dlg-close')?.addEventListener('click', requestClose);
-  $('tm-overlay-restart')?.addEventListener('click', startNewGame);
+  $('tm-overlay-restart')?.addEventListener('click', onOverlayPrimary);
   $('tm-overlay-quit')?.addEventListener('click', forceClose);
   $('tm-item-remove')?.addEventListener('click', useRemove);
   $('tm-item-undo')?.addEventListener('click', useUndo);
@@ -385,10 +388,26 @@ function isGameInProgress(): boolean {
 function startNewGame(): void {
   if (loading) return;
   hideOverlay();
+  overlayMode = null;
   currentDifficulty = difficultyForStage(currentStage);
   pickAvatarTile();
   level = generateLevel(currentDifficulty);
   buildBoard();
+
+  // Stage 1000+ 진입 안내 — 슬롯이 6칸으로 줄어든다는 사실 + 보상 10배 안내
+  if (currentStage >= 1000) {
+    showOverlay('🔥', t('tileMatch.dialog.overlay.intro1000'), 'intro');
+  }
+}
+
+function onOverlayPrimary(): void {
+  if (overlayMode === 'intro') {
+    hideOverlay();
+    overlayMode = null;
+    return;
+  }
+  overlayMode = null;
+  startNewGame();
 }
 
 function pickAvatarTile(): void {
@@ -470,13 +489,16 @@ function refreshAvatarTiles(): void {
 
 function difficultyForStage(stage: number): number {
   if (stage <= 0) return 1;
+  if (stage >= 1000) return 11;
   if (stage >= 46) return 10;
   return Math.min(10, Math.floor((stage - 1) / 5) + 1);
 }
 
 function generateLevel(difficulty: number): Level {
   const d = DIFFICULTY_PARAMS[difficulty] || DIFFICULTY_PARAMS[3]!;
-  return generateCustomLevel(d.cols, d.rows, d.layers, d.sets);
+  const lvl = generateCustomLevel(d.cols, d.rows, d.layers, d.sets);
+  if (d.bufferSize) lvl.bufferSize = d.bufferSize;
+  return lvl;
 }
 
 function generateCustomLevel(
@@ -567,6 +589,7 @@ function buildBoard(): void {
   const stageLayers = level.stageLayers || [];
   const matchCount = level.matchCount || MATCH_COUNT;
   const bufferSize = level.bufferSize || BUFFER_SIZE;
+  currentBufferSize = bufferSize;
 
   const stageTiles: Array<{ colIndex: number; rowIndex: number; layer: number }> = [];
   stageLayers.forEach((layer) => {
@@ -751,7 +774,7 @@ function renderBuffer(): void {
   const bufEl = $('tm-buffer');
   if (!bufEl) return;
   bufEl.innerHTML = '';
-  for (let i = 0; i < BUFFER_SIZE; i++) {
+  for (let i = 0; i < currentBufferSize; i++) {
     const slot = document.createElement('div');
     slot.className = 'tm-slot';
     const entry = buffer[i];
@@ -789,7 +812,7 @@ function renderRemoveQueue(): void {
 
 function onRemoveSlotClick(idx: number): void {
   if (idx < 0 || idx >= removedQueue.length) return;
-  if (buffer.length >= BUFFER_SIZE) return;
+  if (buffer.length >= currentBufferSize) return;
   const entry = removedQueue[idx];
   if (!entry) return;
   removedQueue.splice(idx, 1);
@@ -966,9 +989,9 @@ function checkEnd(): void {
     onClear();
     return;
   }
-  if (buffer.length >= BUFFER_SIZE) {
+  if (buffer.length >= currentBufferSize) {
     gameOver = true;
-    showOverlay('💥', t('tileMatch.dialog.overlay.slotFull'), false);
+    showOverlay('💥', t('tileMatch.dialog.overlay.slotFull'), 'lose');
   }
 }
 
@@ -978,7 +1001,7 @@ function onClear(): void {
   // 클라이언트 측 사전 계산 — 서버 응답 기다리지 않고 다이얼로그를 즉시 완성형으로 표시.
   // (재플레이 X 도메인 가정: 같은 stage 두 번 클리어 시나리오 없음 → duplicate 분기 불필요)
   const reward = session?.player_id ? rewardForStage(clearedStage) : 0;
-  showOverlay('🎉', t('tileMatch.dialog.overlay.win', { n: clearedStage }), true, reward);
+  showOverlay('🎉', t('tileMatch.dialog.overlay.win', { n: clearedStage }), 'win', reward);
 
   if (!session?.player_id) return;
 
@@ -1018,18 +1041,28 @@ function showClaimFailureToast(stage: number, errorCode: string): void {
   setTimeout(() => el.remove(), 5000);
 }
 
-function showOverlay(icon: string, msg: string, isSuccess: boolean, rewardAmount = 0): void {
+type OverlayMode = 'win' | 'lose' | 'intro';
+let overlayMode: OverlayMode | null = null;
+
+function showOverlay(icon: string, msg: string, mode: OverlayMode, rewardAmount = 0): void {
   const iconEl = $('tm-overlay-icon');
   const msgEl = $('tm-overlay-msg');
   const ov = $('tm-overlay');
   if (iconEl) iconEl.textContent = icon;
-  if (msgEl) msgEl.textContent = msg;
+  // intro 모드는 HTML 본문 (안내 강조용 strong/br 포함). win/lose 는 안전하게 텍스트.
+  if (msgEl) {
+    if (mode === 'intro') msgEl.innerHTML = msg;
+    else msgEl.textContent = msg;
+  }
   if (ov) ov.style.display = '';
+  overlayMode = mode;
   const primaryBtn = $('tm-overlay-restart');
-  if (primaryBtn)
-    primaryBtn.textContent = isSuccess
-      ? t('tileMatch.dialog.overlay.next')
-      : t('tileMatch.dialog.overlay.restart');
+  if (primaryBtn) {
+    primaryBtn.textContent =
+      mode === 'win'   ? t('tileMatch.dialog.overlay.next')
+    : mode === 'lose'  ? t('tileMatch.dialog.overlay.restart')
+                       : t('tileMatch.dialog.overlay.start');
+  }
 
   const rewardBox = $('tm-overlay-reward');
   const rewardAmt = $('tm-overlay-reward-amount');
