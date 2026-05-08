@@ -398,14 +398,26 @@ function startNewGame(): void {
   level = generateLevel(currentDifficulty);
   buildBoard();
 
-  // Stage 1000+ 진입 안내 — 슬롯이 6칸으로 줄어든다는 사실 + 보상 10배 안내
-  if (currentStage >= 1000) {
+  // Stage 1000+ 진입 안내 — 디바이스당 1회만 노출 (시작 클릭 시 ack 저장).
+  // 1001/1002 매번 보면 귀찮다는 피드백 (2026-05-08).
+  if (currentStage >= 1000 && !hasAcknowledgedD11Intro()) {
     showOverlay('🔥', t('tileMatch.dialog.overlay.intro1000'), 'intro');
   }
 }
 
+const D11_INTRO_ACK_KEY = 'tileMatch.d11IntroAck';
+function hasAcknowledgedD11Intro(): boolean {
+  try { return localStorage.getItem(D11_INTRO_ACK_KEY) === '1'; }
+  catch { return false; }
+}
+function ackD11Intro(): void {
+  try { localStorage.setItem(D11_INTRO_ACK_KEY, '1'); }
+  catch { /* private mode 등 — 무시 */ }
+}
+
 function onOverlayPrimary(): void {
   if (overlayMode === 'intro') {
+    ackD11Intro();
     hideOverlay();
     overlayMode = null;
     return;
