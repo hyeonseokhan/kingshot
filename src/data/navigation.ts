@@ -18,6 +18,9 @@ export type NavTab = {
   /** path 활성 판정용 prefix (이 prefix 로 시작하면 해당 탭이 active). */
   pathPrefix: string;
   submenus?: SubMenu[];
+  /** 이 탭/메뉴를 볼 수 있는 kingshot_id. 지정 시 SSR 은 hidden 으로 출력하고
+   *  클라이언트가 세션 일치 시에만 unhide. 다른 사용자에겐 메뉴 자체가 보이지 않음. */
+  requireKingshotId?: string;
 };
 
 // title 의 source 는 ko 사전 — 사전에서 키 누락되면 컴파일 에러로 검출. SSR 은 항상 한국어.
@@ -87,6 +90,23 @@ export const tabs: NavTab[] = [
         title: ko.nav.submenu.partnerDraw,
         titleKey: 'nav.submenu.partnerDraw',
         path: '/minigame/partner-draw/',
+      },
+    ],
+  },
+  {
+    id: 'game-tools',
+    title: ko.nav.gameTools,
+    titleKey: 'nav.gameTools',
+    path: '/game-tools/troops-calculator/',
+    pathPrefix: '/game-tools/',
+    // Toycode 전용 — SSR 에선 hidden, 클라이언트가 세션 일치 시에만 unhide.
+    requireKingshotId: '270680423',
+    submenus: [
+      {
+        id: 'troops-calculator',
+        title: ko.nav.submenu.troopsCalculator,
+        titleKey: 'nav.submenu.troopsCalculator',
+        path: '/game-tools/troops-calculator/',
       },
     ],
   },

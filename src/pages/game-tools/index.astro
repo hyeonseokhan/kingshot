@@ -1,0 +1,62 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/game-tools.css';
+
+const gameTools = tabs.find((t) => t.id === 'game-tools')!;
+const active = findActiveSubmenu(gameTools, Astro.url.pathname);
+const navItems = gameTools.submenus!.map((s) => ({
+  title: s.title,
+  titleKey: s.titleKey,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="게임도구 — PNX 연맹"
+  description="실전용 계산 도구 모음 (Toycode 전용)"
+  navHeader={gameTools.title}
+  navHeaderKey={gameTools.titleKey}
+  navItems={navItems}
+>
+  <div
+    class="manage-page gt-hub"
+    id="page-game-tools-hub"
+    data-gated-kingshot-id="270680423"
+  >
+    <div class="members-header">
+      <h1 data-i18n="gameTools.hubHeading">게임도구</h1>
+    </div>
+
+    <div class="page-intro">
+      <p data-i18n="gameTools.hubIntro">
+        곰 사냥 부대 편성 같은 실용 계산 도구 모음입니다. (현재 Toycode 전용)
+      </p>
+    </div>
+
+    <div class="gt-card-grid">
+      <a class="gt-card" href="/game-tools/troops-calculator/">
+        <div class="gt-card-icon" aria-hidden="true">⚔️</div>
+        <div class="gt-card-body">
+          <div class="gt-card-title" data-i18n="gameTools.cardTroopsTitle">부대 계산기</div>
+          <div class="gt-card-desc" data-i18n="gameTools.cardTroopsDesc">
+            곰 사냥 출정 전, 보유 병력으로 N개 편대를 어떻게 나눠 보낼지 즉시 계산.
+          </div>
+        </div>
+        <div class="gt-card-cta" data-i18n="gameTools.cardOpen">열기</div>
+      </a>
+    </div>
+
+    <!-- 권한 없을 때 — 클라이언트 가드가 표시 -->
+    <div class="gt-no-permission" id="gt-no-permission" hidden>
+      <p data-i18n="gameTools.troopsCalculator.noPermission">
+        이 도구는 권한이 있는 사용자만 사용할 수 있습니다.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    import '@/scripts/pages/game-tools-guard';
+  </script>
+</AppLayout>

@@ -22,6 +22,7 @@ const activeTab = findActiveTab(pathname);
           class:list={['tab', { active: activeTab?.id === tab.id }]}
           data-tab={tab.id}
           data-i18n={tab.titleKey}
+          data-require-kingshot-id={tab.requireKingshotId}
         >
           {tab.title}
         </a>

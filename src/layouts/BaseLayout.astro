@@ -36,6 +36,16 @@ const { title = '연맹 가이드', description = 'PNX 연맹 가이드' } = Ast
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
     />
+    <!-- 권한 가드 동기 적용 — module script(boot 지연) 이전에 inline script 로 즉시 dataset 세팅.
+         Header/MobileNav 의 [data-require-kingshot-id] 가시성을 CSS 가 첫 paint 부터 결정 → 깜박임 0. -->
+    <script is:inline>
+      (function () {
+        try {
+          var s = JSON.parse(localStorage.getItem('tileMatchAuth') || 'null');
+          if (s && s.player_id) document.documentElement.dataset.kingshotId = s.player_id;
+        } catch (e) {}
+      })();
+    </script>
     <script>
       import '@/scripts/legacy-hash-redirect';
       import { bootI18n } from '@/i18n';

@@ -90,6 +90,7 @@ const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
             class:list={['mobile-nav-tab', { expanded: isCurrentTab }]}
             data-tab={tab.id}
             type="button"
+            data-require-kingshot-id={tab.requireKingshotId}
           >
             <span data-i18n={tab.titleKey}>{tab.title}</span>
             <span class="mobile-nav-toggle">▸</span>
@@ -97,6 +98,7 @@ const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
           <div
             class:list={['mobile-nav-children', { open: isCurrentTab }]}
             data-parent={tab.id}
+            data-require-kingshot-id={tab.requireKingshotId}
           >
             {tab.children.map((c) =>
               c.titleEn ? (

@@ -1,0 +1,150 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/game-tools.css';
+
+const gameTools = tabs.find((t) => t.id === 'game-tools')!;
+const active = findActiveSubmenu(gameTools, Astro.url.pathname);
+const navItems = gameTools.submenus!.map((s) => ({
+  title: s.title,
+  titleKey: s.titleKey,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="부대 계산기 — PNX 연맹"
+  description="곰 사냥 출정 전 보유 병력으로 N개 편대 분배를 계산"
+  navHeader={gameTools.title}
+  navHeaderKey={gameTools.titleKey}
+  navItems={navItems}
+>
+  <div
+    class="manage-page tc-page"
+    id="page-troops-calculator"
+    data-gated-kingshot-id="270680423"
+  >
+    <div class="members-header">
+      <h1 data-i18n="gameTools.troopsCalculator.heading">부대 계산기</h1>
+      <span class="tc-mode-badge">🐻 Bear Hunt · 1 : 1 : 8</span>
+    </div>
+
+    <form class="tc-form" id="tc-form" autocomplete="off" novalidate>
+      <!-- 2열 × 3행:
+           보병   | 출정 상한
+           기병   | 편대 수
+           궁병   | [계산] [초기화] -->
+      <div class="tc-grid">
+        <label class="tc-field">
+          <span data-i18n="gameTools.troopsCalculator.labelInfantry">보병 수</span>
+          <input
+            type="text"
+            name="infantry"
+            inputmode="numeric"
+            data-tc-number
+            data-i18n-attr-placeholder="gameTools.troopsCalculator.placeholderNumber"
+            placeholder="숫자 입력"
+            required
+          />
+        </label>
+        <label class="tc-field">
+          <span data-i18n="gameTools.troopsCalculator.labelCap">출정 상한 값</span>
+          <input
+            type="text"
+            name="cap"
+            inputmode="numeric"
+            data-tc-number
+            data-i18n-attr-placeholder="gameTools.troopsCalculator.placeholderNumber"
+            placeholder="숫자 입력"
+            required
+          />
+        </label>
+        <label class="tc-field">
+          <span data-i18n="gameTools.troopsCalculator.labelCavalry">기병 수</span>
+          <input
+            type="text"
+            name="cavalry"
+            inputmode="numeric"
+            data-tc-number
+            data-i18n-attr-placeholder="gameTools.troopsCalculator.placeholderNumber"
+            placeholder="숫자 입력"
+            required
+          />
+        </label>
+        <label class="tc-field">
+          <span data-i18n="gameTools.troopsCalculator.labelSquadCount">운영 편대 수</span>
+          <select name="squadCount">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </label>
+        <label class="tc-field">
+          <span data-i18n="gameTools.troopsCalculator.labelArchers">궁병 수</span>
+          <input
+            type="text"
+            name="archers"
+            inputmode="numeric"
+            data-tc-number
+            data-i18n-attr-placeholder="gameTools.troopsCalculator.placeholderNumber"
+            placeholder="숫자 입력"
+            required
+          />
+        </label>
+        <div class="tc-field tc-field-actions">
+          <span aria-hidden="true">&nbsp;</span>
+          <div class="tc-actions">
+            <button type="submit" class="btn btn-primary" data-i18n="gameTools.troopsCalculator.btnCalculate">
+              계산
+            </button>
+            <button type="button" class="btn btn-secondary" id="tc-reset" data-i18n="gameTools.troopsCalculator.btnReset">
+              초기화
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tc-error" id="tc-error" role="alert" hidden></div>
+    </form>
+
+    <section class="tc-result" id="tc-result" hidden>
+      <div class="tc-result-head">
+        <span class="tc-result-mode" id="tc-mode-text"></span>
+        <span class="tc-result-ratio" id="tc-ratio-text"></span>
+      </div>
+      <div class="tc-table-wrap">
+        <table class="tc-table">
+          <thead>
+            <tr>
+              <th data-i18n="gameTools.troopsCalculator.tableSquad">편대</th>
+              <th data-i18n="gameTools.troopsCalculator.tableInfantry">보병</th>
+              <th data-i18n="gameTools.troopsCalculator.tableCavalry">기병</th>
+              <th data-i18n="gameTools.troopsCalculator.tableArchers">궁병</th>
+              <th data-i18n="gameTools.troopsCalculator.tableTotal">합계</th>
+            </tr>
+          </thead>
+          <tbody id="tc-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="tc-future-note">
+      <span data-i18n="gameTools.troopsCalculator.vikingsHint">Vikings 부대 계산기 · 추후 업데이트</span>
+    </p>
+
+    <div class="gt-no-permission" id="tc-no-permission" hidden>
+      <p data-i18n="gameTools.troopsCalculator.noPermission">
+        이 도구는 권한이 있는 사용자만 사용할 수 있습니다.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    import '@/scripts/pages/game-tools-guard';
+    import '@/scripts/pages/game-tools-troops-calculator';
+  </script>
+</AppLayout>

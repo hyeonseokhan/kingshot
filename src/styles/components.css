@@ -9,6 +9,17 @@
  * 빠뜨려도 공통 시각 패턴은 유지된다.
  */
 
+/* ===== 권한 가드 — [data-require-kingshot-id] 마커 ====
+   BaseLayout 의 head inline script 가 html.dataset.kingshotId 를 동기 세팅한다.
+   첫 paint 부터 매칭 안 되는 사용자에겐 안 보임 → 깜박임 0.
+   페이지 본문 내부의 .gt-no-permission 등 안내문은 별도 JS 가 토글 (game-tools-guard.ts). */
+[data-require-kingshot-id] {
+  display: none !important;
+}
+html[data-kingshot-id='270680423'] [data-require-kingshot-id='270680423'] {
+  display: revert !important;
+}
+
 /* ===== 레이아웃 컨테이너 — 모든 페이지의 main 영역 ===== */
 .center-content {
   flex: 1;

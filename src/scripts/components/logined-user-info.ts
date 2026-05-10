@@ -146,6 +146,18 @@ function setState(state: 'loading' | 'loggedin' | 'loggedout'): void {
   if (state !== 'loggedin') closeDropdown();
 }
 
+/**
+ * 네비게이션 메뉴의 권한 게이팅 — html.dataset.kingshotId 만 토글.
+ *
+ * 첫 paint: BaseLayout 의 head inline script 가 localStorage 로 동기 세팅 → 깜박임 0.
+ * 세션 변경: 여기서 dataset 갱신 → CSS([data-require-kingshot-id]) 가 즉시 반영.
+ */
+function applyNavPermissionGuard(session: AuthSession | null): void {
+  const playerId = session?.player_id ?? '';
+  if (playerId) document.documentElement.dataset.kingshotId = playerId;
+  else delete document.documentElement.dataset.kingshotId;
+}
+
 function renderSession(session: AuthSession | null): void {
   if (!session?.player_id) {
     setState('loggedout');
@@ -275,9 +287,12 @@ function init(): void {
 
   // 다른 모듈이 setSession/clearSession 할 때마다 알림
   onSessionChange(renderSession);
+  onSessionChange(applyNavPermissionGuard);
 
   // 첫 렌더
-  renderSession(getSession());
+  const initialSession = getSession();
+  renderSession(initialSession);
+  applyNavPermissionGuard(initialSession);
 }
 
 if (document.readyState === 'loading') {
