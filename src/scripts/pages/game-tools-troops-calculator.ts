@@ -9,9 +9,10 @@
  */
 
 import {
-  calculateBearHunt,
+  calculate,
   formatRatio,
   validate,
+  type DistributionMode,
   type TroopsInput,
   type TroopsResult,
   type ValidationError,
@@ -25,41 +26,57 @@ function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
 // ===== 영속화 =====
 const STORAGE_KEY = 'pnx-troops-calc-bear-v1';
 
-function saveInput(input: TroopsInput): void {
+interface StoredState {
+  input: TroopsInput;
+  distribution: DistributionMode;
+}
+
+function saveState(state: StoredState): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(input));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     /* quota / private mode — 무시 */
   }
 }
 
-function loadInput(): TroopsInput | null {
+/** 저장 데이터 로드. v1(분배 모드 없음) 도 호환 — distribution 없으면 'bear' 기본. */
+function loadState(): StoredState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const obj = JSON.parse(raw) as Partial<TroopsInput>;
+    const obj = JSON.parse(raw) as Partial<TroopsInput> & {
+      distribution?: DistributionMode;
+      input?: Partial<TroopsInput>;
+    };
+    // v1.5 (StoredState 형식) 또는 v1 (raw TroopsInput) 모두 수용
+    const src = obj.input ?? obj;
     if (
-      typeof obj.cap !== 'number' ||
-      typeof obj.infantry !== 'number' ||
-      typeof obj.cavalry !== 'number' ||
-      typeof obj.archers !== 'number' ||
-      typeof obj.squadCount !== 'number'
+      typeof src.cap !== 'number' ||
+      typeof src.infantry !== 'number' ||
+      typeof src.cavalry !== 'number' ||
+      typeof src.archers !== 'number' ||
+      typeof src.squadCount !== 'number'
     ) {
       return null;
     }
+    const distribution: DistributionMode =
+      obj.distribution === 'even' ? 'even' : 'bear';
     return {
-      cap: obj.cap,
-      infantry: obj.infantry,
-      cavalry: obj.cavalry,
-      archers: obj.archers,
-      squadCount: obj.squadCount,
+      input: {
+        cap: src.cap,
+        infantry: src.infantry,
+        cavalry: src.cavalry,
+        archers: src.archers,
+        squadCount: src.squadCount,
+      },
+      distribution,
     };
   } catch {
     return null;
   }
 }
 
-function clearStoredInput(): void {
+function clearStoredState(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -79,14 +96,18 @@ function parseNumber(raw: FormDataEntryValue | null): number {
   return Number(digits);
 }
 
-function readForm(form: HTMLFormElement): TroopsInput {
+function readForm(form: HTMLFormElement): { input: TroopsInput; distribution: DistributionMode } {
   const fd = new FormData(form);
+  const distribution: DistributionMode = fd.get('distribution') === 'even' ? 'even' : 'bear';
   return {
-    cap: parseNumber(fd.get('cap')),
-    infantry: parseNumber(fd.get('infantry')),
-    cavalry: parseNumber(fd.get('cavalry')),
-    archers: parseNumber(fd.get('archers')),
-    squadCount: parseNumber(fd.get('squadCount')),
+    input: {
+      cap: parseNumber(fd.get('cap')),
+      infantry: parseNumber(fd.get('infantry')),
+      cavalry: parseNumber(fd.get('cavalry')),
+      archers: parseNumber(fd.get('archers')),
+      squadCount: parseNumber(fd.get('squadCount')),
+    },
+    distribution,
   };
 }
 
@@ -148,28 +169,46 @@ function clearError(): void {
 
 let lastResult: TroopsResult | null = null;
 
+/** mode → i18n key 매핑. 결과 헤더의 모드 텍스트 + 도트 색상. */
+const MODE_KEYS: Record<TroopsResult['mode'], string> = {
+  'bear-full': 'gameTools.troopsCalculator.modeFull',
+  'bear-partial': 'gameTools.troopsCalculator.modePartial',
+  'even-fits': 'gameTools.troopsCalculator.modeEvenFits',
+  'even-capped': 'gameTools.troopsCalculator.modeEvenCapped',
+};
+
+/** mode → ratio inline i18n key. 곰 사냥은 "(목표 1:1:8)", 균등은 "(보유 비율 기준)". */
+function ratioInlineKey(mode: TroopsResult['mode']): string {
+  return mode.startsWith('even')
+    ? 'gameTools.troopsCalculator.ratioInlineEven'
+    : 'gameTools.troopsCalculator.ratioInline';
+}
+
+/** mode → CSS dataset 값. 풀 편성 계열은 'full', 그 외는 'partial' (도트 색상). */
+function modeDot(mode: TroopsResult['mode']): 'full' | 'partial' {
+  if (mode === 'bear-full' || mode === 'even-fits') return 'full';
+  return 'partial';
+}
+
 function renderResult(result: TroopsResult): void {
   lastResult = result;
 
   const root = $('tc-result');
   if (root) root.removeAttribute('hidden');
 
-  // 모드 텍스트 — "풀 편성" / "궁병 우선 분배"
+  // 모드 텍스트
   const modeText = $('tc-mode-text');
   if (modeText) {
-    const isFull = result.mode === 'full';
-    const key = isFull
-      ? 'gameTools.troopsCalculator.modeFull'
-      : 'gameTools.troopsCalculator.modePartial';
+    const key = MODE_KEYS[result.mode];
     modeText.dataset.i18n = key;
-    modeText.dataset.mode = result.mode;
+    modeText.dataset.mode = modeDot(result.mode);
     modeText.textContent = t(key);
   }
 
-  // 비율 — "실제 2.4:2.4:5.1 (목표 1:1:8)"
+  // 비율 — 모드별 다른 템플릿
   const ratioText = $('tc-ratio-text');
   if (ratioText) {
-    const tpl = t('gameTools.troopsCalculator.ratioInline');
+    const tpl = t(ratioInlineKey(result.mode));
     ratioText.textContent = tpl.replace('{actual}', formatRatio(result.actualRatio));
     ratioText.dataset.tcActual = formatRatio(result.actualRatio);
   }
@@ -229,20 +268,22 @@ function resetResult(): void {
   if (root) root.setAttribute('hidden', '');
 }
 
-/** 저장된 입력값을 폼에 복원. 폼이 비어있는 상태일 때만 사용. */
-function restoreFormFromStorage(form: HTMLFormElement): TroopsInput | null {
-  const stored = loadInput();
+/** 저장된 상태(입력값 + 분배 모드) 를 폼에 복원. 폼이 비어있는 상태일 때만 사용. */
+function restoreFormFromStorage(form: HTMLFormElement): StoredState | null {
+  const stored = loadState();
   if (!stored) return null;
   const setText = (name: string, value: number) => {
     const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
     if (el) el.value = value.toLocaleString('ko-KR');
   };
-  setText('cap', stored.cap);
-  setText('infantry', stored.infantry);
-  setText('cavalry', stored.cavalry);
-  setText('archers', stored.archers);
+  setText('cap', stored.input.cap);
+  setText('infantry', stored.input.infantry);
+  setText('cavalry', stored.input.cavalry);
+  setText('archers', stored.input.archers);
   const squad = form.querySelector<HTMLSelectElement>('select[name="squadCount"]');
-  if (squad) squad.value = String(stored.squadCount);
+  if (squad) squad.value = String(stored.input.squadCount);
+  const dist = form.querySelector<HTMLSelectElement>('select[name="distribution"]');
+  if (dist) dist.value = stored.distribution;
   return stored;
 }
 
@@ -260,24 +301,24 @@ function init(): void {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     clearError();
-    const input = readForm(form);
+    const { input, distribution } = readForm(form);
     const error = validate(input);
     if (error) {
       showError(error);
       resetResult();
       return;
     }
-    renderResult(calculateBearHunt(input));
-    saveInput(input);
+    renderResult(calculate(input, distribution));
+    saveState({ input, distribution });
   });
 
   resetBtn?.addEventListener('click', () => {
     form.reset();
     // form.reset() 으로 input.value 가 초기 빈 문자열로 돌아감. [data-tc-number] 포맷터는
-    // input 이벤트가 안 와서 그대로 빈 채 유지 — OK.
+    // input 이벤트가 안 와서 그대로 빈 채 유지 — OK. select 는 default selected 옵션으로 복귀.
     clearError();
     resetResult();
-    clearStoredInput();
+    clearStoredState();
   });
 
   // 언어 변경 시 — 마지막 결과의 라벨을 다시 그림
@@ -288,8 +329,8 @@ function init(): void {
   // 저장된 입력 복원 + 자동 재계산 (validate 통과 시).
   // 권한 없는 사용자는 가드가 form 자체를 숨기므로 여기까지 와도 시각적 영향 없음.
   const restored = restoreFormFromStorage(form);
-  if (restored && validate(restored) === null) {
-    renderResult(calculateBearHunt(restored));
+  if (restored && validate(restored.input) === null) {
+    renderResult(calculate(restored.input, restored.distribution));
   }
 }
 

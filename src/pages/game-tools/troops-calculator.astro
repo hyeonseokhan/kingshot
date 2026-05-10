@@ -33,8 +33,9 @@ const navItems = gameTools.submenus!.map((s) => ({
     <form class="tc-form" id="tc-form" autocomplete="off" novalidate>
       <!-- 2열 × 3행:
            보병   | 출정 상한
-           기병   | 편대 수
-           궁병   | [계산] [초기화] -->
+           기병   | 운영 편대 수
+           궁병   | 분배 비율
+           아래에 [계산] [초기화] 액션 한 줄 -->
       <div class="tc-grid">
         <label class="tc-field">
           <span data-i18n="gameTools.troopsCalculator.labelInfantry">보병 수</span>
@@ -95,17 +96,22 @@ const navItems = gameTools.submenus!.map((s) => ({
             required
           />
         </label>
-        <div class="tc-field tc-field-actions">
-          <span aria-hidden="true">&nbsp;</span>
-          <div class="tc-actions">
-            <button type="submit" class="btn btn-primary" data-i18n="gameTools.troopsCalculator.btnCalculate">
-              계산
-            </button>
-            <button type="button" class="btn btn-secondary" id="tc-reset" data-i18n="gameTools.troopsCalculator.btnReset">
-              초기화
-            </button>
-          </div>
-        </div>
+        <label class="tc-field">
+          <span data-i18n="gameTools.troopsCalculator.labelDistribution">분배 비율</span>
+          <select name="distribution">
+            <option value="bear" selected data-i18n="gameTools.troopsCalculator.distributionBear">권장값 (1:1:8)</option>
+            <option value="even" data-i18n="gameTools.troopsCalculator.distributionEven">균등</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="tc-actions">
+        <button type="submit" class="btn btn-primary" data-i18n="gameTools.troopsCalculator.btnCalculate">
+          계산
+        </button>
+        <button type="button" class="btn btn-secondary" id="tc-reset" data-i18n="gameTools.troopsCalculator.btnReset">
+          초기화
+        </button>
       </div>
 
       <div class="tc-error" id="tc-error" role="alert" hidden></div>

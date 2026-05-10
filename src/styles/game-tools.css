@@ -102,12 +102,13 @@
    row-by-row 흐름이라 DOM 순서대로:
    row1: 보병 | 출정상한
    row2: 기병 | 편대수
-   row3: 궁병 | actions */
+   row3: 궁병 | 분배비율
+   액션은 grid 밖 한 줄. */
 .tc-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 12px;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
 }
 
 .tc-field {
@@ -141,10 +142,7 @@
   border-color: var(--accent);
 }
 
-/* actions 셀 — tc-field 격자에 맞춰 라벨 자리에 빈 공백 두고 아래에 버튼 두 개. 다른 입력 행과 baseline 일치. */
-.tc-field-actions {
-  align-self: end;
-}
+/* actions — grid 밖 한 줄. 두 버튼 가로로 균등 분할. */
 .tc-actions {
   display: flex;
   gap: 8px;

@@ -1,12 +1,12 @@
 /**
- * 부대 계산기 — 곰 사냥(Bear Hunt) 편성 계산.
+ * 부대 계산기 — 분배 모드 2종.
  *
- * 입력: 출정 상한, 보병/기병/궁병 보유량, 운영 편대 수 N
+ * 입력: 출정 상한, 보병/기병/궁병 보유량, 운영 편대 수 N, 분배 모드
  * 출력: 편대당 분배 + 잔류 + 비율 정보
  *
- * 알고리즘:
- *   - Case B: 보유 ≥ 상한×비율×N 모두 충족 → 1:1:8 풀 편성
- *   - Case A: 부족하면 궁병 우선 (균등 배분 후 남은 자리 = 보+기 균등)
+ * 분배 모드:
+ *   - 'bear' (곰 사냥, 1:1:8): 풀 편성 가능하면 1:1:8, 부족하면 궁병 우선
+ *   - 'even' (보유 비율 그대로): 편대당 = 보유/N. 합이 cap 초과면 비례 축소.
  *
  * 모든 출력은 floor 정수. 게임 내 배치는 정수 단위.
  *
@@ -41,14 +41,23 @@ export interface RatioBreakdown {
   archers: number;
 }
 
+/** 분배 모드. 'bear' = 곰 사냥 1:1:8, 'even' = 보유 비율 그대로 N편대 분배. */
+export type DistributionMode = 'bear' | 'even';
+
 export interface TroopsResult {
-  mode: 'full' | 'partial';
+  /**
+   *  - bear-full    : 1:1:8 풀 편성 가능
+   *  - bear-partial : 1:1:8 부족, 궁병 우선 분배
+   *  - even-fits    : 균등(보유 비율) — cap 안에 들어옴
+   *  - even-capped  : 균등(보유 비율) — cap 초과로 비례 축소됨
+   */
+  mode: 'bear-full' | 'bear-partial' | 'even-fits' | 'even-capped';
   /** 편대 수 N. 모든 편대 동일 분배라 squadCount 만 반환. */
   squadCount: number;
   /** 1편대 (=모든 편대 동일) 분배량 */
   perSquad: SquadAllocation;
   remaining: RemainingTroops;
-  /** 목표 1:1:8 정규화 (10 합 기준) */
+  /** 목표 비율 (10 합 기준) — 곰 사냥은 1:1:8, 균등은 보유 비율 정규화. */
   targetRatio: RatioBreakdown;
   /** 실제 분배 비율 (10 합 기준, 소수 1자리) */
   actualRatio: RatioBreakdown;
@@ -163,7 +172,7 @@ export function calculateBearHunt(input: TroopsInput): TroopsResult {
   const usedArc = perSquad.archers * input.squadCount;
 
   return {
-    mode: fullPossible ? 'full' : 'partial',
+    mode: fullPossible ? 'bear-full' : 'bear-partial',
     squadCount: input.squadCount,
     perSquad,
     remaining: {
@@ -174,6 +183,55 @@ export function calculateBearHunt(input: TroopsInput): TroopsResult {
     targetRatio: { infantry: 1, cavalry: 1, archers: 8 },
     actualRatio: toRatio(perSquad),
   };
+}
+
+/**
+ * 균등 분배 — 보유 비율 그대로 N편대에 나눔. 합이 cap 초과면 비례 축소.
+ * "균등"은 "보유 비율 유지" 라는 의미로, 1:1:1 강제가 아님.
+ */
+export function calculateEven(input: TroopsInput): TroopsResult {
+  const { cap, infantry, cavalry, archers, squadCount } = input;
+  let inf = Math.floor(infantry / squadCount);
+  let cav = Math.floor(cavalry / squadCount);
+  let arc = Math.floor(archers / squadCount);
+  let total = inf + cav + arc;
+  let capped = false;
+
+  if (total > cap) {
+    // cap 초과 — 비례 축소. ratio 보존을 위해 (값 * cap / total) 사용.
+    inf = Math.floor((inf * cap) / total);
+    cav = Math.floor((cav * cap) / total);
+    arc = Math.floor((arc * cap) / total);
+    total = inf + cav + arc;
+    capped = true;
+  }
+
+  const perSquad: SquadAllocation = {
+    infantry: inf,
+    cavalry: cav,
+    archers: arc,
+    total,
+  };
+
+  return {
+    mode: capped ? 'even-capped' : 'even-fits',
+    squadCount,
+    perSquad,
+    remaining: {
+      infantry: infantry - inf * squadCount,
+      cavalry: cavalry - cav * squadCount,
+      archers: archers - arc * squadCount,
+    },
+    // 균등 모드의 "목표" 는 보유량 정규화 (보유 비율 자체가 목표). 합이 0 이면 0:0:0.
+    targetRatio: toRatio({ infantry, cavalry, archers, total: infantry + cavalry + archers }),
+    actualRatio: toRatio(perSquad),
+  };
+}
+
+/** 분배 모드 디스패치. 호출자가 mode 를 결정해서 전달. */
+export function calculate(input: TroopsInput, mode: DistributionMode): TroopsResult {
+  if (mode === 'even') return calculateEven(input);
+  return calculateBearHunt(input);
 }
 
 /** 비율 표기 — "1.0 : 1.0 : 8.0" 형식 */
