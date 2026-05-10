@@ -147,6 +147,9 @@ const navItems = gameTools.submenus!.map((s) => ({
         이 도구는 권한이 있는 사용자만 사용할 수 있습니다.
       </p>
     </div>
+
+    <!-- 화면 가운데 토스트 — 셀 클릭 시 "복사되었습니다" 표시. 타일매치 .tm-toast 패턴 동일. -->
+    <div class="tc-toast" id="tc-toast" role="status" aria-live="polite"></div>
   </div>
 
   <script>

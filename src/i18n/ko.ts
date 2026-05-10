@@ -560,6 +560,8 @@ export const ko = {
       modeEvenCapped: '균등 분배 (상한 한도)',
       ratioInline: '실제 {actual} (목표 1:1:8)',
       ratioInlineEven: '실제 {actual} (보유 비율 기준)',
+      copyHint: '클릭하면 숫자가 복사됩니다',
+      copyToast: '클립보드에 복사되었습니다',
       errInvalid: '숫자를 정확히 입력해 주세요.',
       errSquadCount: '편대 수는 1 이상이어야 합니다.',
       errCap: '출정 상한 값은 1 이상이어야 합니다.',

@@ -213,19 +213,23 @@ function renderResult(result: TroopsResult): void {
     ratioText.dataset.tcActual = formatRatio(result.actualRatio);
   }
 
-  // 표 본체 — N행 편대 + 마지막 잔류 행
+  // 표 본체 — N행 편대 + 잔류 + 합계.
+  // 숫자 셀(.tc-num) 은 클릭 시 data-raw 의 raw 숫자가 클립보드로 복사됨 (게임 인풋용).
   const tbody = $('tc-table-body');
   if (tbody) {
+    const numCell = (n: number) =>
+      `<td class="tc-num" data-raw="${n}" tabindex="0" role="button" title="${t('gameTools.troopsCalculator.copyHint')}">${fmt(n)}</td>`;
+
     tbody.innerHTML = '';
     for (let i = 1; i <= result.squadCount; i++) {
       const tr = document.createElement('tr');
       tr.className = 'tc-row-squad';
       tr.innerHTML = `
         <td>${i}</td>
-        <td>${fmt(result.perSquad.infantry)}</td>
-        <td>${fmt(result.perSquad.cavalry)}</td>
-        <td>${fmt(result.perSquad.archers)}</td>
-        <td>${fmt(result.perSquad.total)}</td>
+        ${numCell(result.perSquad.infantry)}
+        ${numCell(result.perSquad.cavalry)}
+        ${numCell(result.perSquad.archers)}
+        ${numCell(result.perSquad.total)}
       `;
       tbody.appendChild(tr);
     }
@@ -237,10 +241,10 @@ function renderResult(result: TroopsResult): void {
     remTr.className = 'tc-row-remaining';
     remTr.innerHTML = `
       <td data-i18n="gameTools.troopsCalculator.tableRemaining">${t('gameTools.troopsCalculator.tableRemaining')}</td>
-      <td>${fmt(r.infantry)}</td>
-      <td>${fmt(r.cavalry)}</td>
-      <td>${fmt(r.archers)}</td>
-      <td>${fmt(remTotal)}</td>
+      ${numCell(r.infantry)}
+      ${numCell(r.cavalry)}
+      ${numCell(r.archers)}
+      ${numCell(remTotal)}
     `;
     tbody.appendChild(remTr);
 
@@ -253,13 +257,92 @@ function renderResult(result: TroopsResult): void {
     sumTr.className = 'tc-row-total';
     sumTr.innerHTML = `
       <td data-i18n="gameTools.troopsCalculator.tableSumRow">${t('gameTools.troopsCalculator.tableSumRow')}</td>
-      <td>${fmt(sumInf)}</td>
-      <td>${fmt(sumCav)}</td>
-      <td>${fmt(sumArc)}</td>
-      <td>${fmt(sumAll)}</td>
+      ${numCell(sumInf)}
+      ${numCell(sumCav)}
+      ${numCell(sumArc)}
+      ${numCell(sumAll)}
     `;
     tbody.appendChild(sumTr);
   }
+}
+
+/**
+ * 클립보드 복사 — Clipboard API 우선, 비-secure context 면 textarea fallback.
+ * 게임 인풋이 raw 숫자만 받는 경우가 많아 쉼표 없는 raw 값으로 복사.
+ */
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through to legacy */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+// ===== 토스트 (타일매치 .tm-toast 패턴 동일) =====
+let _toastTimer: number | null = null;
+function showToast(msg: string): void {
+  const el = $('tc-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('tc-toast-show');
+  if (_toastTimer !== null) window.clearTimeout(_toastTimer);
+  _toastTimer = window.setTimeout(() => {
+    el.classList.remove('tc-toast-show');
+    _toastTimer = null;
+  }, 1500);
+}
+
+/**
+ * 셀 강조 클래스를 항상 최소 120ms 보장.
+ * 짧은 탭에서도 시각 피드백이 명확히 보이게 함. PC 마우스 클릭과 모바일 터치 모두 동일.
+ */
+function flashCell(cell: HTMLElement): void {
+  cell.classList.remove('tc-tap');
+  // 강제 reflow — 같은 셀 연속 활성화 시 transition 재시작
+  void cell.offsetWidth;
+  cell.classList.add('tc-tap');
+  window.setTimeout(() => cell.classList.remove('tc-tap'), 120);
+}
+
+/** pointerdown 위임 — .tc-num 이면 짧은 강조 시작 (PC down + 모바일 touch 모두). */
+function onCellPointerDown(e: PointerEvent): void {
+  const target = e.target as HTMLElement;
+  const cell = target.closest('.tc-num') as HTMLElement | null;
+  if (cell) flashCell(cell);
+}
+
+/** 셀 click/keydown 위임 핸들러 — .tc-num 이면 data-raw 복사 + 토스트. */
+function onCellActivate(e: Event): void {
+  const target = e.target as HTMLElement;
+  const cell = target.closest('.tc-num') as HTMLElement | null;
+  if (!cell) return;
+  if (e instanceof KeyboardEvent) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    // 키보드 활성화 시에도 같은 강조 (마우스/터치 일관)
+    flashCell(cell);
+  }
+  e.preventDefault();
+  const raw = cell.dataset.raw;
+  if (!raw) return;
+  copyToClipboard(raw).then((ok) => {
+    if (ok) showToast(t('gameTools.troopsCalculator.copyToast'));
+  });
 }
 
 function resetResult(): void {
@@ -297,6 +380,15 @@ function init(): void {
     input.addEventListener('input', () => formatNumberInput(input));
     input.addEventListener('blur', () => formatNumberInput(input));
   });
+
+  // 결과 표 숫자 셀 — 클릭/터치 시 클립보드 복사. (이벤트 위임으로 tbody 재렌더 후에도 유지)
+  // - pointerdown : 손가락/마우스 닿는 순간 짧은 시각 강조 (.tc-tap 120ms)
+  // - click       : 복사 + 토스트
+  // - keydown     : Enter/Space 키보드 활성화도 같은 동작
+  const tableBody = $('tc-table-body');
+  tableBody?.addEventListener('pointerdown', onCellPointerDown);
+  tableBody?.addEventListener('click', onCellActivate);
+  tableBody?.addEventListener('keydown', onCellActivate);
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();

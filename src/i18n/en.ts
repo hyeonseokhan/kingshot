@@ -564,6 +564,8 @@ export const en: Translations = {
       modeEvenCapped: 'Even split (capped)',
       ratioInline: 'Actual {actual} (target 1:1:8)',
       ratioInlineEven: 'Actual {actual} (your stock ratio)',
+      copyHint: 'Click to copy the number',
+      copyToast: 'Copied to clipboard',
       errInvalid: 'Please enter valid numbers.',
       errSquadCount: 'Squads must be at least 1.',
       errCap: 'Capacity must be at least 1.',
