@@ -336,14 +336,17 @@
   color: #a5acff;
 }
 
-/* 이미지 lightbox — 아무곳 클릭 닫힘 (JS 가 dialog 자체 click 으로 close 호출) */
+/* 이미지 lightbox — 아무곳 클릭 닫힘 (JS 가 dialog 자체 click 으로 close 호출).
+   width/height 를 fit-content 로 잡아야 margin:auto 가 정상 작동 → 정중앙 배치.
+   (width:auto 일 때는 viewport 전체 폭을 차지해버려 좌측에 쏠림) */
 .sk-image-dialog {
   border: none;
   background: transparent;
   padding: 0;
+  width: fit-content;
+  height: fit-content;
   max-width: 95vw;
   max-height: 95vh;
-  width: auto;
   position: fixed;
   inset: 0;
   margin: auto;
