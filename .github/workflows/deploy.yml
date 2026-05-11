@@ -49,6 +49,11 @@ jobs:
           PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
 
+      # survey/ 페이지들은 survey.kingshot.wooju-home.org (별도 도메인) 전용.
+      # 메인 도메인 (kingshot.wooju-home.org) 산출물에서 제거해 외부 노출 차단.
+      - name: Strip survey routes from main bundle
+        run: rm -rf ./dist/survey
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

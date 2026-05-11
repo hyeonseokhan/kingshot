@@ -1,0 +1,53 @@
+---
+// SurveyLayout — 외부 도메인 (survey.kingshot.wooju-home.org) 용 미니멀 레이아웃.
+// PNX 사이트의 Header/MobileNav/LeftNav/AuthDialog 일체 미포함 (외부 유저 노출 차단).
+// 공통 i18n boot + LangSwitcher 만 유지.
+import '@/styles/global.css';
+import '@/styles/components.css';
+import LangSwitcher from '@/components/LangSwitcher.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = 'KVK Speed-up Survey', description = 'KVK speed-up inventory survey' } =
+  Astro.props;
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+    <script>
+      import { bootI18n } from '@/i18n';
+      bootI18n();
+    </script>
+  </head>
+  <body class="survey-body">
+    <header class="survey-header">
+      <div class="survey-header-inner">
+        <h1 class="survey-brand" data-i18n="survey.brand">KVK 가속권 현황 조사</h1>
+        <LangSwitcher />
+      </div>
+    </header>
+    <main class="survey-main">
+      <slot />
+    </main>
+    <footer class="survey-footer">
+      <span data-i18n="survey.footer">KVK Speed-up Survey · 익명 조사용 페이지</span>
+    </footer>
+  </body>
+</html>

@@ -569,6 +569,67 @@ export const ko = {
       noPermission: '이 도구는 권한이 있는 사용자만 사용할 수 있습니다.',
     },
   },
+  survey: {
+    brand: 'KVK 가속권 현황 조사',
+    footer: 'KVK Speed-up Survey · 익명 조사용 페이지',
+    kvk: {
+      heading: 'KVK 가속권 현황 조사',
+      intro:
+        'KVK 이벤트를 앞두고 <strong>가속권 보유 현황</strong>을 공유해 주세요.<br />게임 내에서 [자원 및 가속 통계 → 가속] 화면에 표시되는 <strong>분 단위</strong> 값을 입력합니다.',
+      auth: {
+        title: '시작하기',
+        idLabel: '킹샷 ID',
+        idPlaceholder: '예: 270680423',
+        searchButton: '조회',
+        searchingButton: '조회 중...',
+        confirmHelp:
+          '본인이 맞으면 PIN 4자리를 입력해 주세요. (신규는 새 PIN 설정, 기존이면 등록한 PIN)',
+        pinLabel: 'PIN 4자리',
+        pinHintNew: '신규 등록 — 새 PIN 으로 사용됩니다',
+        pinHintExisting: '기존 등록 — 등록한 PIN 입력',
+        errors: {
+          invalidId: '게임 ID 형식이 올바르지 않습니다',
+          invalidPin: 'PIN 은 정확히 4자리 숫자여야 합니다',
+          playerNotFound: '해당 ID 의 플레이어를 찾을 수 없습니다',
+          notRegistered: '아직 등록되지 않은 ID 입니다',
+          alreadyRegistered: '이미 등록된 ID 입니다',
+        },
+      },
+      form: {
+        help:
+          '게임 내 [자원 및 가속 통계 → 가속] 화면 기준, <strong>분 단위</strong>로 보이는 값을 그대로 입력하세요.',
+        training: '병사 훈련 가속권',
+        construction: '건설 가속권',
+        general: '공용 가속권',
+        unit: '분',
+        cancelButton: '취소',
+        saving: '저장 중...',
+        saved: '저장되었습니다',
+        errors: {
+          invalidAmount: '수량은 0 이상의 정수여야 합니다',
+        },
+      },
+      list: {
+        heading: '제출 현황',
+        addButton: '+ 내 정보 등록 / 수정',
+        editButton: '수정',
+        count: '{n}명 제출',
+        empty: '아직 제출된 데이터가 없어요. 첫 번째 참가자가 되어 주세요!',
+        thead: {
+          rank: '#',
+          player: '참가자',
+          training: '병사',
+          construction: '건설',
+          general: '공용',
+          total: '합계',
+          updated: '최근 갱신',
+        },
+      },
+      errors: {
+        generic: '문제가 발생했습니다',
+      },
+    },
+  },
 } as const;
 
 // leaf 의 한글 literal 타입을 string 으로 풀어줌. en.ts 가 같은 키 구조만 충족하면 통과

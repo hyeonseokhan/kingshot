@@ -573,4 +573,65 @@ export const en: Translations = {
       noPermission: 'This tool is only available to authorized users.',
     },
   },
+  survey: {
+    brand: 'KVK Speed-up Survey',
+    footer: 'KVK Speed-up Survey · anonymous polling page',
+    kvk: {
+      heading: 'KVK Speed-up Inventory Survey',
+      intro:
+        'Share your <strong>current speed-up inventory</strong> ahead of the KVK event.<br />Enter the <strong>minute-based</strong> values shown in the in-game [Resources & Speed-ups → Speed-ups] panel.',
+      auth: {
+        title: 'Get started',
+        idLabel: 'Kingshot ID',
+        idPlaceholder: 'e.g. 270680423',
+        searchButton: 'Look up',
+        searchingButton: 'Looking up...',
+        confirmHelp:
+          'If this is you, enter your 4-digit PIN. (New users will set a fresh PIN; returning users enter the one you registered.)',
+        pinLabel: '4-digit PIN',
+        pinHintNew: 'New registration — this becomes your PIN',
+        pinHintExisting: 'Returning user — enter your registered PIN',
+        errors: {
+          invalidId: 'The game ID format is invalid',
+          invalidPin: 'PIN must be exactly 4 digits',
+          playerNotFound: 'No player was found for this ID',
+          notRegistered: 'This ID has not been registered yet',
+          alreadyRegistered: 'This ID is already registered',
+        },
+      },
+      form: {
+        help:
+          'Use the <strong>minute-based</strong> totals shown in the in-game [Resources & Speed-ups → Speed-ups] panel.',
+        training: 'Training Speed-up',
+        construction: 'Construction Speed-up',
+        general: 'Universal Speed-up',
+        unit: 'min',
+        cancelButton: 'Cancel',
+        saving: 'Saving...',
+        saved: 'Saved',
+        errors: {
+          invalidAmount: 'Amounts must be non-negative integers',
+        },
+      },
+      list: {
+        heading: 'Submissions',
+        addButton: '+ Add / Edit my entry',
+        editButton: 'Edit',
+        count: '{n} submitted',
+        empty: 'No submissions yet. Be the first to share!',
+        thead: {
+          rank: '#',
+          player: 'Player',
+          training: 'Training',
+          construction: 'Constr.',
+          general: 'Universal',
+          total: 'Total',
+          updated: 'Updated',
+        },
+      },
+      errors: {
+        generic: 'Something went wrong',
+      },
+    },
+  },
 };

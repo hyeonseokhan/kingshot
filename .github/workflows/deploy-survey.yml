@@ -1,0 +1,102 @@
+name: Deploy survey site
+
+# 같은 repo 의 src/pages/survey/* 페이지만 추출해서 별도 도메인
+# survey.kingshot.wooju-home.org 로 호스팅. 다른 repo (hyeonseokhan/kingshot-survey-site)
+# 의 gh-pages 브랜치로 cross-push.
+#
+# 분리 이유: 외부 유저가 도메인 잘라먹기 (survey.kingshot.../로만 접근) 했을 때
+# PNX 사이트가 노출되지 않도록. 모든 비-survey 라우트는 _survey_dist 안에 없어서
+# 자연스럽게 404 → root 의 redirect 가 /kvk 로 안내.
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - 'src/pages/survey/**'
+      - 'src/scripts/pages/survey-**'
+      - 'src/layouts/SurveyLayout.astro'
+      - 'src/styles/survey-**'
+      - 'src/i18n/**'
+      - 'src/lib/**'
+      - 'src/components/LangSwitcher.astro'
+      - 'src/scripts/components/lang-switcher.ts'
+      - '.github/workflows/deploy-survey.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'astro.config.mjs'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with Astro
+        run: npm run build
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Repackage survey artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p ./_survey_dist
+          # 1. 공유 자산 (_astro chunks, fonts 등) 통째로 복사
+          if [ -d ./dist/_astro ]; then cp -r ./dist/_astro ./_survey_dist/_astro; fi
+          # 2. 정적 자산 폴더들도 같이 (있을 때만)
+          for d in images img assets fonts public; do
+            if [ -d ./dist/$d ]; then cp -r ./dist/$d ./_survey_dist/$d; fi
+          done
+          # 3. 파비콘 등 root 파일들
+          find ./dist -maxdepth 1 -type f \( -name 'favicon*.png' -o -name 'apple-touch-icon.png' -o -name 'robots.txt' \) -exec cp {} ./_survey_dist/ \;
+          # 4. survey/kvk/* 를 kvk/ 로 승격
+          if [ -d ./dist/survey/kvk ]; then
+            cp -r ./dist/survey/kvk ./_survey_dist/kvk
+          else
+            echo "ERROR: ./dist/survey/kvk not found — survey 페이지 빌드 실패" >&2
+            exit 1
+          fi
+          # 5. root index.html — /kvk/ 로 즉시 리다이렉트
+          cat > ./_survey_dist/index.html <<'EOF'
+          <!doctype html>
+          <html lang="ko">
+            <head>
+              <meta charset="utf-8" />
+              <title>KVK Speed-up Survey</title>
+              <meta http-equiv="refresh" content="0; url=/kvk/" />
+              <link rel="canonical" href="/kvk/" />
+              <meta name="robots" content="noindex" />
+            </head>
+            <body>
+              <script>location.replace('/kvk/');</script>
+              <p>Redirecting to <a href="/kvk/">/kvk/</a>...</p>
+            </body>
+          </html>
+          EOF
+          # 6. 404.html → root 와 같은 동작 (잘못된 path 도 /kvk 로 유도)
+          cp ./_survey_dist/index.html ./_survey_dist/404.html
+          # 7. CNAME — GitHub Pages 가 이 도메인으로 서빙
+          echo 'survey.kingshot.wooju-home.org' > ./_survey_dist/CNAME
+          # 8. 산출물 점검 로그
+          echo "==== _survey_dist tree ===="
+          find ./_survey_dist -maxdepth 2 -print
+
+      - name: Deploy to kingshot-survey-site
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.SURVEY_DEPLOY_TOKEN }}
+          external_repository: hyeonseokhan/kingshot-survey-site
+          publish_branch: gh-pages
+          publish_dir: ./_survey_dist
+          commit_message: 'deploy: ${{ github.sha }}'
