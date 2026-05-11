@@ -104,6 +104,22 @@ function isNonNegInt(n: unknown): n is number {
   return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 9_999_999;
 }
 
+/**
+ * 요청 헤더에서 클라이언트 IP / 국가 추출.
+ *   - 클라이언트는 어떤 값도 송수신하지 않음 (DevTools 노출 X)
+ *   - Cloudflare/Supabase 인프라가 자동으로 부착하는 헤더만 신뢰
+ *   - country 는 ISO 3166-1 alpha-2 (예: 'KR'), 미상이면 null
+ */
+function extractRequestMeta(req: Request): { ip: string | null; country: string | null } {
+  const ip =
+    req.headers.get("cf-connecting-ip") ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    null;
+  const country = req.headers.get("cf-ipcountry") ?? null;
+  return { ip, country };
+}
+
 interface PlayerInfo {
   fid: string;
   nickname: string;
@@ -167,6 +183,7 @@ async function register(
   training: unknown,
   construction: unknown,
   general: unknown,
+  meta: { ip: string | null; country: string | null },
 ) {
   if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
   if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
@@ -190,6 +207,8 @@ async function register(
     training: training as number,
     construction: construction as number,
     general: general as number,
+    ip: meta.ip,
+    country: meta.country,
   });
   return { ok: true };
 }
@@ -222,6 +241,7 @@ async function updateRow(
   training: unknown,
   construction: unknown,
   general: unknown,
+  meta: { ip: string | null; country: string | null },
 ) {
   if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
   if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
@@ -240,6 +260,8 @@ async function updateRow(
     training: training as number,
     construction: construction as number,
     general: general as number,
+    ip: meta.ip,
+    country: meta.country,
     updated_at: new Date().toISOString(),
   };
   if (player) {
@@ -275,19 +297,21 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { action, kingshot_id, pin, training, construction, general } = body ?? {};
+    // IP / country 는 헤더에서만 추출 — 클라이언트 페이로드는 신뢰하지 않음
+    const meta = extractRequestMeta(req);
     let result;
     switch (action) {
       case "lookup":
         result = await lookup(kingshot_id);
         break;
       case "register":
-        result = await register(kingshot_id, pin, training, construction, general);
+        result = await register(kingshot_id, pin, training, construction, general, meta);
         break;
       case "verify":
         result = await verifyPin(kingshot_id, pin);
         break;
       case "update":
-        result = await updateRow(kingshot_id, pin, training, construction, general);
+        result = await updateRow(kingshot_id, pin, training, construction, general, meta);
         break;
       case "delete":
         result = await deleteRow(kingshot_id, pin);
