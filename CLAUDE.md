@@ -352,6 +352,55 @@ TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot 
 
 ---
 
+## 신규 컨텐츠: 게임도구 (Game Tools)
+
+### 개요
+
+상단 메뉴 5번째 **게임도구** 카테고리 — 미니게임과 분리된 "외부 게임 플레이를
+보조하는 계산기/툴" 의 자리. Phase 1 = 부대 계산기 (곰 사냥).
+
+### 노출 규칙 (관리자 한정)
+
+- **`members.kingshot_id == '270680423'` (Toycode) 한정** — 그 외 사용자는 메뉴
+  자체가 DOM 에서 제외됨. 정적 빌드 특성상 페이지 URL 은 존재 → 페이지 진입에도
+  동일 가드 (`game-tools-guard.ts`) 적용해 미인증/타 사용자면 홈 리디렉트.
+- 향후 일반 공개 결정 시 `requiresKingshotId` 메타만 제거하면 됨.
+
+### 부대 계산기 (Phase 1, `/game-tools/troops-calculator/`)
+
+- **목적**: 곰 사냥 출진 직전 — 보유 보병/기병/궁병 + 1부대 수용량 + 운영 편대 수
+  입력 → 편대별 분배량 + 잔류 + 실제 비율 즉시 계산.
+- **분배 비율 옵션** (commit `9da2c8c`):
+  - **권장(1:1:8)** — 곰 사냥 표준
+  - **균등** — 보:기:궁 동일 분배 (vikings 등 다른 시나리오 임시 대응)
+  - 두 옵션은 토글, custom 입력은 Phase 2+
+- **궁병 우선 알고리즘** — 궁병 부족 케이스에선 `궁병 = floor(arc/N)`, 나머지는
+  보·기 균등으로 채워 합 cap 유지. 정확한 의사코드는 `src/lib/troops-calculator.ts`.
+- **결과 셀 클릭 → 클립보드 복사 + 토스트 + 터치 피드백** (commit `17b472d`) —
+  편대별 숫자를 게임 UI 에 빠르게 옮기기 위한 UX.
+- **DB / Edge Function 변경 0건** — 순수 클라이언트 계산.
+
+### 코드 배치
+
+| 영역 | 파일 |
+|------|------|
+| 페이지 | `src/pages/game-tools/{index,troops-calculator}.astro` |
+| 클라 로직 | `src/scripts/pages/game-tools-troops-calculator.ts` |
+| 순수 계산 | `src/lib/troops-calculator.ts` |
+| 권한 가드 | `src/scripts/pages/game-tools-guard.ts` |
+| 스타일 | `src/styles/game-tools.css` |
+| nav | `src/data/navigation.ts` 의 `gameTools` 카테고리 |
+| i18n | `src/i18n/{ko,en}.ts` 의 `nav.gameTools` + `gameTools.troopsCalculator.*` |
+
+### 후속 (Phase 2+)
+
+- Vikings 부대 계산기 (60/40/0)
+- 비율 커스텀 입력 (슬라이더 또는 자유 입력)
+- 그 외 도구 (자원 변환, 훈련 시간 계산기 등)
+- Toycode 외 일반 공개 — 사용량 보고 결정
+
+---
+
 ## 코딩 컨벤션 (이 프로젝트 한정)
 
 - 컴포넌트: `.astro`, 클라이언트 로직: `src/scripts/pages/<page>.ts`
