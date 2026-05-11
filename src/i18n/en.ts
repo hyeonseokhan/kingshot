@@ -578,8 +578,7 @@ export const en: Translations = {
     footer: 'KVK Speed-up Survey · anonymous polling page',
     kvk: {
       heading: 'KVK Speed-up Inventory Survey',
-      intro:
-        'Share your <strong>current speed-up inventory</strong> ahead of the KVK event.<br />Enter the <strong>minute-based</strong> values shown in the in-game [Resources & Speed-ups → Speed-ups] panel.',
+      intro: 'Share your current speed-up inventory ahead of the KVK event.',
       auth: {
         title: 'Get started',
         idLabel: 'Kingshot ID',
@@ -622,6 +621,8 @@ export const en: Translations = {
         editButton: 'Edit',
         count: '{n} submitted',
         empty: 'No submissions yet. Be the first to share!',
+        sortBy: 'Sort',
+        sortRegistered: 'Recent',
         thead: {
           rank: '#',
           player: 'Player',

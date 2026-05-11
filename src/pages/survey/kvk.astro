@@ -245,6 +245,30 @@ import '@/styles/survey-kvk.css';
           >등록 / 수정</button>
         </div>
       </header>
+
+      <!-- 모바일 전용 컨트롤 바 — 이모지 안내 + 정렬 뱃지. 데스크탑에선 hidden (thead 가 대체). -->
+      <div class="sk-mobile-controls">
+        <div class="sk-legend">
+          <span class="sk-legend-item"><span class="sk-legend-emoji">⭐</span>
+            <span data-i18n="survey.kvk.list.thead.general">공용</span></span>
+          <span class="sk-legend-item"><span class="sk-legend-emoji">🛡️</span>
+            <span data-i18n="survey.kvk.list.thead.training">병사</span></span>
+          <span class="sk-legend-item"><span class="sk-legend-emoji">🔨</span>
+            <span data-i18n="survey.kvk.list.thead.construction">건설</span></span>
+        </div>
+        <div class="sk-mobile-sort">
+          <span class="sk-mobile-sort-label" data-i18n="survey.kvk.list.sortBy">정렬</span>
+          <button type="button" class="sk-sort-chip" data-sort="general"
+            data-i18n="survey.kvk.list.thead.general">공용</button>
+          <button type="button" class="sk-sort-chip" data-sort="training"
+            data-i18n="survey.kvk.list.thead.training">병사</button>
+          <button type="button" class="sk-sort-chip" data-sort="construction"
+            data-i18n="survey.kvk.list.thead.construction">건설</button>
+          <button type="button" class="sk-sort-chip" data-sort="updated_at"
+            data-i18n="survey.kvk.list.sortRegistered">등록순</button>
+        </div>
+      </div>
+
       <div class="sk-table-wrap">
         <table class="sk-table" id="sk-table">
           <thead>

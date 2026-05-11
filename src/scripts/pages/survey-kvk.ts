@@ -15,7 +15,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { patchList, patchText } from '@/lib/dom-diff';
-import { t, onLangChange } from '@/i18n';
+import { t, getLang, onLangChange } from '@/i18n';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-survey';
 
@@ -379,10 +379,12 @@ function renderList(): void {
     update: (el, r) => updateRow(el, r),
   });
 
-  // sort 활성 표시 — 화살표 없음, 색상/굵기만 변경
-  document.querySelectorAll<HTMLElement>('.sk-sort-btn').forEach((btn) => {
-    btn.dataset.active = btn.dataset.sort === sort.key ? 'true' : 'false';
-  });
+  // sort 활성 표시 — 데스크탑 thead 의 .sk-sort-btn + 모바일 .sk-sort-chip 동시 동기화
+  document
+    .querySelectorAll<HTMLElement>('.sk-sort-btn, .sk-sort-chip')
+    .forEach((btn) => {
+      btn.dataset.active = btn.dataset.sort === sort.key ? 'true' : 'false';
+    });
 }
 
 function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
@@ -516,14 +518,26 @@ function formatDuration(minutes: number): string {
   return `${dStr}d ${h}h ${m}m`;
 }
 
+/**
+ * 갱신 시간 표기 — 언어별 timezone.
+ *   ko → KST (Asia/Seoul)
+ *   en → UTC
+ * DB 값(ISO timestamp)은 그대로 두고 표시만 변환. "YY-MM-DD (KST|UTC)" 형식.
+ */
 function formatTime(iso: string): string {
-  const d = new Date(iso);
-  const yy = String(d.getFullYear()).slice(2);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${yy}-${mm}-${dd} ${hh}:${mi}`;
+  const lang = getLang();
+  const tz = lang === 'ko' ? 'Asia/Seoul' : 'UTC';
+  const label = lang === 'ko' ? 'KST' : 'UTC';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(iso));
+  const y = parts.find((p) => p.type === 'year')?.value ?? '';
+  const m = parts.find((p) => p.type === 'month')?.value ?? '';
+  const d = parts.find((p) => p.type === 'day')?.value ?? '';
+  return `${y}-${m}-${d} (${label})`;
 }
 
 // ===== 이미지 다이얼로그 =====
@@ -612,14 +626,16 @@ function init(): void {
   // 목록
   $('sk-list-refresh').addEventListener('click', refreshList);
 
-  // 정렬
-  document.querySelectorAll<HTMLButtonElement>('.sk-sort-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.sort as SortKey | undefined;
-      if (!key) return;
-      onSortClick(key);
+  // 정렬 — 데스크탑 thead 의 sort-btn + 모바일 sort-chip 둘 다 같은 핸들러
+  document
+    .querySelectorAll<HTMLButtonElement>('.sk-sort-btn, .sk-sort-chip')
+    .forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.sort as SortKey | undefined;
+        if (!key) return;
+        onSortClick(key);
+      });
     });
-  });
 
   // 언어 변경 시 동적 텍스트 재렌더
   onLangChange(() => {

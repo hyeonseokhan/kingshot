@@ -574,8 +574,7 @@ export const ko = {
     footer: 'KVK Speed-up Survey · 익명 조사용 페이지',
     kvk: {
       heading: 'KVK 가속권 현황 조사',
-      intro:
-        'KVK 이벤트를 앞두고 <strong>가속권 보유 현황</strong>을 공유해 주세요.<br />게임 내에서 [자원 및 가속 통계 → 가속] 화면에 표시되는 <strong>분 단위</strong> 값을 입력합니다.',
+      intro: 'KVK 이벤트를 앞두고 가속권 보유 현황을 공유해 주세요.',
       auth: {
         title: '시작하기',
         idLabel: '킹샷 ID',
@@ -618,6 +617,8 @@ export const ko = {
         editButton: '수정',
         count: '{n}명 제출',
         empty: '아직 제출된 데이터가 없어요. 첫 번째 참가자가 되어 주세요!',
+        sortBy: '정렬',
+        sortRegistered: '등록순',
         thead: {
           rank: '#',
           player: '참가자',
