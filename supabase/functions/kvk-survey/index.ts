@@ -70,6 +70,14 @@ async function dbPatch(path: string, body: Record<string, unknown>): Promise<voi
   if (!res.ok) throw new Error(`db patch ${res.status}: ${await res.text()}`);
 }
 
+async function dbDelete(path: string): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: "DELETE",
+    headers: { ...dbHeaders, Prefer: "return=minimal" },
+  });
+  if (!res.ok) throw new Error(`db delete ${res.status}: ${await res.text()}`);
+}
+
 async function sha256Hex(str: string): Promise<string> {
   const data = new TextEncoder().encode(str);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -242,6 +250,19 @@ async function updateRow(
   return { ok: true };
 }
 
+async function deleteRow(kingshotId: string, pin: unknown) {
+  if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
+  if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
+  const row = await dbSelectOne(
+    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt`
+  );
+  if (!row) return { ok: false, error: "not_registered" };
+  const computed = await sha256Hex((pin as string) + row.pin_salt);
+  if (computed !== row.pin_hash) return { ok: false, error: "invalid_pin" };
+  await dbDelete(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}`);
+  return { ok: true };
+}
+
 async function list() {
   const rows = await dbSelect(
     `kvk_speedup_survey?select=kingshot_id,nickname,avatar_url,training,construction,general,updated_at&order=updated_at.desc`
@@ -267,6 +288,9 @@ Deno.serve(async (req: Request) => {
         break;
       case "update":
         result = await updateRow(kingshot_id, pin, training, construction, general);
+        break;
+      case "delete":
+        result = await deleteRow(kingshot_id, pin);
         break;
       case "list":
         result = await list();

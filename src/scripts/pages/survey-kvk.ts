@@ -256,6 +256,8 @@ function enterFormMode(): void {
   setNumericInputValue('sk-input-general', session.prefill?.general ?? null);
   setNumericInputValue('sk-input-training', session.prefill?.training ?? null);
   setNumericInputValue('sk-input-construction', session.prefill?.construction ?? null);
+  // 수정 모드일 때만 삭제 버튼 노출
+  ($('sk-form-delete') as HTMLButtonElement).hidden = session.mode !== 'update';
   setStatus('sk-form-status', '');
   sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   setTimeout(() => $<HTMLInputElement>('sk-input-general').focus(), 250);
@@ -311,6 +313,36 @@ function readFormValues(): { training: number; construction: number; general: nu
   const ge = parseNumericInput('sk-input-general');
   if (![tr, co, ge].every((v) => Number.isInteger(v) && v >= 0 && v <= 9_999_999)) return null;
   return { training: tr, construction: co, general: ge };
+}
+
+async function onDeleteForm(): Promise<void> {
+  if (!session || session.mode !== 'update') return;
+  if (!window.confirm(t('survey.kvk.form.deleteConfirm'))) return;
+  const saveBtn = $<HTMLButtonElement>('sk-form-save');
+  const delBtn = $<HTMLButtonElement>('sk-form-delete');
+  saveBtn.disabled = true;
+  delBtn.disabled = true;
+  setStatus('sk-form-status', t('survey.kvk.form.deleting'), '');
+  try {
+    const json = await callFn<{ ok: boolean; error?: string }>({
+      action: 'delete',
+      kingshot_id: session.player.kingshot_id,
+      pin: session.pin,
+    });
+    if (!json.ok) {
+      setStatus('sk-form-status', mapError(json.error), 'err');
+      saveBtn.disabled = false;
+      delBtn.disabled = false;
+      return;
+    }
+    setStatus('sk-form-status', t('survey.kvk.form.deleted'), 'ok');
+    await refreshList();
+    setTimeout(() => exitFormMode(), 600);
+  } catch (err) {
+    setStatus('sk-form-status', mapError(String((err as Error).message)), 'err');
+    saveBtn.disabled = false;
+    delBtn.disabled = false;
+  }
 }
 
 async function onSaveForm(): Promise<void> {
@@ -612,6 +644,7 @@ function init(): void {
   // 폼
   $('sk-form-cancel').addEventListener('click', exitFormMode);
   $('sk-form-save').addEventListener('click', onSaveForm);
+  $('sk-form-delete').addEventListener('click', onDeleteForm);
 
   // 폼 input — 입력 중 천 단위 콤마 자동 포맷
   ['sk-input-general', 'sk-input-training', 'sk-input-construction'].forEach((id) => {

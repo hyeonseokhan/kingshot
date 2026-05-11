@@ -132,6 +132,15 @@
   background: #2c313d;
   border-color: var(--sk-border-strong);
 }
+.sk-btn-danger {
+  background: transparent;
+  color: var(--sk-danger);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.sk-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: var(--sk-danger);
+}
 .sk-btn-small {
   padding: 6px 12px;
   font-size: 13px;
@@ -478,8 +487,12 @@
 .sk-form-actions {
   margin-top: 14px;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
+}
+/* [삭제] 좌측 / [저장] 우측 — 저장이 우측 끝으로 가도록 push */
+.sk-form-actions .sk-btn-primary {
+  margin-left: auto;
 }
 
 /* ===== 목록 ===== */

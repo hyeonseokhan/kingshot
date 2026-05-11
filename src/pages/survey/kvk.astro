@@ -196,6 +196,14 @@ import '@/styles/survey-kvk.css';
         </div>
         <div class="sk-status" id="sk-form-status" role="status" aria-live="polite"></div>
         <div class="sk-form-actions">
+          <!-- 삭제: 수정 모드일 때만 노출 (JS 가 enterFormMode 에서 hidden 토글) -->
+          <button
+            type="button"
+            class="sk-btn sk-btn-danger"
+            id="sk-form-delete"
+            hidden
+            data-i18n="survey.kvk.form.deleteButton"
+          >삭제</button>
           <button
             type="button"
             class="sk-btn sk-btn-primary"

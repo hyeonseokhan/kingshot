@@ -607,6 +607,10 @@ export const ko = {
         cancelButton: '취소',
         saving: '저장 중...',
         saved: '저장되었습니다',
+        deleteButton: '삭제',
+        deleteConfirm: '이 정보를 삭제할까요? 되돌릴 수 없습니다.',
+        deleting: '삭제 중...',
+        deleted: '삭제되었습니다',
         errors: {
           invalidAmount: '수량은 0 이상의 정수여야 합니다',
         },

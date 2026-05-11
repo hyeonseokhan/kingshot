@@ -611,6 +611,10 @@ export const en: Translations = {
         cancelButton: 'Cancel',
         saving: 'Saving...',
         saved: 'Saved',
+        deleteButton: 'Delete',
+        deleteConfirm: 'Delete this entry? This cannot be undone.',
+        deleting: 'Deleting...',
+        deleted: 'Deleted',
         errors: {
           invalidAmount: 'Amounts must be non-negative integers',
         },
