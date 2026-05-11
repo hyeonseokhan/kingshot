@@ -35,7 +35,7 @@ interface PlayerInfo {
   avatar_url: string | null;
 }
 
-type SortKey = 'training' | 'construction' | 'general' | 'total' | 'updated_at';
+type SortKey = 'training' | 'construction' | 'general' | 'updated_at';
 
 // ===== state =====
 
@@ -48,7 +48,7 @@ interface FormSession {
 
 let session: FormSession | null = null;
 let rowsCache: SurveyRow[] = [];
-let sort: { key: SortKey; dir: 'asc' | 'desc' } = { key: 'total', dir: 'desc' };
+let sort: { key: SortKey; dir: 'asc' | 'desc' } = { key: 'general', dir: 'desc' };
 
 // ===== DOM =====
 
@@ -390,10 +390,7 @@ function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
   out.sort((a, b) => {
     let av: number | string;
     let bv: number | string;
-    if (s.key === 'total') {
-      av = a.training + a.construction + a.general;
-      bv = b.training + b.construction + b.general;
-    } else if (s.key === 'updated_at') {
+    if (s.key === 'updated_at') {
       av = Date.parse(a.updated_at);
       bv = Date.parse(b.updated_at);
     } else {
@@ -408,6 +405,7 @@ function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
 function buildRow(r: SurveyRow & { rank: number }): HTMLElement {
   const tr = document.createElement('tr');
   tr.className = 'sk-tr';
+  // 각 가속권 셀은 [라벨][값] 페어 — 데스크탑은 라벨 숨김, 모바일 카드 모드에선 라벨 노출
   tr.innerHTML = `
     <td class="sk-td sk-td-rank"></td>
     <td class="sk-td sk-td-player">
@@ -422,15 +420,19 @@ function buildRow(r: SurveyRow & { rank: number }): HTMLElement {
         </div>
       </div>
     </td>
-    <td class="sk-td sk-td-num sk-td-general"></td>
-    <td class="sk-td sk-td-num sk-td-training"></td>
-    <td class="sk-td sk-td-num sk-td-construction"></td>
-    <td class="sk-td sk-td-num sk-td-total"></td>
-    <td class="sk-td sk-td-time sk-td-updated"></td>
-    <td class="sk-td sk-td-actions">
-      <button type="button" class="sk-btn sk-btn-secondary sk-btn-small sk-edit-btn"
-        data-i18n="survey.kvk.list.editButton">수정</button>
+    <td class="sk-td sk-td-num sk-td-general">
+      <span class="sk-cell-label"></span>
+      <span class="sk-cell-value"></span>
     </td>
+    <td class="sk-td sk-td-num sk-td-training">
+      <span class="sk-cell-label"></span>
+      <span class="sk-cell-value"></span>
+    </td>
+    <td class="sk-td sk-td-num sk-td-construction">
+      <span class="sk-cell-label"></span>
+      <span class="sk-cell-value"></span>
+    </td>
+    <td class="sk-td sk-td-time sk-td-updated"></td>
   `;
   updateRow(tr, r);
   return tr;
@@ -440,11 +442,32 @@ function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number }): void {
   patchText(tr.querySelector<HTMLElement>('.sk-td-rank'), String(r.rank));
   patchText(tr.querySelector<HTMLElement>('.sk-row-name'), r.nickname);
   patchText(tr.querySelector<HTMLElement>('.sk-row-id'), '#' + r.kingshot_id);
-  const total = r.training + r.construction + r.general;
-  patchText(tr.querySelector<HTMLElement>('.sk-td-general'), formatDuration(r.general));
-  patchText(tr.querySelector<HTMLElement>('.sk-td-training'), formatDuration(r.training));
-  patchText(tr.querySelector<HTMLElement>('.sk-td-construction'), formatDuration(r.construction));
-  patchText(tr.querySelector<HTMLElement>('.sk-td-total'), formatDuration(total));
+
+  // 가속권 라벨 + 값 (i18n 대응 — onLangChange 에서 renderList 재호출 시 자동 갱신)
+  patchText(
+    tr.querySelector<HTMLElement>('.sk-td-general .sk-cell-label'),
+    t('survey.kvk.list.thead.general'),
+  );
+  patchText(
+    tr.querySelector<HTMLElement>('.sk-td-general .sk-cell-value'),
+    formatDuration(r.general),
+  );
+  patchText(
+    tr.querySelector<HTMLElement>('.sk-td-training .sk-cell-label'),
+    t('survey.kvk.list.thead.training'),
+  );
+  patchText(
+    tr.querySelector<HTMLElement>('.sk-td-training .sk-cell-value'),
+    formatDuration(r.training),
+  );
+  patchText(
+    tr.querySelector<HTMLElement>('.sk-td-construction .sk-cell-label'),
+    t('survey.kvk.list.thead.construction'),
+  );
+  patchText(
+    tr.querySelector<HTMLElement>('.sk-td-construction .sk-cell-value'),
+    formatDuration(r.construction),
+  );
   patchText(tr.querySelector<HTMLElement>('.sk-td-updated'), formatTime(r.updated_at));
 
   const empty = tr.querySelector<HTMLElement>('.sk-row-photo-empty')!;
@@ -462,17 +485,6 @@ function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number }): void {
     img.hidden = true;
     empty.style.opacity = '1';
   }
-
-  const editBtn = tr.querySelector<HTMLButtonElement>('.sk-edit-btn')!;
-  editBtn.textContent = t('survey.kvk.list.editButton');
-  editBtn.onclick = () => onEditRow(r.kingshot_id);
-}
-
-function onEditRow(kingshotId: string): void {
-  // 수정 흐름은 일반 등록 흐름과 동일 — 다이얼로그 → ID 자동 입력 + 조회
-  openAuthDialog();
-  ($('sk-id-input') as HTMLInputElement).value = kingshotId;
-  onSearchId();
 }
 
 // ===== 정렬 클릭 =====
