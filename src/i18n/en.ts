@@ -600,12 +600,15 @@ export const en: Translations = {
         },
       },
       form: {
-        help:
-          'Use the <strong>minute-based</strong> totals shown in the in-game [Resources & Speed-ups → Speed-ups] panel.',
+        help: 'Enter the minute-based totals shown on the in-game speed-up inventory panel.',
+        helpImageLink: 'View screenshot',
         training: 'Training Speed-up',
         construction: 'Construction Speed-up',
         general: 'Universal Speed-up',
         unit: 'min',
+        placeholderGeneral: 'e.g. 16,767',
+        placeholderTraining: 'e.g. 11,943',
+        placeholderConstruction: 'e.g. 11,709',
         cancelButton: 'Cancel',
         saving: 'Saving...',
         saved: 'Saved',

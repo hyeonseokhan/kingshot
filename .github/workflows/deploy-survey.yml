@@ -20,6 +20,7 @@ on:
       - 'src/lib/**'
       - 'src/components/LangSwitcher.astro'
       - 'src/scripts/components/lang-switcher.ts'
+      - 'public/images/survey/**'
       - '.github/workflows/deploy-survey.yml'
       - 'package.json'
       - 'package-lock.json'

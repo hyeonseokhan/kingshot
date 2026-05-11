@@ -127,6 +127,8 @@
 }
 
 /* ===== 다이얼로그 ===== */
+/* native <dialog> 를 viewport 중앙에 강제 정렬 — Chromium/Firefox 모두 일관성 보장.
+   showModal() 이 기본적으로 중앙을 잡지만, 일부 환경에서 top 으로 쏠리는 경우가 있어 명시. */
 .sk-dialog {
   border: none;
   background: transparent;
@@ -134,6 +136,10 @@
   max-width: 460px;
   width: 92vw;
   color: var(--sk-text);
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100vh - 32px);
 }
 .sk-dialog::backdrop {
   background: rgba(0, 0, 0, 0.6);
@@ -212,16 +218,15 @@
 .sk-form-field input:focus {
   border-color: var(--sk-accent);
 }
-.sk-pin-row {
+.sk-pin-header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
-.sk-pin-row input {
-  max-width: 140px;
-  letter-spacing: 0.4em;
-  text-align: center;
+.sk-pin-header .sk-label {
+  margin-bottom: 0;
 }
 .sk-pin-hint {
   font-size: 12px;
@@ -230,11 +235,100 @@
 .sk-pin-hint-existing {
   color: var(--sk-accent-hover);
 }
+
+/* tile-match-auth 패턴: 투명 single input 이 keyboard 받고, 위에 4개 box 가 시각 표시 */
+.sk-pin-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: fit-content;
+  margin: 8px auto 4px;
+  cursor: text;
+}
+.sk-pin-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: transparent;
+  caret-color: transparent;
+  text-align: center;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+.sk-pin-boxes {
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+.sk-pin-box {
+  width: 48px;
+  height: 56px;
+  border: 2px solid var(--sk-border-strong);
+  border-radius: 10px;
+  background: var(--sk-surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--sk-text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.sk-pin-box.sk-pin-box-filled {
+  border-color: var(--sk-accent);
+  background: var(--sk-surface);
+}
+.sk-pin-input:focus + .sk-pin-boxes .sk-pin-box.sk-pin-box-active {
+  border-color: var(--sk-accent);
+}
+
 .sk-help {
   margin: 12px 0 14px;
   font-size: 13px;
   color: var(--sk-text-dim);
   line-height: 1.55;
+}
+.sk-help-image-trigger {
+  background: none;
+  border: none;
+  color: var(--sk-accent-hover);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 6px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sk-help-image-trigger:hover {
+  color: #a5acff;
+}
+
+/* 이미지 lightbox — 아무곳 클릭 닫힘 (JS 가 dialog 자체 click 으로 close 호출) */
+.sk-image-dialog {
+  border: none;
+  background: transparent;
+  padding: 0;
+  max-width: 95vw;
+  max-height: 95vh;
+  width: auto;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+.sk-image-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.85);
+}
+.sk-image-dialog-img {
+  display: block;
+  max-width: 95vw;
+  max-height: 95vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
 }
 .sk-status {
   min-height: 18px;
@@ -449,11 +543,10 @@
   background: rgba(255, 255, 255, 0.025);
 }
 
-/* ===== 정렬 버튼 ===== */
+/* ===== 정렬 버튼 — 활성 시 색상만 강조, 화살표 X ===== */
 .sk-sort-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   background: none;
   border: none;
   color: inherit;
@@ -466,9 +559,7 @@
 }
 .sk-sort-btn[data-active='true'] {
   color: var(--sk-accent-hover);
-}
-.sk-sort-icon {
-  font-size: 10px;
+  font-weight: 700;
 }
 .sk-th-num .sk-sort-btn {
   width: 100%;

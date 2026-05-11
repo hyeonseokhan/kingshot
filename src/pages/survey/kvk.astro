@@ -70,19 +70,35 @@ import '@/styles/survey-kvk.css';
             <p class="sk-help" data-i18n="survey.kvk.auth.confirmHelp">
               본인이 맞으면 PIN 4자리를 입력해 주세요. (신규는 새 PIN 설정, 기존이면 등록한 PIN)
             </p>
-            <label class="sk-label" data-i18n="survey.kvk.auth.pinLabel">PIN 4자리</label>
-            <div class="sk-pin-row">
-              <input
-                type="password"
-                id="sk-pin-input"
-                inputmode="numeric"
-                maxlength="4"
-                autocomplete="off"
-                placeholder="••••"
-              />
+            <div class="sk-pin-header">
+              <span class="sk-label" data-i18n="survey.kvk.auth.pinLabel">PIN 4자리</span>
               <span class="sk-pin-hint" id="sk-pin-hint" data-i18n="survey.kvk.auth.pinHintNew">
                 신규 등록 — 새 PIN 으로 사용됩니다
               </span>
+            </div>
+            <div class="sk-pin-wrap" id="sk-pin-wrap">
+              <!-- 보이지 않는 단일 input + 위에 겹쳐진 4개의 box (tile-match-auth 패턴 차용).
+                   input 의 value 길이에 따라 box 채움 표시. -->
+              <input
+                class="sk-pin-input"
+                id="sk-pin-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="4"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                aria-label="PIN 4자리 입력"
+                data-i18n-attr-aria-label="auth.pinInputAria"
+              />
+              <div class="sk-pin-boxes" id="sk-pin-boxes" aria-hidden="true">
+                <div class="sk-pin-box"></div>
+                <div class="sk-pin-box"></div>
+                <div class="sk-pin-box"></div>
+                <div class="sk-pin-box"></div>
+              </div>
             </div>
             <div class="sk-status" id="sk-pin-status" role="status" aria-live="polite"></div>
             <div class="sk-dialog-actions">
@@ -125,22 +141,43 @@ import '@/styles/survey-kvk.css';
             data-i18n="survey.kvk.form.cancelButton"
           >취소</button>
         </header>
-        <p class="sk-help" data-i18n="survey.kvk.form.help">
-          게임 내 [자원 및 가속 통계 → 가속] 화면 기준, <strong>분 단위</strong>로 보이는 값을 그대로 입력하세요.
+        <p class="sk-help">
+          <span data-i18n="survey.kvk.form.help"
+            >게임 내 가속권 현황 상태에서 분 단위로 설정한 값을 입력해주세요</span
+          >
+          <button
+            type="button"
+            class="sk-help-image-trigger"
+            id="sk-help-image-trigger"
+            data-i18n="survey.kvk.form.helpImageLink"
+          >이미지 보기</button>
         </p>
         <div class="sk-form-grid">
+          <label class="sk-form-field">
+            <span class="sk-form-field-label" data-i18n="survey.kvk.form.general"
+              >공용 가속권</span
+            >
+            <input
+              type="text"
+              id="sk-input-general"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="예: 16,767"
+              data-i18n-attr-placeholder="survey.kvk.form.placeholderGeneral"
+            />
+            <span class="sk-form-field-unit" data-i18n="survey.kvk.form.unit">분</span>
+          </label>
           <label class="sk-form-field">
             <span class="sk-form-field-label" data-i18n="survey.kvk.form.training"
               >병사 훈련 가속권</span
             >
             <input
-              type="number"
+              type="text"
               id="sk-input-training"
-              min="0"
-              max="9999999"
-              step="1"
               inputmode="numeric"
-              placeholder="예: 11943"
+              autocomplete="off"
+              placeholder="예: 11,943"
+              data-i18n-attr-placeholder="survey.kvk.form.placeholderTraining"
             />
             <span class="sk-form-field-unit" data-i18n="survey.kvk.form.unit">분</span>
           </label>
@@ -149,28 +186,12 @@ import '@/styles/survey-kvk.css';
               >건설 가속권</span
             >
             <input
-              type="number"
+              type="text"
               id="sk-input-construction"
-              min="0"
-              max="9999999"
-              step="1"
               inputmode="numeric"
-              placeholder="예: 11709"
-            />
-            <span class="sk-form-field-unit" data-i18n="survey.kvk.form.unit">분</span>
-          </label>
-          <label class="sk-form-field">
-            <span class="sk-form-field-label" data-i18n="survey.kvk.form.general"
-              >공용 가속권</span
-            >
-            <input
-              type="number"
-              id="sk-input-general"
-              min="0"
-              max="9999999"
-              step="1"
-              inputmode="numeric"
-              placeholder="예: 16767"
+              autocomplete="off"
+              placeholder="예: 11,709"
+              data-i18n-attr-placeholder="survey.kvk.form.placeholderConstruction"
             />
             <span class="sk-form-field-unit" data-i18n="survey.kvk.form.unit">분</span>
           </label>
@@ -213,34 +234,29 @@ import '@/styles/survey-kvk.css';
             <tr>
               <th class="sk-th sk-th-rank" data-i18n="survey.kvk.list.thead.rank">#</th>
               <th class="sk-th sk-th-player" data-i18n="survey.kvk.list.thead.player">참가자</th>
+              <th class="sk-th sk-th-num" data-sort-key="general">
+                <button type="button" class="sk-sort-btn" data-sort="general">
+                  <span data-i18n="survey.kvk.list.thead.general">공용</span>
+                </button>
+              </th>
               <th class="sk-th sk-th-num" data-sort-key="training">
                 <button type="button" class="sk-sort-btn" data-sort="training">
                   <span data-i18n="survey.kvk.list.thead.training">병사</span>
-                  <span class="sk-sort-icon" aria-hidden="true"></span>
                 </button>
               </th>
               <th class="sk-th sk-th-num" data-sort-key="construction">
                 <button type="button" class="sk-sort-btn" data-sort="construction">
                   <span data-i18n="survey.kvk.list.thead.construction">건설</span>
-                  <span class="sk-sort-icon" aria-hidden="true"></span>
-                </button>
-              </th>
-              <th class="sk-th sk-th-num" data-sort-key="general">
-                <button type="button" class="sk-sort-btn" data-sort="general">
-                  <span data-i18n="survey.kvk.list.thead.general">공용</span>
-                  <span class="sk-sort-icon" aria-hidden="true"></span>
                 </button>
               </th>
               <th class="sk-th sk-th-num" data-sort-key="total">
                 <button type="button" class="sk-sort-btn" data-sort="total">
                   <span data-i18n="survey.kvk.list.thead.total">합계</span>
-                  <span class="sk-sort-icon" aria-hidden="true"></span>
                 </button>
               </th>
               <th class="sk-th sk-th-time" data-sort-key="updated_at">
                 <button type="button" class="sk-sort-btn" data-sort="updated_at">
                   <span data-i18n="survey.kvk.list.thead.updated">최근 갱신</span>
-                  <span class="sk-sort-icon" aria-hidden="true"></span>
                 </button>
               </th>
               <th class="sk-th sk-th-actions"></th>
@@ -254,6 +270,15 @@ import '@/styles/survey-kvk.css';
         <div class="sk-loading" id="sk-loading" data-i18n="common.loading">로딩 중...</div>
       </div>
     </section>
+
+    <!-- (D) 도움말 이미지 lightbox — 아무 곳이나 클릭하면 닫힘 -->
+    <dialog class="sk-image-dialog" id="sk-image-dialog" aria-label="가속권 현황 화면 예시">
+      <img
+        class="sk-image-dialog-img"
+        src="/images/survey/speedup-stats.png"
+        alt="게임 내 가속권 현황 화면"
+      />
+    </dialog>
   </div>
 
   <script>

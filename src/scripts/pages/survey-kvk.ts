@@ -90,10 +90,31 @@ function closeAuthDialog(): void {
 function resetAuthDialog(): void {
   showAuthStep('id');
   ($('sk-id-input') as HTMLInputElement).value = '';
-  ($('sk-pin-input') as HTMLInputElement).value = '';
+  setPinValue('');
   setStatus('sk-id-status', '');
   setStatus('sk-pin-status', '');
   setSearchBtnBusy(false);
+}
+
+// ===== PIN 박스 표시 =====
+
+function syncPinBoxes(): void {
+  const input = $<HTMLInputElement>('sk-pin-input');
+  const boxes = $('sk-pin-boxes').children;
+  const len = input.value.length;
+  for (let i = 0; i < boxes.length; i++) {
+    const box = boxes[i] as HTMLElement;
+    const filled = i < len;
+    box.classList.toggle('sk-pin-box-filled', filled);
+    box.classList.toggle('sk-pin-box-active', i === len && document.activeElement === input);
+    box.textContent = filled ? '•' : '';
+  }
+}
+
+function setPinValue(v: string): void {
+  const input = $<HTMLInputElement>('sk-pin-input');
+  input.value = v;
+  syncPinBoxes();
 }
 
 function showAuthStep(step: 'id' | 'confirm'): void {
@@ -232,15 +253,12 @@ function enterFormMode(): void {
   const sec = $('sk-form-section');
   sec.hidden = false;
   fillPlayerCard('sk-form', session.player);
-  ($('sk-input-training') as HTMLInputElement).value =
-    session.prefill ? String(session.prefill.training) : '';
-  ($('sk-input-construction') as HTMLInputElement).value =
-    session.prefill ? String(session.prefill.construction) : '';
-  ($('sk-input-general') as HTMLInputElement).value =
-    session.prefill ? String(session.prefill.general) : '';
+  setNumericInputValue('sk-input-general', session.prefill?.general ?? null);
+  setNumericInputValue('sk-input-training', session.prefill?.training ?? null);
+  setNumericInputValue('sk-input-construction', session.prefill?.construction ?? null);
   setStatus('sk-form-status', '');
   sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setTimeout(() => $<HTMLInputElement>('sk-input-training').focus(), 250);
+  setTimeout(() => $<HTMLInputElement>('sk-input-general').focus(), 250);
 }
 
 function exitFormMode(): void {
@@ -248,10 +266,49 @@ function exitFormMode(): void {
   session = null;
 }
 
+/** 콤마 포함된 input value 에서 raw 정수 추출. 잘못된 값이면 NaN. */
+function parseNumericInput(id: string): number {
+  const raw = ($(id) as HTMLInputElement).value.replace(/,/g, '').trim();
+  if (raw === '') return NaN;
+  return parseInt(raw, 10);
+}
+
+/** 숫자 input 에 raw 값 셋팅 — null 이면 빈칸. 자동 콤마 포맷 적용. */
+function setNumericInputValue(id: string, n: number | null): void {
+  const el = $(id) as HTMLInputElement;
+  el.value = n === null ? '' : formatNum(n);
+}
+
+/** input event 핸들러 — 입력 중에도 콤마 자동 유지. caret 위치 보존. */
+function onNumericInput(e: Event): void {
+  const el = e.target as HTMLInputElement;
+  const before = el.value;
+  const caret = el.selectionStart ?? before.length;
+  // 콤마 제외하고 caret 앞에 숫자 몇 개 있는지 — caret 재계산 기준
+  const digitsBeforeCaret = before.slice(0, caret).replace(/[^0-9]/g, '').length;
+  const digitsOnly = before.replace(/[^0-9]/g, '');
+  if (digitsOnly === '') {
+    el.value = '';
+    return;
+  }
+  // 9999999 cap
+  const n = Math.min(9_999_999, parseInt(digitsOnly, 10));
+  const next = formatNum(n);
+  if (next === before) return;
+  el.value = next;
+  // caret 복원
+  let p = 0;
+  let seen = 0;
+  for (; p < next.length && seen < digitsBeforeCaret; p++) {
+    if (/[0-9]/.test(next[p]!)) seen++;
+  }
+  el.setSelectionRange(p, p);
+}
+
 function readFormValues(): { training: number; construction: number; general: number } | null {
-  const tr = parseInt(($('sk-input-training') as HTMLInputElement).value, 10);
-  const co = parseInt(($('sk-input-construction') as HTMLInputElement).value, 10);
-  const ge = parseInt(($('sk-input-general') as HTMLInputElement).value, 10);
+  const tr = parseNumericInput('sk-input-training');
+  const co = parseNumericInput('sk-input-construction');
+  const ge = parseNumericInput('sk-input-general');
   if (![tr, co, ge].every((v) => Number.isInteger(v) && v >= 0 && v <= 9_999_999)) return null;
   return { training: tr, construction: co, general: ge };
 }
@@ -322,18 +379,9 @@ function renderList(): void {
     update: (el, r) => updateRow(el, r),
   });
 
-  // sort icon
+  // sort 활성 표시 — 화살표 없음, 색상/굵기만 변경
   document.querySelectorAll<HTMLElement>('.sk-sort-btn').forEach((btn) => {
-    const key = btn.dataset.sort;
-    const icon = btn.querySelector<HTMLElement>('.sk-sort-icon');
-    if (!icon) return;
-    if (key === sort.key) {
-      icon.textContent = sort.dir === 'asc' ? '▲' : '▼';
-      btn.dataset.active = 'true';
-    } else {
-      icon.textContent = '';
-      btn.dataset.active = 'false';
-    }
+    btn.dataset.active = btn.dataset.sort === sort.key ? 'true' : 'false';
   });
 }
 
@@ -374,9 +422,9 @@ function buildRow(r: SurveyRow & { rank: number }): HTMLElement {
         </div>
       </div>
     </td>
+    <td class="sk-td sk-td-num sk-td-general"></td>
     <td class="sk-td sk-td-num sk-td-training"></td>
     <td class="sk-td sk-td-num sk-td-construction"></td>
-    <td class="sk-td sk-td-num sk-td-general"></td>
     <td class="sk-td sk-td-num sk-td-total"></td>
     <td class="sk-td sk-td-time sk-td-updated"></td>
     <td class="sk-td sk-td-actions">
@@ -393,10 +441,10 @@ function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number }): void {
   patchText(tr.querySelector<HTMLElement>('.sk-row-name'), r.nickname);
   patchText(tr.querySelector<HTMLElement>('.sk-row-id'), '#' + r.kingshot_id);
   const total = r.training + r.construction + r.general;
-  patchText(tr.querySelector<HTMLElement>('.sk-td-training'), formatNum(r.training));
-  patchText(tr.querySelector<HTMLElement>('.sk-td-construction'), formatNum(r.construction));
-  patchText(tr.querySelector<HTMLElement>('.sk-td-general'), formatNum(r.general));
-  patchText(tr.querySelector<HTMLElement>('.sk-td-total'), formatNum(total));
+  patchText(tr.querySelector<HTMLElement>('.sk-td-general'), formatDuration(r.general));
+  patchText(tr.querySelector<HTMLElement>('.sk-td-training'), formatDuration(r.training));
+  patchText(tr.querySelector<HTMLElement>('.sk-td-construction'), formatDuration(r.construction));
+  patchText(tr.querySelector<HTMLElement>('.sk-td-total'), formatDuration(total));
   patchText(tr.querySelector<HTMLElement>('.sk-td-updated'), formatTime(r.updated_at));
 
   const empty = tr.querySelector<HTMLElement>('.sk-row-photo-empty')!;
@@ -445,6 +493,17 @@ function formatNum(n: number): string {
   return n.toLocaleString('en-US');
 }
 
+/** 분 단위 정수 → "NNd NNh NNm" 표기. 0 이면 "0m". 일/시간 단위가 0 이어도 명시. */
+function formatDuration(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes < 0) return '-';
+  const d = Math.floor(minutes / 1440);
+  const h = Math.floor((minutes % 1440) / 60);
+  const m = minutes % 60;
+  // 가독성 위해 천 단위 콤마 (일 단위가 큰 값일 때만 의미)
+  const dStr = formatNum(d);
+  return `${dStr}d ${h}h ${m}m`;
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   const yy = String(d.getFullYear()).slice(2);
@@ -453,6 +512,18 @@ function formatTime(iso: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${yy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+// ===== 이미지 다이얼로그 =====
+
+function openImageDialog(): void {
+  const dlg = $<HTMLDialogElement>('sk-image-dialog');
+  if (!dlg.open) dlg.showModal();
+}
+
+function closeImageDialog(): void {
+  const dlg = $<HTMLDialogElement>('sk-image-dialog');
+  if (dlg.open) dlg.close();
 }
 
 function mapError(code: string | null | undefined): string {
@@ -493,16 +564,38 @@ function init(): void {
     session = null;
   });
   $('sk-pin-confirm').addEventListener('click', onConfirmPin);
-  $('sk-pin-input').addEventListener('keydown', (e) => {
+
+  // PIN 박스 동기화 — input/focus/blur 모두 박스 갱신
+  const pinInput = $<HTMLInputElement>('sk-pin-input');
+  pinInput.addEventListener('input', () => {
+    // 숫자만 유지
+    pinInput.value = pinInput.value.replace(/[^0-9]/g, '').slice(0, 4);
+    syncPinBoxes();
+  });
+  pinInput.addEventListener('focus', syncPinBoxes);
+  pinInput.addEventListener('blur', syncPinBoxes);
+  pinInput.addEventListener('keydown', (e) => {
     if ((e as KeyboardEvent).key === 'Enter') {
       e.preventDefault();
       onConfirmPin();
     }
   });
+  // wrap 클릭 시 input 으로 focus
+  $('sk-pin-wrap').addEventListener('click', () => pinInput.focus());
 
   // 폼
   $('sk-form-cancel').addEventListener('click', exitFormMode);
   $('sk-form-save').addEventListener('click', onSaveForm);
+
+  // 폼 input — 입력 중 천 단위 콤마 자동 포맷
+  ['sk-input-general', 'sk-input-training', 'sk-input-construction'].forEach((id) => {
+    $(id).addEventListener('input', onNumericInput);
+  });
+
+  // 가속권 도움말 이미지 다이얼로그
+  $('sk-help-image-trigger').addEventListener('click', openImageDialog);
+  // 다이얼로그 어디 클릭하든 닫힘 (이미지 자체 포함)
+  $('sk-image-dialog').addEventListener('click', closeImageDialog);
 
   // 목록
   $('sk-list-refresh').addEventListener('click', refreshList);

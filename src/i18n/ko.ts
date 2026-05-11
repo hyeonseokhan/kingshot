@@ -596,12 +596,15 @@ export const ko = {
         },
       },
       form: {
-        help:
-          '게임 내 [자원 및 가속 통계 → 가속] 화면 기준, <strong>분 단위</strong>로 보이는 값을 그대로 입력하세요.',
+        help: '게임 내 가속권 현황 상태에서 분 단위로 설정한 값을 입력해주세요',
+        helpImageLink: '이미지 보기',
         training: '병사 훈련 가속권',
         construction: '건설 가속권',
         general: '공용 가속권',
         unit: '분',
+        placeholderGeneral: '예: 16,767',
+        placeholderTraining: '예: 11,943',
+        placeholderConstruction: '예: 11,709',
         cancelButton: '취소',
         saving: '저장 중...',
         saved: '저장되었습니다',
