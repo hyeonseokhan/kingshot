@@ -105,19 +105,25 @@ function isNonNegInt(n: unknown): n is number {
 }
 
 /**
- * 요청 헤더에서 클라이언트 IP / 국가 추출.
+ * 요청 헤더에서 클라이언트 IP / 국가 / 플랫폼 추출.
  *   - 클라이언트는 어떤 값도 송수신하지 않음 (DevTools 노출 X)
  *   - Cloudflare/Supabase 인프라가 자동으로 부착하는 헤더만 신뢰
- *   - country 는 ISO 3166-1 alpha-2 (예: 'KR'), 미상이면 null
+ *   - country  : Cloudflare cf-ipcountry — ISO 3166-1 alpha-2 (예: 'KR')
+ *   - platform : sec-ch-ua-platform 헤더 — Chrome/Edge 만 부착, Safari/Firefox NULL
+ *                예: 'Android', 'iOS', 'Windows', 'macOS', 'Linux'
  */
-function extractRequestMeta(req: Request): { ip: string | null; country: string | null } {
+function extractRequestMeta(
+  req: Request,
+): { ip: string | null; country: string | null; platform: string | null } {
   const ip =
     req.headers.get("cf-connecting-ip") ??
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
     null;
   const country = req.headers.get("cf-ipcountry") ?? null;
-  return { ip, country };
+  // sec-ch-ua-platform 은 따옴표 포함된 값이라 (예: '"Android"') strip
+  const platform = req.headers.get("sec-ch-ua-platform")?.replace(/^"|"$/g, "") || null;
+  return { ip, country, platform };
 }
 
 interface PlayerInfo {
@@ -183,7 +189,7 @@ async function register(
   training: unknown,
   construction: unknown,
   general: unknown,
-  meta: { ip: string | null; country: string | null },
+  meta: { ip: string | null; country: string | null; platform: string | null },
 ) {
   if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
   if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
@@ -209,6 +215,7 @@ async function register(
     general: general as number,
     ip: meta.ip,
     country: meta.country,
+    platform: meta.platform,
   });
   return { ok: true };
 }
@@ -241,7 +248,7 @@ async function updateRow(
   training: unknown,
   construction: unknown,
   general: unknown,
-  meta: { ip: string | null; country: string | null },
+  meta: { ip: string | null; country: string | null; platform: string | null },
 ) {
   if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
   if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
@@ -262,6 +269,7 @@ async function updateRow(
     general: general as number,
     ip: meta.ip,
     country: meta.country,
+    platform: meta.platform,
     updated_at: new Date().toISOString(),
   };
   if (player) {
