@@ -19,6 +19,12 @@
 html[data-kingshot-id='270680423'] [data-require-kingshot-id='270680423'] {
   display: revert !important;
 }
+/* `display: revert` 는 UA default 로 돌아가는데, <button>(.mobile-nav-tab) 의 UA default 가
+   inline-block 이라 .mobile-nav-tab 의 flex(+justify-content: space-between) 가 무력화 →
+   ▸ 화살표가 우측이 아닌 텍스트 바로 옆에 붙는 회귀. element-별로 명시적 display 강제. */
+html[data-kingshot-id='270680423'] .mobile-nav-tab[data-require-kingshot-id='270680423'] {
+  display: flex !important;
+}
 
 /* ===== 레이아웃 컨테이너 — 모든 페이지의 main 영역 ===== */
 .center-content {
