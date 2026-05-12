@@ -5,12 +5,51 @@ import { encode as hexEncode } from "https://deno.land/std@0.168.0/encoding/hex.
 const BASE = "https://kingshot-giftcode.centurygame.com/api";
 const SECRET = "mN4!pQs6JrYwV9";
 
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
 const corsHeaders = {
   // TODO: 테스트 완료 후 "https://kingshot.wooju-home.org" 로 복원
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
 };
+
+/**
+ * centurygame 가 err_code=40007 (만료) 응답한 코드를 expired_coupon_codes 에 영구 등록.
+ * gift-codes Edge Function 이 다음 list 호출부터 자동 필터링.
+ *
+ * - service_role 로 직접 INSERT. RLS 우회.
+ * - ON CONFLICT DO NOTHING (Prefer: resolution=ignore-duplicates) → 멱등.
+ * - 실패해도 silently 무시 — 본 함수의 main path (쿠폰 redeem) 영향 없게 함.
+ */
+async function recordExpiredCoupon(
+  code: string,
+  errCode: number,
+  msg: string | undefined,
+  fid: string | undefined,
+): Promise<void> {
+  if (!SUPABASE_URL || !SERVICE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/expired_coupon_codes`, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal,resolution=ignore-duplicates",
+      },
+      body: JSON.stringify({
+        code,
+        err_code: errCode,
+        reason: msg ?? null,
+        detected_by: fid ?? null,
+      }),
+    });
+  } catch {
+    // 만료 기록 실패는 next 호출에서 다시 시도 가능 — 본 redeem 흐름 막지 않음
+  }
+}
 
 async function md5(str: string): Promise<string> {
   const data = new TextEncoder().encode(str);
@@ -115,6 +154,10 @@ serve(async (req) => {
           playerRes.cookie
         );
         result = redeemRes.json;
+        // 만료 코드(40007) 자동 등록 — 다음부터 list 에서 제외됨
+        if (Number(redeemRes.json?.err_code) === 40007) {
+          await recordExpiredCoupon(String(cdk), 40007, redeemRes.json?.msg, fid);
+        }
         break;
       }
       case "redeem_batch": {
@@ -145,6 +188,10 @@ serve(async (req) => {
             msg: r.json.msg,
             err_code: r.json.err_code,
           });
+          // 만료 코드(40007) 자동 등록 — 같은 batch 의 나머지엔 영향 없음 (다음 list 호출부터 제외)
+          if (Number(r.json?.err_code) === 40007) {
+            await recordExpiredCoupon(String(code), 40007, r.json?.msg, fid);
+          }
         }
         result = { code: 0, results };
         break;
