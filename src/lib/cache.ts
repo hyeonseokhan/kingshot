@@ -49,6 +49,15 @@ export function setGiftCodesCache(codes: ActiveCoupon[]): void {
   }
 }
 
+/** 만료 코드(40007) 감지 등 사이드이펙트로 활성 쿠폰 캐시를 즉시 무효화. */
+export function invalidateGiftCodesCache(): void {
+  try {
+    sessionStorage.removeItem(KEY_GIFT_CODES);
+  } catch {
+    /* */
+  }
+}
+
 // ===== 쿠폰 대상 계정 =====
 
 export function getAccountsCache(): RedeemAccount[] | null {

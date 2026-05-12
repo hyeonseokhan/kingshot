@@ -17,6 +17,7 @@ import {
 import {
   getGiftCodesCache,
   setGiftCodesCache,
+  invalidateGiftCodesCache,
   getAccountsCache,
   setAccountsCache,
   invalidateAccountsCache,
@@ -735,6 +736,7 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
         showProgress(t('coupons.progress.onePersonError', { name: nickname, label: topLabel }));
         return;
       }
+      let expiredDetected = false;
       json.results.forEach((r) => {
         completedRedeemTasks++;
         const code = r.cdk;
@@ -754,8 +756,22 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
           showProgress(
             t('coupons.progress.couponFailed', { name: nickname, code, label }),
           );
+          // err_code=40007 (만료): 현재 세션의 active list 와 캐시에서 즉시 제거
+          // → 다음 사용자/다음 시도 안 함. 서버 측은 redeem-coupon Edge Function 이
+          //   같은 시점에 expired_coupon_codes 에 영구 등록 (다음 page load 보장).
+          if (Number(r.err_code) === 40007) expiredDetected = true;
         }
       });
+      if (expiredDetected) {
+        const expiredCodes = new Set(
+          json.results.filter((r) => Number(r.err_code) === 40007).map((r) => r.cdk),
+        );
+        activeCoupons = activeCoupons.filter((c) => !expiredCodes.has(c.code));
+        invalidateGiftCodesCache();
+        pruneSelectedCoupon();
+        renderCoupons();
+        renderAccounts();
+      }
       updateAccountRowStatus(fid);
     })
     .catch((err: Error) => {
