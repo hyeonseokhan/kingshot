@@ -692,11 +692,6 @@
   align-items: center;
   gap: 6px;
 }
-.sk-sort-label {
-  font-size: 12px;
-  color: var(--sk-text-dim);
-  margin-right: 4px;
-}
 .sk-sort-chip {
   background: var(--sk-surface-2);
   border: 1px solid var(--sk-border);

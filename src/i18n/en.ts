@@ -717,7 +717,6 @@ export const en: Translations = {
         editButton: 'Edit',
         count: '{n} submitted',
         empty: 'No submissions yet. Be the first to share!',
-        sortBy: 'Sort',
         sortRegistered: 'Recent',
         sortScore: 'Score',
         thead: {
