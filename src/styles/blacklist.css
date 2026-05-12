@@ -1,6 +1,10 @@
 /* 블랙리스트 페이지 전용 스타일.
-   툴바는 .members-toolbar / .member-count / .members-toolbar-right /
-   .coupon-search-input 공통 클래스 사용 (manage.css). 자체 toolbar 클래스 제거. */
+   manage.css 를 @import 로 끌어옴 — Astro 가 .astro frontmatter 의 다중 CSS import
+   를 silently 누락하는 케이스 회피 (members/coupons 도 단일 import 패턴). */
+@import url('./manage.css');
+
+/* 툴바는 manage.css 의 .members-toolbar / .member-count / .members-toolbar-right /
+   .coupon-search-input 공통 클래스 사용. 자체 toolbar 클래스 없음. */
 
 /* 테이블 */
 .bl-list-wrap {

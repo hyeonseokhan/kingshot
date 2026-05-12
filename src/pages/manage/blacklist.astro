@@ -1,7 +1,7 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
-import '@/styles/manage.css';
+// blacklist.css 가 manage.css 를 @import — 단일 import 로 통일 (다른 manage 페이지 패턴 일치)
 import '@/styles/blacklist.css';
 
 const manage = tabs.find((t) => t.id === 'manage')!;
