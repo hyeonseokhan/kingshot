@@ -58,6 +58,12 @@ export const tabs: NavTab[] = [
         titleKey: 'nav.submenu.coupons',
         path: '/manage/coupons/',
       },
+      {
+        id: 'blacklist',
+        title: ko.nav.submenu.blacklist,
+        titleKey: 'nav.submenu.blacklist',
+        path: '/manage/blacklist/',
+      },
     ],
   },
   {

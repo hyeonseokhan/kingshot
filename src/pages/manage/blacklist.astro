@@ -1,0 +1,165 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/manage.css';
+import '@/styles/blacklist.css';
+
+const manage = tabs.find((t) => t.id === 'manage')!;
+const active = findActiveSubmenu(manage, Astro.url.pathname);
+const navItems = manage.submenus!.map((s) => ({
+  title: s.title,
+  titleKey: s.titleKey,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="블랙리스트 — PNX 연맹"
+  description="게임 내 적대관계 사용자 관리"
+  navHeader={manage.title}
+  navHeaderKey={manage.titleKey}
+  navItems={navItems}
+>
+  <div class="manage-page" id="page-blacklist">
+    <div class="members-header">
+      <h1 data-i18n="blacklist.heading">블랙리스트</h1>
+      <button class="btn btn-primary" id="bl-add-btn" type="button" data-i18n="blacklist.addButton">+ 블랙리스트 등록</button>
+    </div>
+
+    <div class="page-intro">
+      <p data-i18n-html="blacklist.intro.paragraph">
+        <strong>게임 내 적대관계가 된 사용자</strong>를 ID 로 등록·공유하는 페이지입니다.
+      </p>
+      <ul>
+        <li data-i18n-html="blacklist.intro.item1"><strong>+ 블랙리스트 등록</strong>: 킹샷 ID 로 조회하면 닉네임/아바타/서버가 자동 입력됩니다</li>
+        <li data-i18n-html="blacklist.intro.item2"><strong>증거 이미지</strong> 첨부 (선택): 채팅 캡처, 공격 리포트 등 — 자동 압축 후 저장</li>
+        <li data-i18n-html="blacklist.intro.item3"><strong>관리자 또는 등록자 본인</strong>만 수정/삭제 가능</li>
+      </ul>
+      <p class="page-intro-hint" data-i18n="blacklist.intro.hint">
+        최신순으로 정렬되며, 닉네임 또는 ID 로 검색할 수 있어요.
+      </p>
+    </div>
+
+    <!-- 검색 + 카운트 툴바 -->
+    <div class="bl-toolbar">
+      <input
+        type="search"
+        id="bl-search"
+        class="bl-search-input"
+        data-i18n-attr-placeholder="blacklist.toolbar.searchPlaceholder"
+        placeholder="닉네임 또는 ID 검색..."
+      />
+      <span class="bl-count" id="bl-count"></span>
+    </div>
+
+    <!-- 목록 -->
+    <div class="bl-list-wrap">
+      <table class="bl-table">
+        <thead>
+          <tr>
+            <th class="bl-th-avatar" data-i18n="blacklist.thead.avatar">아바타</th>
+            <th class="bl-th-name" data-i18n="blacklist.thead.nickname">닉네임</th>
+            <th class="bl-th-kingdom" data-i18n="blacklist.thead.kingdom">서버</th>
+            <th class="bl-th-id" data-i18n="blacklist.thead.kingshotId">킹샷 ID</th>
+            <th class="bl-th-note" data-i18n="blacklist.thead.note">메모</th>
+            <th class="bl-th-image" data-i18n="blacklist.thead.image">이미지</th>
+            <th class="bl-th-actions" data-i18n="blacklist.thead.actions">관리</th>
+          </tr>
+        </thead>
+        <tbody id="bl-tbody"></tbody>
+      </table>
+      <div class="bl-empty" id="bl-empty" style="display:none"></div>
+    </div>
+
+    <!-- 등록/수정 모달 -->
+    <div class="modal-overlay" id="bl-modal-overlay">
+      <div class="modal bl-modal">
+        <div class="modal-header">
+          <h3 id="bl-modal-title" data-i18n="blacklist.modal.addTitle">블랙리스트 등록</h3>
+          <button class="modal-close" id="bl-modal-close" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- ID + 조회 -->
+          <div class="form-group">
+            <label for="bl-input-id" data-i18n="blacklist.modal.idLabel">킹샷 ID</label>
+            <div class="bl-id-row">
+              <input
+                type="text"
+                id="bl-input-id"
+                class="form-input"
+                data-i18n-attr-placeholder="blacklist.modal.idPlaceholder"
+                placeholder="킹샷 아이디 입력"
+                inputmode="numeric"
+              />
+              <button class="btn btn-secondary" id="bl-search-btn" type="button" data-i18n="blacklist.modal.searchButton">조회</button>
+            </div>
+          </div>
+
+          <!-- 조회 결과 미리보기 -->
+          <div class="bl-preview" id="bl-preview" style="display:none">
+            <div class="bl-preview-avatar">
+              <img id="bl-preview-img" src="" alt="" />
+              <div class="bl-preview-empty" id="bl-preview-empty"></div>
+            </div>
+            <div class="bl-preview-meta">
+              <div class="bl-preview-name" id="bl-preview-name"></div>
+              <div class="bl-preview-sub">
+                <span data-i18n="blacklist.modal.kingdomLabel">서버:</span>
+                <span id="bl-preview-kingdom"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 메모 -->
+          <div class="form-group">
+            <label for="bl-input-note" data-i18n="blacklist.modal.noteLabel">메모</label>
+            <textarea
+              id="bl-input-note"
+              class="form-input bl-note-input"
+              rows="3"
+              maxlength="500"
+              data-i18n-attr-placeholder="blacklist.modal.notePlaceholder"
+              placeholder="적대 사유, 사건 요약 등 (선택, 최대 500자)"
+            ></textarea>
+          </div>
+
+          <!-- 이미지 -->
+          <div class="form-group">
+            <label data-i18n="blacklist.modal.imageLabel">증거 이미지 (선택)</label>
+            <input type="file" id="bl-input-image" accept="image/*" />
+            <div class="bl-image-hint" data-i18n="blacklist.modal.imageHint">
+              큰 파일은 자동으로 압축됩니다 (1080px / WebP / 최대 ~150 KB).
+            </div>
+            <div class="bl-image-status" id="bl-image-status" style="display:none">
+              <div class="bl-image-thumb"><img id="bl-image-thumb-img" src="" alt="" /></div>
+              <div class="bl-image-meta" id="bl-image-meta"></div>
+              <button class="btn btn-secondary bl-image-remove" id="bl-image-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="bl-modal-cancel" type="button" data-i18n="blacklist.modal.cancel">취소</button>
+          <button class="btn btn-danger" id="bl-modal-delete" type="button" data-i18n="blacklist.modal.delete" style="display:none">삭제</button>
+          <button class="btn btn-primary" id="bl-modal-submit" type="button" data-i18n="blacklist.modal.submit">등록</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 이미지 보기 다이얼로그 -->
+    <dialog class="bl-image-dialog" id="bl-image-dialog">
+      <div class="bl-image-dialog-head">
+        <h3 data-i18n="blacklist.imageDialog.title">첨부 이미지</h3>
+        <button class="modal-close" id="bl-image-dialog-close" type="button">&times;</button>
+      </div>
+      <div class="bl-image-dialog-body">
+        <img id="bl-image-dialog-img" src="" alt="" />
+      </div>
+    </dialog>
+  </div>
+</AppLayout>
+
+<script>
+  import { initBlacklist } from '@/scripts/pages/blacklist';
+  initBlacklist();
+</script>
