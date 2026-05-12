@@ -135,15 +135,10 @@ const navItems = manage.submenus!.map((s) => ({
       </div>
     </div>
 
-    <!-- 이미지 보기 다이얼로그 -->
-    <dialog class="bl-image-dialog" id="bl-image-dialog">
-      <div class="bl-image-dialog-head">
-        <h3 data-i18n="blacklist.imageDialog.title">첨부 이미지</h3>
-        <button class="modal-close" id="bl-image-dialog-close" type="button">&times;</button>
-      </div>
-      <div class="bl-image-dialog-body">
-        <img id="bl-image-dialog-img" src="" alt="" />
-      </div>
+    <!-- 이미지 보기 lightbox — KvK 가속권 가이드와 동일 패턴.
+         아무 곳 클릭(이미지 자체 포함) + ESC 로 닫힘. 별도 X 버튼 없음. -->
+    <dialog class="bl-image-dialog" id="bl-image-dialog" aria-label="첨부 이미지" data-i18n-attr-aria-label="blacklist.imageDialog.title">
+      <img class="bl-image-dialog-img" id="bl-image-dialog-img" src="" alt="" />
     </dialog>
   </div>
 </AppLayout>

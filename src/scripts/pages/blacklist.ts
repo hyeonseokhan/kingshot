@@ -87,8 +87,8 @@ export function initBlacklist(): void {
   });
   bindRefreshButton('bl-refresh-btn', loadEntriesPromise);
 
-  // 이미지 보기 다이얼로그
-  $('bl-image-dialog-close')?.addEventListener('click', () => {
+  // 이미지 보기 lightbox — 아무 곳(이미지 포함) 클릭 시 닫힘 (KvK 가속권 가이드 패턴 동일)
+  $('bl-image-dialog')?.addEventListener('click', () => {
     ($('bl-image-dialog') as HTMLDialogElement | null)?.close();
   });
 

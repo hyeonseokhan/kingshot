@@ -359,8 +359,7 @@ export const en: Translations = {
       delete: 'Delete',
     },
     imageDialog: {
-      title: 'Attached Image',
-      close: 'Close',
+      title: 'Attached Image',  // used as aria-label
     },
     confirm: {
       delete: 'Remove {name} from the blacklist? The attached image will also be deleted.',

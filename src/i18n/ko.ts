@@ -355,8 +355,7 @@ export const ko = {
       delete: '삭제',
     },
     imageDialog: {
-      title: '첨부 이미지',
-      close: '닫기',
+      title: '첨부 이미지',  // aria-label 로 사용
     },
     confirm: {
       delete: '{name} 을(를) 블랙리스트에서 삭제하시겠습니까? 첨부 이미지도 함께 삭제됩니다.',

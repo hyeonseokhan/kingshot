@@ -172,46 +172,31 @@
 }
 .btn-danger:hover { background: #991b1b; }
 
-/* 이미지 보기 다이얼로그 — survey/kvk lightbox 패턴 (commit b90105f) 동일.
-   width/height: fit-content + inset:0 + margin:auto → 정중앙 자동 정렬.
-   (width:auto 면 dialog 가 viewport 전폭 차지해 margin:auto 가 0 으로 무력화됨) */
+/* 이미지 보기 lightbox — KvK 가속권 가이드 (sk-image-dialog) 와 동일 패턴.
+   카드/헤더/X 버튼 없음, 이미지만 단독 (background transparent + border none).
+   짙은 backdrop + 이미지 box-shadow 로 floating 효과. 어디 클릭해도 닫힘. */
 .bl-image-dialog {
   position: fixed;
   inset: 0;
   margin: auto;
   width: fit-content;
   height: fit-content;
-  max-width: 90vw;
-  max-height: 90vh;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  max-width: 95vw;
+  max-height: 95vh;
+  border: none;
+  background: transparent;
   padding: 0;
-  background: var(--bg);
-  color: var(--text);
 }
-.bl-image-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
-.bl-image-dialog-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+.bl-image-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.85);
 }
-.bl-image-dialog-head h3 {
-  margin: 0;
-  font-size: 15px;
-}
-.bl-image-dialog-body {
-  padding: 12px;
-  display: grid;
-  place-items: center;
-  max-height: calc(90vh - 60px);
-  overflow: auto;
-}
-.bl-image-dialog-body img {
-  max-width: 100%;
-  max-height: calc(90vh - 90px);
-  object-fit: contain;
+.bl-image-dialog-img {
+  display: block;
+  max-width: 95vw;
+  max-height: 95vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
 }
 
 /* 모바일 좁은 화면 — 아바타 / 닉네임 / 메모 / 이미지 / 관리만 노출.
