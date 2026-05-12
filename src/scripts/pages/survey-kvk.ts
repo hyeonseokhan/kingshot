@@ -187,7 +187,13 @@ function fillPlayerCard(prefix: 'sk-player' | 'sk-form' | 'sk-detail', player: P
   const empty = $(prefix + '-photo-empty');
 
   patchText(name, player.nickname);
-  patchText(idEl, '#' + player.kingshot_id);
+  // city_level 있으면 "#ID · TC N" 형태, 없으면 "#ID" 만.
+  // (lookup 실패 등으로 city_level NULL 케이스 — 차단 dialog 에서만 발생, 표시 자체 의미 적음)
+  const idText =
+    player.city_level !== null && player.city_level !== undefined
+      ? `#${player.kingshot_id} · TC ${player.city_level}`
+      : `#${player.kingshot_id}`;
+  patchText(idEl, idText);
   empty.textContent = player.nickname.charAt(0).toUpperCase();
   if (player.avatar_url) {
     if (photo.src !== player.avatar_url) {
@@ -556,7 +562,10 @@ function buildRow(r: SurveyRow & { rank: number; total: number }): HTMLElement {
 function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number; total: number }): void {
   patchText(tr.querySelector<HTMLElement>('.sk-td-rank'), String(r.rank));
   patchText(tr.querySelector<HTMLElement>('.sk-row-name'), r.nickname);
-  patchText(tr.querySelector<HTMLElement>('.sk-row-id'), '#' + r.kingshot_id);
+  patchText(
+    tr.querySelector<HTMLElement>('.sk-row-id'),
+    `#${r.kingshot_id} · TC ${r.city_level}`,
+  );
 
   // 가속권 라벨 + 값 (i18n 대응 — onLangChange 에서 renderList 재호출 시 자동 갱신)
   patchText(
@@ -663,7 +672,7 @@ function renderDetailDialog(): void {
     kingshot_id: row.kingshot_id,
     nickname: row.nickname,
     avatar_url: row.avatar_url,
-    city_level: null, // 상세 다이얼로그는 city_level 미사용 — 타입 만족용
+    city_level: row.city_level,
   });
   patchText($('sk-detail-updated'), formatRelativeTime(row.updated_at));
 
