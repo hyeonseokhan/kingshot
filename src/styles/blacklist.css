@@ -190,8 +190,14 @@
 }
 .btn-danger:hover { background: #991b1b; }
 
-/* 이미지 보기 다이얼로그 */
+/* 이미지 보기 다이얼로그 — 화면 정중앙 고정 (UA 기본 centering 이 일부 환경에서 어긋나는 케이스 대응) */
 .bl-image-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  inset: unset;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0;
