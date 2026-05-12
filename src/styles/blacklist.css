@@ -231,10 +231,15 @@
   object-fit: contain;
 }
 
-/* 모바일 좁은 화면 — note 컬럼 숨김 */
+/* 모바일 좁은 화면 — 아바타 / 닉네임 / 메모 / 이미지 / 관리만 노출.
+   서버(kingdom) + 킹샷 ID 컬럼은 숨김 (좁은 화면에서 가독성 우선). */
 @media (max-width: 640px) {
-  .bl-th-id, .bl-td-id,
-  .bl-th-note, .bl-td-note {
+  .bl-th-kingdom, .bl-td-kingdom,
+  .bl-th-id, .bl-td-id {
     display: none;
+  }
+  /* 메모 셀이 가용 공간 차지하도록 max-width 해제 */
+  .bl-td-note {
+    max-width: none;
   }
 }
