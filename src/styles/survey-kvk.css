@@ -28,6 +28,18 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+
+  /* global.css 의 body { overflow:hidden; height:100vh } 은 PNX 본사이트 앱 셸용 —
+     설문 페이지는 페이지 전체 스크롤(.survey-header 가 position:sticky) 이 의도라 override. */
+  height: auto;
+  overflow: visible;
+}
+@media (max-width: 768px) {
+  /* global.css 의 모바일 body { overflow-x:hidden } 도 명시 override (세로 스크롤은 살림). */
+  .survey-body {
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
 }
 
 .survey-header {
