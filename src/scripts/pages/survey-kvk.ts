@@ -33,6 +33,16 @@ interface SurveyRow {
   updated_at: string;
 }
 
+/** 토큰 API (login / verify-token / register) 가 반환하는 내 record. SurveyRow 의 subset. */
+interface MyRecord {
+  kingshot_id: string;
+  nickname: string;
+  avatar_url: string | null;
+  training: number;
+  construction: number;
+  general: number;
+}
+
 interface PlayerInfo {
   kingshot_id: string;
   nickname: string;
@@ -43,8 +53,15 @@ interface PlayerInfo {
 /** TC(센터) 레벨 최소 자격. 서버측 검증과 일치 유지 (kvk-survey/index.ts MIN_CITY_LEVEL). */
 const MIN_CITY_LEVEL = 26;
 
-/** 열람 잠금 해제 상태 키 — sessionStorage 라 탭 닫으면 자동 reset. */
+/** 열람 잠금 해제 상태 키 — sessionStorage 라 탭 닫으면 자동 reset.
+ *  토큰 기반 인증 도입 후에도 유지: localStorage AUTH 가 verify-token 으로 인증되면 이 키도 같이 세팅.
+ *  (UI 의 .is-unlocked 클래스는 한 곳에서만 토글하면 됨) */
 const UNLOCK_KEY = 'sk-unlocked';
+
+/** 세션 토큰 + 캐시된 record — localStorage 영구. 90일 후 서버에서 만료.
+ *  boot 시 verify-token API 로 검증 → 성공이면 자동 로그인.
+ *  로그아웃 버튼 없음 (1인 1행 설문이라 다른 계정 전환 불필요). */
+const AUTH_KEY = 'pnx-sk-auth-v1';
 
 type SortKey = 'training' | 'construction' | 'general' | 'total' | 'score' | 'updated_at';
 
@@ -168,6 +185,44 @@ function setUnlocked(): void {
   applyUnlockState();
 }
 
+/** 인증 정보 영구 저장 / 조회 / 제거 — token + 캐시된 record. */
+interface AuthState {
+  token: string;
+  expires_at: string; // ISO 8601
+  record: MyRecord; // 마지막으로 알려진 내 데이터 (boot prefill, UI 캐시용)
+}
+function saveAuth(state: AuthState): void {
+  try {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(state));
+  } catch {
+    /* quota / private mode — 무시 */
+  }
+}
+function getAuth(): AuthState | null {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (typeof obj?.token !== 'string' || typeof obj?.expires_at !== 'string' || !obj?.record) {
+      return null;
+    }
+    return obj as AuthState;
+  } catch {
+    return null;
+  }
+}
+function clearAuth(): void {
+  try {
+    localStorage.removeItem(AUTH_KEY);
+  } catch {
+    /* */
+  }
+}
+/** 현재 토큰 (localStorage). 없으면 null. mutation API 호출 시 사용. */
+function getToken(): string | null {
+  return getAuth()?.token ?? null;
+}
+
 function setStatus(id: string, msg: string, kind: 'ok' | 'err' | '' = ''): void {
   const el = $(id);
   el.textContent = msg;
@@ -281,22 +336,26 @@ async function onConfirmPin(): Promise<void> {
   setStatus('sk-pin-status', '');
 
   if (session.mode === 'register') {
-    // 신규 등록: PIN 만 메모리에 보관 → 폼 모드 진입 (서버 호출은 저장 시점)
+    // 신규 등록: PIN 만 메모리에 보관 → 폼 모드 진입. register API 호출은 저장 시점.
+    // 응답에서 token 받아서 saveAuth() 호출 → 다음 진입부터 자동 로그인.
     session.pin = pin;
     enterFormMode();
     return;
   }
 
-  // 기존 사용자: PIN 검증
+  // 기존 사용자: login API (PIN verify + 토큰 발급). 토큰 받으면 영구 저장 + 폼 prefill.
   const json = await callFn<{
     ok: boolean;
     error?: string;
-    record?: SurveyRow;
-  }>({ action: 'verify', kingshot_id: session.player.kingshot_id, pin });
-  if (!json.ok || !json.record) {
+    token?: string;
+    expires_at?: string;
+    record?: MyRecord;
+  }>({ action: 'login', kingshot_id: session.player.kingshot_id, pin });
+  if (!json.ok || !json.token || !json.expires_at || !json.record) {
     setStatus('sk-pin-status', mapError(json.error), 'err');
     return;
   }
+  saveAuth({ token: json.token, expires_at: json.expires_at, record: json.record });
   session.pin = pin;
   session.prefill = {
     training: json.record.training,
@@ -385,17 +444,21 @@ async function onDeleteForm(): Promise<void> {
   delBtn.disabled = true;
   setStatus('sk-form-status', t('survey.kvk.form.deleting'), '');
   try {
+    const token = getToken();
     const json = await callFn<{ ok: boolean; error?: string }>({
       action: 'delete',
-      kingshot_id: session.player.kingshot_id,
-      pin: session.pin,
+      token,
     });
     if (!json.ok) {
+      // 토큰 만료/무효 시 — 다음 부팅에서 자동 logout
+      if (json.error === 'token_expired' || json.error === 'invalid_token') clearAuth();
       setStatus('sk-form-status', mapError(json.error), 'err');
       saveBtn.disabled = false;
       delBtn.disabled = false;
       return;
     }
+    // 삭제 성공 → 인증 정보도 같이 정리 (DB row 자체가 사라졌으니 토큰도 무효).
+    clearAuth();
     setStatus('sk-form-status', t('survey.kvk.form.deleted'), 'ok');
     await refreshList();
     setTimeout(() => exitFormMode(), 600);
@@ -417,20 +480,65 @@ async function onSaveForm(): Promise<void> {
   btn.disabled = true;
   setStatus('sk-form-status', t('survey.kvk.form.saving'), '');
   try {
-    const action = session.mode === 'register' ? 'register' : 'update';
-    const json = await callFn<{ ok: boolean; error?: string }>({
-      action,
-      kingshot_id: session.player.kingshot_id,
-      pin: session.pin,
-      ...values,
-    });
+    let json:
+      | {
+          ok: boolean;
+          error?: string;
+          token?: string;
+          expires_at?: string;
+          record?: MyRecord;
+        }
+      | { ok: boolean; error?: string };
+    if (session.mode === 'register') {
+      // 신규 — PIN 전송. 응답에서 token + record 받음 → saveAuth.
+      json = await callFn<{
+        ok: boolean;
+        error?: string;
+        token?: string;
+        expires_at?: string;
+        record?: MyRecord;
+      }>({
+        action: 'register',
+        kingshot_id: session.player.kingshot_id,
+        pin: session.pin,
+        ...values,
+      });
+    } else {
+      // 수정 — token 전송 (login 시 받은 것). 응답엔 ok 만.
+      const token = getToken();
+      json = await callFn<{ ok: boolean; error?: string }>({
+        action: 'update',
+        token,
+        ...values,
+      });
+    }
     if (!json.ok) {
+      // 토큰 만료/무효 시 자동 로그아웃 + 다이얼로그 안내
+      if (json.error === 'token_expired' || json.error === 'invalid_token') {
+        clearAuth();
+        setUnlocked(); // 이미 표시된 목록은 그대로 두되 다음 boot 부터 잠금 풀려있어도 verify-token 실패로 lock
+      }
       setStatus('sk-form-status', mapError(json.error), 'err');
       btn.disabled = false;
       return;
     }
+    // 등록인 경우 응답에서 token + record 저장
+    if (session.mode === 'register') {
+      const j = json as { ok: true; token: string; expires_at: string; record: MyRecord };
+      if (j.token && j.expires_at && j.record) {
+        saveAuth({ token: j.token, expires_at: j.expires_at, record: j.record });
+      }
+    } else {
+      // 수정 — 캐시된 record 갱신 (로컬에서 즉시 일관성 유지)
+      const auth = getAuth();
+      if (auth) {
+        saveAuth({
+          ...auth,
+          record: { ...auth.record, ...values },
+        });
+      }
+    }
     setStatus('sk-form-status', t('survey.kvk.form.saved'), 'ok');
-    // 저장 성공 → 잠금 해제. refreshList() 후 목록이 보임.
     setUnlocked();
     await refreshList();
     setTimeout(() => exitFormMode(), 600);
@@ -758,8 +866,32 @@ function mapError(code: string | null | undefined): string {
 // ===== boot =====
 
 function init(): void {
-  // 시작 다이얼로그
-  $('sk-list-add').addEventListener('click', openAuthDialog);
+  // 등록/수정 버튼 — 로그인 상태(=토큰 유효)면 폼 다이얼로그 바로, 미로그인이면 인증 다이얼로그.
+  $('sk-list-add').addEventListener('click', () => {
+    const auth = getAuth();
+    if (auth) {
+      // 이미 로그인된 사용자 — PIN step skip 하고 폼 직진.
+      // 캐시된 record + 최신 nickname/avatar 는 server 갱신본을 update 응답에서 받음.
+      session = {
+        player: {
+          kingshot_id: auth.record.kingshot_id,
+          nickname: auth.record.nickname,
+          avatar_url: auth.record.avatar_url,
+          city_level: MIN_CITY_LEVEL, // 자격 미달이면 update API 가 다시 차단 (서버 게이트)
+        },
+        pin: '',
+        mode: 'update',
+        prefill: {
+          training: auth.record.training,
+          construction: auth.record.construction,
+          general: auth.record.general,
+        },
+      };
+      enterFormMode();
+    } else {
+      openAuthDialog();
+    }
+  });
   $('sk-auth-close').addEventListener('click', closeAuthDialog);
   $('sk-id-search').addEventListener('click', onSearchId);
   $('sk-id-input').addEventListener('keydown', (e) => {
@@ -784,6 +916,13 @@ function init(): void {
     // 숫자만 유지
     pinInput.value = pinInput.value.replace(/[^0-9]/g, '').slice(0, 4);
     syncPinBoxes();
+    // 4자리 완성 → 자동으로 "확인" (Enter 또는 확인 버튼 클릭과 동일).
+    // 80ms 지연: 마지막 박스 채워지는 시각 효과 + 사용자가 빠르게 5번째 키 누른 경우 skip 보장.
+    if (pinInput.value.length === 4) {
+      window.setTimeout(() => {
+        if (pinInput.value.length === 4) onConfirmPin();
+      }, 80);
+    }
   });
   pinInput.addEventListener('focus', syncPinBoxes);
   pinInput.addEventListener('blur', syncPinBoxes);
@@ -848,7 +987,37 @@ function init(): void {
     renderDetailDialog(); // 상세 다이얼로그 점수/시간 동적 텍스트 (열려있을 때만)
   });
 
-  // boot 시점 sessionStorage 잠금 상태 적용. 잠금 해제돼있으면 목록 fetch, 아니면 placeholder.
+  // boot — 저장된 토큰 있으면 서버 verify-token 으로 검증 후 자동 로그인 + 잠금 해제.
+  // verify-token 실패 (만료/무효/강등) 시 토큰 제거 → 잠금 placeholder 노출.
+  void bootVerifyAuth();
+}
+
+async function bootVerifyAuth(): Promise<void> {
+  const auth = getAuth();
+  if (!auth) {
+    // 토큰 없음 — 잠금 상태로 placeholder 표시
+    applyUnlockState();
+    refreshList(); // 잠금이라 list API 호출 안 함 (refreshList 자체가 가드)
+    return;
+  }
+  // 토큰 있음 — verify-token 으로 서버 검증
+  try {
+    const json = await callFn<{ ok: boolean; error?: string; record?: MyRecord }>({
+      action: 'verify-token',
+      token: auth.token,
+    });
+    if (json.ok && json.record) {
+      // 서버 record 로 캐시 갱신 (게임 닉네임/수치 변경 반영)
+      saveAuth({ ...auth, record: json.record });
+      setUnlocked();
+    } else {
+      // 만료/무효/강등 — 토큰 폐기
+      clearAuth();
+    }
+  } catch {
+    // 네트워크 오류 — 캐시 신뢰하고 일단 unlock (다음 mutation 에서 재검증)
+    setUnlocked();
+  }
   applyUnlockState();
   refreshList();
 }

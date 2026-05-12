@@ -161,12 +161,6 @@ import '@/styles/survey-kvk.css';
               <div class="sk-player-id" id="sk-form-id">-</div>
             </div>
           </div>
-          <button
-            type="button"
-            class="sk-btn sk-btn-secondary sk-btn-small"
-            id="sk-form-cancel"
-            data-i18n="survey.kvk.form.cancelButton"
-          >취소</button>
         </header>
         <p class="sk-help">
           <span data-i18n="survey.kvk.form.help"
@@ -225,7 +219,7 @@ import '@/styles/survey-kvk.css';
         </div>
         <div class="sk-status" id="sk-form-status" role="status" aria-live="polite"></div>
         <div class="sk-form-actions">
-          <!-- 삭제: 수정 모드일 때만 노출 (JS 가 enterFormMode 에서 hidden 토글) -->
+          <!-- 삭제: 수정 모드일 때만 노출 (JS 가 enterFormMode 에서 hidden 토글). 좌측 끝. -->
           <button
             type="button"
             class="sk-btn sk-btn-danger"
@@ -233,6 +227,13 @@ import '@/styles/survey-kvk.css';
             hidden
             data-i18n="survey.kvk.form.deleteButton"
           >삭제</button>
+          <!-- 취소 + 저장 — 우측 페어 (Cancel margin-left: auto 로 우측 push) -->
+          <button
+            type="button"
+            class="sk-btn sk-btn-secondary"
+            id="sk-form-cancel"
+            data-i18n="survey.kvk.form.cancelButton"
+          >취소</button>
           <button
             type="button"
             class="sk-btn sk-btn-primary"

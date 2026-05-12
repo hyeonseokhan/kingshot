@@ -369,7 +369,9 @@
   padding: 9px 12px;
   color: var(--sk-text);
   font-family: inherit;
-  font-size: 14px;
+  /* iOS Safari 줌인 차단 — 16px 미만이면 input 포커스 시 강제 줌. PC 디자인도 일관 16px.
+     (모바일 한정 룰 적용해 봤으나 dialog 안 input 등에서 우회되는 케이스 보고 → 전역 적용) */
+  font-size: 16px;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -612,8 +614,10 @@
   align-items: center;
   gap: 8px;
 }
-/* [삭제] 좌측 / [저장] 우측 — 저장이 우측 끝으로 가도록 push */
-.sk-form-actions .sk-btn-primary {
+/* [삭제] 좌측 끝 / [취소] [저장] 우측 페어.
+   Cancel 에 margin-left: auto → Delete 와의 사이 빈 공간을 push.
+   Delete 가 숨겨진 경우(등록 모드) 에도 Cancel + Save 가 우측 그룹으로 정렬됨. */
+.sk-form-actions #sk-form-cancel {
   margin-left: auto;
 }
 

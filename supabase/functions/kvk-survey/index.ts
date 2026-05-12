@@ -5,13 +5,19 @@
  * kvk_speedup_survey 테이블은 anon 차단 → 본 함수 (service_role) 만 접근.
  *
  * 액션:
- *   { action: "lookup",   kingshot_id }                                  → { ok, player: {...}, registered }
- *   { action: "register", kingshot_id, pin, training, construction, general } → { ok }
- *   { action: "verify",   kingshot_id, pin }                              → { ok }
- *   { action: "update",   kingshot_id, pin, training, construction, general } → { ok }
- *   { action: "list" }                                                    → { ok, items: [...] }  (pin_hash/salt 제외)
+ *   { action: "lookup",       kingshot_id }                                          → { ok, player, registered }
+ *   { action: "login",        kingshot_id, pin }                                     → { ok, token, expires_at, record }
+ *   { action: "verify-token", token }                                                → { ok, record }   (boot 자동)
+ *   { action: "register",     kingshot_id, pin, training, construction, general }    → { ok, token, expires_at, record }
+ *   { action: "update",       token, training, construction, general }               → { ok }
+ *                            (또는 백워드 호환: kingshot_id, pin, training, ...)
+ *   { action: "delete",       token }                                                → { ok }
+ *                            (또는 백워드 호환: kingshot_id, pin)
+ *   { action: "verify",       kingshot_id, pin }                                     → { ok, record }  (deprecated)
+ *   { action: "list" }                                                               → { ok, items: [...] }  (pin_hash/salt/token 제외)
  *
  * pin: 정확히 4자리 숫자. SHA-256(pin + 16바이트 hex salt) 로 저장.
+ * token: UUID v4 (DB 컬럼 session_token). 만료 = session_expires_at (90일).
  * nickname/avatar 는 lookup 시점에 게임 공식 API 로 직접 조회 → 위변조 차단.
  */
 import { crypto as stdCrypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
@@ -104,6 +110,28 @@ function isValidKingshotId(id: unknown): id is string {
 
 function isNonNegInt(n: unknown): n is number {
   return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 9_999_999;
+}
+
+// ===== 세션 토큰 =====
+// 90일 — 자주 안 쓰는 사용자도 분기마다 재로그인. 너무 짧으면 사용성 ↓, 너무 길면 보안 ↓.
+const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+function newToken(): string {
+  return crypto.randomUUID();
+}
+
+function newExpiresAt(): string {
+  return new Date(Date.now() + SESSION_TTL_MS).toISOString();
+}
+
+function isValidToken(t: unknown): t is string {
+  return typeof t === "string" && /^[0-9a-f-]{36}$/i.test(t);
+}
+
+/** session_expires_at 이 과거면 true. NULL 은 무효 (만료된 것으로 처리). */
+function isTokenExpired(expiresAt: string | null | undefined): boolean {
+  if (!expiresAt) return true;
+  return new Date(expiresAt) <= new Date();
 }
 
 /**
@@ -249,6 +277,8 @@ async function register(
   }
   const salt = randomSaltHex();
   const hash = await sha256Hex((pin as string) + salt);
+  const token = newToken();
+  const expiresAt = newExpiresAt();
   await dbInsert("kvk_speedup_survey", {
     kingshot_id: kingshotId,
     nickname: player.nickname,
@@ -262,8 +292,111 @@ async function register(
     ip: meta.ip,
     country: meta.country,
     platform: meta.platform,
+    session_token: token,
+    session_expires_at: expiresAt,
   });
-  return { ok: true };
+  return {
+    ok: true,
+    token,
+    expires_at: expiresAt,
+    record: {
+      kingshot_id: kingshotId,
+      nickname: player.nickname,
+      avatar_url: player.avatar_image,
+      training: training as number,
+      construction: construction as number,
+      general: general as number,
+    },
+  };
+}
+
+/**
+ * PIN verify + 신규 세션 토큰 발급. 기존 등록자 전용 (행 없으면 not_registered).
+ * 새 토큰을 발급하면서 기존 토큰은 덮어쓰기 → 다른 디바이스에서 자동 로그아웃 효과.
+ */
+async function login(kingshotId: string, pin: unknown) {
+  if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
+  if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
+  const row = await dbSelectOne(
+    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt,training,construction,general,nickname,avatar_url`
+  );
+  if (!row) return { ok: false, error: "not_registered" };
+  const computed = await sha256Hex((pin as string) + row.pin_salt);
+  if (computed !== row.pin_hash) return { ok: false, error: "invalid_pin" };
+  const token = newToken();
+  const expiresAt = newExpiresAt();
+  await dbPatch(
+    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}`,
+    { session_token: token, session_expires_at: expiresAt },
+  );
+  return {
+    ok: true,
+    token,
+    expires_at: expiresAt,
+    record: {
+      kingshot_id: kingshotId,
+      nickname: row.nickname,
+      avatar_url: row.avatar_url,
+      training: row.training,
+      construction: row.construction,
+      general: row.general,
+    },
+  };
+}
+
+/**
+ * 클라이언트 boot 시 자동 호출. 토큰 유효성 + 만료 + city_level 게이트 모두 검사.
+ * 만료/무효면 클라에서 토큰 제거 + 로그인 다이얼로그.
+ */
+async function verifyToken(token: unknown) {
+  if (!isValidToken(token)) return { ok: false, error: "invalid_token" };
+  const row = await dbSelectOne(
+    `kvk_speedup_survey?session_token=eq.${encodeURIComponent(token)}&select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,session_expires_at`
+  );
+  if (!row) return { ok: false, error: "invalid_token" };
+  if (isTokenExpired(row.session_expires_at)) return { ok: false, error: "token_expired" };
+  // city_level 강등 가드 — 토큰 발급 후 게임에서 강등됐을 가능성
+  if (row.city_level === null || row.city_level < MIN_CITY_LEVEL) {
+    return { ok: false, error: "city_level_too_low", city_level: row.city_level };
+  }
+  return {
+    ok: true,
+    record: {
+      kingshot_id: row.kingshot_id,
+      nickname: row.nickname,
+      avatar_url: row.avatar_url,
+      training: row.training,
+      construction: row.construction,
+      general: row.general,
+    },
+  };
+}
+
+/** mutation 의 인증 — token 우선, 없으면 pin+kingshot_id (백워드 호환). 행 반환. */
+async function authenticate(opts: {
+  token?: unknown;
+  kingshotId?: unknown;
+  pin?: unknown;
+}): Promise<{ ok: true; kingshotId: string } | { ok: false; error: string }> {
+  if (isValidToken(opts.token)) {
+    const row = await dbSelectOne(
+      `kvk_speedup_survey?session_token=eq.${encodeURIComponent(opts.token as string)}&select=kingshot_id,session_expires_at`
+    );
+    if (!row) return { ok: false, error: "invalid_token" };
+    if (isTokenExpired(row.session_expires_at)) return { ok: false, error: "token_expired" };
+    return { ok: true, kingshotId: row.kingshot_id };
+  }
+  // 백워드 호환 — 구버전 클라이언트가 PIN 으로 직접 호출
+  if (!isValidKingshotId(opts.kingshotId) || !isValidPin(opts.pin)) {
+    return { ok: false, error: "missing_auth" };
+  }
+  const row = await dbSelectOne(
+    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(opts.kingshotId as string)}&select=pin_hash,pin_salt`
+  );
+  if (!row) return { ok: false, error: "not_registered" };
+  const computed = await sha256Hex((opts.pin as string) + row.pin_salt);
+  if (computed !== row.pin_hash) return { ok: false, error: "invalid_pin" };
+  return { ok: true, kingshotId: opts.kingshotId as string };
 }
 
 async function verifyPin(kingshotId: string, pin: unknown) {
@@ -288,27 +421,24 @@ async function verifyPin(kingshotId: string, pin: unknown) {
   };
 }
 
+/**
+ * update — token 우선, 없으면 PIN+ID (백워드 호환).
+ * 인증 통과 시 kingshot_id 를 알아내고, 그 행에 새 값을 PATCH.
+ */
 async function updateRow(
-  kingshotId: string,
-  pin: unknown,
+  opts: { token?: unknown; kingshotId?: unknown; pin?: unknown },
   training: unknown,
   construction: unknown,
   general: unknown,
   meta: { ip: string | null; country: string | null; platform: string | null },
 ) {
-  if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
-  if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
   if (!isNonNegInt(training) || !isNonNegInt(construction) || !isNonNegInt(general)) {
     return { ok: false, error: "invalid_amount" };
   }
-  const row = await dbSelectOne(
-    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt`
-  );
-  if (!row) return { ok: false, error: "not_registered" };
-  const computed = await sha256Hex((pin as string) + row.pin_salt);
-  if (computed !== row.pin_hash) return { ok: false, error: "invalid_pin" };
+  const auth = await authenticate(opts);
+  if (!auth.ok) return auth;
   // 닉네임/아바타/city_level 모두 동기 — 게임 내 변경 시 자동 반영
-  const player = await fetchPlayerInfo(kingshotId);
+  const player = await fetchPlayerInfo(auth.kingshotId);
   if (!player) return { ok: false, error: "player_not_found" };
   // 서버측 게이트 — 강등된 사용자가 update 로 데이터 갱신하는 것 차단.
   if (player.city_level === null || player.city_level < MIN_CITY_LEVEL) {
@@ -326,20 +456,15 @@ async function updateRow(
     platform: meta.platform,
     updated_at: new Date().toISOString(),
   };
-  await dbPatch(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}`, patch);
+  await dbPatch(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(auth.kingshotId)}`, patch);
   return { ok: true };
 }
 
-async function deleteRow(kingshotId: string, pin: unknown) {
-  if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
-  if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
-  const row = await dbSelectOne(
-    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt`
-  );
-  if (!row) return { ok: false, error: "not_registered" };
-  const computed = await sha256Hex((pin as string) + row.pin_salt);
-  if (computed !== row.pin_hash) return { ok: false, error: "invalid_pin" };
-  await dbDelete(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}`);
+/** delete — token 우선, 없으면 PIN+ID (백워드 호환). */
+async function deleteRow(opts: { token?: unknown; kingshotId?: unknown; pin?: unknown }) {
+  const auth = await authenticate(opts);
+  if (!auth.ok) return auth;
+  await dbDelete(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(auth.kingshotId)}`);
   return { ok: true };
 }
 
@@ -356,7 +481,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
-    const { action, kingshot_id, pin, training, construction, general } = body ?? {};
+    const { action, kingshot_id, pin, token, training, construction, general } = body ?? {};
     // IP / country 는 헤더에서만 추출 — 클라이언트 페이로드는 신뢰하지 않음
     const meta = extractRequestMeta(req);
     let result;
@@ -364,17 +489,30 @@ Deno.serve(async (req: Request) => {
       case "lookup":
         result = await lookup(kingshot_id);
         break;
+      case "login":
+        result = await login(kingshot_id, pin);
+        break;
+      case "verify-token":
+        result = await verifyToken(token);
+        break;
       case "register":
         result = await register(kingshot_id, pin, training, construction, general, meta);
         break;
       case "verify":
+        // deprecated — 백워드 호환용으로 유지. 신규 클라이언트는 login 사용.
         result = await verifyPin(kingshot_id, pin);
         break;
       case "update":
-        result = await updateRow(kingshot_id, pin, training, construction, general, meta);
+        result = await updateRow(
+          { token, kingshotId: kingshot_id, pin },
+          training,
+          construction,
+          general,
+          meta,
+        );
         break;
       case "delete":
-        result = await deleteRow(kingshot_id, pin);
+        result = await deleteRow({ token, kingshotId: kingshot_id, pin });
         break;
       case "list":
         result = await list();
