@@ -217,7 +217,7 @@ export const ko = {
     toolbar: {
       searchPlaceholder: '닉네임 검색...',
       redeemAll: '🎁 전체 수령',
-      refreshExtras: '🔄 추가 계정 갱신',
+      refreshExtras: '추가 계정 갱신',
       historyTitle: '수령 이력',
     },
     refreshExtras: {
@@ -704,8 +704,12 @@ export const ko = {
           construction: '건설',
           general: '공용',
           total: '합계',
-          updated: '최근 갱신',
+          updated: '등록시간',
         },
+      },
+      detail: {
+        title: '제출 정보',
+        updatedLabel: '등록 시간',
       },
       errors: {
         generic: '문제가 발생했습니다',

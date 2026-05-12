@@ -24,7 +24,6 @@ import {
 } from '@/lib/cache';
 import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
-import { bindRefreshButton } from '@/lib/refresh-button';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
 import { t, onLangChange } from '@/i18n';
 
@@ -32,7 +31,7 @@ import { t, onLangChange } from '@/i18n';
 
 const GIFT_API = SUPABASE_URL + '/functions/v1/gift-codes';
 const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
-const CACHE_REFRESH_MS = 60 * 60 * 1000;
+const CACHE_REFRESH_MS = 5 * 60 * 1000; // 5분 — 새 쿠폰/계정이 짧은 시간 내 자동 반영. 사용자가 갱신 버튼 안 찾게 함.
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 1000;
 const SUMMARY_DISPLAY_MS = 10000;
@@ -1365,17 +1364,6 @@ function bindEventListeners(): void {
   // 전체 수령
   $('btn-redeem-all').addEventListener('click', () => startBulkRedeem(false));
   $('btn-refresh-extras').addEventListener('click', refreshAllExtras);
-  // 단순 list 새로고침 — accounts/giftcodes 양쪽 cache 무효화 후 재로드
-  bindRefreshButton('coupons-refresh-btn', () => {
-    invalidateAccountsCache();
-    invalidateGiftCodesCache();
-    return new Promise<void>((resolve) => {
-      let pending = 2;
-      const done = () => { if (--pending === 0) resolve(); };
-      loadAccounts(() => { renderAccounts(); done(); });
-      loadCoupons(done);
-    });
-  });
 
   // 수령 이력
   $('btn-history').addEventListener('click', openHistoryDialog);

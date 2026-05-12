@@ -190,9 +190,10 @@
   color: var(--text3);
 }
 .members-filter select {
-  padding: 4px 8px;
+  /* 검색 필드 (.member-search-input) 와 동일 높이 — toolbar 시각 정렬. */
+  padding: 5px 10px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 12px;
   font-family: var(--font);
   color: var(--text);

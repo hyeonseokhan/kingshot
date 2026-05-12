@@ -220,7 +220,7 @@ export const en: Translations = {
     toolbar: {
       searchPlaceholder: 'Search nickname...',
       redeemAll: '🎁 Redeem All',
-      refreshExtras: '🔄 Refresh Extras',
+      refreshExtras: 'Refresh Extras',
       historyTitle: 'History',
     },
     refreshExtras: {
@@ -710,6 +710,10 @@ export const en: Translations = {
           total: 'Total',
           updated: 'Updated',
         },
+      },
+      detail: {
+        title: 'Submission Details',
+        updatedLabel: 'Updated',
       },
       errors: {
         generic: 'Something went wrong',
