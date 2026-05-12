@@ -24,6 +24,7 @@ import {
 } from '@/lib/cache';
 import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
+import { bindRefreshButton } from '@/lib/refresh-button';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
 import { t, onLangChange } from '@/i18n';
 
@@ -1364,6 +1365,17 @@ function bindEventListeners(): void {
   // 전체 수령
   $('btn-redeem-all').addEventListener('click', () => startBulkRedeem(false));
   $('btn-refresh-extras').addEventListener('click', refreshAllExtras);
+  // 단순 list 새로고침 — accounts/giftcodes 양쪽 cache 무효화 후 재로드
+  bindRefreshButton('coupons-refresh-btn', () => {
+    invalidateAccountsCache();
+    invalidateGiftCodesCache();
+    return new Promise<void>((resolve) => {
+      let pending = 2;
+      const done = () => { if (--pending === 0) resolve(); };
+      loadAccounts(() => { renderAccounts(); done(); });
+      loadCoupons(done);
+    });
+  });
 
   // 수령 이력
   $('btn-history').addEventListener('click', openHistoryDialog);

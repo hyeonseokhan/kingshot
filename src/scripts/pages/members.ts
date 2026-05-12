@@ -16,6 +16,7 @@ import {
   clearFailedRefresh,
 } from '@/lib/cache';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
+import { bindRefreshButton } from '@/lib/refresh-button';
 import { patchList, patchText } from '@/lib/dom-diff';
 import type { Member, AllianceRank } from '@/lib/types';
 import { t, onLangChange } from '@/i18n';
@@ -718,8 +719,10 @@ function initPage(): void {
       });
   });
 
-  // 전체 갱신
+  // 전체 갱신 (모든 회원 프로필 게임 API 재조회 — 무거움)
   $('btn-refresh-all').addEventListener('click', refreshAllMembers);
+  // 단순 list 새로고침 (DB 만 다시 fetch — 다른 사용자가 추가/삭제한 거 반영)
+  bindRefreshButton('members-refresh-btn', () => membersStore.refresh(fetchMembers, true).then(() => renderMembers()));
 
   // 관리자 — 크리스탈 지급
   initAdminGrant();

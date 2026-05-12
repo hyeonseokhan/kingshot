@@ -1,0 +1,54 @@
+---
+/**
+ * 공통 새로고침 버튼 — 모든 list/ranking 새로고침에 동일 디자인 사용.
+ *
+ * 기존 RankingTable 의 .rank-refresh 패턴을 추출. CSS 클래스는 .refresh-btn 으로 일반화
+ * (기존 .rank-refresh 와 alias — RankingTable 도 점진적으로 이전).
+ *
+ * 사용:
+ *   ```astro
+ *   <RefreshButton id="bl-refresh-btn" />
+ *   ```
+ *   ```ts
+ *   import { bindRefreshButton } from '@/lib/refresh-button';
+ *   bindRefreshButton('bl-refresh-btn', () => loadEntries());
+ *   ```
+ *
+ * 클릭 시 `bindRefreshButton` 헬퍼가 .is-loading 토글 → SVG 가 회전해 사용자에게
+ * 명확한 피드백 (data 변경 없어도 "눌렀다" 인식 가능).
+ */
+
+interface Props {
+  id: string;
+  /** 옵션 — aria-label 직접 지정 시. 미지정 시 i18n 'common.refresh' */
+  ariaLabel?: string;
+  /** 옵션 — 기존 .rank-refresh 클래스 추가 (랭킹 테이블 컨텍스트 호환) */
+  legacy?: boolean;
+}
+const { id, ariaLabel, legacy = false } = Astro.props;
+const cls = legacy ? 'refresh-btn rank-refresh' : 'refresh-btn';
+---
+
+<button
+  class={cls}
+  id={id}
+  type="button"
+  aria-label={ariaLabel ?? '새로고침'}
+  data-i18n-attr-aria-label={ariaLabel ? undefined : 'common.refresh'}
+>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="23 4 23 10 17 10"></polyline>
+    <polyline points="1 20 1 14 7 14"></polyline>
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+  </svg>
+</button>

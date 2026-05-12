@@ -1,5 +1,6 @@
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
+import RefreshButton from '@/components/RefreshButton.astro';
 import { tabs, findActiveSubmenu } from '@/data/navigation';
 import '@/styles/manage.css';
 
@@ -104,6 +105,7 @@ const navItems = manage.submenus!.map((s) => ({
         <button class="btn btn-secondary btn-sm" id="btn-refresh-all" type="button"
           data-i18n="members.refreshAllButton">전체 갱신</button
         >
+        <RefreshButton id="members-refresh-btn" />
       </div>
     </div>
     <div class="members-list" id="members-list">

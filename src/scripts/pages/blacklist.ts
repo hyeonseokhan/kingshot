@@ -18,6 +18,7 @@ import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
 import { optimizeImage, formatBytes } from '@/lib/image-optimize';
 import { patchList, patchText } from '@/lib/dom-diff';
 import { esc } from '@/lib/utils';
+import { bindRefreshButton } from '@/lib/refresh-button';
 
 const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
 const REST_BASE = SUPABASE_URL + '/rest/v1';
@@ -84,7 +85,7 @@ export function initBlacklist(): void {
     searchTerm = (e.target as HTMLInputElement).value.trim().toLowerCase();
     renderList();
   });
-  $('bl-refresh-btn')?.addEventListener('click', () => loadEntries({ showLoading: true }));
+  bindRefreshButton('bl-refresh-btn', loadEntriesPromise);
 
   // 이미지 보기 다이얼로그
   $('bl-image-dialog-close')?.addEventListener('click', () => {
@@ -100,10 +101,13 @@ export function initBlacklist(): void {
 
 // ===== 데이터 로드 =====
 
-function loadEntries(opts: { showLoading?: boolean } = {}): void {
-  const refreshBtn = $<HTMLButtonElement>('bl-refresh-btn');
-  if (opts.showLoading && refreshBtn) refreshBtn.disabled = true;
-  fetch(REST_BASE + '/blacklist?select=*&order=created_at.desc', {
+function loadEntries(): void {
+  void loadEntriesPromise();
+}
+
+/** 갱신 버튼 등에서 await 가능한 형태. 결과는 entries 에 저장 + renderList. */
+function loadEntriesPromise(): Promise<void> {
+  return fetch(REST_BASE + '/blacklist?select=*&order=created_at.desc', {
     headers: restHeaders,
   })
     .then((r) => r.json())
@@ -114,9 +118,6 @@ function loadEntries(opts: { showLoading?: boolean } = {}): void {
     .catch(() => {
       entries = [];
       renderList();
-    })
-    .finally(() => {
-      if (refreshBtn) refreshBtn.disabled = false;
     });
 }
 
