@@ -168,19 +168,20 @@
 }
 .btn-danger:hover { background: #991b1b; }
 
-/* 이미지 보기 다이얼로그 — 화면 정중앙 고정 (UA 기본 centering 이 일부 환경에서 어긋나는 케이스 대응) */
+/* 이미지 보기 다이얼로그 — survey/kvk lightbox 패턴 (commit b90105f) 동일.
+   width/height: fit-content + inset:0 + margin:auto → 정중앙 자동 정렬.
+   (width:auto 면 dialog 가 viewport 전폭 차지해 margin:auto 가 0 으로 무력화됨) */
 .bl-image-dialog {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  margin: 0;
-  inset: unset;
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
+  max-width: 90vw;
+  max-height: 90vh;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0;
-  max-width: 90vw;
-  max-height: 90vh;
   background: var(--bg);
   color: var(--text);
 }
