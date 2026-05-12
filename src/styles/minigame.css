@@ -95,13 +95,15 @@
   font-weight: 700;
 }
 
-/* 새로고침 버튼 — components.css 의 .refresh-btn 과 같은 높이 (5px padding). */
+/* 새로고침 버튼 — components.css 의 .refresh-btn 과 같은 높이 (height 32px 강제). */
 .rank-refresh {
+  height: 32px;
+  box-sizing: border-box;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text2);
-  padding: 5px 8px;
+  padding: 0 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
