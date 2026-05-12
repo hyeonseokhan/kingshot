@@ -99,13 +99,110 @@
 
 /* ===== 인트로 — 모바일 상단 영역 최소화 ===== */
 .sk-intro {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .sk-intro p {
   margin: 0;
   color: var(--sk-text-dim);
   line-height: 1.5;
   font-size: 13px;
+}
+
+/* ===== 상시 안내 (자격 / 열람 권한 / 복귀 방법) ===== */
+.sk-notice {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px 12px 18px;
+  margin-bottom: 16px;
+}
+.sk-notice ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+  color: var(--sk-text);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.sk-notice li::marker {
+  color: var(--sk-accent-hover);
+}
+.sk-notice strong {
+  color: var(--sk-accent-hover);
+  font-weight: 700;
+}
+
+/* ===== 잠금 placeholder (목록 영역 — 미인증 시 노출) =====
+   .sk-page.is-unlocked 일 때 hidden — 인증 완료 → JS 가 클래스 토글. */
+.sk-locked-card {
+  background: var(--sk-surface);
+  border: 1px dashed var(--sk-border-strong);
+  border-radius: 12px;
+  padding: 36px 20px;
+  text-align: center;
+}
+.sk-locked-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sk-text);
+  margin-bottom: 8px;
+}
+.sk-locked-body {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sk-text-dim);
+  line-height: 1.6;
+}
+/* 잠금 상태에서 숨길 요소들 — 본 placeholder 노출 시 다른 list UI 는 의미 없음 */
+.sk-page:not(.is-unlocked) .sk-controls,
+.sk-page:not(.is-unlocked) .sk-table-wrap,
+.sk-page:not(.is-unlocked) .sk-list-count,
+.sk-page:not(.is-unlocked) #sk-list-refresh {
+  display: none;
+}
+/* 인증 완료 후엔 잠금 placeholder 숨김 */
+.sk-page.is-unlocked .sk-locked-card {
+  display: none;
+}
+
+/* ===== 차단 step (TC 26 미만 사용자 안내) ===== */
+.sk-step-blocked {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.sk-blocked-icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.sk-blocked-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sk-text);
+}
+.sk-blocked-body {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--sk-text-dim);
+  line-height: 1.55;
+}
+.sk-blocked-body strong {
+  color: var(--sk-accent-hover);
+  font-weight: 700;
+}
+.sk-blocked-current {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--sk-text-dim);
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: inline-block;
+}
+.sk-step-blocked .sk-dialog-actions {
+  justify-content: center;
 }
 
 /* ===== 공통 버튼 ===== */
@@ -174,6 +271,19 @@
   background: #2c313d;
   color: var(--sk-text);
   border-color: var(--sk-border-strong);
+}
+/* 클릭 피드백 — 클릭 즉시 SVG 가 회전해 "눌렀다" 인식. 데이터 변경 없어도 의미 있음.
+   (lib/refresh-button.ts 의 bindRefreshButton 이 .is-loading 토글) */
+.sk-icon-btn.is-loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.sk-icon-btn.is-loading svg {
+  animation: skRefreshSpin 0.7s linear infinite;
+}
+@keyframes skRefreshSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* ===== 다이얼로그 ===== */
@@ -548,6 +658,67 @@
   align-items: center;
   flex-shrink: 0;
 }
+/* ===== 정렬 컨트롤 바 (PC + 모바일 공용) =====
+   PC: 정렬 chip 만 한 줄. 모바일: legend(이모지 가이드) 한 줄 + chip 한 줄. */
+.sk-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.sk-legend {
+  display: none; /* PC: 컬럼 헤더가 라벨 역할 → 이모지 가이드 불필요 */
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--sk-text-dim);
+}
+.sk-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sk-legend-emoji {
+  font-size: 13px;
+}
+.sk-sort-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.sk-sort-label {
+  font-size: 12px;
+  color: var(--sk-text-dim);
+  margin-right: 4px;
+}
+.sk-sort-chip {
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  color: var(--sk-text-dim);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.sk-sort-chip:hover {
+  color: var(--sk-text);
+  border-color: var(--sk-border-strong);
+}
+.sk-sort-chip[data-active='true'] {
+  background: var(--sk-accent);
+  border-color: var(--sk-accent);
+  color: #fff;
+}
+
 .sk-table-wrap {
   background: var(--sk-surface);
   border: 1px solid var(--sk-border);
@@ -582,8 +753,12 @@
 .sk-th-num {
   text-align: right;
 }
+.sk-th-total {
+  text-align: right;
+  color: var(--sk-text);
+}
 .sk-th-time {
-  width: 140px;
+  width: 110px;
   text-align: right;
 }
 .sk-td-rank {
@@ -607,35 +782,12 @@
 .sk-td-actions {
   text-align: right;
 }
+/* 행은 클릭 시 상세 다이얼로그 → 커서/호버로 인터랙션 가능함을 시각화 */
+.sk-tr {
+  cursor: pointer;
+}
 .sk-tr:hover .sk-td {
   background: rgba(255, 255, 255, 0.025);
-}
-
-/* ===== 정렬 버튼 — 활성 시 색상만 강조, 화살표 X ===== */
-.sk-sort-btn {
-  display: inline-flex;
-  align-items: center;
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  padding: 0;
-}
-.sk-sort-btn:hover {
-  color: var(--sk-text);
-}
-.sk-sort-btn[data-active='true'] {
-  color: var(--sk-accent-hover);
-  font-weight: 700;
-}
-.sk-th-num .sk-sort-btn {
-  width: 100%;
-  justify-content: flex-end;
-}
-.sk-th-time .sk-sort-btn {
-  width: 100%;
-  justify-content: flex-end;
 }
 
 /* ===== 행 안 플레이어 ===== */
@@ -697,11 +849,6 @@
   display: none;
 }
 
-/* 모바일 전용 컨트롤 바 (이모지 안내 + 정렬 뱃지) — 데스크탑은 thead 가 대체 */
-.sk-mobile-controls {
-  display: none;
-}
-
 /* ===== 모바일 — 테이블 → 카드 레이아웃으로 변환 ===== */
 @media (max-width: 720px) {
   .survey-main {
@@ -711,63 +858,19 @@
     grid-template-columns: 1fr;
   }
 
-  /* 모바일 컨트롤 바 — 이모지 안내(legend) + 정렬 뱃지(chip) */
-  .sk-mobile-controls {
-    display: flex;
+  /* 모바일에선 컨트롤 바를 세로 배치 (legend → sort) + 이모지 가이드 표시 */
+  .sk-controls {
     flex-direction: column;
+    align-items: stretch;
     gap: 6px;
-    margin-bottom: 8px;
     padding: 8px 10px;
-    background: var(--sk-surface);
-    border: 1px solid var(--sk-border);
-    border-radius: 10px;
   }
   .sk-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: 11.5px;
-    color: var(--sk-text-dim);
-  }
-  .sk-legend-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .sk-legend-emoji {
-    font-size: 13px;
-  }
-  .sk-mobile-sort {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px;
-  }
-  .sk-mobile-sort-label {
-    font-size: 11px;
-    color: var(--sk-text-dim);
-    margin-right: 2px;
+    display: flex; /* 모바일에서만 노출 */
   }
   .sk-sort-chip {
-    background: var(--sk-surface-2);
-    border: 1px solid var(--sk-border);
-    color: var(--sk-text-dim);
-    border-radius: 999px;
     padding: 4px 10px;
-    font-family: inherit;
     font-size: 11.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.12s;
-  }
-  .sk-sort-chip:hover {
-    color: var(--sk-text);
-    border-color: var(--sk-border-strong);
-  }
-  .sk-sort-chip[data-active='true'] {
-    background: var(--sk-accent);
-    border-color: var(--sk-accent);
-    color: #fff;
   }
 
   /* 모바일 헤더: h3 (1행) + toolbar (1행) — 한/영 언어 무관 동일 레이아웃.
@@ -807,6 +910,14 @@
     display: none; /* 모바일에선 컬럼 헤더 숨김 — 각 셀이 자체 라벨 보유 */
   }
 
+  /* 모바일에선 합계 컬럼 숨김 (PC 전용). 두 클래스로 specificity 올려 — 단일 클래스
+     .sk-td-num { display: flex } 보다 무조건 이기도록 (cascade 순서 무관 보장).
+     이 보호 없으면 cell 이 grid-template-areas 에 자리 못 잡고 카드 밖으로 auto-placement. */
+  .sk-td.sk-td-total,
+  .sk-th.sk-th-total {
+    display: none;
+  }
+
   /* === 2-row 컴팩트 카드 (4컬럼 grid) ===
        Row 1: [rank] [photo+name/id (2col span)]   [updated]
        Row 2: [.   ] [⭐ 11d 15h 34m] [🛡️ 8d 9h 35m] [🔨 8d 3h 17m]
@@ -825,7 +936,7 @@
       'rank player player updated'
       'rank g      t      c';
     column-gap: 6px;
-    row-gap: 4px;
+    row-gap: 8px;
   }
   .sk-tr:hover .sk-td {
     background: transparent;
@@ -946,4 +1057,89 @@
       font-size: 10px;
     }
   }
+}
+
+/* ===== 상세 다이얼로그 (행 클릭 시) — 읽기 전용 / "Bar Chart" 안 ===== */
+
+/* 플레이어 카드 우측에 relative time 배치 (auth/form 의 sk-player-card 에는 없는 추가 자식). */
+.sk-detail-time {
+  font-size: 11.5px;
+  color: var(--sk-text-dim);
+  text-align: right;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+/* 가속권 3종 — 각 row 는 [label, value] + bar + pct */
+.sk-detail-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+.sk-detail-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.sk-detail-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--sk-text-dim);
+  font-weight: 600;
+}
+.sk-detail-bar-value {
+  font-size: 13.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sk-detail-bar-track {
+  position: relative;
+  height: 8px;
+  background: var(--sk-surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.sk-detail-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--sk-accent), var(--sk-accent-hover));
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+.sk-detail-bar-pct {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--sk-text-dim);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sk-detail-emoji {
+  font-size: 14px;
+}
+
+/* 구분선 + 합계 row */
+.sk-detail-divider {
+  border: 0;
+  border-top: 1px dashed var(--sk-border-strong);
+  margin: 18px 0 14px;
+}
+.sk-detail-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.sk-detail-total-label {
+  font-size: 13px;
+  color: var(--sk-text);
+  font-weight: 700;
+}
+.sk-detail-total-value {
+  font-size: 18px;
+  color: var(--sk-accent-hover);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }

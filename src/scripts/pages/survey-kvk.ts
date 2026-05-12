@@ -15,7 +15,9 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { patchList, patchText } from '@/lib/dom-diff';
-import { t, getLang, onLangChange } from '@/i18n';
+import { t, onLangChange } from '@/i18n';
+import { formatRelativeTime } from '@/lib/utils';
+import { bindRefreshButton } from '@/lib/refresh-button';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-survey';
 
@@ -33,9 +35,16 @@ interface PlayerInfo {
   kingshot_id: string;
   nickname: string;
   avatar_url: string | null;
+  city_level: number | null;
 }
 
-type SortKey = 'training' | 'construction' | 'general' | 'updated_at';
+/** TC(센터) 레벨 최소 자격. 서버측 검증과 일치 유지 (kvk-survey/index.ts MIN_CITY_LEVEL). */
+const MIN_CITY_LEVEL = 26;
+
+/** 열람 잠금 해제 상태 키 — sessionStorage 라 탭 닫으면 자동 reset. */
+const UNLOCK_KEY = 'sk-unlocked';
+
+type SortKey = 'training' | 'construction' | 'general' | 'total' | 'updated_at';
 
 // ===== state =====
 
@@ -117,9 +126,30 @@ function setPinValue(v: string): void {
   syncPinBoxes();
 }
 
-function showAuthStep(step: 'id' | 'confirm'): void {
+function showAuthStep(step: 'id' | 'confirm' | 'blocked'): void {
   ($('sk-step-id') as HTMLElement).hidden = step !== 'id';
   ($('sk-step-confirm') as HTMLElement).hidden = step !== 'confirm';
+  ($('sk-step-blocked') as HTMLElement).hidden = step !== 'blocked';
+}
+
+/** 열람 잠금/해제 — sessionStorage 상태 + DOM 클래스 동기. unlock 직후 목록 자동 fetch. */
+function isUnlocked(): boolean {
+  try {
+    return sessionStorage.getItem(UNLOCK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function applyUnlockState(): void {
+  ($('sk-page') as HTMLElement).classList.toggle('is-unlocked', isUnlocked());
+}
+function setUnlocked(): void {
+  try {
+    sessionStorage.setItem(UNLOCK_KEY, '1');
+  } catch {
+    /* private mode etc. — 메모리상 클래스만 토글되고 새로고침 시 다시 잠김 */
+  }
+  applyUnlockState();
 }
 
 function setStatus(id: string, msg: string, kind: 'ok' | 'err' | '' = ''): void {
@@ -134,7 +164,7 @@ function setSearchBtnBusy(busy: boolean): void {
   btn.textContent = busy ? t('survey.kvk.auth.searchingButton') : t('survey.kvk.auth.searchButton');
 }
 
-function fillPlayerCard(prefix: 'sk-player' | 'sk-form', player: PlayerInfo): void {
+function fillPlayerCard(prefix: 'sk-player' | 'sk-form' | 'sk-detail', player: PlayerInfo): void {
   const name = $(prefix + '-name');
   const idEl = $(prefix + '-id');
   const photo = $(prefix + '-photo') as HTMLImageElement;
@@ -181,6 +211,18 @@ async function onSearchId(): Promise<void> {
     }>({ action: 'lookup', kingshot_id: id });
     if (!json.ok || !json.player) {
       setStatus('sk-id-status', mapError(json.error), 'err');
+      return;
+    }
+    // TC 레벨 게이트 — 26 미만이면 blocked step 으로 이동, PIN/폼 진행 차단.
+    const cityLevel = json.player.city_level;
+    if (cityLevel === null || cityLevel < MIN_CITY_LEVEL) {
+      const currentEl = $('sk-blocked-current');
+      currentEl.textContent =
+        cityLevel === null
+          ? t('survey.kvk.blocked.currentLevelUnknown')
+          : t('survey.kvk.blocked.currentLevel', { n: cityLevel });
+      showAuthStep('blocked');
+      session = null;
       return;
     }
     // step 2 로
@@ -369,6 +411,8 @@ async function onSaveForm(): Promise<void> {
       return;
     }
     setStatus('sk-form-status', t('survey.kvk.form.saved'), 'ok');
+    // 저장 성공 → 잠금 해제. refreshList() 후 목록이 보임.
+    setUnlocked();
     await refreshList();
     setTimeout(() => exitFormMode(), 600);
   } catch (err) {
@@ -382,6 +426,8 @@ async function onSaveForm(): Promise<void> {
 // ===== 목록 =====
 
 async function refreshList(): Promise<void> {
+  // 잠금 상태에선 list API 호출 자체 차단 — 서버 부하 절감 + 잠금 placeholder 유지.
+  if (!isUnlocked()) return;
   const loadingEl = $('sk-loading');
   loadingEl.hidden = false;
   try {
@@ -403,30 +449,35 @@ function renderList(): void {
 
   patchText($('sk-list-count'), t('survey.kvk.list.count', { n: sorted.length }));
 
-  patchList<SurveyRow & { rank: number }>({
+  patchList<SurveyRow & { rank: number; total: number }>({
     container: tbody,
-    items: sorted.map((r, i) => ({ ...r, rank: i + 1 })),
+    items: sorted.map((r, i) => ({ ...r, rank: i + 1, total: rowTotal(r) })),
     key: (r) => r.kingshot_id,
     render: (r) => buildRow(r),
     update: (el, r) => updateRow(el, r),
   });
 
-  // sort 활성 표시 — 데스크탑 thead 의 .sk-sort-btn + 모바일 .sk-sort-chip 동시 동기화
-  document
-    .querySelectorAll<HTMLElement>('.sk-sort-btn, .sk-sort-chip')
-    .forEach((btn) => {
-      btn.dataset.active = btn.dataset.sort === sort.key ? 'true' : 'false';
-    });
+  // 정렬 활성 표시 — 상단 .sk-sort-chip (PC/모바일 공용)
+  document.querySelectorAll<HTMLElement>('.sk-sort-chip').forEach((btn) => {
+    btn.dataset.active = btn.dataset.sort === sort.key ? 'true' : 'false';
+  });
+}
+
+function rowTotal(r: SurveyRow): number {
+  return r.general + r.training + r.construction;
 }
 
 function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
   const out = rows.slice();
   out.sort((a, b) => {
-    let av: number | string;
-    let bv: number | string;
+    let av: number;
+    let bv: number;
     if (s.key === 'updated_at') {
       av = Date.parse(a.updated_at);
       bv = Date.parse(b.updated_at);
+    } else if (s.key === 'total') {
+      av = rowTotal(a);
+      bv = rowTotal(b);
     } else {
       av = a[s.key];
       bv = b[s.key];
@@ -436,10 +487,12 @@ function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
   return out;
 }
 
-function buildRow(r: SurveyRow & { rank: number }): HTMLElement {
+function buildRow(r: SurveyRow & { rank: number; total: number }): HTMLElement {
   const tr = document.createElement('tr');
   tr.className = 'sk-tr';
-  // 각 가속권 셀은 [라벨][값] 페어 — 데스크탑은 라벨 숨김, 모바일 카드 모드에선 라벨 노출
+  tr.dataset.id = r.kingshot_id;
+  // 각 가속권 셀은 [라벨][값] 페어 — 데스크탑은 라벨 숨김, 모바일 카드 모드에선 라벨 노출.
+  // sk-td-total 은 PC 전용 (모바일에선 CSS 로 display:none).
   tr.innerHTML = `
     <td class="sk-td sk-td-rank"></td>
     <td class="sk-td sk-td-player">
@@ -466,13 +519,14 @@ function buildRow(r: SurveyRow & { rank: number }): HTMLElement {
       <span class="sk-cell-label"></span>
       <span class="sk-cell-value"></span>
     </td>
+    <td class="sk-td sk-td-num sk-td-total"></td>
     <td class="sk-td sk-td-time sk-td-updated"></td>
   `;
   updateRow(tr, r);
   return tr;
 }
 
-function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number }): void {
+function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number; total: number }): void {
   patchText(tr.querySelector<HTMLElement>('.sk-td-rank'), String(r.rank));
   patchText(tr.querySelector<HTMLElement>('.sk-row-name'), r.nickname);
   patchText(tr.querySelector<HTMLElement>('.sk-row-id'), '#' + r.kingshot_id);
@@ -502,7 +556,8 @@ function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number }): void {
     tr.querySelector<HTMLElement>('.sk-td-construction .sk-cell-value'),
     formatDuration(r.construction),
   );
-  patchText(tr.querySelector<HTMLElement>('.sk-td-updated'), formatTime(r.updated_at));
+  patchText(tr.querySelector<HTMLElement>('.sk-td-total'), formatDuration(r.total));
+  patchText(tr.querySelector<HTMLElement>('.sk-td-updated'), formatRelativeTime(r.updated_at));
 
   const empty = tr.querySelector<HTMLElement>('.sk-row-photo-empty')!;
   const img = tr.querySelector<HTMLImageElement>('.sk-row-photo')!;
@@ -550,28 +605,6 @@ function formatDuration(minutes: number): string {
   return `${dStr}d ${h}h ${m}m`;
 }
 
-/**
- * 갱신 시간 표기 — 언어별 timezone.
- *   ko → KST (Asia/Seoul)
- *   en → UTC
- * DB 값(ISO timestamp)은 그대로 두고 표시만 변환. "YY-MM-DD (KST|UTC)" 형식.
- */
-function formatTime(iso: string): string {
-  const lang = getLang();
-  const tz = lang === 'ko' ? 'Asia/Seoul' : 'UTC';
-  const label = lang === 'ko' ? 'KST' : 'UTC';
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    year: '2-digit',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(iso));
-  const y = parts.find((p) => p.type === 'year')?.value ?? '';
-  const m = parts.find((p) => p.type === 'month')?.value ?? '';
-  const d = parts.find((p) => p.type === 'day')?.value ?? '';
-  return `${y}-${m}-${d} (${label})`;
-}
-
 // ===== 이미지 다이얼로그 =====
 
 function openImageDialog(): void {
@@ -581,6 +614,44 @@ function openImageDialog(): void {
 
 function closeImageDialog(): void {
   const dlg = $<HTMLDialogElement>('sk-image-dialog');
+  if (dlg.open) dlg.close();
+}
+
+// ===== 상세 다이얼로그 (읽기 전용) =====
+
+function openDetailDialog(row: SurveyRow): void {
+  const dlg = $<HTMLDialogElement>('sk-detail-dialog');
+  fillPlayerCard('sk-detail', {
+    kingshot_id: row.kingshot_id,
+    nickname: row.nickname,
+    avatar_url: row.avatar_url,
+    city_level: null, // 상세 다이얼로그는 city_level 미사용 — 타입 만족용
+  });
+  patchText($('sk-detail-updated'), formatRelativeTime(row.updated_at));
+
+  const total = rowTotal(row);
+  setBar('general', row.general, total);
+  setBar('training', row.training, total);
+  setBar('construction', row.construction, total);
+  patchText($('sk-detail-total'), formatDuration(total));
+
+  if (!dlg.open) dlg.showModal();
+}
+
+/** 각 가속권 row 의 값/막대/퍼센트 갱신. total=0 케이스(신규 등록 직전) 는 0% 로 표시. */
+function setBar(
+  slot: 'general' | 'training' | 'construction',
+  value: number,
+  total: number,
+): void {
+  patchText($(`sk-detail-${slot}`), formatDuration(value));
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  ($(`sk-detail-bar-${slot}`) as HTMLElement).style.width = pct + '%';
+  patchText($(`sk-detail-pct-${slot}`), pct + '%');
+}
+
+function closeDetailDialog(): void {
+  const dlg = $<HTMLDialogElement>('sk-detail-dialog');
   if (dlg.open) dlg.close();
 }
 
@@ -596,6 +667,8 @@ function mapError(code: string | null | undefined): string {
       return t('survey.kvk.auth.errors.notRegistered');
     case 'already_registered':
       return t('survey.kvk.auth.errors.alreadyRegistered');
+    case 'city_level_too_low':
+      return t('survey.kvk.auth.errors.cityLevelTooLow');
     case 'invalid_amount':
       return t('survey.kvk.form.errors.invalidAmount');
     default:
@@ -622,6 +695,9 @@ function init(): void {
     session = null;
   });
   $('sk-pin-confirm').addEventListener('click', onConfirmPin);
+
+  // 차단 step — 닫기 클릭 시 다이얼로그 종료 (목록은 여전히 잠긴 상태)
+  $('sk-blocked-close').addEventListener('click', closeAuthDialog);
 
   // PIN 박스 동기화 — input/focus/blur 모두 박스 갱신
   const pinInput = $<HTMLInputElement>('sk-pin-input');
@@ -656,19 +732,34 @@ function init(): void {
   // 다이얼로그 어디 클릭하든 닫힘 (이미지 자체 포함)
   $('sk-image-dialog').addEventListener('click', closeImageDialog);
 
-  // 목록
-  $('sk-list-refresh').addEventListener('click', refreshList);
+  // 목록 — 새로고침 버튼은 공용 헬퍼 사용 (.is-loading 토글 → SVG spin)
+  bindRefreshButton('sk-list-refresh', refreshList);
 
-  // 정렬 — 데스크탑 thead 의 sort-btn + 모바일 sort-chip 둘 다 같은 핸들러
-  document
-    .querySelectorAll<HTMLButtonElement>('.sk-sort-btn, .sk-sort-chip')
-    .forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.sort as SortKey | undefined;
-        if (!key) return;
-        onSortClick(key);
-      });
+  // 정렬 chip (PC + 모바일 공용)
+  document.querySelectorAll<HTMLButtonElement>('.sk-sort-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.sort as SortKey | undefined;
+      if (!key) return;
+      onSortClick(key);
     });
+  });
+
+  // 행 클릭 → 상세 다이얼로그 (이벤트 위임 — tbody 가 patchList 로 매번 갱신돼도 안전)
+  $('sk-tbody').addEventListener('click', (e) => {
+    const tr = (e.target as HTMLElement).closest<HTMLElement>('.sk-tr');
+    if (!tr) return;
+    const id = tr.dataset.id;
+    if (!id) return;
+    const row = rowsCache.find((r) => r.kingshot_id === id);
+    if (row) openDetailDialog(row);
+  });
+
+  // 상세 다이얼로그 닫기 — X 버튼 + backdrop 클릭
+  $('sk-detail-close').addEventListener('click', closeDetailDialog);
+  $('sk-detail-dialog').addEventListener('click', (e) => {
+    // dialog 본체(backdrop)는 dialog 자체가 target. 카드 내부는 stop.
+    if (e.target === e.currentTarget) closeDetailDialog();
+  });
 
   // 언어 변경 시 동적 텍스트 재렌더
   onLangChange(() => {
@@ -676,6 +767,8 @@ function init(): void {
     setSearchBtnBusy(false); // 버튼 라벨 갱신
   });
 
+  // boot 시점 sessionStorage 잠금 상태 적용. 잠금 해제돼있으면 목록 fetch, 아니면 placeholder.
+  applyUnlockState();
   refreshList();
 }
 

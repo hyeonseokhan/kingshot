@@ -14,6 +14,15 @@ import '@/styles/survey-kvk.css';
       </p>
     </section>
 
+    <!-- 상시 안내 — 자격(TC26+) / 열람 권한(제출 후) / 기존 등록자 복귀 방법 -->
+    <section class="sk-notice">
+      <ul>
+        <li data-i18n="survey.kvk.notice.line1">제출을 완료한 사용자만 현황을 열람할 수 있습니다.</li>
+        <li data-i18n-html="survey.kvk.notice.line2">등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.</li>
+        <li data-i18n="survey.kvk.notice.line3">이전 등록자가 목록에 보이지 않으면 [등록 / 수정] 을 다시 진행하면 정상 표시됩니다.</li>
+      </ul>
+    </section>
+
     <!-- (A) 시작 다이얼로그 — ID 입력 + 본인 확인 + PIN -->
     <dialog class="sk-dialog" id="sk-auth-dialog" aria-labelledby="sk-auth-title">
       <div class="sk-dialog-card">
@@ -51,6 +60,26 @@ import '@/styles/survey-kvk.css';
               >조회</button>
             </div>
             <div class="sk-status" id="sk-id-status" role="status" aria-live="polite"></div>
+          </div>
+
+          <!-- Step "blocked": TC 레벨 26 미만 — 등록 불가 안내 후 닫기 -->
+          <div class="sk-step sk-step-blocked" id="sk-step-blocked" hidden>
+            <div class="sk-blocked-icon">⛔</div>
+            <h4 class="sk-blocked-title" data-i18n="survey.kvk.blocked.title">
+              설문에 참여할 수 없는 대상입니다
+            </h4>
+            <p class="sk-blocked-body" data-i18n-html="survey.kvk.blocked.body">
+              TC 레벨 <strong>26 이상</strong> 사용자만 등록 가능합니다.
+            </p>
+            <p class="sk-blocked-current" id="sk-blocked-current">현재 레벨: TC -</p>
+            <div class="sk-dialog-actions">
+              <button
+                type="button"
+                class="sk-btn sk-btn-primary"
+                id="sk-blocked-close"
+                data-i18n="survey.kvk.blocked.closeButton"
+              >닫기</button>
+            </div>
           </div>
 
           <!-- Step 2: 본인 확인 -->
@@ -214,7 +243,7 @@ import '@/styles/survey-kvk.css';
       </div>
     </section>
 
-    <!-- (C) 목록 영역 (항상 표시) -->
+    <!-- (C) 목록 영역 — 인증 전엔 잠금 placeholder, 인증 후 .sk-page.is-unlocked 로 노출 -->
     <section class="sk-list-section">
       <header class="sk-list-head">
         <h3 data-i18n="survey.kvk.list.heading">제출 현황</h3>
@@ -254,8 +283,8 @@ import '@/styles/survey-kvk.css';
         </div>
       </header>
 
-      <!-- 모바일 전용 컨트롤 바 — 이모지 안내 + 정렬 뱃지. 데스크탑에선 hidden (thead 가 대체). -->
-      <div class="sk-mobile-controls">
+      <!-- 정렬 컨트롤 바 — PC/모바일 공용. 모바일에선 이모지 안내(legend) 도 함께 노출. -->
+      <div class="sk-controls">
         <div class="sk-legend">
           <span class="sk-legend-item"><span class="sk-legend-emoji">⭐</span>
             <span data-i18n="survey.kvk.list.thead.general">공용</span></span>
@@ -264,17 +293,29 @@ import '@/styles/survey-kvk.css';
           <span class="sk-legend-item"><span class="sk-legend-emoji">🔨</span>
             <span data-i18n="survey.kvk.list.thead.construction">건설</span></span>
         </div>
-        <div class="sk-mobile-sort">
-          <span class="sk-mobile-sort-label" data-i18n="survey.kvk.list.sortBy">정렬</span>
+        <div class="sk-sort-bar">
+          <span class="sk-sort-label" data-i18n="survey.kvk.list.sortBy">정렬</span>
           <button type="button" class="sk-sort-chip" data-sort="general"
             data-i18n="survey.kvk.list.thead.general">공용</button>
           <button type="button" class="sk-sort-chip" data-sort="training"
             data-i18n="survey.kvk.list.thead.training">병사</button>
           <button type="button" class="sk-sort-chip" data-sort="construction"
             data-i18n="survey.kvk.list.thead.construction">건설</button>
+          <button type="button" class="sk-sort-chip" data-sort="total"
+            data-i18n="survey.kvk.list.thead.total">합계</button>
           <button type="button" class="sk-sort-chip" data-sort="updated_at"
             data-i18n="survey.kvk.list.sortRegistered">등록순</button>
         </div>
+      </div>
+
+      <!-- 잠금 placeholder — .sk-page.is-unlocked 일 땐 CSS 로 숨김 -->
+      <div class="sk-locked-card" id="sk-locked-card">
+        <div class="sk-locked-title" data-i18n="survey.kvk.locked.title">
+          🔒 현황 열람이 잠겨있습니다
+        </div>
+        <p class="sk-locked-body" data-i18n="survey.kvk.locked.body">
+          [등록 / 수정] 을 완료하면 다른 참가자들의 제출 현황을 볼 수 있어요.
+        </p>
       </div>
 
       <div class="sk-table-wrap">
@@ -283,26 +324,11 @@ import '@/styles/survey-kvk.css';
             <tr>
               <th class="sk-th sk-th-rank" data-i18n="survey.kvk.list.thead.rank">#</th>
               <th class="sk-th sk-th-player" data-i18n="survey.kvk.list.thead.player">참가자</th>
-              <th class="sk-th sk-th-num" data-sort-key="general">
-                <button type="button" class="sk-sort-btn" data-sort="general">
-                  <span data-i18n="survey.kvk.list.thead.general">공용</span>
-                </button>
-              </th>
-              <th class="sk-th sk-th-num" data-sort-key="training">
-                <button type="button" class="sk-sort-btn" data-sort="training">
-                  <span data-i18n="survey.kvk.list.thead.training">병사</span>
-                </button>
-              </th>
-              <th class="sk-th sk-th-num" data-sort-key="construction">
-                <button type="button" class="sk-sort-btn" data-sort="construction">
-                  <span data-i18n="survey.kvk.list.thead.construction">건설</span>
-                </button>
-              </th>
-              <th class="sk-th sk-th-time" data-sort-key="updated_at">
-                <button type="button" class="sk-sort-btn" data-sort="updated_at">
-                  <span data-i18n="survey.kvk.list.thead.updated">최근 갱신</span>
-                </button>
-              </th>
+              <th class="sk-th sk-th-num" data-i18n="survey.kvk.list.thead.general">공용</th>
+              <th class="sk-th sk-th-num" data-i18n="survey.kvk.list.thead.training">병사</th>
+              <th class="sk-th sk-th-num" data-i18n="survey.kvk.list.thead.construction">건설</th>
+              <th class="sk-th sk-th-num sk-th-total" data-i18n="survey.kvk.list.thead.total">합계</th>
+              <th class="sk-th sk-th-time" data-i18n="survey.kvk.list.thead.updated">등록시간</th>
             </tr>
           </thead>
           <tbody id="sk-tbody"></tbody>
@@ -314,7 +340,78 @@ import '@/styles/survey-kvk.css';
       </div>
     </section>
 
-    <!-- (D) 도움말 이미지 lightbox — 아무 곳이나 클릭하면 닫힘 -->
+    <!-- (D-1) 행 클릭 시 상세 다이얼로그 (읽기 전용) -->
+    <dialog class="sk-dialog" id="sk-detail-dialog" aria-labelledby="sk-detail-title">
+      <div class="sk-dialog-card">
+        <header class="sk-dialog-head">
+          <strong id="sk-detail-title" data-i18n="survey.kvk.detail.title">상세 정보</strong>
+          <button
+            type="button"
+            class="sk-dialog-close"
+            id="sk-detail-close"
+            aria-label="Close"
+          >&times;</button>
+        </header>
+        <div class="sk-dialog-body">
+          <div class="sk-player-card" id="sk-detail-player">
+            <div class="sk-player-photo-wrap">
+              <div class="sk-player-photo-empty" id="sk-detail-photo-empty">?</div>
+              <img class="sk-player-photo" id="sk-detail-photo" src="" alt="" hidden />
+            </div>
+            <div class="sk-player-meta">
+              <div class="sk-player-name" id="sk-detail-name">-</div>
+              <div class="sk-player-id" id="sk-detail-id">-</div>
+            </div>
+            <div class="sk-detail-time" id="sk-detail-updated">-</div>
+          </div>
+
+          <div class="sk-detail-bars">
+            <div class="sk-detail-bar">
+              <div class="sk-detail-bar-head">
+                <span class="sk-detail-bar-label"><span class="sk-detail-emoji">⭐</span>
+                  <span data-i18n="survey.kvk.form.general">공용 가속권</span></span>
+                <span class="sk-detail-bar-value" id="sk-detail-general">-</span>
+              </div>
+              <div class="sk-detail-bar-track">
+                <div class="sk-detail-bar-fill" id="sk-detail-bar-general"></div>
+              </div>
+              <div class="sk-detail-bar-pct" id="sk-detail-pct-general">-</div>
+            </div>
+            <div class="sk-detail-bar">
+              <div class="sk-detail-bar-head">
+                <span class="sk-detail-bar-label"><span class="sk-detail-emoji">🛡️</span>
+                  <span data-i18n="survey.kvk.form.training">병사 훈련 가속권</span></span>
+                <span class="sk-detail-bar-value" id="sk-detail-training">-</span>
+              </div>
+              <div class="sk-detail-bar-track">
+                <div class="sk-detail-bar-fill" id="sk-detail-bar-training"></div>
+              </div>
+              <div class="sk-detail-bar-pct" id="sk-detail-pct-training">-</div>
+            </div>
+            <div class="sk-detail-bar">
+              <div class="sk-detail-bar-head">
+                <span class="sk-detail-bar-label"><span class="sk-detail-emoji">🔨</span>
+                  <span data-i18n="survey.kvk.form.construction">건설 가속권</span></span>
+                <span class="sk-detail-bar-value" id="sk-detail-construction">-</span>
+              </div>
+              <div class="sk-detail-bar-track">
+                <div class="sk-detail-bar-fill" id="sk-detail-bar-construction"></div>
+              </div>
+              <div class="sk-detail-bar-pct" id="sk-detail-pct-construction">-</div>
+            </div>
+          </div>
+
+          <hr class="sk-detail-divider" />
+
+          <div class="sk-detail-total">
+            <span class="sk-detail-total-label" data-i18n="survey.kvk.list.thead.total">합계</span>
+            <span class="sk-detail-total-value" id="sk-detail-total">-</span>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- (D-2) 도움말 이미지 lightbox — 아무 곳이나 클릭하면 닫힘 -->
     <dialog class="sk-image-dialog" id="sk-image-dialog" aria-label="가속권 현황 화면 예시">
       <img
         class="sk-image-dialog-img"

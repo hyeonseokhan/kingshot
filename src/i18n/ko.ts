@@ -650,6 +650,22 @@ export const ko = {
     kvk: {
       heading: 'KVK 가속권 현황 조사',
       intro: 'KVK 이벤트를 앞두고 가속권 보유 현황을 공유해 주세요.',
+      notice: {
+        line1: '제출을 완료한 사용자만 현황을 열람할 수 있습니다.',
+        line2: '등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.',
+        line3: '이전 등록자가 목록에 보이지 않으면 [등록 / 수정] 을 다시 진행하면 정상 표시됩니다.',
+      },
+      locked: {
+        title: '🔒 현황 열람이 잠겨있습니다',
+        body: '[등록 / 수정] 을 완료하면 다른 참가자들의 제출 현황을 볼 수 있어요.',
+      },
+      blocked: {
+        title: '설문에 참여할 수 없는 대상입니다',
+        body: 'TC 레벨 <strong>26 이상</strong> 사용자만 등록 가능합니다.',
+        currentLevel: '현재 레벨: TC {n}',
+        currentLevelUnknown: '현재 레벨을 확인할 수 없습니다',
+        closeButton: '닫기',
+      },
       auth: {
         title: '시작하기',
         idLabel: '킹샷 ID',
@@ -667,6 +683,7 @@ export const ko = {
           playerNotFound: '해당 ID 의 플레이어를 찾을 수 없습니다',
           notRegistered: '아직 등록되지 않은 ID 입니다',
           alreadyRegistered: '이미 등록된 ID 입니다',
+          cityLevelTooLow: 'TC 레벨 26 이상만 등록 가능합니다',
         },
       },
       form: {
@@ -710,7 +727,6 @@ export const ko = {
       },
       detail: {
         title: '제출 정보',
-        updatedLabel: '등록 시간',
       },
       errors: {
         generic: '문제가 발생했습니다',

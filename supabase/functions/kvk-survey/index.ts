@@ -132,7 +132,11 @@ interface PlayerInfo {
   fid: string;
   nickname: string;
   avatar_image: string | null;
+  city_level: number | null;
 }
+
+/** TC(센터) 레벨 게이트 — 이 값 이상만 설문 참여 가능. */
+const MIN_CITY_LEVEL = 26;
 
 async function md5(str: string): Promise<string> {
   const data = new TextEncoder().encode(str);
@@ -170,10 +174,19 @@ async function fetchPlayerInfo(kingshotId: string): Promise<PlayerInfo | null> {
     if (!res.ok) return null;
     const json = await res.json();
     if (json.code !== 0 || !json.data) return null;
+    // stove_lv 가 메인 필드. 일부 응답에서 stove_lv_content 만 채워질 수 있어 fallback
+    // (members.ts 와 동일 패턴).
+    const cityLevel =
+      typeof json.data.stove_lv === "number"
+        ? json.data.stove_lv
+        : typeof json.data.stove_lv_content === "number"
+        ? json.data.stove_lv_content
+        : null;
     return {
       fid: String(json.data.fid),
       nickname: json.data.nickname,
       avatar_image: json.data.avatar_image ?? null,
+      city_level: cityLevel,
     };
   } catch {
     return null;
@@ -187,12 +200,24 @@ async function lookup(kingshotId: string) {
   const existing = await dbSelectOne(
     `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=kingshot_id`
   );
+  // 기존 등록자라면 lookup 시점에 nickname/avatar/city_level 즉시 sync —
+  // 사용자가 PIN/저장 단계까지 안 가도 (또는 city_level 미달로 차단돼도) 메타가 최신화돼
+  // list 필터(city_level >= 26) 가 정확히 반영됨. updated_at 은 손대지 않음
+  // (가속권 데이터 갱신 시점만 의미 있는 값이라 메타 sync 로 흔들지 않음).
+  if (existing) {
+    await dbPatch(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}`, {
+      nickname: player.nickname,
+      avatar_url: player.avatar_image,
+      city_level: player.city_level,
+    });
+  }
   return {
     ok: true,
     player: {
       kingshot_id: player.fid,
       nickname: player.nickname,
       avatar_url: player.avatar_image,
+      city_level: player.city_level,
     },
     registered: !!existing,
   };
@@ -217,12 +242,18 @@ async function register(
   if (existing) return { ok: false, error: "already_registered" };
   const player = await fetchPlayerInfo(kingshotId);
   if (!player) return { ok: false, error: "player_not_found" };
+  // 서버측 게이트 — 클라이언트 우회 차단. lookup 통과 후 register 까지 시간 차에
+  // 강등됐을 가능성도 막음 (정상 시나리오는 변화 없음).
+  if (player.city_level === null || player.city_level < MIN_CITY_LEVEL) {
+    return { ok: false, error: "city_level_too_low", city_level: player.city_level };
+  }
   const salt = randomSaltHex();
   const hash = await sha256Hex((pin as string) + salt);
   await dbInsert("kvk_speedup_survey", {
     kingshot_id: kingshotId,
     nickname: player.nickname,
     avatar_url: player.avatar_image,
+    city_level: player.city_level,
     pin_hash: hash,
     pin_salt: salt,
     training: training as number,
@@ -276,9 +307,17 @@ async function updateRow(
   if (!row) return { ok: false, error: "not_registered" };
   const computed = await sha256Hex((pin as string) + row.pin_salt);
   if (computed !== row.pin_hash) return { ok: false, error: "invalid_pin" };
-  // 닉네임/아바타도 동기 — 게임 내 변경 시 자동 반영
+  // 닉네임/아바타/city_level 모두 동기 — 게임 내 변경 시 자동 반영
   const player = await fetchPlayerInfo(kingshotId);
+  if (!player) return { ok: false, error: "player_not_found" };
+  // 서버측 게이트 — 강등된 사용자가 update 로 데이터 갱신하는 것 차단.
+  if (player.city_level === null || player.city_level < MIN_CITY_LEVEL) {
+    return { ok: false, error: "city_level_too_low", city_level: player.city_level };
+  }
   const patch: Record<string, unknown> = {
+    nickname: player.nickname,
+    avatar_url: player.avatar_image,
+    city_level: player.city_level,
     training: training as number,
     construction: construction as number,
     general: general as number,
@@ -287,10 +326,6 @@ async function updateRow(
     platform: meta.platform,
     updated_at: new Date().toISOString(),
   };
-  if (player) {
-    patch.nickname = player.nickname;
-    patch.avatar_url = player.avatar_image;
-  }
   await dbPatch(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}`, patch);
   return { ok: true };
 }
@@ -309,8 +344,10 @@ async function deleteRow(kingshotId: string, pin: unknown) {
 }
 
 async function list() {
+  // city_level >= 26 인 row 만 노출. NULL (기존 등록자) 도 자동 제외 — gte 가 NULL 매치 안 함.
+  // 사용자는 [등록/수정] 재진행으로 city_level 채워지면 다시 표시됨.
   const rows = await dbSelect(
-    `kvk_speedup_survey?select=kingshot_id,nickname,avatar_url,training,construction,general,updated_at&order=updated_at.desc`
+    `kvk_speedup_survey?select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,updated_at&city_level=gte.${MIN_CITY_LEVEL}&order=updated_at.desc`
   );
   return { ok: true, items: rows };
 }

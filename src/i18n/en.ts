@@ -654,6 +654,22 @@ export const en: Translations = {
     kvk: {
       heading: 'KVK Speed-up Inventory Survey',
       intro: 'Share your current speed-up inventory ahead of the KVK event.',
+      notice: {
+        line1: 'Only users who have submitted can view the current standings.',
+        line2: 'Registration requires <strong>City Hall level 26 or higher</strong>.',
+        line3: 'If a previously registered user is missing from the list, please run [Add / Edit] again.',
+      },
+      locked: {
+        title: '🔒 Submissions list is locked',
+        body: 'Complete [Add / Edit] to see other participants\' current standings.',
+      },
+      blocked: {
+        title: 'You are not eligible to participate',
+        body: 'Only users with <strong>City Hall level 26 or higher</strong> can register.',
+        currentLevel: 'Your level: TC {n}',
+        currentLevelUnknown: 'Your current level could not be verified',
+        closeButton: 'Close',
+      },
       auth: {
         title: 'Get started',
         idLabel: 'Kingshot ID',
@@ -671,6 +687,7 @@ export const en: Translations = {
           playerNotFound: 'No player was found for this ID',
           notRegistered: 'This ID has not been registered yet',
           alreadyRegistered: 'This ID is already registered',
+          cityLevelTooLow: 'Only TC level 26 or higher can register',
         },
       },
       form: {
@@ -714,7 +731,6 @@ export const en: Translations = {
       },
       detail: {
         title: 'Submission Details',
-        updatedLabel: 'Updated',
       },
       errors: {
         generic: 'Something went wrong',
