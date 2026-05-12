@@ -1,0 +1,30 @@
+# Supabase CLI 프로젝트 설정.
+#
+# 주 목적: Edge Function 별 verify_jwt 옵션 명시.
+# 본 파일이 없으면 `supabase functions deploy <name>` 가 기본 verify_jwt=true 로
+# 배포하기 때문에, 클라이언트가 anon key 없이 호출하는 공개 함수가 401 로 망가짐.
+# (2026-05-12 배포 시 같은 사고 1회 발생 — 그래서 이 파일 신설.)
+#
+# project_id 는 로컬 Docker 컨테이너 명명용 — production project ref 와 무관.
+
+project_id = "kingshot"
+
+# ============================================================
+# Edge Functions — verify_jwt 정책
+# ============================================================
+# 새 함수 추가 시 정책:
+#   - 클라이언트가 anon key 를 항상 보냄  → 등록 불필요 (default verify_jwt = true)
+#   - 클라이언트가 anon key 없이 호출      → verify_jwt = false 로 등록 필요
+#
+# 현재 anon key 없이 호출되는 함수:
+#   - gift-codes     (외부 kingshot.net 쿠폰 list proxy + 차단 코드 필터)
+#   - redeem-coupon  (centurygame /gift_code 호출 — player/captcha/redeem/redeem_batch)
+#
+# 인증 보내는 함수 (등록 불필요):
+#   - kvk-survey, economy, equipment, pvp, tile-match-auth, player-info
+
+[functions.gift-codes]
+verify_jwt = false
+
+[functions.redeem-coupon]
+verify_jwt = false
