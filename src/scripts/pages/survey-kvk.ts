@@ -58,6 +58,9 @@ interface FormSession {
 let session: FormSession | null = null;
 let rowsCache: SurveyRow[] = [];
 let sort: { key: SortKey; dir: 'asc' | 'desc' } = { key: 'general', dir: 'desc' };
+/** 차단 step 의 "현재 레벨" 동적 텍스트 상태 — 언어 토글 시 재렌더용.
+ *  undefined: 차단 dialog 표시한 적 없음. number: 알려진 레벨. null: API 응답 누락. */
+let blockedDialogLevel: number | null | undefined = undefined;
 
 // ===== DOM =====
 
@@ -130,6 +133,17 @@ function showAuthStep(step: 'id' | 'confirm' | 'blocked'): void {
   ($('sk-step-id') as HTMLElement).hidden = step !== 'id';
   ($('sk-step-confirm') as HTMLElement).hidden = step !== 'confirm';
   ($('sk-step-blocked') as HTMLElement).hidden = step !== 'blocked';
+}
+
+/** 차단 step 의 "현재 레벨" 텍스트 — 언어 토글 시 호출 가능하도록 분리.
+ *  data-i18n 마커를 못 쓰는 이유: t() 호출 결과에 {n} 치환이 필요. */
+function renderBlockedCurrent(): void {
+  if (blockedDialogLevel === undefined) return; // 차단 dialog 표시한 적 없음 → noop
+  const el = $('sk-blocked-current');
+  el.textContent =
+    blockedDialogLevel === null
+      ? t('survey.kvk.blocked.currentLevelUnknown')
+      : t('survey.kvk.blocked.currentLevel', { n: blockedDialogLevel });
 }
 
 /** 열람 잠금/해제 — sessionStorage 상태 + DOM 클래스 동기. unlock 직후 목록 자동 fetch. */
@@ -216,11 +230,8 @@ async function onSearchId(): Promise<void> {
     // TC 레벨 게이트 — 26 미만이면 blocked step 으로 이동, PIN/폼 진행 차단.
     const cityLevel = json.player.city_level;
     if (cityLevel === null || cityLevel < MIN_CITY_LEVEL) {
-      const currentEl = $('sk-blocked-current');
-      currentEl.textContent =
-        cityLevel === null
-          ? t('survey.kvk.blocked.currentLevelUnknown')
-          : t('survey.kvk.blocked.currentLevel', { n: cityLevel });
+      blockedDialogLevel = cityLevel;
+      renderBlockedCurrent();
       showAuthStep('blocked');
       session = null;
       return;
@@ -761,10 +772,11 @@ function init(): void {
     if (e.target === e.currentTarget) closeDetailDialog();
   });
 
-  // 언어 변경 시 동적 텍스트 재렌더
+  // 언어 변경 시 동적 텍스트 재렌더 — data-i18n 으로 못 잡는 JS 가 textContent 박은 값들
   onLangChange(() => {
     renderList();
     setSearchBtnBusy(false); // 버튼 라벨 갱신
+    renderBlockedCurrent(); // "현재 레벨: TC N" 동적 텍스트 (있을 때만)
   });
 
   // boot 시점 sessionStorage 잠금 상태 적용. 잠금 해제돼있으면 목록 fetch, 아니면 placeholder.
