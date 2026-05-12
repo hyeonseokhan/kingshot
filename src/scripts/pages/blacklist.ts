@@ -170,10 +170,21 @@ function createRow(e: BlacklistEntry): HTMLTableRowElement {
     <td class="bl-td-id"></td>
     <td class="bl-td-note"></td>
     <td class="bl-td-image">
-      <button class="bl-img-icon" data-action="image" type="button" title="" aria-label="">🖼️</button>
+      <button class="bl-icon-btn" data-action="image" type="button" title="" aria-label="">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+      </button>
     </td>
     <td class="bl-td-actions">
-      <button class="bl-action-edit" data-action="edit" type="button">✏️</button>
+      <button class="bl-icon-btn" data-action="edit" type="button" title="" aria-label="">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+        </svg>
+      </button>
     </td>
   `;
   // patchList 의 render 콜백은 신규 element 생성에만 호출되고 update 는 안 호출됨.
@@ -208,18 +219,19 @@ function updateRow(row: HTMLTableRowElement, e: BlacklistEntry): void {
   patchText(row.querySelector<HTMLElement>('.bl-td-id'), e.kingshot_id);
   patchText(row.querySelector<HTMLElement>('.bl-td-note'), e.note || '-');
 
-  const imgBtn = row.querySelector<HTMLButtonElement>('.bl-img-icon')!;
+  const imgBtn = row.querySelector<HTMLButtonElement>('[data-action="image"]')!;
   if (e.image_path) {
     imgBtn.disabled = false;
-    imgBtn.classList.remove('bl-img-disabled');
     imgBtn.title = t('blacklist.badge.hasImage');
     imgBtn.setAttribute('aria-label', t('blacklist.badge.hasImage'));
   } else {
     imgBtn.disabled = true;
-    imgBtn.classList.add('bl-img-disabled');
     imgBtn.title = t('blacklist.badge.noImage');
     imgBtn.setAttribute('aria-label', t('blacklist.badge.noImage'));
   }
+  const editBtn = row.querySelector<HTMLButtonElement>('[data-action="edit"]')!;
+  editBtn.title = t('blacklist.modal.editTitle');
+  editBtn.setAttribute('aria-label', t('blacklist.modal.editTitle'));
 }
 
 // ===== 행 클릭 (이벤트 위임) =====

@@ -99,23 +99,32 @@
   font-size: 14px;
 }
 
-/* 이미지 / 액션 버튼 */
-.bl-img-icon, .bl-action-edit {
-  border: none;
+/* 이미지 / 액션 아이콘 버튼 — 다른 페이지의 SVG 아이콘 버튼과 같은 톤 */
+.bl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
   background: transparent;
+  border-radius: 6px;
+  color: var(--muted);
   cursor: pointer;
-  font-size: 18px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background 0.12s;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.bl-img-icon:hover:not(:disabled),
-.bl-action-edit:hover {
+.bl-icon-btn:hover:not(:disabled) {
   background: var(--bg2);
+  color: var(--text);
+  border-color: var(--border);
 }
-.bl-img-icon.bl-img-disabled {
-  opacity: 0.3;
+.bl-icon-btn:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
+}
+.bl-icon-btn svg {
+  display: block;
 }
 
 .bl-empty {
