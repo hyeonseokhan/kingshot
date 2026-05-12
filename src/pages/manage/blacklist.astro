@@ -41,16 +41,24 @@ const navItems = manage.submenus!.map((s) => ({
       </p>
     </div>
 
-    <!-- 검색 + 카운트 툴바 -->
-    <div class="bl-toolbar">
-      <input
-        type="search"
-        id="bl-search"
-        class="bl-search-input"
-        data-i18n-attr-placeholder="blacklist.toolbar.searchPlaceholder"
-        placeholder="닉네임 또는 ID 검색..."
-      />
-      <span class="bl-count" id="bl-count"></span>
+    <!-- 카운트 + 검색 + 갱신 툴바 (쿠폰 받기 페이지 패턴 일치) -->
+    <div class="members-toolbar">
+      <div class="member-count" id="bl-count"></div>
+      <div class="members-toolbar-right">
+        <input
+          type="text"
+          id="bl-search"
+          class="coupon-search-input"
+          placeholder="닉네임 또는 ID 검색..."
+          data-i18n-attr-placeholder="blacklist.toolbar.searchPlaceholder"
+        />
+        <button
+          class="btn btn-secondary btn-sm"
+          id="bl-refresh-btn"
+          type="button"
+          data-i18n="blacklist.toolbar.refresh"
+        >🔄 갱신</button>
+      </div>
     </div>
 
     <!-- 목록 -->

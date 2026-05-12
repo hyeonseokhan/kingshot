@@ -84,6 +84,7 @@ export function initBlacklist(): void {
     searchTerm = (e.target as HTMLInputElement).value.trim().toLowerCase();
     renderList();
   });
+  $('bl-refresh-btn')?.addEventListener('click', () => loadEntries({ showLoading: true }));
 
   // 이미지 보기 다이얼로그
   $('bl-image-dialog-close')?.addEventListener('click', () => {
@@ -99,7 +100,9 @@ export function initBlacklist(): void {
 
 // ===== 데이터 로드 =====
 
-function loadEntries(): void {
+function loadEntries(opts: { showLoading?: boolean } = {}): void {
+  const refreshBtn = $<HTMLButtonElement>('bl-refresh-btn');
+  if (opts.showLoading && refreshBtn) refreshBtn.disabled = true;
   fetch(REST_BASE + '/blacklist?select=*&order=created_at.desc', {
     headers: restHeaders,
   })
@@ -111,6 +114,9 @@ function loadEntries(): void {
     .catch(() => {
       entries = [];
       renderList();
+    })
+    .finally(() => {
+      if (refreshBtn) refreshBtn.disabled = false;
     });
 }
 

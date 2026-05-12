@@ -326,6 +326,7 @@ export const en: Translations = {
     },
     toolbar: {
       searchPlaceholder: 'Search by nickname or ID...',
+      refresh: '🔄 Refresh',
     },
     count: 'Total {n} entries',
     countSearch: 'Found {found} / Total {total}',

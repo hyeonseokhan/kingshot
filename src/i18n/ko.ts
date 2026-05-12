@@ -322,6 +322,7 @@ export const ko = {
     },
     toolbar: {
       searchPlaceholder: '닉네임 또는 ID 검색...',
+      refresh: '🔄 갱신',
     },
     count: '전체 {n}명',
     countSearch: '검색 {found} / 전체 {total}명',

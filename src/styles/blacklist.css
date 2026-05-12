@@ -1,28 +1,6 @@
-/* 블랙리스트 페이지 전용 스타일 */
-
-/* 툴바 */
-.bl-toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-.bl-search-input {
-  flex: 1 1 240px;
-  min-width: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 16px;       /* iOS 줌 방지 */
-  background: var(--bg);
-  color: var(--text);
-}
-.bl-count {
-  color: var(--muted);
-  font-size: 13px;
-  white-space: nowrap;
-}
+/* 블랙리스트 페이지 전용 스타일.
+   툴바는 .members-toolbar / .member-count / .members-toolbar-right /
+   .coupon-search-input 공통 클래스 사용 (manage.css). 자체 toolbar 클래스 제거. */
 
 /* 테이블 */
 .bl-list-wrap {
