@@ -14,6 +14,9 @@
  * pin: 정확히 4자리 숫자. SHA-256(pin + 16바이트 hex salt) 로 저장.
  * nickname/avatar 는 lookup 시점에 게임 공식 API 로 직접 조회 → 위변조 차단.
  */
+import { crypto as stdCrypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { encode as hexEncode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -23,13 +26,12 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-// 공식 redemption 사이트의 player 조회 API — kingshot 의 모든 player 조회 가능.
-// redeem-coupon Edge Function 이 같은 endpoint 를 proxy 하지만, 본 함수는 서버 측에서
-// 직접 호출해야 정합성 검증 (클라이언트 위조 차단) 가능. URL/secret 은 redeem-coupon
-// 과 동일한 환경 변수를 공유한다.
-const REDEEM_API_URL = Deno.env.get("KS_REDEEM_API_URL")
-  ?? "https://kingshot-giftcode.centurygame.com/api/player";
-const REDEEM_SALT = Deno.env.get("KS_REDEEM_SALT") ?? "";
+// 게임 공식 player 조회 API — centurygame 의 endpoint. redeem-coupon 과 동일 SECRET/sign 패턴.
+// 이전 구현은 redeem-coupon Edge Function 을 proxy 호출했으나, internal Edge Function 간
+// fetch 가 silent fail 하는 케이스 발생 (270680423 lookup 이 player_not_found 반환) →
+// 직접 호출로 전환해 의존성 제거. SECRET 은 redeem-coupon 과 동일 (동일 endpoint).
+const KS_API_BASE = "https://kingshot-giftcode.centurygame.com/api";
+const KS_API_SECRET = "mN4!pQs6JrYwV9";
 
 const dbHeaders: Record<string, string> = {
   apikey: SERVICE_KEY,
@@ -132,25 +134,38 @@ interface PlayerInfo {
   avatar_image: string | null;
 }
 
+async function md5(str: string): Promise<string> {
+  const data = new TextEncoder().encode(str);
+  const hash = await stdCrypto.subtle.digest("MD5", data);
+  return new TextDecoder().decode(hexEncode(new Uint8Array(hash)));
+}
+
+async function makeSign(params: Record<string, string | number>): Promise<string> {
+  const sorted = Object.keys(params)
+    .filter((k) => k !== "sign")
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join("&");
+  return await md5(sorted + KS_API_SECRET);
+}
+
 /**
- * 게임 공식 사이트의 player 조회.
- * redeem-coupon Edge Function 과 동일한 sign 패턴 사용.
- * sign = md5(query-string + SALT) — 단, redeem-coupon 이 이미 동일 패턴을 구현 중이라
- * 운영 단순화를 위해 우리는 그냥 redeem-coupon 을 호출하는 wrapper 로 가도 무방.
+ * 게임 공식 player 조회 — centurygame /api/player 직접 호출.
+ * 이전 구현은 redeem-coupon Edge Function 을 proxy 했으나 internal call 이 fail 하는
+ * 케이스가 있어 직접 호출로 단순화. sign 패턴은 redeem-coupon 과 동일.
  */
 async function fetchPlayerInfo(kingshotId: string): Promise<PlayerInfo | null> {
-  // 같은 Supabase 프로젝트의 redeem-coupon Edge Function 호출.
-  // anon key 로 호출 가능 (이미 검증된 경로).
-  const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/redeem-coupon`, {
+    const params = { fid: kingshotId, time: Date.now() };
+    const sign = await makeSign(params);
+    const body = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) body.set(k, String(v));
+    body.set("sign", sign);
+
+    const res = await fetch(`${KS_API_BASE}/player`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: ANON_KEY,
-        Authorization: `Bearer ${ANON_KEY}`,
-      },
-      body: JSON.stringify({ action: "player", fid: kingshotId }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
     });
     if (!res.ok) return null;
     const json = await res.json();
