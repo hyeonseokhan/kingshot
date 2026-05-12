@@ -341,6 +341,8 @@ export const ko = {
       idPlaceholder: '킹샷 아이디 입력',
       searchButton: '조회',
       searchingButton: '조회 중...',
+      copyId: '복사',
+      copyIdDone: '복사됨',
       kingdomLabel: '서버:',
       noteLabel: '메모',
       notePlaceholder: '사유 / 요약 (최대 20자)',

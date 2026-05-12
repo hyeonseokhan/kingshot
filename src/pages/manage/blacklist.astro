@@ -57,7 +57,7 @@ const navItems = manage.submenus!.map((s) => ({
       </div>
     </div>
 
-    <!-- 목록 -->
+    <!-- 목록 — 행 어디든 클릭하면 상세 다이얼로그. 이미지 버튼만 별도 동작 -->
     <div class="bl-list-wrap">
       <table class="bl-table">
         <thead>
@@ -68,7 +68,6 @@ const navItems = manage.submenus!.map((s) => ({
             <th class="bl-th-id" data-i18n="blacklist.thead.kingshotId">킹샷 ID</th>
             <th class="bl-th-note" data-i18n="blacklist.thead.note">메모</th>
             <th class="bl-th-image" data-i18n="blacklist.thead.image">이미지</th>
-            <th class="bl-th-actions" data-i18n="blacklist.thead.actions">관리</th>
           </tr>
         </thead>
         <tbody id="bl-tbody"></tbody>
@@ -94,6 +93,7 @@ const navItems = manage.submenus!.map((s) => ({
               inputmode="numeric"
             />
             <button class="btn btn-secondary" id="bl-search-btn" type="button" data-i18n="blacklist.modal.searchButton">조회</button>
+            <button class="btn btn-secondary" id="bl-copy-id-btn" type="button" data-i18n="blacklist.modal.copyId">복사</button>
           </div>
 
           <!-- 조회 결과 미리보기 — player-card 공통 패턴 사용 -->

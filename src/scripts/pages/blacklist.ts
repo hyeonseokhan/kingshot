@@ -78,6 +78,7 @@ export function initBlacklist(): void {
   $<HTMLInputElement>('bl-input-id')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') searchPlayer();
   });
+  $('bl-copy-id-btn')?.addEventListener('click', copyKingshotId);
   $<HTMLInputElement>('bl-input-image')?.addEventListener('change', onImageSelected);
   $('bl-image-remove')?.addEventListener('click', clearPendingImage);
 
@@ -185,14 +186,6 @@ function createRow(e: BlacklistEntry): HTMLTableRowElement {
         </svg>
       </button>
     </td>
-    <td class="bl-td-actions">
-      <button class="bl-icon-btn" data-action="edit" type="button" title="" aria-label="">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
-        </svg>
-      </button>
-    </td>
   `;
   // patchList 의 render 콜백은 신규 element 생성에만 호출되고 update 는 안 호출됨.
   // 첫 렌더 시 셀 데이터가 비어있는 문제 차단을 위해 createRow 안에서 updateRow 직접 호출
@@ -236,29 +229,25 @@ function updateRow(row: HTMLTableRowElement, e: BlacklistEntry): void {
     imgBtn.title = t('blacklist.badge.noImage');
     imgBtn.setAttribute('aria-label', t('blacklist.badge.noImage'));
   }
-  const editBtn = row.querySelector<HTMLButtonElement>('[data-action="edit"]')!;
-  editBtn.title = t('blacklist.modal.editTitle');
-  editBtn.setAttribute('aria-label', t('blacklist.modal.editTitle'));
 }
 
 // ===== 행 클릭 (이벤트 위임) =====
 
 function onRowClick(ev: Event): void {
   const target = ev.target as HTMLElement;
-  const btn = target.closest<HTMLElement>('[data-action]');
-  if (!btn) return;
-  const row = btn.closest<HTMLTableRowElement>('.bl-row');
+  const row = target.closest<HTMLTableRowElement>('.bl-row');
   if (!row) return;
-  const id = row.dataset.id!;
-  const action = btn.dataset.action;
+  const entry = entries.find((e) => e.id === row.dataset.id);
+  if (!entry) return;
 
-  if (action === 'image') {
-    const entry = entries.find((e) => e.id === id);
-    if (entry?.image_path) showImageDialog(entry.image_path);
-  } else if (action === 'edit') {
-    const entry = entries.find((e) => e.id === id);
-    if (entry) openEditModal(entry);
+  // 이미지 버튼 클릭 — image_path 있을 때만 lightbox, 없으면 fall through 해서 상세 다이얼로그
+  const imgBtn = target.closest<HTMLElement>('[data-action="image"]');
+  if (imgBtn && entry.image_path) {
+    showImageDialog(entry.image_path);
+    return;
   }
+  // 행 어디든 클릭 → 상세 다이얼로그 (구 ✏️ 버튼 대체)
+  openEditModal(entry);
 }
 
 function showImageDialog(path: string): void {
@@ -323,6 +312,40 @@ function resetModal(): void {
   $<HTMLInputElement>('bl-input-image')!.value = '';
   ($('bl-preview') as HTMLElement).style.display = 'none';
   ($('bl-image-status') as HTMLElement).style.display = 'none';
+}
+
+// ===== 복사 (킹샷 ID) =====
+
+async function copyKingshotId(): Promise<void> {
+  const id = $<HTMLInputElement>('bl-input-id')?.value.trim();
+  if (!id) return;
+  const btn = $<HTMLButtonElement>('bl-copy-id-btn');
+  if (!btn) return;
+  try {
+    await navigator.clipboard.writeText(id);
+  } catch {
+    // 권한 없거나 비-https 등 — fallback (legacy execCommand)
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = id;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    } catch {
+      return; // 둘 다 실패 시 silent
+    }
+  }
+  // 시각 피드백 — 버튼 라벨 1초간 "복사됨" 으로 swap
+  const original = btn.textContent || '';
+  btn.textContent = t('blacklist.modal.copyIdDone');
+  btn.disabled = true;
+  window.setTimeout(() => {
+    btn.textContent = original;
+    btn.disabled = false;
+  }, 1000);
 }
 
 // ===== player 조회 =====

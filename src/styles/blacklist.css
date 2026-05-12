@@ -35,11 +35,14 @@
   vertical-align: middle;
 }
 .bl-table tbody tr:last-child td { border-bottom: none; }
+/* 행 어디든 클릭하면 상세 다이얼로그 — 이전 ✏️ 버튼 대체. */
+.bl-table tbody tr {
+  cursor: pointer;
+}
 .bl-table tbody tr:hover { background: var(--bg2); }
 
 .bl-th-avatar, .bl-td-avatar { width: 56px; }
-.bl-th-image, .bl-td-image,
-.bl-th-actions, .bl-td-actions {
+.bl-th-image, .bl-td-image {
   width: 56px;
   text-align: center;
 }

@@ -345,6 +345,8 @@ export const en: Translations = {
       idPlaceholder: 'Enter Kingshot ID',
       searchButton: 'Search',
       searchingButton: 'Searching...',
+      copyId: 'Copy',
+      copyIdDone: 'Copied',
       kingdomLabel: 'Server:',
       noteLabel: 'Note',
       notePlaceholder: 'Reason / summary (max 20 chars)',
