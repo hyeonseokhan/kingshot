@@ -278,7 +278,7 @@ function openEditModal(entry: BlacklistEntry): void {
 
   $<HTMLInputElement>('bl-input-id')!.value = entry.kingshot_id;
   $<HTMLInputElement>('bl-input-id')!.disabled = true;
-  $<HTMLTextAreaElement>('bl-input-note')!.value = entry.note || '';
+  $<HTMLInputElement>('bl-input-note')!.value = entry.note || '';
   renderPreview(lookupResult);
 
   $('bl-modal-overlay')!.classList.add('open');
@@ -296,7 +296,7 @@ function resetModal(): void {
   pendingImageOriginalSize = 0;
   $<HTMLInputElement>('bl-input-id')!.value = '';
   $<HTMLInputElement>('bl-input-id')!.disabled = false;
-  $<HTMLTextAreaElement>('bl-input-note')!.value = '';
+  $<HTMLInputElement>('bl-input-note')!.value = '';
   $<HTMLInputElement>('bl-input-image')!.value = '';
   ($('bl-preview') as HTMLElement).style.display = 'none';
   ($('bl-image-status') as HTMLElement).style.display = 'none';
@@ -345,21 +345,16 @@ function searchPlayer(): void {
 }
 
 function renderPreview(p: PlayerLookup): void {
-  const wrap = $('bl-preview')!;
-  wrap.style.display = '';
   const img = $<HTMLImageElement>('bl-preview-img')!;
-  const empty = $<HTMLElement>('bl-preview-empty')!;
   if (p.avatar_url) {
     img.src = p.avatar_url;
     img.style.display = '';
-    empty.style.display = 'none';
   } else {
     img.style.display = 'none';
-    empty.style.display = '';
-    empty.textContent = (p.nickname || '?').charAt(0).toUpperCase();
   }
   setText('bl-preview-name', p.nickname);
   setText('bl-preview-kingdom', p.kingdom != null ? '#' + p.kingdom : '-');
+  $('bl-preview')!.style.display = '';
 }
 
 // ===== 이미지 선택 + 최적화 =====
@@ -408,7 +403,7 @@ async function submitForm(): Promise<void> {
     alert(t('blacklist.msg.needSearch'));
     return;
   }
-  const note = $<HTMLTextAreaElement>('bl-input-note')!.value.trim();
+  const note = $<HTMLInputElement>('bl-input-note')!.value.trim();
   const session = getSession()!;
 
   ($('bl-modal-submit') as HTMLButtonElement).disabled = true;

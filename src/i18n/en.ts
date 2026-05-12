@@ -346,7 +346,7 @@ export const en: Translations = {
       searchingButton: 'Searching...',
       kingdomLabel: 'Server:',
       noteLabel: 'Note',
-      notePlaceholder: 'Reason for hostility, incident summary, etc. (optional, up to 500 chars)',
+      notePlaceholder: 'Reason / summary (max 20 chars)',
       imageLabel: 'Evidence image (optional)',
       imageHint: 'Large files are auto-compressed (1080px / WebP / max ~150 KB).',
       imageOriginal: 'Original: {size}',

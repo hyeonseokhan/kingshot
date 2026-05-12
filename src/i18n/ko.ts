@@ -342,7 +342,7 @@ export const ko = {
       searchingButton: '조회 중...',
       kingdomLabel: '서버:',
       noteLabel: '메모',
-      notePlaceholder: '적대 사유, 사건 요약 등 (선택, 최대 500자)',
+      notePlaceholder: '사유 / 요약 (최대 20자)',
       imageLabel: '증거 이미지 (선택)',
       imageHint: '큰 파일은 자동으로 압축됩니다 (1080px / WebP / 최대 ~150 KB).',
       imageOriginal: '원본: {size}',

@@ -72,70 +72,55 @@ const navItems = manage.submenus!.map((s) => ({
       <div class="bl-empty" id="bl-empty" style="display:none"></div>
     </div>
 
-    <!-- 등록/수정 모달 -->
+    <!-- 등록/수정 모달 — members.astro 패턴 일치 -->
     <div class="modal-overlay" id="bl-modal-overlay">
-      <div class="modal bl-modal">
+      <div class="modal">
         <div class="modal-header">
           <h3 id="bl-modal-title" data-i18n="blacklist.modal.addTitle">블랙리스트 등록</h3>
           <button class="modal-close" id="bl-modal-close" type="button">&times;</button>
         </div>
         <div class="modal-body">
-          <!-- ID + 조회 -->
-          <div class="form-group">
-            <label for="bl-input-id" data-i18n="blacklist.modal.idLabel">킹샷 ID</label>
-            <div class="bl-id-row">
-              <input
-                type="text"
-                id="bl-input-id"
-                class="form-input"
-                data-i18n-attr-placeholder="blacklist.modal.idPlaceholder"
-                placeholder="킹샷 아이디 입력"
-                inputmode="numeric"
-              />
-              <button class="btn btn-secondary" id="bl-search-btn" type="button" data-i18n="blacklist.modal.searchButton">조회</button>
-            </div>
+          <label for="bl-input-id" data-i18n="blacklist.modal.idLabel">킹샷 ID</label>
+          <div class="input-row">
+            <input
+              type="text"
+              id="bl-input-id"
+              placeholder="킹샷 아이디 입력"
+              data-i18n-attr-placeholder="blacklist.modal.idPlaceholder"
+              inputmode="numeric"
+            />
+            <button class="btn btn-secondary" id="bl-search-btn" type="button" data-i18n="blacklist.modal.searchButton">조회</button>
           </div>
 
-          <!-- 조회 결과 미리보기 -->
-          <div class="bl-preview" id="bl-preview" style="display:none">
-            <div class="bl-preview-avatar">
-              <img id="bl-preview-img" src="" alt="" />
-              <div class="bl-preview-empty" id="bl-preview-empty"></div>
-            </div>
-            <div class="bl-preview-meta">
-              <div class="bl-preview-name" id="bl-preview-name"></div>
-              <div class="bl-preview-sub">
-                <span data-i18n="blacklist.modal.kingdomLabel">서버:</span>
-                <span id="bl-preview-kingdom"></span>
+          <!-- 조회 결과 미리보기 — player-card 공통 패턴 사용 -->
+          <div id="bl-preview" class="player-card" style="display:none">
+            <img id="bl-preview-img" class="player-card-photo" src="" alt="" />
+            <div class="player-card-info">
+              <div class="player-card-name" id="bl-preview-name">-</div>
+              <div class="player-card-detail">
+                <span data-i18n="blacklist.modal.kingdomLabel">서버:</span> <strong id="bl-preview-kingdom">-</strong>
               </div>
             </div>
           </div>
 
-          <!-- 메모 -->
-          <div class="form-group">
-            <label for="bl-input-note" data-i18n="blacklist.modal.noteLabel">메모</label>
-            <textarea
-              id="bl-input-note"
-              class="form-input bl-note-input"
-              rows="3"
-              maxlength="500"
-              data-i18n-attr-placeholder="blacklist.modal.notePlaceholder"
-              placeholder="적대 사유, 사건 요약 등 (선택, 최대 500자)"
-            ></textarea>
-          </div>
+          <label for="bl-input-note" data-i18n="blacklist.modal.noteLabel">메모</label>
+          <input
+            type="text"
+            id="bl-input-note"
+            maxlength="20"
+            data-i18n-attr-placeholder="blacklist.modal.notePlaceholder"
+            placeholder="사유 / 요약 (최대 20자)"
+          />
 
-          <!-- 이미지 -->
-          <div class="form-group">
-            <label data-i18n="blacklist.modal.imageLabel">증거 이미지 (선택)</label>
-            <input type="file" id="bl-input-image" accept="image/*" />
-            <div class="bl-image-hint" data-i18n="blacklist.modal.imageHint">
-              큰 파일은 자동으로 압축됩니다 (1080px / WebP / 최대 ~150 KB).
-            </div>
-            <div class="bl-image-status" id="bl-image-status" style="display:none">
-              <div class="bl-image-thumb"><img id="bl-image-thumb-img" src="" alt="" /></div>
-              <div class="bl-image-meta" id="bl-image-meta"></div>
-              <button class="btn btn-secondary bl-image-remove" id="bl-image-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
-            </div>
+          <label data-i18n="blacklist.modal.imageLabel">증거 이미지 (선택)</label>
+          <input type="file" id="bl-input-image" accept="image/*" />
+          <div class="bl-image-hint" data-i18n="blacklist.modal.imageHint">
+            큰 파일은 자동으로 압축됩니다 (1080px / WebP / 최대 ~150 KB).
+          </div>
+          <div class="bl-image-status" id="bl-image-status" style="display:none">
+            <div class="bl-image-thumb"><img id="bl-image-thumb-img" src="" alt="" /></div>
+            <div class="bl-image-meta" id="bl-image-meta"></div>
+            <button class="btn btn-secondary bl-image-remove" id="bl-image-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
           </div>
         </div>
         <div class="modal-footer">
