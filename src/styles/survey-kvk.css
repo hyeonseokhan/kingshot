@@ -1143,3 +1143,54 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
+
+/* ===== KvK 예상 점수 (1일차/4일차 + ±5% 범위) ===== */
+.sk-detail-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sk-detail-scores-title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sk-text);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sk-detail-scores-note {
+  font-size: 11px;
+  color: var(--sk-text-dim);
+  font-weight: 500;
+}
+.sk-detail-score {
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.sk-detail-score-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sk-detail-score-label {
+  font-size: 12.5px;
+  color: var(--sk-text);
+  font-weight: 600;
+}
+.sk-detail-score-value {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--sk-accent-hover);
+  font-variant-numeric: tabular-nums;
+}
+.sk-detail-score-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--sk-text-dim);
+  font-variant-numeric: tabular-nums;
+}

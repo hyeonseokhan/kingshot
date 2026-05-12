@@ -407,6 +407,30 @@ import '@/styles/survey-kvk.css';
             <span class="sk-detail-total-label" data-i18n="survey.kvk.list.thead.total">합계</span>
             <span class="sk-detail-total-value" id="sk-detail-total">-</span>
           </div>
+
+          <hr class="sk-detail-divider" />
+
+          <!-- KvK 예상 점수 — PLAN.md 의 계산식 (1일차 건설 / 4일차 훈련+공용) -->
+          <div class="sk-detail-scores">
+            <h5 class="sk-detail-scores-title">
+              <span data-i18n="survey.kvk.detail.scores.title">KvK 예상 점수</span>
+              <span class="sk-detail-scores-note" data-i18n="survey.kvk.detail.scores.errorNote">오차 ±5%</span>
+            </h5>
+            <div class="sk-detail-score">
+              <div class="sk-detail-score-head">
+                <span class="sk-detail-score-label" data-i18n="survey.kvk.detail.scores.day1Label">🏗️ 1일차 (건설)</span>
+                <span class="sk-detail-score-value" id="sk-detail-day1-value">-</span>
+              </div>
+              <div class="sk-detail-score-meta" id="sk-detail-day1-range">-</div>
+            </div>
+            <div class="sk-detail-score">
+              <div class="sk-detail-score-head">
+                <span class="sk-detail-score-label" data-i18n="survey.kvk.detail.scores.day4Label">⚔️ 4일차 (훈련 + 공용)</span>
+                <span class="sk-detail-score-value" id="sk-detail-day4-value">-</span>
+              </div>
+              <div class="sk-detail-score-meta" id="sk-detail-day4-range">-</div>
+            </div>
+          </div>
         </div>
       </div>
     </dialog>

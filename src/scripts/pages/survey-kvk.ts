@@ -18,6 +18,7 @@ import { patchList, patchText } from '@/lib/dom-diff';
 import { t, onLangChange } from '@/i18n';
 import { formatRelativeTime } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
+import { estimateKvKScore } from '@/lib/kvk-score';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-survey';
 
@@ -28,6 +29,7 @@ interface SurveyRow {
   training: number;
   construction: number;
   general: number;
+  city_level: number; // list 응답은 city_level >= 26 만 — 항상 숫자
   updated_at: string;
 }
 
@@ -630,8 +632,19 @@ function closeImageDialog(): void {
 
 // ===== 상세 다이얼로그 (읽기 전용) =====
 
+/** 마지막으로 표시한 행 — 다이얼로그 열린 상태에서 언어 토글 시 재렌더용. */
+let detailDialogRow: SurveyRow | null = null;
+
 function openDetailDialog(row: SurveyRow): void {
+  detailDialogRow = row;
+  renderDetailDialog();
   const dlg = $<HTMLDialogElement>('sk-detail-dialog');
+  if (!dlg.open) dlg.showModal();
+}
+
+function renderDetailDialog(): void {
+  const row = detailDialogRow;
+  if (!row) return;
   fillPlayerCard('sk-detail', {
     kingshot_id: row.kingshot_id,
     nickname: row.nickname,
@@ -646,7 +659,38 @@ function openDetailDialog(row: SurveyRow): void {
   setBar('construction', row.construction, total);
   patchText($('sk-detail-total'), formatDuration(total));
 
-  if (!dlg.open) dlg.showModal();
+  // KvK 예상 점수 — PLAN.md 의 계산식. city_level 필수 (>=26 이라 항상 숫자).
+  const score = estimateKvKScore({
+    construction: row.construction,
+    training: row.training,
+    general: row.general,
+    cityLevel: row.city_level,
+  });
+  patchText(
+    $('sk-detail-day1-value'),
+    t('survey.kvk.detail.scores.points', { n: formatNum(score.day1.value) }),
+  );
+  patchText(
+    $('sk-detail-day1-range'),
+    t('survey.kvk.detail.scores.range', {
+      min: formatNum(score.day1.min),
+      max: formatNum(score.day1.max),
+    }),
+  );
+  patchText(
+    $('sk-detail-day4-value'),
+    t('survey.kvk.detail.scores.points', { n: formatNum(score.day4.value) }),
+  );
+  // 4일차 meta 는 범위 + 티어 노트 한 줄에 결합
+  const day4Range = t('survey.kvk.detail.scores.range', {
+    min: formatNum(score.day4.min),
+    max: formatNum(score.day4.max),
+  });
+  const day4Tier = t('survey.kvk.detail.scores.tierNote', {
+    tier: score.day4.tier,
+    level: row.city_level,
+  });
+  patchText($('sk-detail-day4-range'), `${day4Range} · ${day4Tier}`);
 }
 
 /** 각 가속권 row 의 값/막대/퍼센트 갱신. total=0 케이스(신규 등록 직전) 는 0% 로 표시. */
@@ -664,6 +708,7 @@ function setBar(
 function closeDetailDialog(): void {
   const dlg = $<HTMLDialogElement>('sk-detail-dialog');
   if (dlg.open) dlg.close();
+  detailDialogRow = null;
 }
 
 function mapError(code: string | null | undefined): string {
@@ -777,6 +822,7 @@ function init(): void {
     renderList();
     setSearchBtnBusy(false); // 버튼 라벨 갱신
     renderBlockedCurrent(); // "현재 레벨: TC N" 동적 텍스트 (있을 때만)
+    renderDetailDialog(); // 상세 다이얼로그 점수/시간 동적 텍스트 (열려있을 때만)
   });
 
   // boot 시점 sessionStorage 잠금 상태 적용. 잠금 해제돼있으면 목록 fetch, 아니면 placeholder.

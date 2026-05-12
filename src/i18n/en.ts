@@ -731,6 +731,15 @@ export const en: Translations = {
       },
       detail: {
         title: 'Submission Details',
+        scores: {
+          title: 'Estimated KvK Score',
+          errorNote: '±5% margin',
+          day1Label: '🏗️ Day 1 (Construction)',
+          day4Label: '⚔️ Day 4 (Training + General)',
+          points: '{n} P',
+          range: '{min} ~ {max}',
+          tierNote: 'Tier {tier} (TC {level})',
+        },
       },
       errors: {
         generic: 'Something went wrong',

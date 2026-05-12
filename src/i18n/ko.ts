@@ -727,6 +727,15 @@ export const ko = {
       },
       detail: {
         title: '제출 정보',
+        scores: {
+          title: 'KvK 예상 점수',
+          errorNote: '오차 ±5%',
+          day1Label: '🏗️ 1일차 (건설)',
+          day4Label: '⚔️ 4일차 (훈련 + 공용)',
+          points: '{n} P',
+          range: '{min} ~ {max}',
+          tierNote: '티어 {tier} (TC {level})',
+        },
       },
       errors: {
         generic: '문제가 발생했습니다',
