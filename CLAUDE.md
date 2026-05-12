@@ -57,8 +57,26 @@ supabase/
 | GitHub Secrets / Pages / 환경 설정 | **사용자** |
 | 브라우저에서 실제 동작 확인 (UI 회귀) | **사용자** |
 
-> Supabase CLI가 Claude 환경에 설치돼있지 않아서 production 적용 명령은 사용자가 직접 실행.
-> Claude는 작업 단계마다 "이 명령 실행해줘" 라고 사용자에게 안내한다.
+### Supabase CLI 운영 원칙 (mac / windows 공통)
+
+- **production 적용 명령(`supabase db push`, `supabase functions deploy`, `supabase link` 등)은
+  항상 사용자가 직접 실행한다.** 환경에 CLI 가 설치돼있는지 매번 확인하거나,
+  brew/npm/binary 다운로드로 우회 설치하는 시도를 **하지 않는다** —
+  과거 세션에서 CLI 자체 검증·우회 설치에만 시간을 소비한 적 있음.
+- Claude 의 역할은 정확히 다음까지: ① 마이그레이션 SQL / Edge Function 코드 작성,
+  ② 변경 후 사용자에게 "다음 명령을 실행해주세요" 라고 한 줄로 정리해 안내,
+  ③ 사용자가 적용 결과 (성공/에러 출력) 를 붙여 넣어주면 그걸 보고 후속 작업.
+- 사용자가 **명시적으로** "네가 직접 실행해줘" 라고 요청하면 그때만 한정적으로 진행.
+  그 경우에도 새로 도구를 설치하기 전에 한 번 더 확인 받는다.
+- anon key 또는 REST API 만으로 검증 가능한 작업 (예: 컬럼 존재 확인, 함수 응답 테스트)
+  은 CLI 없이도 curl 로 가능 — 그건 Claude 가 직접 수행해도 됨.
+
+### Edge Function 배포 시 verify_jwt 옵션
+
+배포 시 `--no-verify-jwt` 같은 플래그를 매번 깜박할 위험이 있어 `supabase/config.toml`
+에 함수별 정책을 영구화함. 새 Edge Function 추가 시:
+- 클라가 anon key 를 함께 보냄 (`Authorization: Bearer ${anon}`) → config.toml 등록 불필요 (default)
+- 클라가 anon key 없이 호출 → `[functions.<name>]` 블록에 `verify_jwt = false` 등록 필요
 
 ---
 
