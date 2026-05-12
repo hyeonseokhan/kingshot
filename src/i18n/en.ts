@@ -355,6 +355,7 @@ export const en: Translations = {
       imageOriginal: 'Original: {size}',
       imageOptimized: 'Optimized: {size} ({percent}% smaller)',
       imageRemove: 'Remove',
+      imageExistingLabel: 'Currently attached image',
       submit: 'Add',
       submitEdit: 'Save',
       cancel: 'Cancel',

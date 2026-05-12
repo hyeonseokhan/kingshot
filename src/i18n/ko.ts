@@ -351,6 +351,7 @@ export const ko = {
       imageOriginal: '원본: {size}',
       imageOptimized: '최적화: {size} ({percent}% 감소)',
       imageRemove: '제거',
+      imageExistingLabel: '현재 등록된 이미지',
       submit: '등록',
       submitEdit: '저장',
       cancel: '취소',

@@ -63,6 +63,13 @@ let lookupResult: PlayerLookup | null = null;
 let pendingImageBlob: Blob | null = null;
 let pendingImageOriginalSize = 0;
 
+// 수정 모드에서 entry 의 원본 image_path. 저장 시점에 다음 두 케이스에서 storage 삭제 대상:
+//   - 사용자가 새 이미지 첨부 → 교체된 옛 파일
+//   - 사용자가 [제거] 클릭 → existingImageRemoved=true 와 함께
+let existingImagePath: string | null = null;
+// 수정 다이얼로그의 "현재 등록된 이미지 [제거]" 클릭 여부. 저장 시 image_path=NULL 로 PATCH.
+let existingImageRemoved = false;
+
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T | null;
 
 export function initBlacklist(): void {
@@ -81,6 +88,7 @@ export function initBlacklist(): void {
   $('bl-copy-id-btn')?.addEventListener('click', copyKingshotId);
   $<HTMLInputElement>('bl-input-image')?.addEventListener('change', onImageSelected);
   $('bl-image-remove')?.addEventListener('click', clearPendingImage);
+  $('bl-image-existing-remove')?.addEventListener('click', markExistingImageRemoved);
 
   $<HTMLInputElement>('bl-search')?.addEventListener('input', (e) => {
     searchTerm = (e.target as HTMLInputElement).value.trim().toLowerCase();
@@ -293,7 +301,22 @@ function openEditModal(entry: BlacklistEntry): void {
   $<HTMLInputElement>('bl-input-note')!.value = entry.note || '';
   renderPreview(lookupResult);
 
+  // 현재 저장 이미지가 있으면 썸네일 + [제거] 영역 노출
+  if (entry.image_path) {
+    existingImagePath = entry.image_path;
+    const img = $<HTMLImageElement>('bl-image-existing-img');
+    if (img) img.src = storageUrl(entry.image_path);
+    ($('bl-image-existing') as HTMLElement).style.display = '';
+  }
+
   $('bl-modal-overlay')!.classList.add('open');
+}
+
+/** 수정 다이얼로그의 "현재 등록된 이미지 [제거]" 클릭 핸들러.
+ *  실제 storage 삭제는 저장 시점에 (취소 시 되돌릴 수 있도록 의도만 마킹). */
+function markExistingImageRemoved(): void {
+  existingImageRemoved = true;
+  ($('bl-image-existing') as HTMLElement).style.display = 'none';
 }
 
 function closeModal(): void {
@@ -306,12 +329,15 @@ function resetModal(): void {
   lookupResult = null;
   pendingImageBlob = null;
   pendingImageOriginalSize = 0;
+  existingImagePath = null;
+  existingImageRemoved = false;
   $<HTMLInputElement>('bl-input-id')!.value = '';
   $<HTMLInputElement>('bl-input-id')!.disabled = false;
   $<HTMLInputElement>('bl-input-note')!.value = '';
   $<HTMLInputElement>('bl-input-image')!.value = '';
   ($('bl-preview') as HTMLElement).style.display = 'none';
   ($('bl-image-status') as HTMLElement).style.display = 'none';
+  ($('bl-image-existing') as HTMLElement).style.display = 'none';
 }
 
 // ===== 복사 (킹샷 ID) =====
@@ -413,6 +439,8 @@ async function onImageSelected(ev: Event): Promise<void> {
     const result = await optimizeImage(file, { maxWidth: 1080, quality: 0.80, mimeType: 'image/webp' });
     pendingImageBlob = result.blob;
     showImageStatus(result.bytes);
+    // 새 파일을 골랐다는 건 기존 이미지를 교체할 의도 → 기존 영역 숨김. 저장 시 옛 storage 삭제는 submitForm 이 처리.
+    ($('bl-image-existing') as HTMLElement).style.display = 'none';
   } catch (err) {
     alert(t('blacklist.msg.imageFailed', { message: (err as Error).message }));
     clearPendingImage();
@@ -439,6 +467,10 @@ function clearPendingImage(): void {
   pendingImageOriginalSize = 0;
   $<HTMLInputElement>('bl-input-image')!.value = '';
   ($('bl-image-status') as HTMLElement).style.display = 'none';
+  // 새 파일 선택을 취소 → 기존 이미지가 있고 사용자가 명시적으로 제거하지 않았다면 다시 표시 (이미지 유지로 되돌림).
+  if (existingImagePath && !existingImageRemoved) {
+    ($('bl-image-existing') as HTMLElement).style.display = '';
+  }
 }
 
 // ===== 제출 (등록 / 수정) =====
@@ -455,15 +487,23 @@ async function submitForm(): Promise<void> {
   ($('bl-modal-submit') as HTMLButtonElement).disabled = true;
 
   try {
-    let imagePath: string | null = null;
+    let newImagePath: string | null = null;
     if (pendingImageBlob) {
-      imagePath = await uploadImage(pendingImageBlob, lookupResult.kingshot_id);
+      newImagePath = await uploadImage(pendingImageBlob, lookupResult.kingshot_id);
     }
 
     if (editingId) {
-      // 수정: 기존 image_path 보존 OR 새 업로드면 갱신, 제거 의도 별도 미구현
+      // 수정 케이스 4종:
+      //   (a) 새 이미지 첨부              → image_path = newImagePath, 기존 storage 삭제
+      //   (b) 기존 이미지 제거만           → image_path = NULL,        기존 storage 삭제
+      //   (c) 새 첨부 + 기존 제거         → (a) 와 동일 (제거 의도는 새것으로 덮임)
+      //   (d) 이미지 변경 없음            → patch 에서 image_path 생략 (보존)
       const patch: Record<string, unknown> = { note: note || null };
-      if (imagePath) patch.image_path = imagePath;
+      if (newImagePath) {
+        patch.image_path = newImagePath;
+      } else if (existingImageRemoved) {
+        patch.image_path = null;
+      }
       const res = await fetch(
         REST_BASE + '/blacklist?id=eq.' + encodeURIComponent(editingId),
         {
@@ -473,6 +513,10 @@ async function submitForm(): Promise<void> {
         },
       );
       if (!res.ok) throw new Error('HTTP ' + res.status);
+      // DB PATCH 성공 후에만 storage 정리 (PATCH 실패 시 기존 파일 보존). 실패해도 row 변경은 살림.
+      if (existingImagePath && (newImagePath || existingImageRemoved)) {
+        await deleteStorageObject(existingImagePath).catch(() => {});
+      }
     } else {
       const res = await fetch(REST_BASE + '/blacklist', {
         method: 'POST',
@@ -483,7 +527,7 @@ async function submitForm(): Promise<void> {
           avatar_url: lookupResult.avatar_url,
           kingdom: lookupResult.kingdom,
           note: note || null,
-          image_path: imagePath,
+          image_path: newImagePath,
           created_by: session.player_id,
         }),
       });
@@ -514,10 +558,7 @@ async function handleDelete(): Promise<void> {
   try {
     if (entry.image_path) {
       // 첨부 이미지도 삭제 — 실패해도 row 삭제는 진행
-      await fetch(STORAGE_BASE + '/object/' + BUCKET + '/' + entry.image_path, {
-        method: 'DELETE',
-        headers: restHeaders,
-      }).catch(() => {});
+      await deleteStorageObject(entry.image_path).catch(() => {});
     }
     const res = await fetch(
       REST_BASE + '/blacklist?id=eq.' + encodeURIComponent(entry.id),
@@ -534,7 +575,8 @@ async function handleDelete(): Promise<void> {
 // ===== Storage 업로드 =====
 
 async function uploadImage(blob: Blob, kingshotId: string): Promise<string> {
-  // 파일명: {kingshot_id}-{timestamp}.webp — 충돌 방지 + 디버깅 용이
+  // 파일명: {kingshot_id}-{timestamp}.webp — 충돌 방지 + 디버깅 용이.
+  // optimizeImage 가 모든 환경에서 WebP 보장 (네이티브 미지원 시 WASM 폴백).
   const path = kingshotId + '-' + Date.now() + '.webp';
   const url = STORAGE_BASE + '/object/' + BUCKET + '/' + encodeURIComponent(path);
   const res = await fetch(url, {
@@ -556,6 +598,15 @@ async function uploadImage(blob: Blob, kingshotId: string): Promise<string> {
 function storageUrl(path: string): string {
   // public bucket → /object/public/<bucket>/<path>
   return STORAGE_BASE + '/object/public/' + BUCKET + '/' + path;
+}
+
+/** Storage 의 단일 객체 삭제. 호출자가 .catch(() => {}) 로 무시할 수 있도록 promise 반환. */
+async function deleteStorageObject(path: string): Promise<void> {
+  const res = await fetch(STORAGE_BASE + '/object/' + BUCKET + '/' + path, {
+    method: 'DELETE',
+    headers: restHeaders,
+  });
+  if (!res.ok) throw new Error('storage delete ' + res.status);
 }
 
 // ===== 헬퍼 =====

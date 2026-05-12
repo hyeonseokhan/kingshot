@@ -117,6 +117,18 @@ const navItems = manage.submenus!.map((s) => ({
           />
 
           <label data-i18n="blacklist.modal.imageLabel">증거 이미지 (선택)</label>
+
+          <!-- 수정 모드에서 기존 저장 이미지가 있을 때만 노출. [제거] 누르면 storage 에서 삭제 의도(저장 시점에 실제 삭제). -->
+          <div class="bl-image-existing" id="bl-image-existing" style="display:none">
+            <div class="bl-image-thumb">
+              <img id="bl-image-existing-img" src="" alt="" />
+            </div>
+            <div class="bl-image-existing-label" data-i18n="blacklist.modal.imageExistingLabel">
+              현재 등록된 이미지
+            </div>
+            <button class="btn btn-secondary bl-image-remove" id="bl-image-existing-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
+          </div>
+
           <input type="file" id="bl-input-image" accept="image/*" />
           <div class="bl-image-hint" data-i18n="blacklist.modal.imageHint">
             큰 파일은 자동으로 압축됩니다 (1080px / WebP / 최대 ~150 KB).

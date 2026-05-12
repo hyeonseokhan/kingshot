@@ -35,6 +35,12 @@ const DEFAULT_OPTIONS: Required<OptimizeOptions> = {
 /**
  * File 또는 Blob 을 받아 resize + WebP 변환된 Blob 반환.
  * 실패 시 throw.
+ *
+ * 인코딩 경로:
+ *   1. 네이티브 canvas.toBlob(image/webp) 시도 (Chrome/Edge/Firefox, Safari 18+ 빠름)
+ *   2. 결과가 WebP 가 아니면 (iOS Safari 17 이하 등) — @jsquash/webp (WASM) 동적 로드 후 재인코딩
+ *
+ * 결과는 항상 WebP 보장 (storage bucket policy 가 'image/webp' 만 허용하기 때문).
  */
 export async function optimizeImage(
   source: File | Blob,
@@ -57,22 +63,57 @@ export async function optimizeImage(
   if (!ctx) throw new Error('canvas 2d context unavailable');
   ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-  // 3) Blob 인코딩
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))),
-      opts.mimeType,
-      opts.quality,
-    );
-  });
+  // 3) 인코딩 — 네이티브 우선, 미지원 시 WASM 폴백
+  let blob: Blob;
+  if (opts.mimeType === 'image/webp') {
+    blob = await encodeWebP(canvas, ctx, targetWidth, targetHeight, opts.quality);
+  } else {
+    blob = await encodeToBlob(canvas, opts.mimeType, opts.quality);
+  }
 
   return {
     blob,
     width: targetWidth,
     height: targetHeight,
     bytes: blob.size,
-    mimeType: opts.mimeType,
+    mimeType: blob.type || opts.mimeType,
   };
+}
+
+/**
+ * WebP 인코딩 — 네이티브 toBlob 먼저, 미지원이면 WASM (@jsquash/webp).
+ * iOS Safari 17 이하는 toBlob('image/webp') 호출 시 조용히 PNG 로 폴백 →
+ * 결과 blob.type 으로 감지 후 WASM 경로로 재인코딩.
+ */
+async function encodeWebP(
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  quality: number,
+): Promise<Blob> {
+  const native = await encodeToBlob(canvas, 'image/webp', quality);
+  if (native.type === 'image/webp') return native;
+
+  // 네이티브 미지원 — WASM 폴백. 첫 호출 시에만 모듈 다운로드 (~150 KB).
+  const { encode } = await import('@jsquash/webp');
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const webpBuffer = await encode(imageData, { quality: Math.round(quality * 100) });
+  return new Blob([webpBuffer], { type: 'image/webp' });
+}
+
+function encodeToBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))),
+      mimeType,
+      quality,
+    );
+  });
 }
 
 function loadImage(source: File | Blob): Promise<HTMLImageElement> {
