@@ -719,6 +719,7 @@ export const en: Translations = {
         empty: 'No submissions yet. Be the first to share!',
         sortBy: 'Sort',
         sortRegistered: 'Recent',
+        sortScore: 'Score',
         thead: {
           rank: '#',
           player: 'Player',

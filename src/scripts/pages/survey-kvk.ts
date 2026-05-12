@@ -46,7 +46,7 @@ const MIN_CITY_LEVEL = 26;
 /** 열람 잠금 해제 상태 키 — sessionStorage 라 탭 닫으면 자동 reset. */
 const UNLOCK_KEY = 'sk-unlocked';
 
-type SortKey = 'training' | 'construction' | 'general' | 'total' | 'updated_at';
+type SortKey = 'training' | 'construction' | 'general' | 'total' | 'score' | 'updated_at';
 
 // ===== state =====
 
@@ -480,6 +480,17 @@ function rowTotal(r: SurveyRow): number {
   return r.general + r.training + r.construction;
 }
 
+/** 행의 KvK 예상 점수 합 (1일차 + 4일차). 정렬 비교용. */
+function rowScore(r: SurveyRow): number {
+  const s = estimateKvKScore({
+    construction: r.construction,
+    training: r.training,
+    general: r.general,
+    cityLevel: r.city_level,
+  });
+  return s.day1.value + s.day4.value;
+}
+
 function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
   const out = rows.slice();
   out.sort((a, b) => {
@@ -491,6 +502,9 @@ function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
     } else if (s.key === 'total') {
       av = rowTotal(a);
       bv = rowTotal(b);
+    } else if (s.key === 'score') {
+      av = rowScore(a);
+      bv = rowScore(b);
     } else {
       av = a[s.key];
       bv = b[s.key];

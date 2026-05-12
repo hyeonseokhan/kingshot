@@ -715,6 +715,7 @@ export const ko = {
         empty: '아직 제출된 데이터가 없어요. 첫 번째 참가자가 되어 주세요!',
         sortBy: '정렬',
         sortRegistered: '등록순',
+        sortScore: '점수',
         thead: {
           rank: '#',
           player: '참가자',
