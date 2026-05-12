@@ -160,7 +160,7 @@ function renderList(): void {
   });
 }
 
-function createRow(_e: BlacklistEntry): HTMLTableRowElement {
+function createRow(e: BlacklistEntry): HTMLTableRowElement {
   const row = document.createElement('tr');
   row.className = 'bl-row';
   row.innerHTML = `
@@ -176,6 +176,10 @@ function createRow(_e: BlacklistEntry): HTMLTableRowElement {
       <button class="bl-action-edit" data-action="edit" type="button">✏️</button>
     </td>
   `;
+  // patchList 의 render 콜백은 신규 element 생성에만 호출되고 update 는 안 호출됨.
+  // 첫 렌더 시 셀 데이터가 비어있는 문제 차단을 위해 createRow 안에서 updateRow 직접 호출
+  // (members.ts 패턴 동일).
+  updateRow(row, e);
   return row;
 }
 
