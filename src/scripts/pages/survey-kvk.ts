@@ -19,8 +19,24 @@ import { t, onLangChange } from '@/i18n';
 import { formatRelativeTime } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
 import { estimateKvKScore } from '@/lib/kvk-score';
+import { optimizeImage } from '@/lib/image-optimize';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-survey';
+
+/** 인증샷 — 블랙리스트와 bucket 공유 (`blacklist-evidence`), 하위 폴더 `kvk-survey/` 로 격리.
+ *  파일명 결정적: `{kingshot_id}.webp` → 1인 1장 자연 강제, upsert 만으로 갱신 → 고아 zero. */
+const EVIDENCE_BUCKET = 'blacklist-evidence';
+const EVIDENCE_PREFIX = 'kvk-survey/';
+
+function evidencePath(kingshotId: string): string {
+  return `${EVIDENCE_PREFIX}${kingshotId}.webp`;
+}
+
+/** Storage 객체의 public URL. evidence_uploaded_at(ms) 을 캐시버스터로 부착 — 갱신 시 즉시 무효화. */
+function evidenceUrl(kingshotId: string, uploadedAtIso: string): string {
+  const v = new Date(uploadedAtIso).getTime();
+  return `${SUPABASE_URL}/storage/v1/object/public/${EVIDENCE_BUCKET}/${evidencePath(kingshotId)}?v=${v}`;
+}
 
 interface SurveyRow {
   kingshot_id: string;
@@ -30,11 +46,13 @@ interface SurveyRow {
   construction: number;
   general: number;
   city_level: number; // list 응답은 city_level >= 26 만 — 항상 숫자
+  evidence_uploaded_at: string | null; // ISO. null = 미인증.
   updated_at: string;
 }
 
 /** 토큰 API (login / verify-token / register) 가 반환하는 내 record. SurveyRow 의 subset.
- *  preferred_buff_time: 'HH:MM' 또는 null. */
+ *  preferred_buff_time: 'HH:MM' 또는 null.
+ *  evidence_uploaded_at: ISO 또는 null (미인증). */
 interface MyRecord {
   kingshot_id: string;
   nickname: string;
@@ -43,6 +61,7 @@ interface MyRecord {
   construction: number;
   general: number;
   preferred_buff_time: string | null;
+  evidence_uploaded_at: string | null;
 }
 
 interface PlayerInfo {
@@ -78,7 +97,29 @@ interface FormSession {
     construction: number;
     general: number;
     preferred_buff_time: string | null;
+    evidence_uploaded_at: string | null; // prefill 시점의 인증 상태 — 폼 입력 후 변경 비교용
   };
+}
+
+/** 폼이 열려있는 동안의 인증샷 임시 상태.
+ *  - pendingBlob: 사용자가 새로 선택한 파일 (압축 후 blob). null = 변경 없음.
+ *  - removed: 사용자가 [제거] 눌러 기존 인증샷을 지우려는 의도. */
+interface PendingEvidence {
+  pendingBlob: Blob | null;
+  pendingName: string | null;
+  removed: boolean;
+  previewUrl: string | null; // object URL — exitFormMode 에서 revoke
+}
+let pendingEvidence: PendingEvidence = {
+  pendingBlob: null,
+  pendingName: null,
+  removed: false,
+  previewUrl: null,
+};
+
+function resetPendingEvidence(): void {
+  if (pendingEvidence.previewUrl) URL.revokeObjectURL(pendingEvidence.previewUrl);
+  pendingEvidence = { pendingBlob: null, pendingName: null, removed: false, previewUrl: null };
 }
 
 let session: FormSession | null = null;
@@ -114,6 +155,37 @@ async function callFn<T = unknown>(body: Record<string, unknown>): Promise<T> {
     body: JSON.stringify(body),
   });
   return res.json();
+}
+
+/** Storage 의 인증샷 객체 upsert (PUT — Supabase 의 conflict-safe 업로드). 같은 path 반복 시 덮어쓰기. */
+async function putEvidenceBlob(blob: Blob, kingshotId: string): Promise<void> {
+  const url = `${SUPABASE_URL}/storage/v1/object/${EVIDENCE_BUCKET}/${evidencePath(kingshotId)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'image/webp',
+      'Cache-Control': 'public, max-age=31536000',
+    },
+    body: blob,
+  });
+  if (!res.ok) throw new Error(`evidence upload ${res.status}: ${await res.text()}`);
+}
+
+/** Storage 의 인증샷 객체 삭제. 404/400 (이미 없음) 은 무시. */
+async function deleteEvidenceBlob(kingshotId: string): Promise<void> {
+  const url = `${SUPABASE_URL}/storage/v1/object/${EVIDENCE_BUCKET}/${evidencePath(kingshotId)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  if (!res.ok && res.status !== 404 && res.status !== 400) {
+    throw new Error(`evidence delete ${res.status}: ${await res.text()}`);
+  }
 }
 
 // ===== 다이얼로그 제어 =====
@@ -374,6 +446,7 @@ async function onConfirmPin(): Promise<void> {
     construction: json.record.construction,
     general: json.record.general,
     preferred_buff_time: json.record.preferred_buff_time ?? null,
+    evidence_uploaded_at: json.record.evidence_uploaded_at ?? null,
   };
   enterFormMode();
 }
@@ -391,6 +464,11 @@ function enterFormMode(): void {
   // 시간 select prefill — 미선택은 빈 placeholder option 으로
   ($('sk-input-preferred-time') as HTMLSelectElement).value =
     session.prefill?.preferred_buff_time ?? '';
+  // 인증샷 prefill — 기존 업로드 있으면 thumb 표시, 없으면 empty
+  resetPendingEvidence();
+  syncEvidenceUI();
+  // file input value 초기화 — 같은 파일 다시 선택 시 change 이벤트 발화 보장
+  ($('sk-input-evidence') as HTMLInputElement).value = '';
   // 수정 모드일 때만 삭제 버튼 노출
   ($('sk-form-delete') as HTMLButtonElement).hidden = session.mode !== 'update';
   ($('sk-form-save') as HTMLButtonElement).disabled = false;
@@ -400,9 +478,41 @@ function enterFormMode(): void {
   setTimeout(() => $<HTMLInputElement>('sk-input-general').focus(), 50);
 }
 
+/** 인증샷 영역 표시 동기화 — pendingEvidence + session.prefill 의 evidence_uploaded_at 종합:
+ *   - pendingBlob 있으면 새 파일 (thumb = blob preview)
+ *   - removed=true 면 empty 상태
+ *   - prefill 의 기존 인증샷 있으면 stored thumb (URL 로)
+ *   - 그 외 empty (미인증) */
+function syncEvidenceUI(): void {
+  const row = $('sk-form-row-image');
+  const thumbImg = $('sk-evidence-thumb-img') as HTMLImageElement;
+  const nameEl = $('sk-evidence-name');
+
+  let showAttached = false;
+  let thumbSrc = '';
+  let displayName = '';
+
+  if (pendingEvidence.pendingBlob && pendingEvidence.previewUrl) {
+    showAttached = true;
+    thumbSrc = pendingEvidence.previewUrl;
+    displayName = pendingEvidence.pendingName ?? 'screenshot.webp';
+  } else if (!pendingEvidence.removed && session?.prefill?.evidence_uploaded_at) {
+    showAttached = true;
+    thumbSrc = evidenceUrl(session.player.kingshot_id, session.prefill.evidence_uploaded_at);
+    displayName = `screenshot.webp`;
+  }
+
+  row.classList.toggle('has-image', showAttached);
+  if (showAttached) {
+    if (thumbImg.src !== thumbSrc) thumbImg.src = thumbSrc;
+    patchText(nameEl, displayName);
+  }
+}
+
 function exitFormMode(): void {
   const dlg = $<HTMLDialogElement>('sk-form-dialog');
   if (dlg.open) dlg.close();
+  resetPendingEvidence();
   session = null;
 }
 
@@ -564,15 +674,60 @@ async function onSaveForm(): Promise<void> {
         });
       }
     }
-    setStatus('sk-form-status', t('survey.kvk.form.saved'), 'ok');
+
+    // 인증샷 처리 — DB 저장 성공 후 Storage 업로드/삭제 + set-evidence 호출
+    // 실패해도 가속권 자체 저장은 이미 완료 → 폼은 닫고 인증샷 실패만 별도 표시.
+    const evidenceOk = await applyPendingEvidence(session.player.kingshot_id);
+
+    if (evidenceOk) {
+      setStatus('sk-form-status', t('survey.kvk.form.saved'), 'ok');
+    }
     setUnlocked();
     await refreshList();
-    setTimeout(() => exitFormMode(), 600);
+    setTimeout(() => exitFormMode(), evidenceOk ? 600 : 1500);
   } catch (err) {
     setStatus('sk-form-status', mapError(String((err as Error).message)), 'err');
     btn.disabled = false;
   } finally {
     btn.disabled = false;
+  }
+}
+
+/** 폼 저장 직후 호출 — pendingEvidence 의 상태에 따라 Storage upsert/delete + set-evidence API 호출.
+ *  반환: true=성공 또는 변경 없음, false=실패 (호출자가 status 메시지 보존하도록).
+ *  실패해도 가속권 자체 DB 저장은 이미 완료된 상태라 throw 안 함. */
+async function applyPendingEvidence(kingshotId: string): Promise<boolean> {
+  if (!pendingEvidence.pendingBlob && !pendingEvidence.removed) return true;
+
+  try {
+    if (pendingEvidence.pendingBlob) {
+      setStatus('sk-form-status', t('survey.kvk.form.evidenceUploading'), '');
+      await putEvidenceBlob(pendingEvidence.pendingBlob, kingshotId);
+      const token = getToken();
+      const setRes = await callFn<{ ok: boolean; error?: string; evidence_uploaded_at?: string }>({
+        action: 'set-evidence',
+        token,
+        has_evidence: true,
+      });
+      if (setRes.ok && setRes.evidence_uploaded_at) {
+        const a = getAuth();
+        if (a) saveAuth({ ...a, record: { ...a.record, evidence_uploaded_at: setRes.evidence_uploaded_at } });
+      }
+    } else if (pendingEvidence.removed) {
+      await deleteEvidenceBlob(kingshotId);
+      const token = getToken();
+      await callFn<{ ok: boolean }>({ action: 'set-evidence', token, has_evidence: false });
+      const a = getAuth();
+      if (a) saveAuth({ ...a, record: { ...a.record, evidence_uploaded_at: null } });
+    }
+    return true;
+  } catch (e) {
+    setStatus(
+      'sk-form-status',
+      t('survey.kvk.form.evidenceUploadFailed') + ` (${(e as Error).message})`,
+      'err',
+    );
+    return false;
   }
 }
 
@@ -742,7 +897,10 @@ function buildRow(r: SurveyRow & { rank: number; total: number }): HTMLElement {
       <span class="sk-cell-value"></span>
     </td>
     <td class="sk-td sk-td-num sk-td-total"></td>
-    <td class="sk-td sk-td-time sk-td-updated"></td>
+    <td class="sk-td sk-td-verified"></td>
+    <td class="sk-td sk-td-time sk-td-updated">
+      <span class="sk-mobile-verified"></span><span class="sk-mobile-sep"> · </span><span class="sk-updated-text"></span>
+    </td>
   `;
   updateRow(tr, r);
   return tr;
@@ -782,7 +940,22 @@ function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number; total: number
     formatDuration(r.construction),
   );
   patchText(tr.querySelector<HTMLElement>('.sk-td-total'), formatDuration(r.total));
-  patchText(tr.querySelector<HTMLElement>('.sk-td-updated'), formatRelativeTime(r.updated_at));
+
+  // 인증 상태 — PC: 별도 컬럼, 모바일: 등록시간 셀 좌측 인라인 (CSS 가 display 토글)
+  const isVerified = r.evidence_uploaded_at !== null;
+  const verifiedLabel = isVerified ? t('survey.kvk.list.verified') : t('survey.kvk.list.unverified');
+  const verifiedCell = tr.querySelector<HTMLElement>('.sk-td-verified');
+  if (verifiedCell) {
+    patchText(verifiedCell, verifiedLabel);
+    verifiedCell.dataset.verified = isVerified ? 'true' : 'false';
+  }
+  // 모바일용 inline 라벨 — 등록시간 셀 안에 같이 표시
+  const mobileVerifiedEl = tr.querySelector<HTMLElement>('.sk-mobile-verified');
+  if (mobileVerifiedEl) {
+    patchText(mobileVerifiedEl, verifiedLabel);
+    mobileVerifiedEl.dataset.verified = isVerified ? 'true' : 'false';
+  }
+  patchText(tr.querySelector<HTMLElement>('.sk-updated-text'), formatRelativeTime(r.updated_at));
 
   const empty = tr.querySelector<HTMLElement>('.sk-row-photo-empty')!;
   const img = tr.querySelector<HTMLImageElement>('.sk-row-photo')!;
@@ -867,6 +1040,14 @@ function renderDetailDialog(): void {
     city_level: row.city_level,
   });
   patchText($('sk-detail-updated'), formatRelativeTime(row.updated_at));
+
+  // 인증샷 버튼 — 이미지 있으면 enabled(초록), 없으면 disabled(회색)
+  const evBtn = $<HTMLButtonElement>('sk-detail-evidence-btn');
+  const hasEvidence = row.evidence_uploaded_at !== null;
+  evBtn.disabled = !hasEvidence;
+  evBtn.title = hasEvidence
+    ? t('survey.kvk.detail.evidenceButtonTitle')
+    : t('survey.kvk.detail.evidenceButtonTitleEmpty');
 
   const total = rowTotal(row);
   setBar('general', row.general, total);
@@ -972,6 +1153,7 @@ function init(): void {
           construction: auth.record.construction,
           general: auth.record.general,
           preferred_buff_time: auth.record.preferred_buff_time ?? null,
+          evidence_uploaded_at: auth.record.evidence_uploaded_at ?? null,
         },
       };
       enterFormMode();
@@ -1065,6 +1247,41 @@ function init(): void {
     renderList();
   });
 
+  // 인증샷 — 파일 선택 시 압축 → 메모리 blob 으로 보관 (실제 업로드는 [저장] 클릭 시)
+  const evidenceInput = $<HTMLInputElement>('sk-input-evidence');
+  evidenceInput.addEventListener('change', async () => {
+    const file = evidenceInput.files?.[0];
+    if (!file) return;
+    try {
+      // image-optimize 기본값: 1080px / WebP / quality 0.80 + iOS17 폴백
+      const result = await optimizeImage(file);
+      if (pendingEvidence.previewUrl) URL.revokeObjectURL(pendingEvidence.previewUrl);
+      pendingEvidence = {
+        pendingBlob: result.blob,
+        pendingName: file.name.replace(/\.[^/.]+$/, '') + '.webp',
+        removed: false,
+        previewUrl: URL.createObjectURL(result.blob),
+      };
+      syncEvidenceUI();
+    } catch (e) {
+      setStatus(
+        'sk-form-status',
+        t('survey.kvk.form.evidenceUploadFailed') + ` (${(e as Error).message})`,
+        'err',
+      );
+    } finally {
+      // 같은 파일 다시 선택 시 change 이벤트 발화 보장
+      evidenceInput.value = '';
+    }
+  });
+
+  // 인증샷 [제거] — 임시 상태만 변경 (Storage 호출 X, 저장 시 일괄)
+  $('sk-evidence-remove').addEventListener('click', () => {
+    if (pendingEvidence.previewUrl) URL.revokeObjectURL(pendingEvidence.previewUrl);
+    pendingEvidence = { pendingBlob: null, pendingName: null, removed: true, previewUrl: null };
+    syncEvidenceUI();
+  });
+
   // 가속권 도움말 이미지 다이얼로그
   $('sk-help-image-trigger').addEventListener('click', openImageDialog);
   // 다이얼로그 어디 클릭하든 닫힘 (이미지 자체 포함)
@@ -1097,6 +1314,22 @@ function init(): void {
   $('sk-detail-dialog').addEventListener('click', (e) => {
     // dialog 본체(backdrop)는 dialog 자체가 target. 카드 내부는 stop.
     if (e.target === e.currentTarget) closeDetailDialog();
+  });
+
+  // 인증샷 lightbox — 상세 다이얼로그의 인증샷 버튼 클릭 → 현재 행의 evidence_uploaded_at 으로 URL 계산
+  $('sk-detail-evidence-btn').addEventListener('click', () => {
+    const row = detailDialogRow;
+    if (!row || !row.evidence_uploaded_at) return;
+    const url = evidenceUrl(row.kingshot_id, row.evidence_uploaded_at);
+    const img = $<HTMLImageElement>('sk-evidence-lightbox-img');
+    img.src = url;
+    const dlg = $<HTMLDialogElement>('sk-evidence-lightbox');
+    if (!dlg.open) dlg.showModal();
+  });
+  // lightbox — 어디 클릭하든 닫힘
+  $('sk-evidence-lightbox').addEventListener('click', () => {
+    const dlg = $<HTMLDialogElement>('sk-evidence-lightbox');
+    if (dlg.open) dlg.close();
   });
 
   // 언어 변경 시 동적 텍스트 재렌더 — data-i18n 으로 못 잡는 JS 가 textContent 박은 값들

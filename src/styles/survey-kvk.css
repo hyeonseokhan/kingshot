@@ -701,6 +701,86 @@ html:has(.sk-image-dialog[open]) {
   color: var(--sk-text-dim);
 }
 
+/* ===== 인증샷 row (E 안 패턴 — prefix overlay + 우측에 상태별 컨텐츠) ===== */
+.sk-form-row-image {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 12px;
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  border-radius: 8px;
+  /* height 강제 X — thumb (32px) 때문에 자연 확장 */
+}
+.sk-form-row-image .sk-form-row-prefix {
+  position: static;
+  transform: none;
+  pointer-events: auto;
+}
+/* empty 상태: 라벨 버튼 노출, attached div 숨김 (default).
+   selected (.has-image): 라벨 숨김, attached 노출. */
+.sk-form-row-image.has-image .sk-evidence-pick { display: none; }
+.sk-form-row-image:not(.has-image) .sk-evidence-attached { display: none; }
+/* hidden attribute 무시되도록 강제 — JS 가 클래스로 토글 */
+.sk-form-row-image.has-image .sk-evidence-attached[hidden] { display: flex !important; }
+
+.sk-evidence-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--sk-surface-3);
+  border: 1px solid var(--sk-border);
+  border-radius: 4px;
+  color: var(--sk-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sk-evidence-pick:hover { background: #3a4361; }
+.sk-evidence-attached {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.sk-evidence-thumb {
+  width: 32px; height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--sk-bg);
+  flex-shrink: 0;
+}
+.sk-evidence-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.sk-evidence-name {
+  font-size: 11.5px;
+  color: var(--sk-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+.sk-evidence-remove {
+  background: var(--sk-surface-3);
+  color: var(--sk-text-dim);
+  border: 1px solid var(--sk-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.sk-evidence-remove:hover { color: var(--sk-text); background: #3a4361; }
+.sk-evidence-hint {
+  margin: 4px 0 0 12px;
+  font-size: 11px;
+  color: var(--sk-text-faint);
+}
+
 .sk-form-actions {
   margin-top: 14px;
   display: flex;
@@ -902,6 +982,20 @@ html:has(.sk-image-dialog[open]) {
   width: 110px;
   text-align: right;
 }
+.sk-th-verified {
+  width: 64px;
+  text-align: center;
+}
+.sk-td-verified {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.sk-td-verified[data-verified='true'] { color: #4ade80; }
+.sk-td-verified[data-verified='false'] { color: var(--sk-text-faint); }
+/* 모바일용 inline label 은 PC 에선 숨김 (등록시간 셀 안의 첫 자식) */
+.sk-mobile-verified,
+.sk-mobile-sep { display: none; }
 .sk-td-rank {
   text-align: center;
   color: var(--sk-text-dim);
@@ -1091,9 +1185,23 @@ html:has(.sk-image-dialog[open]) {
      .sk-td-num { display: flex } 보다 무조건 이기도록 (cascade 순서 무관 보장).
      이 보호 없으면 cell 이 grid-template-areas 에 자리 못 잡고 카드 밖으로 auto-placement. */
   .sk-td.sk-td-total,
-  .sk-th.sk-th-total {
+  .sk-th.sk-th-total,
+  .sk-td.sk-td-verified,
+  .sk-th.sk-th-verified {
     display: none;
   }
+  /* 모바일: 인증 라벨을 등록시간 셀 안에 inline 으로 ("인증됨 · 19분 전") */
+  .sk-mobile-verified,
+  .sk-mobile-sep {
+    display: inline;
+  }
+  .sk-mobile-verified {
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .sk-mobile-verified[data-verified='true'] { color: #4ade80; }
+  .sk-mobile-verified[data-verified='false'] { color: var(--sk-text-faint); }
+  .sk-mobile-sep { color: var(--sk-text-faint); margin: 0 2px; }
 
   /* === 2-row 컴팩트 카드 (4컬럼 grid) ===
        Row 1: [rank] [photo+name/id (2col span)]   [updated]
@@ -1238,13 +1346,38 @@ html:has(.sk-image-dialog[open]) {
 
 /* ===== 상세 다이얼로그 (행 클릭 시) — 읽기 전용 / "Bar Chart" 안 ===== */
 
-/* 플레이어 카드 우측에 relative time 배치 (auth/form 의 sk-player-card 에는 없는 추가 자식). */
+/* meta 안 등록시간 (이전엔 player-card 의 별도 자식이었으나 이제 meta 의 3번째 줄로 흡수).
+   우측엔 인증샷 버튼이 들어감. */
 .sk-detail-time {
   font-size: 11.5px;
   color: var(--sk-text-dim);
-  text-align: right;
   line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* 인증샷 보기 버튼 — player-card 우측. 이미지 있으면 초록 (=enabled), 없으면 회색 (=disabled).
+   같은 SVG 아이콘, 색상/border 만 토글. */
+.sk-detail-evidence-btn {
   flex-shrink: 0;
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  border: 1.5px solid var(--sk-border);
+  background: var(--sk-surface-2);
+  color: var(--sk-text-faint);
+  cursor: not-allowed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  padding: 0;
+}
+.sk-detail-evidence-btn:not(:disabled) {
+  border-color: #4ade80;
+  color: #4ade80;
+  cursor: pointer;
+}
+.sk-detail-evidence-btn:not(:disabled):hover {
+  background: rgba(74, 222, 128, 0.10);
 }
 
 /* 가속권 3종 — 각 row 는 [label, value] + bar + pct */

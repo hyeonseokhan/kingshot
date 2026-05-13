@@ -254,7 +254,42 @@ import '@/styles/survey-kvk.css';
               />
               <span class="sk-form-row-unit" data-i18n="survey.kvk.form.unit">분</span>
             </div>
+            <!-- 인증샷 row — 가속권 row 와 동일 외형 컨테이너 (prefix 좌측 + 우측에 상태별 컨텐츠).
+                 선택 시: [thumb] [파일명] [제거]  /  미선택 시: [파일 선택] 라벨 버튼. -->
+            <div class="sk-form-row sk-form-row-image" id="sk-form-row-image">
+              <span class="sk-form-row-prefix">
+                <span class="sk-form-row-prefix-emoji" aria-hidden="true">📎</span>
+                <span data-i18n="survey.kvk.form.evidenceLabel">인증샷</span>
+              </span>
+              <!-- empty 상태 — JS 가 .has-image 클래스로 토글 -->
+              <label class="sk-evidence-pick" for="sk-input-evidence">
+                <span data-i18n="survey.kvk.form.evidencePickButton">파일 선택</span>
+              </label>
+              <!-- selected 상태 -->
+              <div class="sk-evidence-attached" hidden>
+                <div class="sk-evidence-thumb">
+                  <img id="sk-evidence-thumb-img" alt="" />
+                </div>
+                <span class="sk-evidence-name" id="sk-evidence-name"></span>
+                <button
+                  type="button"
+                  class="sk-evidence-remove"
+                  id="sk-evidence-remove"
+                  data-i18n="survey.kvk.form.evidenceRemoveButton"
+                >제거</button>
+              </div>
+              <input
+                type="file"
+                id="sk-input-evidence"
+                accept="image/*"
+                hidden
+              />
+            </div>
           </div>
+          <p
+            class="sk-evidence-hint"
+            data-i18n="survey.kvk.form.evidenceHint"
+          >1080px / WebP / 최대 ~150 KB 로 자동 압축됩니다.</p>
           <div class="sk-status" id="sk-form-status" role="status" aria-live="polite"></div>
           <div class="sk-form-actions">
             <!-- 삭제: 수정 모드일 때만 노출 (JS 가 enterFormMode 에서 hidden 토글). 좌측 끝. -->
@@ -381,6 +416,7 @@ import '@/styles/survey-kvk.css';
               <th class="sk-th sk-th-num" data-i18n="survey.kvk.list.thead.training">병사</th>
               <th class="sk-th sk-th-num" data-i18n="survey.kvk.list.thead.construction">건설</th>
               <th class="sk-th sk-th-num sk-th-total" data-i18n="survey.kvk.list.thead.total">합계</th>
+              <th class="sk-th sk-th-verified" data-i18n="survey.kvk.list.thead.verified">인증</th>
               <th class="sk-th sk-th-time" data-i18n="survey.kvk.list.thead.updated">등록시간</th>
             </tr>
           </thead>
@@ -414,8 +450,24 @@ import '@/styles/survey-kvk.css';
             <div class="sk-player-meta">
               <div class="sk-player-name" id="sk-detail-name">-</div>
               <div class="sk-player-id" id="sk-detail-id">-</div>
+              <div class="sk-detail-time" id="sk-detail-updated">-</div>
             </div>
-            <div class="sk-detail-time" id="sk-detail-updated">-</div>
+            <!-- 인증샷 버튼 — 이미지 있으면 초록 테두리/아이콘 + 클릭 시 lightbox.
+                 없으면 회색 테두리 + 비활성. -->
+            <button
+              type="button"
+              class="sk-detail-evidence-btn"
+              id="sk-detail-evidence-btn"
+              data-i18n-attr-title="survey.kvk.detail.evidenceButtonTitleEmpty"
+              title="인증샷 없음"
+              disabled
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </button>
           </div>
 
           <div class="sk-detail-bars">
@@ -495,6 +547,17 @@ import '@/styles/survey-kvk.css';
         src="/images/survey/speedup-stats.png"
         alt="게임 내 가속권 현황 화면"
         loading="lazy"
+      />
+    </dialog>
+
+    <!-- (D-3) 인증샷 lightbox — 상세 다이얼로그의 이미지 버튼 클릭 시 동적 src 로 표시.
+         도움말 lightbox 와 같은 click-to-close 패턴이지만 src 가 동적이라 별도 dialog 로 분리. -->
+    <dialog class="sk-image-dialog" id="sk-evidence-lightbox" aria-label="인증샷">
+      <img
+        class="sk-image-dialog-img"
+        id="sk-evidence-lightbox-img"
+        src=""
+        alt="인증샷"
       />
     </dialog>
   </div>

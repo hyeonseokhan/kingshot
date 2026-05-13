@@ -13,13 +13,18 @@
  *   { action: "update",       token, training, construction, general,
  *                             preferred_buff_time? }                                 → { ok }
  *                            (또는 백워드 호환: kingshot_id, pin, training, ...)
+ *   { action: "set-evidence", token, has_evidence: boolean }                         → { ok, evidence_uploaded_at }
+ *                            클라가 Storage 업로드/삭제 끝낸 후 호출.
+ *                            has_evidence=true → now() 로 갱신, false → NULL.
  *   { action: "delete",       token }                                                → { ok }
  *                            (또는 백워드 호환: kingshot_id, pin)
+ *                            row 삭제와 함께 Storage 의 kvk-survey/{id}.webp 도 service_role 로 삭제.
  *   { action: "verify",       kingshot_id, pin }                                     → { ok, record }  (deprecated)
  *   { action: "list" }                                                               → { ok, items: [...] }  (pin_hash/salt/token 제외)
  *
  * preferred_buff_time: 선호 버프 시작 시간 (UTC). 'HH:MM' (HH=00..23, MM=00|30) 또는 null/빈값.
- *                      미선택 = NULL 저장. 클라이언트는 register/update 시점에 매번 전송.
+ * evidence_uploaded_at: 인증샷 마지막 업로드 시점. NULL=미인증. Storage path 는 deterministic
+ *                       (`kvk-survey/{kingshot_id}.webp` in `blacklist-evidence` bucket).
  *
  * pin: 정확히 4자리 숫자. SHA-256(pin + 16바이트 hex salt) 로 저장.
  * token: UUID v4 (DB 컬럼 session_token). 만료 = session_expires_at (90일).
@@ -89,6 +94,22 @@ async function dbDelete(path: string): Promise<void> {
     headers: { ...dbHeaders, Prefer: "return=minimal" },
   });
   if (!res.ok) throw new Error(`db delete ${res.status}: ${await res.text()}`);
+}
+
+/** Storage 의 인증샷 파일 (`kvk-survey/{kingshot_id}.webp`) 삭제.
+ *  bucket = blacklist-evidence (공용). 404 (파일 없음) 는 무시 — 이미 깨끗.
+ *  delete 액션이 row 삭제와 함께 호출 → 고아 발생 차단. */
+const EVIDENCE_BUCKET = "blacklist-evidence";
+async function deleteEvidenceObject(kingshotId: string): Promise<void> {
+  const path = `kvk-survey/${kingshotId}.webp`;
+  const res = await fetch(
+    `${SUPABASE_URL}/storage/v1/object/${EVIDENCE_BUCKET}/${path}`,
+    { method: "DELETE", headers: dbHeaders },
+  );
+  // 404 / 400 (파일 없음) 은 무시 — 이미 없는 게 의도된 상태.
+  if (!res.ok && res.status !== 404 && res.status !== 400) {
+    throw new Error(`storage delete ${res.status}: ${await res.text()}`);
+  }
 }
 
 async function sha256Hex(str: string): Promise<string> {
@@ -324,6 +345,7 @@ async function register(
       construction: construction as number,
       general: general as number,
       preferred_buff_time: tParsed.value,
+      evidence_uploaded_at: null, // 신규 등록 시점엔 항상 미인증
     },
   };
 }
@@ -336,7 +358,7 @@ async function login(kingshotId: string, pin: unknown) {
   if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
   if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
   const row = await dbSelectOne(
-    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt,training,construction,general,nickname,avatar_url,preferred_buff_time`
+    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt,training,construction,general,nickname,avatar_url,preferred_buff_time,evidence_uploaded_at`
   );
   if (!row) return { ok: false, error: "not_registered" };
   const computed = await sha256Hex((pin as string) + row.pin_salt);
@@ -359,6 +381,7 @@ async function login(kingshotId: string, pin: unknown) {
       construction: row.construction,
       general: row.general,
       preferred_buff_time: row.preferred_buff_time ?? null,
+      evidence_uploaded_at: row.evidence_uploaded_at ?? null,
     },
   };
 }
@@ -370,7 +393,7 @@ async function login(kingshotId: string, pin: unknown) {
 async function verifyToken(token: unknown) {
   if (!isValidToken(token)) return { ok: false, error: "invalid_token" };
   const row = await dbSelectOne(
-    `kvk_speedup_survey?session_token=eq.${encodeURIComponent(token)}&select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,preferred_buff_time,session_expires_at`
+    `kvk_speedup_survey?session_token=eq.${encodeURIComponent(token)}&select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,preferred_buff_time,evidence_uploaded_at,session_expires_at`
   );
   if (!row) return { ok: false, error: "invalid_token" };
   if (isTokenExpired(row.session_expires_at)) return { ok: false, error: "token_expired" };
@@ -388,6 +411,7 @@ async function verifyToken(token: unknown) {
       construction: row.construction,
       general: row.general,
       preferred_buff_time: row.preferred_buff_time ?? null,
+      evidence_uploaded_at: row.evidence_uploaded_at ?? null,
     },
   };
 }
@@ -484,19 +508,45 @@ async function updateRow(
   return { ok: true };
 }
 
-/** delete — token 우선, 없으면 PIN+ID (백워드 호환). */
+/** delete — token 우선, 없으면 PIN+ID (백워드 호환).
+ *  DB row 삭제 + Storage 의 인증샷도 함께 삭제 (service_role 로) → 고아 발생 차단. */
 async function deleteRow(opts: { token?: unknown; kingshotId?: unknown; pin?: unknown }) {
   const auth = await authenticate(opts);
   if (!auth.ok) return auth;
+  // Storage 먼저 — DB row 가 사라진 뒤 Storage 실패하면 추적 단서 없음.
+  // 반대로 Storage 성공/DB 실패는 다음 register 시 동일 path upsert 로 자연 복구.
+  await deleteEvidenceObject(auth.kingshotId).catch((e) => {
+    // 삭제 실패해도 row 는 진행. 운영 시 로그로 추적.
+    console.error(`evidence delete failed for ${auth.kingshotId}:`, e);
+  });
   await dbDelete(`kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(auth.kingshotId)}`);
   return { ok: true };
+}
+
+/**
+ * 인증샷 업로드/삭제 후 클라가 호출 — evidence_uploaded_at 토글.
+ *   has_evidence=true  → now() 저장
+ *   has_evidence=false → NULL
+ * Storage 파일 자체는 클라가 직접 upsert/delete (bucket 의 anon 정책 활용).
+ * 본 함수는 DB 메타데이터만 동기화.
+ */
+async function setEvidence(opts: { token?: unknown }, hasEvidence: unknown) {
+  if (typeof hasEvidence !== "boolean") return { ok: false, error: "invalid_payload" };
+  const auth = await authenticate(opts);
+  if (!auth.ok) return auth;
+  const ts = hasEvidence ? new Date().toISOString() : null;
+  await dbPatch(
+    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(auth.kingshotId)}`,
+    { evidence_uploaded_at: ts },
+  );
+  return { ok: true, evidence_uploaded_at: ts };
 }
 
 async function list() {
   // city_level >= 26 인 row 만 노출. NULL (기존 등록자) 도 자동 제외 — gte 가 NULL 매치 안 함.
   // 사용자는 [등록/수정] 재진행으로 city_level 채워지면 다시 표시됨.
   const rows = await dbSelect(
-    `kvk_speedup_survey?select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,updated_at&city_level=gte.${MIN_CITY_LEVEL}&order=updated_at.desc`
+    `kvk_speedup_survey?select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,evidence_uploaded_at,updated_at&city_level=gte.${MIN_CITY_LEVEL}&order=updated_at.desc`
   );
   return { ok: true, items: rows };
 }
@@ -514,6 +564,7 @@ Deno.serve(async (req: Request) => {
       construction,
       general,
       preferred_buff_time,
+      has_evidence,
     } = body ?? {};
     // IP / country 는 헤더에서만 추출 — 클라이언트 페이로드는 신뢰하지 않음
     const meta = extractRequestMeta(req);
@@ -552,6 +603,9 @@ Deno.serve(async (req: Request) => {
           preferred_buff_time,
           meta,
         );
+        break;
+      case "set-evidence":
+        result = await setEvidence({ token }, has_evidence);
         break;
       case "delete":
         result = await deleteRow({ token, kingshotId: kingshot_id, pin });
