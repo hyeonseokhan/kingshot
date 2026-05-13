@@ -872,6 +872,15 @@
 .member-search-input::placeholder {
   color: var(--text3);
 }
+/* iOS Safari 줌 방지 — input font-size < 16px 이면 focus 시 자동 zoom-in.
+   데스크탑 12px 디자인은 유지, 모바일만 16px 강제. height 약간 커지지만
+   모바일 터치 영역으로 오히려 자연스러움. */
+@media (max-width: 720px) {
+  .coupon-search-input,
+  .member-search-input {
+    font-size: 16px;
+  }
+}
 
 /* ===== 쿠폰 카드 / 선택 ===== */
 .coupon-card.coupon-expiring {
