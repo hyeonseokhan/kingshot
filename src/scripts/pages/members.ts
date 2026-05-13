@@ -562,12 +562,14 @@ function initPage(): void {
           .then((res) => {
             if (res.error) throw new Error(res.error.message);
             invalidateAccountsCache();
-            $('md-name').textContent = data.name;
-            $('md-meta').textContent =
-              'Lv.' + (data.level || '?') + ' · ' + (data.kingdom || '?');
-            if (data.profilePhoto) {
-              $('md-avatar').innerHTML = '<img src="' + esc(data.profilePhoto) + '">';
-            }
+            // 갱신된 필드만 m 에 적용 후 openManageDialog 로 전체 재렌더 —
+            // 직접 textContent 만 채우면 power/alliance_rank_pos 등 게임 API 가
+            // 주지 않는 필드가 화면에서 사라지는 회귀 발생.
+            m.nickname = data.name;
+            m.level = parseInt(String(data.level), 10) || 0;
+            m.kingdom = data.kingdom || null;
+            m.profile_photo = data.profilePhoto || null;
+            openManageDialog(m);
             btn.innerHTML =
               '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
             setTimeout(() => {
