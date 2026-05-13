@@ -253,8 +253,11 @@ const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    height: var(--header-h);             /* 메인 상단 헤더(.app-header)와 동일 높이 — 시각 정렬 */
+    padding: 0 20px;
+    box-sizing: border-box;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;                       /* 자식 컨텐츠가 늘어도 헤더 높이 고정 */
   }
   /* "메뉴" 라벨 — pseudo content 는 i18n 처리 못 해서 실제 element 로 분리 */
   .mobile-nav-close-label {
