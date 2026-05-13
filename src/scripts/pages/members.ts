@@ -17,6 +17,7 @@ import {
 } from '@/lib/cache';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import { patchList, patchText } from '@/lib/dom-diff';
+import { appAlert, appConfirm } from '@/lib/dialog';
 import type { Member, AllianceRank } from '@/lib/types';
 import { t, onLangChange } from '@/i18n';
 import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
@@ -282,7 +283,11 @@ function openDialog(id: string): void {
   const m = findMember(id);
   if (!m) return;
   currentDialogId = id;
+  renderDialog(m);
+}
 
+/** 다이얼로그 본문 렌더 — 신규 진입 + md-refresh 후 재렌더 모두 같은 함수. */
+function renderDialog(m: Member): void {
   const rank = m.alliance_rank || 'R1';
   const lvl = m.level || 0;
   const lvClass = getLevelClass(lvl);
@@ -339,13 +344,14 @@ function closeModal(): void {
 
 // ===== 갱신 (5명 병렬 배치) =====
 
-function refreshAllMembers(): void {
+async function refreshAllMembers(): Promise<void> {
   const positioned = buildPositioned();
   if (positioned.length === 0) {
-    alert(t('members.refreshAllEmpty'));
+    await appAlert(t('members.refreshAllEmpty'));
     return;
   }
-  if (!confirm(t('members.refreshAllConfirm', { n: positioned.length }))) return;
+  const ok = await appConfirm(t('members.refreshAllConfirm', { n: positioned.length }));
+  if (!ok) return;
   refreshMembersByIds(positioned.map((m) => m.id));
 }
 
@@ -569,7 +575,7 @@ function initPage(): void {
             m.level = parseInt(String(data.level), 10) || 0;
             m.kingdom = data.kingdom || null;
             m.profile_photo = data.profilePhoto || null;
-            openManageDialog(m);
+            renderDialog(m);
             btn.innerHTML =
               '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
             setTimeout(() => {
@@ -580,7 +586,7 @@ function initPage(): void {
             refreshFromStore(true);
           }),
       )
-      .catch((err: Error) => alert(t('members.errors.refreshFailed', { message: err.message })))
+      .catch((err: Error) => appAlert(t('members.errors.refreshFailed', { message: err.message })))
       .finally(() => {
         btn.disabled = false;
       });
@@ -597,7 +603,7 @@ function initPage(): void {
       .eq('id', currentDialogId)
       .then((res) => {
         if (res.error) {
-          alert(t('members.errors.saveFailed', { message: res.error.message }));
+          appAlert(t('members.errors.saveFailed', { message: res.error.message }));
           return;
         }
         invalidateAccountsCache();
@@ -607,16 +613,21 @@ function initPage(): void {
   });
 
   // 다이얼로그: 삭제
-  $('md-delete').addEventListener('click', () => {
+  $('md-delete').addEventListener('click', async () => {
     if (!currentDialogId) return;
     const m = findMember(currentDialogId);
-    if (!m || !confirm(t('members.errors.confirmDelete', { name: m.nickname }))) return;
+    if (!m) return;
+    const ok = await appConfirm(
+      t('members.errors.confirmDelete', { name: m.nickname }),
+      { variant: 'danger' },
+    );
+    if (!ok) return;
     sb.from('members')
       .delete()
       .eq('id', currentDialogId)
       .then((res) => {
         if (res.error) {
-          alert(t('members.errors.deleteFailed', { message: res.error.message }));
+          appAlert(t('members.errors.deleteFailed', { message: res.error.message }));
           return;
         }
         invalidateAccountsCache();
@@ -670,7 +681,7 @@ function initPage(): void {
         $<HTMLButtonElement>('btn-modal-save').disabled = false;
       })
       .catch((err: Error) => {
-        alert(t('members.errors.refreshFailed', { message: err.message }));
+        appAlert(t('members.errors.refreshFailed', { message: err.message }));
         searchData = null;
         $<HTMLButtonElement>('btn-modal-save').disabled = true;
       })
@@ -683,7 +694,7 @@ function initPage(): void {
   // 등록 모달: 저장
   $('btn-modal-save').addEventListener('click', () => {
     if (!searchData) {
-      alert(t('members.errors.needSearch'));
+      appAlert(t('members.errors.needSearch'));
       return;
     }
     const data = searchData;
@@ -701,9 +712,9 @@ function initPage(): void {
             res.error.message.indexOf('duplicate') !== -1 ||
             res.error.message.indexOf('unique') !== -1
           ) {
-            alert(t('members.errors.duplicate'));
+            appAlert(t('members.errors.duplicate'));
           } else {
-            alert(t('members.errors.saveFailed', { message: res.error.message }));
+            appAlert(t('members.errors.saveFailed', { message: res.error.message }));
           }
           return;
         }

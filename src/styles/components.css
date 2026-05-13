@@ -229,6 +229,55 @@ html[data-kingshot-id='270680423'] .mobile-nav-children.open[data-require-kingsh
   to   { transform: rotate(360deg); }
 }
 
+/* ===== 공용 알림/확인 다이얼로그 (src/lib/dialog.ts: appAlert / appConfirm) =====
+   native window.alert/confirm 대체. 매 호출마다 dynamic create + remove.
+   dialog 자체는 transparent — 카드(.app-dialog-card) 가 시각 컨테이너. */
+.app-dialog {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: fit-content;
+  height: fit-content;
+  max-width: 92vw;
+  max-height: 90vh;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+.app-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.app-dialog-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px 16px;
+  min-width: 280px;
+  max-width: 420px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+.app-dialog-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.app-dialog-msg {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-line; /* \n 줄바꿈 지원 */
+  word-break: break-word;
+}
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.app-dialog-actions .btn { min-width: 64px; }
+
 .btn-danger {
   background: none;
   color: var(--red);
