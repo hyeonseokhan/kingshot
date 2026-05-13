@@ -254,37 +254,40 @@ import '@/styles/survey-kvk.css';
               />
               <span class="sk-form-row-unit" data-i18n="survey.kvk.form.unit">분</span>
             </div>
-            <!-- 인증샷 row — 가속권 row 와 동일 외형 컨테이너 (prefix 좌측 + 우측에 상태별 컨텐츠).
-                 선택 시: [thumb] [파일명] [제거]  /  미선택 시: [파일 선택] 라벨 버튼. -->
+            <!-- 인증샷 row — grid 2칼럼 [prefix | content].
+                 content 영역은 has-image 클래스에 따라 [파일 선택 라벨] 또는 [thumb+name+제거] 토글. -->
             <div class="sk-form-row sk-form-row-image" id="sk-form-row-image">
               <span class="sk-form-row-prefix">
                 <span class="sk-form-row-prefix-emoji" aria-hidden="true">📎</span>
                 <span data-i18n="survey.kvk.form.evidenceLabel">인증샷</span>
               </span>
-              <!-- empty 상태 — JS 가 .has-image 클래스로 토글 -->
-              <label class="sk-evidence-pick" for="sk-input-evidence">
-                <span data-i18n="survey.kvk.form.evidencePickButton">파일 선택</span>
-              </label>
-              <!-- selected 상태 -->
-              <div class="sk-evidence-attached" hidden>
-                <div class="sk-evidence-thumb">
-                  <img id="sk-evidence-thumb-img" alt="" />
+              <div class="sk-evidence-content">
+                <!-- empty 상태 -->
+                <label class="sk-evidence-pick" for="sk-input-evidence">
+                  <span data-i18n="survey.kvk.form.evidencePickButton">파일 선택</span>
+                </label>
+                <!-- selected 상태 -->
+                <div class="sk-evidence-attached">
+                  <div class="sk-evidence-thumb">
+                    <img id="sk-evidence-thumb-img" alt="" />
+                  </div>
+                  <span class="sk-evidence-name" id="sk-evidence-name"></span>
+                  <button
+                    type="button"
+                    class="sk-evidence-remove"
+                    id="sk-evidence-remove"
+                    data-i18n="survey.kvk.form.evidenceRemoveButton"
+                  >제거</button>
                 </div>
-                <span class="sk-evidence-name" id="sk-evidence-name"></span>
-                <button
-                  type="button"
-                  class="sk-evidence-remove"
-                  id="sk-evidence-remove"
-                  data-i18n="survey.kvk.form.evidenceRemoveButton"
-                >제거</button>
               </div>
-              <input
-                type="file"
-                id="sk-input-evidence"
-                accept="image/*"
-                hidden
-              />
             </div>
+            <!-- file input — visually hidden 으로 row 밖 배치. 라벨이 for 로 trigger. -->
+            <input
+              type="file"
+              id="sk-input-evidence"
+              accept="image/*"
+              class="sk-visually-hidden"
+            />
           </div>
           <p
             class="sk-evidence-hint"

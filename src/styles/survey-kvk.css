@@ -718,12 +718,28 @@ html:has(.sk-image-dialog[open]) {
   transform: none;
   pointer-events: auto;
 }
-/* empty 상태: 라벨 버튼 노출, attached div 숨김 (default).
-   selected (.has-image): 라벨 숨김, attached 노출. */
+/* grid 의 content 셀 — JS 가 .has-image 로 두 자식 중 하나만 노출 토글.
+   라벨/attached 모두 display:none 충돌 없이 깔끔. file input 은 row 밖이라 영향 X. */
+.sk-evidence-content {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
 .sk-form-row-image.has-image .sk-evidence-pick { display: none; }
 .sk-form-row-image:not(.has-image) .sk-evidence-attached { display: none; }
-/* hidden attribute 무시되도록 강제 — JS 가 클래스로 토글 */
-.sk-form-row-image.has-image .sk-evidence-attached[hidden] { display: flex !important; }
+/* visually hidden file input — 화면엔 안 보이지만 클릭 trigger 받을 수 있음 */
+.sk-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .sk-evidence-pick {
   display: inline-flex;
