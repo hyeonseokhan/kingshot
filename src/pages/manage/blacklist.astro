@@ -151,8 +151,9 @@ const navItems = manage.submenus!.map((s) => ({
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="bl-modal-cancel" type="button" data-i18n="blacklist.modal.cancel">취소</button>
+          <!-- 삭제는 좌측 분리 (margin-right: auto) — 비가역 액션이라 취소/저장과 거리 둠. -->
           <button class="btn btn-danger" id="bl-modal-delete" type="button" data-i18n="blacklist.modal.delete" style="display:none">삭제</button>
+          <button class="btn btn-secondary" id="bl-modal-cancel" type="button" data-i18n="blacklist.modal.cancel">취소</button>
           <button class="btn btn-primary" id="bl-modal-submit" type="button" data-i18n="blacklist.modal.submit">등록</button>
         </div>
       </div>

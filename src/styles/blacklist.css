@@ -241,6 +241,12 @@
   line-height: 1.4;
 }
 
+/* 삭제 버튼은 footer 좌측으로 분리 — 비가역 액션이라 취소/저장 옆에 두지 않음.
+   margin-right: auto 가 우측 두 버튼을 자연스럽게 우측 끝으로 밀어냄. */
+#bl-modal-delete {
+  margin-right: auto;
+}
+
 .btn-danger {
   background: #b91c1c;
   color: white;
