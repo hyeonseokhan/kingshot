@@ -706,6 +706,13 @@ html:has(.sk-image-dialog[open]) {
 .sk-form-row-time select option[value=""][disabled] {
   color: var(--sk-text-dim);
 }
+/* Windows Chromium native dropdown 팝업 가시성 fix — option 은 SELECT 의 color 를 상속하지
+   않고 OS 기본(라이트모드는 흰바탕+검정, 다크모드는 dim grey-on-grey 회귀) 으로 빠짐.
+   option 자체에 명시 → 모든 OS 테마에서 일관 다크 + 밝은 텍스트. */
+.sk-form-row-time select option {
+  background-color: var(--sk-surface);
+  color: var(--sk-text);
+}
 
 /* ===== 인증샷 row (E 안 패턴 — prefix overlay + 우측에 상태별 컨텐츠) ===== */
 .sk-form-row-image {
@@ -957,6 +964,26 @@ html:has(.sk-image-dialog[open]) {
   border-color: transparent;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
 }
+/* 인증 chip — 초록 톤 (Verified 색상과 일관). active 무관 항상 색상 노출. */
+.sk-sort-chip-verified {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.45);
+  color: #4ade80;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sk-sort-chip-verified:hover {
+  background: rgba(74, 222, 128, 0.2);
+  border-color: rgba(74, 222, 128, 0.7);
+  color: #4ade80;
+}
+.sk-sort-chip-verified[data-active='true'] {
+  background: #4ade80;
+  border-color: #4ade80;
+  color: #052e16;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3);
+}
 .sk-sort-chip-emoji {
   font-size: 1em; /* chip 폰트 사이즈 따라감 */
   line-height: 1;
@@ -1035,9 +1062,6 @@ html:has(.sk-image-dialog[open]) {
   color: var(--sk-text-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-.sk-td-actions {
-  text-align: right;
 }
 /* 행은 클릭 시 상세 다이얼로그 → 커서/호버로 인터랙션 가능함을 시각화 */
 .sk-tr {
@@ -1128,18 +1152,10 @@ html:has(.sk-image-dialog[open]) {
   font-size: 13px;
 }
 
-/* 데스크탑: 셀 안 라벨은 숨김 (값만 표시) */
-.sk-cell-label {
-  display: none;
-}
-
 /* ===== 모바일 — 테이블 → 카드 레이아웃으로 변환 ===== */
 @media (max-width: 720px) {
   .survey-main {
     padding: 12px;
-  }
-  .sk-form-grid {
-    grid-template-columns: 1fr;
   }
 
   /* 모바일에선 컨트롤 바를 세로 배치 (legend → sort) + 이모지 가이드 표시 */
@@ -1302,9 +1318,6 @@ html:has(.sk-image-dialog[open]) {
   }
   .sk-td-construction::before {
     content: '🔨';
-  }
-  .sk-cell-label {
-    display: none;
   }
   .sk-cell-value {
     font-weight: 600;

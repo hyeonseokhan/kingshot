@@ -746,6 +746,7 @@ export const ko = {
         searchPlaceholder: '닉네임 또는 ID 검색',
         sortRegistered: '등록순',
         sortScore: '점수',
+        sortVerified: '인증',
         verified: '인증됨',
         unverified: '미인증',
         thead: {

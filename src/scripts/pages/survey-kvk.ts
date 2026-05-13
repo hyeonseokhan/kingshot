@@ -84,7 +84,13 @@ const UNLOCK_KEY = 'sk-unlocked';
  *  로그아웃 버튼 없음 (1인 1행 설문이라 다른 계정 전환 불필요). */
 const AUTH_KEY = 'pnx-sk-auth-v1';
 
-type SortKey = 'training' | 'construction' | 'general' | 'total' | 'score' | 'updated_at';
+type SortKey =
+  | 'training'
+  | 'construction'
+  | 'general'
+  | 'score'
+  | 'verified'
+  | 'updated_at';
 
 // ===== state =====
 
@@ -843,14 +849,22 @@ function rowScore(r: SurveyRow): number {
 function sortRows(rows: SurveyRow[], s: typeof sort): SurveyRow[] {
   const out = rows.slice();
   out.sort((a, b) => {
+    // 인증 정렬 — primary: verified 여부, secondary: score(desc).
+    // dir desc(기본) = 인증 먼저 / dir asc = 미인증 먼저. 사용자 요청 의미상 인증 안된 사람은
+    // 점수가 높더라도 인증된 사람 아래로 밀려야 함.
+    if (s.key === 'verified') {
+      const va = a.evidence_uploaded_at !== null ? 1 : 0;
+      const vb = b.evidence_uploaded_at !== null ? 1 : 0;
+      if (va !== vb) return s.dir === 'asc' ? va - vb : vb - va;
+      const sa = rowScore(a);
+      const sb = rowScore(b);
+      return sb - sa; // 같은 인증 bucket 안에선 항상 점수 desc
+    }
     let av: number;
     let bv: number;
     if (s.key === 'updated_at') {
       av = Date.parse(a.updated_at);
       bv = Date.parse(b.updated_at);
-    } else if (s.key === 'total') {
-      av = rowTotal(a);
-      bv = rowTotal(b);
     } else if (s.key === 'score') {
       av = rowScore(a);
       bv = rowScore(b);
@@ -885,15 +899,12 @@ function buildRow(r: SurveyRow & { rank: number; total: number }): HTMLElement {
       </div>
     </td>
     <td class="sk-td sk-td-num sk-td-general">
-      <span class="sk-cell-label"></span>
       <span class="sk-cell-value"></span>
     </td>
     <td class="sk-td sk-td-num sk-td-training">
-      <span class="sk-cell-label"></span>
       <span class="sk-cell-value"></span>
     </td>
     <td class="sk-td sk-td-num sk-td-construction">
-      <span class="sk-cell-label"></span>
       <span class="sk-cell-value"></span>
     </td>
     <td class="sk-td sk-td-num sk-td-total"></td>
@@ -914,26 +925,13 @@ function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number; total: number
     `#${r.kingshot_id} · TC ${r.city_level}`,
   );
 
-  // 가속권 라벨 + 값 (i18n 대응 — onLangChange 에서 renderList 재호출 시 자동 갱신)
-  patchText(
-    tr.querySelector<HTMLElement>('.sk-td-general .sk-cell-label'),
-    t('survey.kvk.list.thead.general'),
-  );
   patchText(
     tr.querySelector<HTMLElement>('.sk-td-general .sk-cell-value'),
     formatDuration(r.general),
   );
   patchText(
-    tr.querySelector<HTMLElement>('.sk-td-training .sk-cell-label'),
-    t('survey.kvk.list.thead.training'),
-  );
-  patchText(
     tr.querySelector<HTMLElement>('.sk-td-training .sk-cell-value'),
     formatDuration(r.training),
-  );
-  patchText(
-    tr.querySelector<HTMLElement>('.sk-td-construction .sk-cell-label'),
-    t('survey.kvk.list.thead.construction'),
   );
   patchText(
     tr.querySelector<HTMLElement>('.sk-td-construction .sk-cell-value'),

@@ -748,6 +748,7 @@ export const en: Translations = {
         searchPlaceholder: 'Search by nickname or ID',
         sortRegistered: 'Recent',
         sortScore: 'Score',
+        sortVerified: 'Verified',
         verified: 'Verified',
         unverified: 'Unverified',
         thead: {
