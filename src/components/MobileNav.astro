@@ -149,7 +149,11 @@ const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
           <option value="ko">한국어</option>
           <option value="en">English</option>
         </select>
-        <span class="mobile-nav-lang-caret" aria-hidden="true">▾</span>
+        <span class="mobile-nav-lang-caret" aria-hidden="true">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </span>
       </span>
     </label>
     <a
@@ -421,7 +425,9 @@ const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
     right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: rgba(255, 255, 255, 0.6);
     pointer-events: none;
   }
