@@ -410,14 +410,10 @@ html[data-kingshot-id='270680423'] .mobile-nav-children.open[data-require-kingsh
 
 /* iOS 줌 방지 — `.modal-body input { font-size: 14px }` 의 specificity 가 하단
    global `@media (max-width:720px) input { font-size: 16px }` 를 이겨서, 모바일에서도
-   14px 인 채로 남아 focus 시 자동 줌인. 같은 selector + 미디어 쿼리로 override.
-   글자만 16px 로 키우면 box 가 비좁아 보여 → padding/height 도 함께 늘려 박스 자체를
-   자연스럽게 키움 (글자가 box 안에 여유롭게 자리잡도록). */
+   14px 인 채로 남아 focus 시 자동 줌인. 같은 selector + 미디어 쿼리로 override. */
 @media (max-width: 720px) {
   .modal-body input {
     font-size: 16px;
-    height: 36px;
-    padding: 6px 10px;
   }
 }
 
