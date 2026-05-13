@@ -1174,7 +1174,7 @@ function init(): void {
     setStatus('sk-pin-status', '');
     session = null;
   });
-  $('sk-pin-confirm').addEventListener('click', onConfirmPin);
+  // sk-pin-confirm 버튼은 제거됨 — 4자리 자동 호출 + Enter 키로 충분.
 
   // 차단 step — 닫기 클릭 시 다이얼로그 종료 (목록은 여전히 잠긴 상태)
   $('sk-blocked-close').addEventListener('click', closeAuthDialog);
