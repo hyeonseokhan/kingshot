@@ -25,6 +25,14 @@ html[data-kingshot-id='270680423'] [data-require-kingshot-id='270680423'] {
 html[data-kingshot-id='270680423'] .mobile-nav-tab[data-require-kingshot-id='270680423'] {
   display: flex !important;
 }
+/* .mobile-nav-children 도 같은 문제 — UA <div> default = block 이라 default 가 항상 펼침
+   상태가 됨 → .open 토글 무력화. default 는 hidden, .open 일 때만 보이도록 강제. */
+html[data-kingshot-id='270680423'] .mobile-nav-children[data-require-kingshot-id='270680423'] {
+  display: none !important;
+}
+html[data-kingshot-id='270680423'] .mobile-nav-children.open[data-require-kingshot-id='270680423'] {
+  display: block !important;
+}
 
 /* ===== 레이아웃 컨테이너 — 모든 페이지의 main 영역 ===== */
 .center-content {

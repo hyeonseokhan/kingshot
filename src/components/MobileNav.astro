@@ -93,7 +93,11 @@ const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
             data-require-kingshot-id={tab.requireKingshotId}
           >
             <span data-i18n={tab.titleKey}>{tab.title}</span>
-            <span class="mobile-nav-toggle">▸</span>
+            <span class="mobile-nav-toggle" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </span>
           </button>
           <div
             class:list={['mobile-nav-children', { open: isCurrentTab }]}
@@ -300,9 +304,11 @@ const DISCORD_URL = 'https://discord.gg/M9RseKrQDj';
   }
 
   .mobile-nav-toggle {
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: rgba(255, 255, 255, 0.4);
-    transition: transform 0.2s;
+    transition: transform 0.2s, color 0.2s;
   }
   .mobile-nav-tab.expanded .mobile-nav-toggle {
     transform: rotate(90deg);
