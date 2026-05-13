@@ -408,6 +408,15 @@ html[data-kingshot-id='270680423'] .mobile-nav-children.open[data-require-kingsh
   }
 }
 
+/* iOS 줌 방지 — `.modal-body input { font-size: 14px }` 의 specificity 가 하단
+   global `@media (max-width:720px) input { font-size: 16px }` 를 이겨서, 모바일에서도
+   14px 인 채로 남아 focus 시 자동 줌인. 같은 selector + 미디어 쿼리로 override. */
+@media (max-width: 720px) {
+  .modal-body input {
+    font-size: 16px;
+  }
+}
+
 /* ===== 플레이어 검색 카드 (members 등록 + coupons 등록 모달 공유) ===== */
 .player-card {
   display: flex;
