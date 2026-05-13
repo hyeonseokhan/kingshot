@@ -373,6 +373,11 @@ export const en: Translations = {
     confirm: {
       delete: 'Remove {name} from the blacklist? The attached image will also be deleted.',
     },
+    refreshAll: {
+      confirm: 'Refresh latest profile for {n} entries from the official API? (Batched 5 at a time)',
+      done: 'Refreshed {n} entries',
+      partial: '{ok} succeeded / {fail} failed',
+    },
     msg: {
       needLogin: 'Please sign in first (top-right login button).',
       needSearch: 'Please search by Kingshot ID first.',

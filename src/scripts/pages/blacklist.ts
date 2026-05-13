@@ -17,14 +17,19 @@ import { t, onLangChange } from '@/i18n';
 import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
 import { optimizeImage, formatBytes } from '@/lib/image-optimize';
 import { patchList, patchText } from '@/lib/dom-diff';
-import { esc } from '@/lib/utils';
+import { esc, delay } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
-import { appAlert } from '@/lib/dialog';
+import { appAlert, appConfirm } from '@/lib/dialog';
 
 const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
 const REST_BASE = SUPABASE_URL + '/rest/v1';
 const STORAGE_BASE = SUPABASE_URL + '/storage/v1';
 const BUCKET = 'blacklist-evidence';
+
+// 일괄 갱신 — 외부 centurygame API rate limit 고려해 5명씩 묶고 배치 사이 1s delay.
+// coupons.ts 의 refreshAllExtras 와 동일 패턴.
+const BATCH_SIZE = 5;
+const DELAY_BETWEEN_BATCHES = 1000;
 
 const restHeaders: Record<string, string> = {
   apikey: SUPABASE_ANON_KEY,
@@ -97,7 +102,7 @@ export function initBlacklist(): void {
     searchTerm = (e.target as HTMLInputElement).value.trim().toLowerCase();
     renderList();
   });
-  bindRefreshButton('bl-refresh-btn', loadEntriesPromise);
+  bindRefreshButton('bl-refresh-btn', refreshAllPlayerInfo);
 
   // 이미지 보기 lightbox — 아무 곳(이미지 포함) 클릭 시 닫힘 (KvK 가속권 가이드 패턴 동일)
   $('bl-image-dialog')?.addEventListener('click', () => {
@@ -130,6 +135,76 @@ function loadEntriesPromise(): Promise<void> {
     .catch(() => {
       entries = [];
       renderList();
+    });
+}
+
+// ===== 일괄 갱신 — 모든 entry 의 player 프로필을 외부 API 에서 재조회 후 DB 업데이트 =====
+// coupons.ts 의 refreshAllExtras 와 동일 흐름. 5명씩 묶어 Promise.all,
+// 배치 사이 1s delay 로 rate limit 보호.
+
+async function refreshAllPlayerInfo(): Promise<void> {
+  // 0건이면 단순 reload (entries 비어있을 수 있어 우선 한 번 fetch)
+  if (entries.length === 0) {
+    await loadEntriesPromise();
+    if (entries.length === 0) return;
+  }
+
+  const ok = await appConfirm(t('blacklist.refreshAll.confirm', { n: entries.length }));
+  if (!ok) return;
+
+  const stats = { success: 0, failed: 0 };
+  const total = entries.length;
+
+  for (let i = 0; i < total; i += BATCH_SIZE) {
+    const batch = entries.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map((e) => refreshSingleEntry(e, stats)));
+    if (i + BATCH_SIZE < total) await delay(DELAY_BETWEEN_BATCHES);
+  }
+
+  // DB 변경분 반영을 위해 entries 재로드 + 렌더
+  await loadEntriesPromise();
+
+  if (stats.failed === 0) {
+    await appAlert(t('blacklist.refreshAll.done', { n: stats.success }));
+  } else {
+    await appAlert(
+      t('blacklist.refreshAll.partial', { ok: stats.success, fail: stats.failed }),
+    );
+  }
+}
+
+function refreshSingleEntry(
+  e: BlacklistEntry,
+  stats: { success: number; failed: number },
+): Promise<void> {
+  return fetch(REDEEM_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'player', fid: e.kingshot_id }),
+  })
+    .then((r) => r.json())
+    .then((json) => {
+      if (json.code !== 0 || !json.data) {
+        throw new Error(json.msg || 'lookup failed');
+      }
+      const patch = {
+        nickname: json.data.nickname,
+        avatar_url: json.data.avatar_image ?? null,
+        kingdom: json.data.kid ?? null,
+        level: parseInt(String(json.data.stove_lv ?? json.data.stove_lv_content ?? ''), 10) || null,
+      };
+      return fetch(REST_BASE + '/blacklist?id=eq.' + encodeURIComponent(e.id), {
+        method: 'PATCH',
+        headers: { ...restJsonHeaders, Prefer: 'return=minimal' },
+        body: JSON.stringify(patch),
+      });
+    })
+    .then((res) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      stats.success++;
+    })
+    .catch(() => {
+      stats.failed++;
     });
 }
 
