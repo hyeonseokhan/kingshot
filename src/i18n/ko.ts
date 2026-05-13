@@ -216,9 +216,10 @@ export const ko = {
     },
     toolbar: {
       searchPlaceholder: '닉네임 검색...',
-      redeemAll: '🎁 전체 수령',
+      redeemAll: '전체 수령',
       refreshExtras: '추가 계정 갱신',
       historyTitle: '수령 이력',
+      historyText: '수령 이력',
     },
     refreshExtras: {
       empty: '갱신할 추가 계정이 없습니다.',

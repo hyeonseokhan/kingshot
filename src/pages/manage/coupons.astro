@@ -116,7 +116,7 @@ const navItems = manage.submenus!.map((s) => ({
           id="btn-redeem-all"
           type="button"
           data-i18n="coupons.toolbar.redeemAll"
-        >🎁 전체 수령</button>
+        >전체 수령</button>
         <!-- 추가 계정 (extras) 일괄 갱신 — JS 가 extras 0건일 때 hidden -->
         <button
           class="btn btn-secondary btn-sm"
@@ -124,20 +124,15 @@ const navItems = manage.submenus!.map((s) => ({
           type="button"
           hidden
           data-i18n="coupons.toolbar.refreshExtras"
-        >🔄 추가 계정 갱신</button>
+        >추가 계정 갱신</button>
         <button
-          class="btn-icon-only"
+          class="btn btn-secondary btn-sm"
           id="btn-history"
-          title="수령 이력"
-          data-i18n-attr-title="coupons.toolbar.historyTitle"
           type="button"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 3v5h5"></path>
-            <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
-            <path d="M12 7v5l4 2"></path>
-          </svg>
-        </button>
+          data-i18n="coupons.toolbar.historyText"
+          data-i18n-attr-title="coupons.toolbar.historyTitle"
+          title="수령 이력"
+        >수령 이력</button>
       </div>
     </div>
     <div class="members-list" id="coupon-members-list">

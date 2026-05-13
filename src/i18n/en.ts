@@ -219,9 +219,10 @@ export const en: Translations = {
     },
     toolbar: {
       searchPlaceholder: 'Search nickname...',
-      redeemAll: '🎁 Redeem All',
+      redeemAll: 'Redeem All',
       refreshExtras: 'Refresh Extras',
       historyTitle: 'History',
+      historyText: 'History',
     },
     refreshExtras: {
       empty: 'No extra accounts to refresh.',

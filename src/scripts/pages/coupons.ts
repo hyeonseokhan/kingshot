@@ -488,7 +488,9 @@ function updateAccountRow(row: HTMLElement, a: RedeemAccount, canDelete: boolean
       SVG.trash +
       '</button>'
     : '';
-  actions.innerHTML = redeemBtn + deleteBtn;
+  // 추가 계정(extras): 삭제 → 수령 순서 (실수로 수령 누르기 전에 삭제 의도 분리).
+  // 연맹원(members): canDelete=false 라 deleteBtn = '' → 순서 무관.
+  actions.innerHTML = deleteBtn + redeemBtn;
 }
 
 function renderAccountGroup(
