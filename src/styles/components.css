@@ -329,7 +329,7 @@ html[data-kingshot-id='270680423'] .mobile-nav-children.open[data-require-kingsh
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--border2);
 }
 .modal-header h3 {
