@@ -52,24 +52,35 @@ supabase/
 | 클라이언트 코드 (Astro/TS/CSS) | Claude |
 | `npm run build`, 타입체크, 빌드 검증 | Claude |
 | git 브랜치/커밋/push (PR 생성) | Claude |
-| **`supabase db push`** (production DB 적용) | **사용자** |
-| **`supabase functions deploy <name>`** | **사용자** |
+| **`supabase db push`** (production DB 적용) | **Claude → 결과 사용자 보고** |
+| **`supabase functions deploy <name>`** | **Claude → 결과 사용자 보고** |
 | GitHub Secrets / Pages / 환경 설정 | **사용자** |
 | 브라우저에서 실제 동작 확인 (UI 회귀) | **사용자** |
 
 ### Supabase CLI 운영 원칙 (mac / windows 공통)
 
-- **production 적용 명령(`supabase db push`, `supabase functions deploy`, `supabase link` 등)은
-  항상 사용자가 직접 실행한다.** 환경에 CLI 가 설치돼있는지 매번 확인하거나,
-  brew/npm/binary 다운로드로 우회 설치하는 시도를 **하지 않는다** —
-  과거 세션에서 CLI 자체 검증·우회 설치에만 시간을 소비한 적 있음.
-- Claude 의 역할은 정확히 다음까지: ① 마이그레이션 SQL / Edge Function 코드 작성,
-  ② 변경 후 사용자에게 "다음 명령을 실행해주세요" 라고 한 줄로 정리해 안내,
-  ③ 사용자가 적용 결과 (성공/에러 출력) 를 붙여 넣어주면 그걸 보고 후속 작업.
-- 사용자가 **명시적으로** "네가 직접 실행해줘" 라고 요청하면 그때만 한정적으로 진행.
-  그 경우에도 새로 도구를 설치하기 전에 한 번 더 확인 받는다.
-- anon key 또는 REST API 만으로 검증 가능한 작업 (예: 컬럼 존재 확인, 함수 응답 테스트)
-  은 CLI 없이도 curl 로 가능 — 그건 Claude 가 직접 수행해도 됨.
+**기본 원칙 (2026-05-13 정책 변경)**:
+production 적용 명령(`supabase db push`, `supabase functions deploy`)도 Claude 가 **먼저 실행하고**
+결과(성공/실패/에러 메시지)를 사용자에게 한 번에 보고. 사용자가 매번 명령어 복붙할 필요 없도록.
+
+흐름:
+1. 마이그레이션 SQL / Edge Function 코드 작성 + 클라이언트 변경 + 빌드 검증
+2. **Claude 가 직접 실행** — 안전한 순서로 (DB 마이그레이션 → Edge Function → 클라이언트 push)
+3. 각 단계 결과를 사용자에게 한 번에 요약 보고 (예: "DB 적용 ✅ / Function 배포 ✅ / push ✅")
+4. 실패 시 즉시 진단 + 후속 조치
+
+**도구 설치는 여전히 사용자 확인 필요**:
+- 현재 환경에 `supabase` CLI 가 이미 설치돼있어 (`/Users/toycode/bin/supabase`) 사용 가능.
+- CLI 자체가 없는 환경(다른 PC 등)에선 brew/npm 으로 새로 설치하기 전에 사용자에게 확인.
+- 과거 세션에서 CLI 검증·우회 설치에만 시간 낭비한 적 있어 — 이미 있으면 그대로 쓰고, 없으면 묻기.
+
+**인증**:
+- `SUPABASE_ACCESS_TOKEN` 은 `.env` 에 있음. `set -a && source .env && set +a` 패턴으로 functions deploy 시 inject.
+- DB push 는 별도 토큰 없이도 동작 (이미 link 돼있음).
+
+**가벼운 검증은 CLI 없이도 가능**:
+anon key 또는 REST API 만으로 검증 가능한 작업 (예: 컬럼 존재 확인, 함수 응답 테스트)
+은 curl 로 가능 — 그건 CLI 거치지 않고 직접 호출.
 
 ### Edge Function 배포 시 verify_jwt 옵션
 

@@ -745,7 +745,8 @@ html:has(.sk-image-dialog[open]) {
   line-height: 32px;
   white-space: nowrap;
 }
-/* 닉네임/ID 검색 — toolbar 안 다른 자식과 동일 32px 높이. */
+/* 닉네임/ID 검색 — toolbar 안 다른 자식과 동일 32px 높이.
+   font-size 는 iOS Safari 줌인 차단을 위해 16px 필수 (16px 미만이면 포커스 시 자동 줌). */
 .sk-list-search {
   height: 32px;
   min-width: 0;
@@ -757,7 +758,8 @@ html:has(.sk-image-dialog[open]) {
   background: var(--sk-surface-2);
   color: var(--sk-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 16px;
+  line-height: 1;
   outline: none;
   transition: border-color 0.12s, background 0.12s;
 }
