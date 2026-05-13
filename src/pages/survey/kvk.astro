@@ -14,12 +14,13 @@ import '@/styles/survey-kvk.css';
       </p>
     </section>
 
-    <!-- 상시 안내 — 자격(TC26+) / 열람 권한(제출 후) / 기존 등록자 복귀 방법 -->
+    <!-- 상시 안내 — 자격 / 열람 권한 / 보상 / 가속권 사용 -->
     <section class="sk-notice">
       <ul>
         <li data-i18n="survey.kvk.notice.line1">제출을 완료한 사용자만 현황을 열람할 수 있습니다.</li>
         <li data-i18n-html="survey.kvk.notice.line2">등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.</li>
-        <li data-i18n="survey.kvk.notice.line3">이전 등록자가 목록에 보이지 않으면 [등록 / 수정] 을 다시 진행하면 정상 표시됩니다.</li>
+        <li data-i18n-html="survey.kvk.notice.reward"><strong>상위 48명 보상</strong>: 1일차(건설) / 4일차(병사) 국왕스킬을 30분씩 순차 로테이션 (24시간).</li>
+        <li data-i18n-html="survey.kvk.notice.usage"><strong>가속권은 모두 KvK 점수에 투입</strong>해 주세요. 과도 보유 / 허위 제출 시 <strong class="sk-notice-warn">패널티가 부과</strong>됩니다.</li>
       </ul>
     </section>
 
@@ -147,10 +148,21 @@ import '@/styles/survey-kvk.css';
       </div>
     </dialog>
 
-    <!-- (B) 폼 영역 (PIN 인증 후 표시) -->
-    <section class="sk-form-section" id="sk-form-section" hidden>
-      <div class="sk-form-card">
-        <header class="sk-form-head">
+    <!-- (B) 폼 다이얼로그 (PIN 인증 후 또는 로그인된 사용자가 [등록/수정] 클릭 시 노출) -->
+    <dialog class="sk-dialog sk-form-dialog" id="sk-form-dialog" aria-labelledby="sk-form-title">
+      <div class="sk-dialog-card">
+        <header class="sk-dialog-head">
+          <strong id="sk-form-title" data-i18n="survey.kvk.form.dialogTitle"
+            >내 정보 등록 / 수정</strong
+          >
+          <button
+            type="button"
+            class="sk-dialog-close"
+            id="sk-form-close"
+            aria-label="Close"
+          >&times;</button>
+        </header>
+        <div class="sk-dialog-body">
           <div class="sk-player-card sk-player-card-compact" id="sk-form-player">
             <div class="sk-player-photo-wrap">
               <div class="sk-player-photo-empty" id="sk-form-photo-empty">?</div>
@@ -161,88 +173,115 @@ import '@/styles/survey-kvk.css';
               <div class="sk-player-id" id="sk-form-id">-</div>
             </div>
           </div>
-        </header>
-        <p class="sk-help">
-          <span data-i18n="survey.kvk.form.help"
-            >게임 내 가속권 현황 상태에서 분 단위로 설정한 값을 입력해주세요</span
-          >
-          <button
-            type="button"
-            class="sk-help-image-trigger"
-            id="sk-help-image-trigger"
-            data-i18n="survey.kvk.form.helpImageLink"
-          >이미지 보기</button>
-        </p>
-        <div class="sk-form-grid">
-          <label class="sk-form-field">
-            <span class="sk-form-field-label" data-i18n="survey.kvk.form.general"
-              >공용 가속권</span
+          <p class="sk-help">
+            <span data-i18n="survey.kvk.form.help"
+              >게임 내 가속권 현황 상태에서 분 단위로 설정한 값을 입력해주세요</span
             >
-            <input
-              type="text"
-              id="sk-input-general"
-              inputmode="numeric"
-              autocomplete="off"
-              placeholder="예: 16,767"
-              data-i18n-attr-placeholder="survey.kvk.form.placeholderGeneral"
-            />
-            <span class="sk-form-field-unit" data-i18n="survey.kvk.form.unit">분</span>
-          </label>
-          <label class="sk-form-field">
-            <span class="sk-form-field-label" data-i18n="survey.kvk.form.training"
-              >병사 훈련 가속권</span
+            <button
+              type="button"
+              class="sk-help-image-trigger"
+              id="sk-help-image-trigger"
+              data-i18n="survey.kvk.form.helpImageLink"
+            >이미지 보기</button>
+          </p>
+          <div class="sk-form-warn" role="note">
+            <span class="sk-form-warn-icon" aria-hidden="true">⚠️</span>
+            <span data-i18n="survey.kvk.form.warn"
+              >허위 정보를 제출한 경우, KvK 종료 후 패널티가 부과됩니다.</span
             >
-            <input
-              type="text"
-              id="sk-input-training"
-              inputmode="numeric"
-              autocomplete="off"
-              placeholder="예: 11,943"
-              data-i18n-attr-placeholder="survey.kvk.form.placeholderTraining"
-            />
-            <span class="sk-form-field-unit" data-i18n="survey.kvk.form.unit">분</span>
-          </label>
-          <label class="sk-form-field">
-            <span class="sk-form-field-label" data-i18n="survey.kvk.form.construction"
-              >건설 가속권</span
-            >
-            <input
-              type="text"
-              id="sk-input-construction"
-              inputmode="numeric"
-              autocomplete="off"
-              placeholder="예: 11,709"
-              data-i18n-attr-placeholder="survey.kvk.form.placeholderConstruction"
-            />
-            <span class="sk-form-field-unit" data-i18n="survey.kvk.form.unit">분</span>
-          </label>
-        </div>
-        <div class="sk-status" id="sk-form-status" role="status" aria-live="polite"></div>
-        <div class="sk-form-actions">
-          <!-- 삭제: 수정 모드일 때만 노출 (JS 가 enterFormMode 에서 hidden 토글). 좌측 끝. -->
-          <button
-            type="button"
-            class="sk-btn sk-btn-danger"
-            id="sk-form-delete"
-            hidden
-            data-i18n="survey.kvk.form.deleteButton"
-          >삭제</button>
-          <!-- 취소 + 저장 — 우측 페어 (Cancel margin-left: auto 로 우측 push) -->
-          <button
-            type="button"
-            class="sk-btn sk-btn-secondary"
-            id="sk-form-cancel"
-            data-i18n="survey.kvk.form.cancelButton"
-          >취소</button>
-          <button
-            type="button"
-            class="sk-btn sk-btn-primary"
-            id="sk-form-save"
-            data-i18n="common.save"
-          >저장</button>
+          </div>
+          <div class="sk-form-rows">
+            <!-- 시간 row — select. UTC 기준 30분 단위 48개 옵션은 클라이언트 JS 에서 동적 생성. -->
+            <div class="sk-form-row sk-form-row-time">
+              <span class="sk-form-row-prefix">
+                <span class="sk-form-row-prefix-emoji" aria-hidden="true">🕐</span>
+                <span data-i18n="survey.kvk.form.preferredTimeLabel">버프 시간 (UTC)</span>
+              </span>
+              <select
+                id="sk-input-preferred-time"
+                aria-label="버프 시간 (UTC)"
+                data-i18n-attr-aria-label="survey.kvk.form.preferredTimeLabel"
+              >
+                <!-- placeholder option + 48개 시간 옵션은 JS init() 에서 채움 -->
+              </select>
+            </div>
+            <!-- 가속권 3개 — input.num 자체가 컨테이너, prefix(좌) + unit(우) absolute overlay -->
+            <div class="sk-form-row">
+              <span class="sk-form-row-prefix">
+                <span class="sk-form-row-prefix-emoji" aria-hidden="true">⭐</span>
+                <span data-i18n="survey.kvk.list.thead.general">공용</span>
+              </span>
+              <input
+                type="text"
+                id="sk-input-general"
+                class="sk-form-row-input"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="예: 16,767"
+                data-i18n-attr-placeholder="survey.kvk.form.placeholderGeneral"
+              />
+              <span class="sk-form-row-unit" data-i18n="survey.kvk.form.unit">분</span>
+            </div>
+            <div class="sk-form-row">
+              <span class="sk-form-row-prefix">
+                <span class="sk-form-row-prefix-emoji" aria-hidden="true">🛡️</span>
+                <span data-i18n="survey.kvk.list.thead.training">병사</span>
+              </span>
+              <input
+                type="text"
+                id="sk-input-training"
+                class="sk-form-row-input"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="예: 11,943"
+                data-i18n-attr-placeholder="survey.kvk.form.placeholderTraining"
+              />
+              <span class="sk-form-row-unit" data-i18n="survey.kvk.form.unit">분</span>
+            </div>
+            <div class="sk-form-row">
+              <span class="sk-form-row-prefix">
+                <span class="sk-form-row-prefix-emoji" aria-hidden="true">🔨</span>
+                <span data-i18n="survey.kvk.list.thead.construction">건설</span>
+              </span>
+              <input
+                type="text"
+                id="sk-input-construction"
+                class="sk-form-row-input"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="예: 11,709"
+                data-i18n-attr-placeholder="survey.kvk.form.placeholderConstruction"
+              />
+              <span class="sk-form-row-unit" data-i18n="survey.kvk.form.unit">분</span>
+            </div>
+          </div>
+          <div class="sk-status" id="sk-form-status" role="status" aria-live="polite"></div>
+          <div class="sk-form-actions">
+            <!-- 삭제: 수정 모드일 때만 노출 (JS 가 enterFormMode 에서 hidden 토글). 좌측 끝. -->
+            <button
+              type="button"
+              class="sk-btn sk-btn-danger"
+              id="sk-form-delete"
+              hidden
+              data-i18n="survey.kvk.form.deleteButton"
+            >삭제</button>
+            <!-- 취소 + 저장 — 우측 페어 (Cancel margin-left: auto 로 우측 push) -->
+            <button
+              type="button"
+              class="sk-btn sk-btn-secondary"
+              id="sk-form-cancel"
+              data-i18n="survey.kvk.form.cancelButton"
+            >취소</button>
+            <button
+              type="button"
+              class="sk-btn sk-btn-primary"
+              id="sk-form-save"
+              data-i18n="common.save"
+            >저장</button>
+          </div>
         </div>
       </div>
-    </section>
+    </dialog>
 
     <!-- (C) 목록 영역 — 인증 전엔 잠금 placeholder, 인증 후 .sk-page.is-unlocked 로 노출 -->
     <section class="sk-list-section">
@@ -250,6 +289,16 @@ import '@/styles/survey-kvk.css';
         <h3 data-i18n="survey.kvk.list.heading">제출 현황</h3>
         <div class="sk-list-toolbar">
           <span class="sk-list-count" id="sk-list-count"></span>
+          <input
+            type="search"
+            class="sk-list-search"
+            id="sk-list-search"
+            autocomplete="off"
+            placeholder="닉네임 또는 ID 검색"
+            data-i18n-attr-placeholder="survey.kvk.list.searchPlaceholder"
+            aria-label="닉네임 또는 ID 검색"
+            data-i18n-attr-aria-label="survey.kvk.list.searchPlaceholder"
+          />
           <button
             type="button"
             class="sk-icon-btn"
@@ -303,8 +352,10 @@ import '@/styles/survey-kvk.css';
             data-i18n="survey.kvk.list.thead.construction">건설</button>
           <button type="button" class="sk-sort-chip" data-sort="total"
             data-i18n="survey.kvk.list.thead.total">합계</button>
-          <button type="button" class="sk-sort-chip" data-sort="score"
-            data-i18n="survey.kvk.list.sortScore">점수</button>
+          <button type="button" class="sk-sort-chip sk-sort-chip-score" data-sort="score">
+            <span class="sk-sort-chip-emoji" aria-hidden="true">🎁</span>
+            <span data-i18n="survey.kvk.list.sortScore">점수</span>
+          </button>
           <button type="button" class="sk-sort-chip" data-sort="updated_at"
             data-i18n="survey.kvk.list.sortRegistered">등록순</button>
         </div>

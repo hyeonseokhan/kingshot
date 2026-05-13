@@ -131,6 +131,10 @@
   color: var(--sk-accent-hover);
   font-weight: 700;
 }
+/* 패널티 등 위험성 강조 — 빨강 톤. .sk-notice strong 의 accent 색을 override. */
+.sk-notice strong.sk-notice-warn {
+  color: #f87171;
+}
 
 /* ===== 잠금 placeholder (목록 영역 — 미인증 시 노출) =====
    .sk-page.is-unlocked 일 때 hidden — 인증 완료 → JS 가 클래스 토글. */
@@ -305,6 +309,13 @@
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(2px);
 }
+/* 다이얼로그 열려있는 동안 배경(목록 테이블) 스크롤 잠금.
+   native <dialog> 의 showModal() 이 자동 lock 을 안 해서 wheel/touch 가 body 로 propagate 됨.
+   :has() 는 모던 브라우저 모두 지원 (Chrome 105+, Safari 15.4+, FF 121+) — 외부 설문 사용자도 호환. */
+html:has(.sk-dialog[open]),
+html:has(.sk-image-dialog[open]) {
+  overflow: hidden;
+}
 .sk-dialog-card {
   background: var(--sk-surface);
   border: 1px solid var(--sk-border);
@@ -359,8 +370,7 @@
 }
 .sk-input-row input[type='text'],
 .sk-input-row input[type='number'],
-.sk-pin-row input,
-.sk-form-field input {
+.sk-pin-row input {
   flex: 1;
   min-width: 0;
   background: var(--sk-surface-2);
@@ -376,8 +386,7 @@
   transition: border-color 0.15s;
 }
 .sk-input-row input:focus,
-.sk-pin-row input:focus,
-.sk-form-field input:focus {
+.sk-pin-row input:focus {
   border-color: var(--sk-accent);
 }
 .sk-pin-header {
@@ -564,50 +573,134 @@
   margin-top: 2px;
 }
 
-/* ===== 폼 영역 ===== */
-.sk-form-section {
-  margin-bottom: 28px;
+/* ===== 폼 (다이얼로그 안) — slim row 패턴 =====
+   각 가속권 row 는 input.num 자체가 컨테이너이고 prefix(이모지+짧은 라벨) 가 좌측 absolute,
+   단위(분) 가 우측 absolute. → 라벨 줄을 별도로 차지하지 않아 세로 공간 최소화.
+   시간 row (.sk-form-row-time) 은 select 가 prefix overlay 패턴에 맞지 않아 grid 2칼럼 분리,
+   대신 컨테이너 외형(border/background/height)을 input row 와 동일하게 강제. */
+.sk-form-dialog .sk-player-card-compact {
+  margin-bottom: 12px;
 }
-.sk-form-card {
-  background: var(--sk-surface);
-  border: 1px solid var(--sk-border-strong);
-  border-radius: 12px;
-  padding: 18px 20px 20px;
+
+/* 안내문 — 허위 정보 패널티 경고. 빨강 톤 subtle. */
+.sk-form-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #fecaca;
+  line-height: 1.5;
 }
-.sk-form-head {
+.sk-form-warn-icon { font-size: 13px; line-height: 1.4; flex-shrink: 0; }
+
+/* row container — margin 만 부여, height 는 input 자체가 결정 */
+.sk-form-row {
+  position: relative;
+  margin-bottom: 6px;
+}
+.sk-form-row:last-of-type { margin-bottom: 0; }
+
+/* prefix (이모지 + 라벨) — input 좌측에 absolute overlay */
+.sk-form-row-prefix {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.sk-form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-top: 6px;
-}
-.sk-form-field {
-  display: flex;
-  flex-direction: column;
   gap: 6px;
-  position: relative;
-}
-.sk-form-field-label {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
   color: var(--sk-text-dim);
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 1;
 }
-.sk-form-field input {
-  padding-right: 36px;
-}
-.sk-form-field-unit {
+.sk-form-row-prefix-emoji { font-size: 16px; }
+
+/* 단위 표시 (분) — 우측 absolute */
+.sk-form-row-unit {
   position: absolute;
   right: 12px;
-  bottom: 9px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 12px;
-  color: var(--sk-text-dim);
+  color: var(--sk-text-faint);
   pointer-events: none;
 }
+
+/* 가속권 input — prefix(좌)/unit(우) overlay 공간 확보 위해 padding 비대칭. iOS 줌 차단 위해 16px. */
+.sk-form-row-input {
+  width: 100%;
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  border-radius: 8px;
+  padding: 10px 36px 10px 92px;
+  color: var(--sk-text);
+  font-family: inherit;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  height: 44px;
+}
+.sk-form-row-input:focus {
+  border-color: var(--sk-accent);
+  background: var(--sk-surface);
+}
+
+/* 시간 row — input row 와 동일 컨테이너 외형. 자식: prefix(좌) + select(우). */
+.sk-form-row-time {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  height: 44px;
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  border-radius: 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sk-form-row-time:focus-within {
+  border-color: var(--sk-accent);
+  background: var(--sk-surface);
+}
+.sk-form-row-time .sk-form-row-prefix {
+  position: static;
+  transform: none;
+  pointer-events: auto;
+}
+.sk-form-row-time select {
+  width: auto;
+  min-width: auto;
+  padding: 0 22px 0 0;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  text-align: right;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--sk-text);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236b7390' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+}
+/* select 가 미선택 (placeholder) 일 때 dim 색으로 — value 는 placeholder option 이 빈 문자열 */
+.sk-form-row-time select:invalid,
+.sk-form-row-time select option[value=""][disabled] {
+  color: var(--sk-text-dim);
+}
+
 .sk-form-actions {
   margin-top: 14px;
   display: flex;
@@ -651,6 +744,29 @@
   font-size: 13px;
   line-height: 32px;
   white-space: nowrap;
+}
+/* 닉네임/ID 검색 — toolbar 안 다른 자식과 동일 32px 높이. */
+.sk-list-search {
+  height: 32px;
+  min-width: 0;
+  flex: 1 1 180px;
+  max-width: 240px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--sk-border);
+  background: var(--sk-surface-2);
+  color: var(--sk-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+.sk-list-search:focus {
+  border-color: var(--sk-accent);
+  background: var(--sk-surface);
+}
+.sk-list-search::placeholder {
+  color: var(--sk-text-dim);
 }
 /* toolbar 안의 모든 버튼은 동일 높이 + 동일 baseline */
 .sk-list-toolbar .sk-btn,
@@ -716,6 +832,30 @@
   background: var(--sk-accent);
   border-color: var(--sk-accent);
   color: #fff;
+}
+/* 점수 chip — 멤버 페이지의 .btn-primary gradient (호박-빨강) 와 동일 색상.
+   active/inactive 무관 항상 노출. 이모지는 폰트 크기에 자동 맞춰짐 (em 단위). */
+.sk-sort-chip-score {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  border-color: transparent;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sk-sort-chip-score:hover {
+  background: linear-gradient(135deg, #d97706, #dc2626);
+  color: #fff;
+  border-color: transparent;
+}
+.sk-sort-chip-score[data-active='true'] {
+  background: linear-gradient(135deg, #d97706, #dc2626);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+}
+.sk-sort-chip-emoji {
+  font-size: 1em; /* chip 폰트 사이즈 따라감 */
+  line-height: 1;
 }
 
 .sk-table-wrap {
@@ -801,7 +941,9 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  overflow: hidden;
+  /* overflow:visible — 좌상단 🎁 배지가 wrap 밖으로 노출돼야 하므로 hidden 못 씀.
+     동그란 모양은 background + img 의 border-radius:50% 로 자체 클립. */
+  overflow: visible;
   background: #2c313d;
   position: relative;
   flex-shrink: 0;
@@ -819,6 +961,31 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
+}
+/* Top-N 점수 사용자 표시 — 아바타 좌상단 코너에 🎁 이모지 중심 배치.
+   pointer-events:none 으로 row 클릭 안 막음. animation 은 transform-origin
+   이 중심이라 translate 도 같이 keyframe 안에 유지. */
+.sk-row-gift {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  z-index: 2;
+  font-size: 13px;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  animation: sk-gift-wobble 2s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+@keyframes sk-gift-wobble {
+  0%, 88%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+  91% { transform: translate(-50%, -50%) rotate(-14deg); }
+  94% { transform: translate(-50%, -50%) rotate(12deg); }
+  97% { transform: translate(-50%, -50%) rotate(-6deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-row-gift { animation: none; }
 }
 .sk-row-meta {
   min-width: 0;
@@ -884,6 +1051,9 @@
   }
   .sk-list-toolbar {
     gap: 6px;
+    row-gap: 8px;
+    flex-wrap: wrap; /* 검색 input 이 새 행으로 떨어질 수 있게 */
+    height: auto; /* PC 의 32px 고정 제거 — wrap 된 행이 컨테이너 밖으로 흘러나와 controls 와 겹치는 회귀 차단 */
   }
   .sk-list-count {
     flex: 1;
@@ -891,6 +1061,12 @@
   }
   .sk-list-toolbar .sk-btn-primary {
     margin-left: auto; /* 등록/수정 버튼 우측 정렬 */
+  }
+  /* 모바일: 검색 input 은 항상 새 행 전체 너비 — count/refresh/add 와 같은 행에 욱여넣지 않음 */
+  .sk-list-search {
+    order: 99;
+    flex: 1 1 100%;
+    max-width: none;
   }
 
   /* table 골격을 block 으로 풀어서 각 row 가 독립 카드가 되도록 */

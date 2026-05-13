@@ -669,7 +669,10 @@ export const en: Translations = {
       notice: {
         line1: 'Only users who have submitted can view the current standings.',
         line2: 'Registration requires <strong>City Hall level 26 or higher</strong>.',
-        line3: 'If a previously registered user is missing from the list, please run [Add / Edit] again.',
+        reward:
+          '<strong>Top 48 reward</strong>: King\'s skill rotation on Day 1 (Construction) / Day 4 (Training), 30-min slots over 24 hours.',
+        usage:
+          '<strong>Use all speedups for KvK scoring</strong>. Hoarding or false submissions will incur <strong class="sk-notice-warn">penalties</strong> after KvK ends.',
       },
       locked: {
         title: '🔒 Submissions list is locked',
@@ -703,8 +706,12 @@ export const en: Translations = {
         },
       },
       form: {
+        dialogTitle: 'Add / Edit my entry',
         help: 'Enter the minute-based totals shown on the in-game speedup inventory panel.',
         helpImageLink: 'View screenshot',
+        warn: 'Submitting false data may result in penalties after KvK ends.',
+        preferredTimeLabel: 'Buff time (UTC)',
+        preferredTimePlaceholder: 'Select time',
         training: 'Soldier Training Speedup',
         construction: 'Construction Speedup',
         general: 'General Speedup',
@@ -721,6 +728,7 @@ export const en: Translations = {
         deleted: 'Deleted',
         errors: {
           invalidAmount: 'Amounts must be non-negative integers',
+          invalidPreferredTime: 'Invalid preferred time format',
         },
       },
       list: {
@@ -729,6 +737,8 @@ export const en: Translations = {
         editButton: 'Edit',
         count: '{n} submitted',
         empty: 'No submissions yet. Be the first to share!',
+        emptySearch: 'No matching results',
+        searchPlaceholder: 'Search by nickname or ID',
         sortRegistered: 'Recent',
         sortScore: 'Score',
         thead: {

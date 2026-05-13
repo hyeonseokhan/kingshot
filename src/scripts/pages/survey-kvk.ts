@@ -33,7 +33,8 @@ interface SurveyRow {
   updated_at: string;
 }
 
-/** 토큰 API (login / verify-token / register) 가 반환하는 내 record. SurveyRow 의 subset. */
+/** 토큰 API (login / verify-token / register) 가 반환하는 내 record. SurveyRow 의 subset.
+ *  preferred_buff_time: 'HH:MM' 또는 null. */
 interface MyRecord {
   kingshot_id: string;
   nickname: string;
@@ -41,6 +42,7 @@ interface MyRecord {
   training: number;
   construction: number;
   general: number;
+  preferred_buff_time: string | null;
 }
 
 interface PlayerInfo {
@@ -71,12 +73,22 @@ interface FormSession {
   player: PlayerInfo;
   pin: string;
   mode: 'register' | 'update';
-  prefill?: { training: number; construction: number; general: number };
+  prefill?: {
+    training: number;
+    construction: number;
+    general: number;
+    preferred_buff_time: string | null;
+  };
 }
 
 let session: FormSession | null = null;
 let rowsCache: SurveyRow[] = [];
 let sort: { key: SortKey; dir: 'asc' | 'desc' } = { key: 'general', dir: 'desc' };
+/** 닉네임/ID 검색 — 소문자 trimmed. 빈 문자열이면 필터 off. */
+let searchQuery = '';
+/** 점수 기준 상위 48명의 kingshot_id 집합 — 정렬 키와 무관하게 항상 score top48. */
+let topGiftIds = new Set<string>();
+const TOP_GIFT_COUNT = 48;
 /** 차단 step 의 "현재 레벨" 동적 텍스트 상태 — 언어 토글 시 재렌더용.
  *  undefined: 차단 dialog 표시한 적 없음. number: 알려진 레벨. null: API 응답 누락. */
 let blockedDialogLevel: number | null | undefined = undefined;
@@ -361,6 +373,7 @@ async function onConfirmPin(): Promise<void> {
     training: json.record.training,
     construction: json.record.construction,
     general: json.record.general,
+    preferred_buff_time: json.record.preferred_buff_time ?? null,
   };
   enterFormMode();
 }
@@ -370,21 +383,26 @@ async function onConfirmPin(): Promise<void> {
 function enterFormMode(): void {
   if (!session) return;
   closeAuthDialog();
-  const sec = $('sk-form-section');
-  sec.hidden = false;
+  const dlg = $<HTMLDialogElement>('sk-form-dialog');
   fillPlayerCard('sk-form', session.player);
   setNumericInputValue('sk-input-general', session.prefill?.general ?? null);
   setNumericInputValue('sk-input-training', session.prefill?.training ?? null);
   setNumericInputValue('sk-input-construction', session.prefill?.construction ?? null);
+  // 시간 select prefill — 미선택은 빈 placeholder option 으로
+  ($('sk-input-preferred-time') as HTMLSelectElement).value =
+    session.prefill?.preferred_buff_time ?? '';
   // 수정 모드일 때만 삭제 버튼 노출
   ($('sk-form-delete') as HTMLButtonElement).hidden = session.mode !== 'update';
+  ($('sk-form-save') as HTMLButtonElement).disabled = false;
+  ($('sk-form-delete') as HTMLButtonElement).disabled = false;
   setStatus('sk-form-status', '');
-  sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setTimeout(() => $<HTMLInputElement>('sk-input-general').focus(), 250);
+  if (!dlg.open) dlg.showModal();
+  setTimeout(() => $<HTMLInputElement>('sk-input-general').focus(), 50);
 }
 
 function exitFormMode(): void {
-  $('sk-form-section').hidden = true;
+  const dlg = $<HTMLDialogElement>('sk-form-dialog');
+  if (dlg.open) dlg.close();
   session = null;
 }
 
@@ -427,12 +445,20 @@ function onNumericInput(e: Event): void {
   el.setSelectionRange(p, p);
 }
 
-function readFormValues(): { training: number; construction: number; general: number } | null {
+function readFormValues(): {
+  training: number;
+  construction: number;
+  general: number;
+  preferred_buff_time: string | null;
+} | null {
   const tr = parseNumericInput('sk-input-training');
   const co = parseNumericInput('sk-input-construction');
   const ge = parseNumericInput('sk-input-general');
   if (![tr, co, ge].every((v) => Number.isInteger(v) && v >= 0 && v <= 9_999_999)) return null;
-  return { training: tr, construction: co, general: ge };
+  // 시간 미선택은 빈 문자열 → null 로 정규화. 서버 검증은 정규식 + null OK.
+  const rawTime = ($('sk-input-preferred-time') as HTMLSelectElement).value;
+  const preferred_buff_time = rawTime === '' ? null : rawTime;
+  return { training: tr, construction: co, general: ge, preferred_buff_time };
 }
 
 async function onDeleteForm(): Promise<void> {
@@ -570,15 +596,27 @@ async function refreshList(): Promise<void> {
 
 function renderList(): void {
   const tbody = $('sk-tbody');
-  const sorted = sortRows(rowsCache, sort);
-  const empty = $('sk-empty');
-  empty.hidden = sorted.length > 0;
+  // 점수 기준 top48 집합 — 정렬/검색과 무관하게 전체에서 계산.
+  topGiftIds = computeTopGiftIds(rowsCache);
 
-  patchText($('sk-list-count'), t('survey.kvk.list.count', { n: sorted.length }));
+  const sorted = sortRows(rowsCache, sort);
+  const filtered = filterRows(sorted, searchQuery);
+  const empty = $('sk-empty');
+  empty.hidden = filtered.length > 0;
+  // 검색 결과가 0이면 "검색 결과 없음", 아니면 일반 빈 메시지
+  patchText(
+    empty,
+    searchQuery
+      ? t('survey.kvk.list.emptySearch')
+      : t('survey.kvk.list.empty'),
+  );
+
+  // count 는 항상 전체 제출자 수 ("68명 제출"). 검색 필터로 영향 X.
+  patchText($('sk-list-count'), t('survey.kvk.list.count', { n: rowsCache.length }));
 
   patchList<SurveyRow & { rank: number; total: number }>({
     container: tbody,
-    items: sorted.map((r, i) => ({ ...r, rank: i + 1, total: rowTotal(r) })),
+    items: filtered.map((r, i) => ({ ...r, rank: i + 1, total: rowTotal(r) })),
     key: (r) => r.kingshot_id,
     render: (r) => buildRow(r),
     update: (el, r) => updateRow(el, r),
@@ -588,6 +626,48 @@ function renderList(): void {
   document.querySelectorAll<HTMLElement>('.sk-sort-chip').forEach((btn) => {
     btn.dataset.active = btn.dataset.sort === sort.key ? 'true' : 'false';
   });
+}
+
+/** 시간 select 에 placeholder + 48개 옵션 (00:00 ~ 23:30, 30분 단위) 채움.
+ *  init 에서 한 번만 호출. 언어 변경 시 placeholder 텍스트 갱신은 onLangChange 에서 처리. */
+function populateTimeOptions(): void {
+  const sel = $<HTMLSelectElement>('sk-input-preferred-time');
+  if (sel.options.length > 0) return; // 이미 채워졌으면 noop
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.disabled = true;
+  placeholder.hidden = true;
+  placeholder.textContent = t('survey.kvk.form.preferredTimePlaceholder');
+  placeholder.dataset.placeholder = '1';
+  sel.appendChild(placeholder);
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const v = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
+    }
+  }
+  sel.value = ''; // placeholder 가 보이도록
+}
+
+/** 닉네임 또는 ID 부분일치 (대소문자 무시). 빈 query 면 그대로 반환. */
+function filterRows(rows: SurveyRow[], query: string): SurveyRow[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter(
+    (r) => r.nickname.toLowerCase().includes(q) || r.kingshot_id.toLowerCase().includes(q),
+  );
+}
+
+/** 점수 기준 상위 N명의 ID 집합. 데이터가 N보다 적으면 전부 포함. */
+function computeTopGiftIds(rows: SurveyRow[]): Set<string> {
+  const ranked = rows
+    .map((r) => ({ id: r.kingshot_id, score: rowScore(r) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, TOP_GIFT_COUNT);
+  return new Set(ranked.map((r) => r.id));
 }
 
 function rowTotal(r: SurveyRow): number {
@@ -641,6 +721,7 @@ function buildRow(r: SurveyRow & { rank: number; total: number }): HTMLElement {
         <div class="sk-row-photo-wrap">
           <div class="sk-row-photo-empty"></div>
           <img class="sk-row-photo" hidden alt="" />
+          <span class="sk-row-gift" aria-hidden="true" hidden>🎁</span>
         </div>
         <div class="sk-row-meta">
           <div class="sk-row-name"></div>
@@ -705,6 +786,9 @@ function updateRow(tr: HTMLElement, r: SurveyRow & { rank: number; total: number
 
   const empty = tr.querySelector<HTMLElement>('.sk-row-photo-empty')!;
   const img = tr.querySelector<HTMLImageElement>('.sk-row-photo')!;
+  const gift = tr.querySelector<HTMLElement>('.sk-row-gift')!;
+  // 점수 기준 top48 인 사용자만 🎁 노출 (정렬 키와 무관, 검색 필터와도 무관)
+  gift.hidden = !topGiftIds.has(r.kingshot_id);
   empty.textContent = r.nickname.charAt(0).toUpperCase();
   if (r.avatar_url) {
     if (img.src !== r.avatar_url) {
@@ -858,6 +942,8 @@ function mapError(code: string | null | undefined): string {
       return t('survey.kvk.auth.errors.cityLevelTooLow');
     case 'invalid_amount':
       return t('survey.kvk.form.errors.invalidAmount');
+    case 'invalid_preferred_time':
+      return t('survey.kvk.form.errors.invalidPreferredTime');
     default:
       return t('survey.kvk.errors.generic') + (code ? ` (${code})` : '');
   }
@@ -885,6 +971,7 @@ function init(): void {
           training: auth.record.training,
           construction: auth.record.construction,
           general: auth.record.general,
+          preferred_buff_time: auth.record.preferred_buff_time ?? null,
         },
       };
       enterFormMode();
@@ -935,14 +1022,47 @@ function init(): void {
   // wrap 클릭 시 input 으로 focus
   $('sk-pin-wrap').addEventListener('click', () => pinInput.focus());
 
-  // 폼
+  // 폼 다이얼로그
   $('sk-form-cancel').addEventListener('click', exitFormMode);
+  $('sk-form-close').addEventListener('click', exitFormMode);
   $('sk-form-save').addEventListener('click', onSaveForm);
   $('sk-form-delete').addEventListener('click', onDeleteForm);
+  // ESC 또는 다른 경로로 dialog 가 닫힐 때도 session 정리 (close 이벤트는 모든 닫힘 경로 캐치)
+  $('sk-form-dialog').addEventListener('close', () => {
+    session = null;
+  });
+
+  // 시간 select option 채우기 — placeholder + 48개 (00:00 ~ 23:30, 30분 단위).
+  populateTimeOptions();
 
   // 폼 input — 입력 중 천 단위 콤마 자동 포맷
   ['sk-input-general', 'sk-input-training', 'sk-input-construction'].forEach((id) => {
     $(id).addEventListener('input', onNumericInput);
+  });
+
+  // 폼 엔터 흐름: 공용 → 병사 → 건설 → 저장.
+  // DOM 순서대로 다음 input 이 있으면 focus, 마지막(건설)에서 엔터면 onSaveForm.
+  const formInputs = ['sk-input-general', 'sk-input-training', 'sk-input-construction'];
+  formInputs.forEach((id, i) => {
+    $(id).addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key !== 'Enter') return;
+      e.preventDefault();
+      const next = formInputs[i + 1];
+      if (next) {
+        const el = $<HTMLInputElement>(next);
+        el.focus();
+        el.select();
+      } else {
+        onSaveForm();
+      }
+    });
+  });
+
+  // 닉네임/ID 검색 — 입력 즉시 필터링 (debounce 없음 — 22~수백명 규모라 부담 X)
+  const searchInput = $<HTMLInputElement>('sk-list-search');
+  searchInput.addEventListener('input', () => {
+    searchQuery = searchInput.value;
+    renderList();
   });
 
   // 가속권 도움말 이미지 다이얼로그
@@ -985,6 +1105,11 @@ function init(): void {
     setSearchBtnBusy(false); // 버튼 라벨 갱신
     renderBlockedCurrent(); // "현재 레벨: TC N" 동적 텍스트 (있을 때만)
     renderDetailDialog(); // 상세 다이얼로그 점수/시간 동적 텍스트 (열려있을 때만)
+    // 시간 select 의 placeholder 옵션 텍스트 (동적 생성된 항목)
+    const ph = document.querySelector<HTMLOptionElement>(
+      '#sk-input-preferred-time option[data-placeholder="1"]',
+    );
+    if (ph) ph.textContent = t('survey.kvk.form.preferredTimePlaceholder');
   });
 
   // boot — 저장된 토큰 있으면 서버 verify-token 으로 검증 후 자동 로그인 + 잠금 해제.

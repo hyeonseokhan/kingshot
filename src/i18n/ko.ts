@@ -667,7 +667,10 @@ export const ko = {
       notice: {
         line1: '제출을 완료한 사용자만 현황을 열람할 수 있습니다.',
         line2: '등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.',
-        line3: '이전 등록자가 목록에 보이지 않으면 [등록 / 수정] 을 다시 진행하면 정상 표시됩니다.',
+        reward:
+          '<strong>상위 48명 보상</strong>: 1일차(건설) / 4일차(병사) 국왕스킬을 30분씩 순차 로테이션 (24시간).',
+        usage:
+          '<strong>가속권은 모두 KvK 점수에 투입</strong>해 주세요. 과도 보유 / 허위 제출 시 <strong class="sk-notice-warn">패널티가 부과</strong>됩니다.',
       },
       locked: {
         title: '🔒 현황 열람이 잠겨있습니다',
@@ -701,8 +704,12 @@ export const ko = {
         },
       },
       form: {
+        dialogTitle: '내 정보 등록 / 수정',
         help: '게임 내 가속권 현황 상태에서 분 단위로 설정한 값을 입력해주세요',
         helpImageLink: '이미지 보기',
+        warn: '허위 정보를 제출한 경우, KvK 종료 후 패널티가 부과됩니다.',
+        preferredTimeLabel: '버프 시간 (UTC)',
+        preferredTimePlaceholder: '시간 선택',
         training: '병사 훈련 가속권',
         construction: '건설 가속권',
         general: '공용 가속권',
@@ -719,6 +726,7 @@ export const ko = {
         deleted: '삭제되었습니다',
         errors: {
           invalidAmount: '수량은 0 이상의 정수여야 합니다',
+          invalidPreferredTime: '선호 시간 형식이 올바르지 않습니다',
         },
       },
       list: {
@@ -727,6 +735,8 @@ export const ko = {
         editButton: '수정',
         count: '{n}명 제출',
         empty: '아직 제출된 데이터가 없어요. 첫 번째 참가자가 되어 주세요!',
+        emptySearch: '검색 결과가 없어요',
+        searchPlaceholder: '닉네임 또는 ID 검색',
         sortRegistered: '등록순',
         sortScore: '점수',
         thead: {
