@@ -690,7 +690,6 @@ export const en: Translations = {
         idLabel: 'Kingshot ID',
         idPlaceholder: 'e.g. 270680423',
         searchButton: 'Look up',
-        searchingButton: 'Looking up...',
         confirmHelp:
           'If this is you, enter your 4-digit PIN. (New users will set a fresh PIN; returning users enter the one you registered.)',
         pinLabel: '4-digit PIN',

@@ -688,7 +688,6 @@ export const ko = {
         idLabel: '킹샷 ID',
         idPlaceholder: '예: 270680423',
         searchButton: '조회',
-        searchingButton: '조회 중...',
         confirmHelp:
           '본인이 맞으면 PIN 4자리를 입력해 주세요. (신규는 새 PIN 설정, 기존이면 등록한 PIN)',
         pinLabel: 'PIN 4자리',

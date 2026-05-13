@@ -368,10 +368,9 @@ html:has(.sk-image-dialog[open]) {
   display: flex;
   gap: 8px;
 }
-/* 조회 버튼 — busy 상태 텍스트("조회 중..." / "Searching...")가 평상시("조회" / "Search")보다
-   훨씬 길어 폭 jitter 발생 → 인접 input 도 흔들림. 가장 긴 케이스에 맞춰 min-width 고정. */
+/* 조회 버튼 — input row 안에서 폭 줄어드는 거 방지. busy 상태는 disabled 의
+   opacity dim + not-allowed 커서로 시각화 (텍스트는 항상 "조회" 고정). */
 #sk-id-search {
-  min-width: 84px;
   flex-shrink: 0;
 }
 .sk-input-row input[type='text'],

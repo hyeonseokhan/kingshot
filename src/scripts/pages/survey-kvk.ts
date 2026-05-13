@@ -320,9 +320,10 @@ function setStatus(id: string, msg: string, kind: 'ok' | 'err' | '' = ''): void 
 }
 
 function setSearchBtnBusy(busy: boolean): void {
-  const btn = $<HTMLButtonElement>('sk-id-search');
-  btn.disabled = busy;
-  btn.textContent = busy ? t('survey.kvk.auth.searchingButton') : t('survey.kvk.auth.searchButton');
+  // 텍스트는 항상 "조회" 유지 (data-i18n 마커가 언어 swap 담당) — busy 상태는
+  // disabled 의 opacity dim + not-allowed 커서로 시각화. 텍스트 swap 은 폭 jitter +
+  // 인접 input layout shift 유발해서 제거.
+  ($<HTMLButtonElement>('sk-id-search')).disabled = busy;
 }
 
 function fillPlayerCard(prefix: 'sk-player' | 'sk-form' | 'sk-detail', player: PlayerInfo): void {
@@ -1333,7 +1334,6 @@ function init(): void {
   // 언어 변경 시 동적 텍스트 재렌더 — data-i18n 으로 못 잡는 JS 가 textContent 박은 값들
   onLangChange(() => {
     renderList();
-    setSearchBtnBusy(false); // 버튼 라벨 갱신
     renderBlockedCurrent(); // "현재 레벨: TC N" 동적 텍스트 (있을 때만)
     renderDetailDialog(); // 상세 다이얼로그 점수/시간 동적 텍스트 (열려있을 때만)
     // 시간 select 의 placeholder 옵션 텍스트 (동적 생성된 항목)
