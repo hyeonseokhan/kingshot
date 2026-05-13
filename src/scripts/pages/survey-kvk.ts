@@ -1315,15 +1315,23 @@ function init(): void {
     if (e.target === e.currentTarget) closeDetailDialog();
   });
 
-  // 인증샷 lightbox — 상세 다이얼로그의 인증샷 버튼 클릭 → 현재 행의 evidence_uploaded_at 으로 URL 계산
+  // 인증샷 lightbox — 상세 다이얼로그의 인증샷 버튼 클릭 → 현재 행의 evidence_uploaded_at 으로 URL 계산.
+  // 같은 <img> element 재사용이라 src 만 바꾸면 새 이미지 로드 중에 "이전 사용자 인증샷" 이 잠깐 보임.
+  //   (1) .loaded 클래스 제거 → opacity 0 으로 리셋
+  //   (2) src 비우기 → 이전 픽셀 즉시 제거
+  //   (3) showModal → 빈 영역으로 다이얼로그 열림 (사용자 클릭 반응 즉시)
+  //   (4) onload 시 .loaded → 새 이미지 fade-in
   $('sk-detail-evidence-btn').addEventListener('click', () => {
     const row = detailDialogRow;
     if (!row || !row.evidence_uploaded_at) return;
     const url = evidenceUrl(row.kingshot_id, row.evidence_uploaded_at);
     const img = $<HTMLImageElement>('sk-evidence-lightbox-img');
-    img.src = url;
+    img.classList.remove('loaded');
+    img.removeAttribute('src');
     const dlg = $<HTMLDialogElement>('sk-evidence-lightbox');
     if (!dlg.open) dlg.showModal();
+    img.onload = () => img.classList.add('loaded');
+    img.src = url;
   });
   // lightbox — 어디 클릭하든 닫힘
   $('sk-evidence-lightbox').addEventListener('click', () => {

@@ -280,6 +280,13 @@
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   cursor: pointer;
+  /* 다이얼로그 열릴 때 새 이미지 로드 전까지는 빈 영역. onload 시 .loaded 클래스로 페이드 인 →
+     같은 <img> 재사용이라 발생하던 "이전 이미지 잔상" 차단. */
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.bl-image-dialog-img.loaded {
+  opacity: 1;
 }
 
 /* 모바일 좁은 화면 — 아바타 / 닉네임 / 메모 / 이미지 / 관리만 노출.

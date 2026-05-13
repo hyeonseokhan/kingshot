@@ -509,6 +509,15 @@ html:has(.sk-image-dialog[open]) {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   cursor: pointer;
 }
+/* 인증샷 lightbox 전용 — 사용자마다 다른 이미지라 src 교체 시 "이전 사용자 사진" 잔상 차단.
+   id 셀렉터로 evidence 만 적용 (가속권 도움말 sk-image-dialog 는 onload 핸들러 없어 그대로). */
+#sk-evidence-lightbox-img {
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+#sk-evidence-lightbox-img.loaded {
+  opacity: 1;
+}
 .sk-status {
   min-height: 18px;
   font-size: 12.5px;

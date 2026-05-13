@@ -345,8 +345,15 @@ function showImageDialog(path: string): void {
   const dlg = $('bl-image-dialog') as HTMLDialogElement | null;
   const img = $<HTMLImageElement>('bl-image-dialog-img');
   if (!dlg || !img) return;
-  img.src = storageUrl(path);
+  // 같은 <img> 재사용이라 src 만 바꾸면 새 이미지 로드 중에 "이전 이미지" 가 잠깐 보임.
+  // (1) 이전 src 비우기 → 이전 픽셀 즉시 제거
+  // (2) opacity 0 으로 시작해 다이얼로그 열기 → 빈 영역만 보임
+  // (3) onload 시 .loaded 클래스로 fade-in → 새 이미지가 자연스럽게 등장
+  img.classList.remove('loaded');
+  img.removeAttribute('src');
   dlg.showModal();
+  img.onload = () => img.classList.add('loaded');
+  img.src = storageUrl(path);
 }
 
 // ===== 모달 — 등록 / 수정 =====
