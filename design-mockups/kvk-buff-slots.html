@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KvK 버프 슬롯 시안</title>
+  <style>
+    /* ===== 설문 제출 현황 카드와 동일 변수 (src/styles/survey-kvk.css) ===== */
+    :root {
+      --sk-bg: #0f1115;
+      --sk-surface: #1a1d24;
+      --sk-surface-2: #232732;
+      --sk-border: rgba(255, 255, 255, 0.08);
+      --sk-border-strong: rgba(255, 255, 255, 0.16);
+      --sk-text: #e8eaef;
+      --sk-text-dim: #9aa0ac;
+      --sk-accent: #6366f1;
+      --sk-accent-hover: #7c83f4;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--sk-bg);
+      color: var(--sk-text);
+      font-family:
+        'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+        system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* ===== 모달 frame — 모바일 폭 ===== */
+    .mock-dialog {
+      width: 380px;
+      max-width: 100%;
+      max-height: calc(100vh - 40px);
+      background: var(--sk-surface);
+      border: 1px solid var(--sk-border);
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .mock-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--sk-border);
+      flex-shrink: 0;
+    }
+    .mock-head strong {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .mock-close {
+      background: none;
+      border: none;
+      color: var(--sk-text-dim);
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+    }
+    .mock-close:hover { color: var(--sk-text); }
+
+    /* ===== 안내 영역 — 제출 현황의 .sk-notice 와 동일 톤 =====
+       헤더 아래 고정 위치 (스크롤 영역 밖). mock-body 좌우 padding 과 라인 맞춤.
+       아래 mock-body 의 border-top 으로 시간표 영역과 명확한 가로 구분선. */
+    .mock-notice {
+      margin: 12px 14px;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 10px;
+      padding: 10px 12px 10px 16px;
+    }
+    .mock-notice ul {
+      margin: 0;
+      padding-left: 16px;
+      list-style: disc;
+      color: var(--sk-text);
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+    .mock-notice li::marker {
+      color: var(--sk-accent-hover);
+    }
+    .mock-notice strong {
+      color: var(--sk-accent-hover);
+      font-weight: 700;
+    }
+
+    /* ===== 현재 자리 선택 중인 사용자 — 채워진 accent gradient 박스 =====
+       내용 레이아웃은 제출 현황 모바일 row 의 player 영역(사진 + 닉네임 + ID/TC)
+       을 따라가되, 박스 자체는 solid 채움으로 "지금 선택 중" 강조. */
+    .mock-current-user {
+      margin: 0 14px 8px;
+      /* 어두운 인디고 톤 — accent 그라데이션을 한 단계 짙게 (indigo-800 → indigo-600).
+         밝은 accent gradient 는 뱃지/주변과 톤 충돌이 커서 단계 낮춤. */
+      background: linear-gradient(135deg, #3730a3, #4f46e5);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #fff;
+      cursor: pointer;
+      transition: filter 0.15s;
+      /* 포커싱/탭 하이라이트 일괄 제거 — 클릭 시 파란 사각형/outline/텍스트 선택 차단 */
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      outline: none;
+    }
+    .mock-current-user:focus,
+    .mock-current-user:focus-visible {
+      outline: none;
+    }
+    .mock-current-user:hover {
+      filter: brightness(1.08);
+    }
+    /* 메인 행 — 사진/메타/뱃지 가로 정렬 */
+    .mock-current-user-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mock-current-user-photo {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .mock-current-user-meta {
+      min-width: 0;
+      flex: 1;
+    }
+    .mock-current-user-name {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mock-current-user-id {
+      font-size: 11px;
+      line-height: 1.2;
+      margin-top: 2px;
+      opacity: 0.85;
+      font-variant-numeric: tabular-nums;
+    }
+    /* 선택 중 뱃지 — outline 스타일. 형광 녹색은 보더 + 텍스트만 (배경 X).
+       어두워진 카드 배경 위에서도 글자가 형광 녹색으로 떠 보임. */
+    .mock-current-user-badge {
+      flex-shrink: 0;
+      background: transparent;
+      color: #4ade80;
+      border: 1px solid #4ade80;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 2px 9px;
+      border-radius: 999px;
+    }
+
+    /* ===== 펼쳐지는 큐 영역 — grid 0fr→1fr 트릭으로 부드러운 height 전환 =====
+       max-height transition 은 정확한 높이를 모르면 jerky → grid-template-rows 가 깔끔. */
+    .mock-current-user-queue-wrap {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .mock-current-user.is-expanded .mock-current-user-queue-wrap {
+      grid-template-rows: 1fr;
+    }
+    .mock-current-user-queue {
+      overflow: hidden;
+      min-height: 0;
+      opacity: 0;
+      transition: opacity 0.2s ease 0.08s;
+    }
+    .mock-current-user.is-expanded .mock-current-user-queue {
+      opacity: 1;
+    }
+    .queue-label {
+      font-size: 12px;
+      font-weight: 700;
+      opacity: 0.75;
+      margin: 12px 0 6px;
+      letter-spacing: 0.02em;
+    }
+    .queue-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      counter-reset: queue;
+    }
+    .queue-list li {
+      counter-increment: queue;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .queue-list li::before {
+      content: counter(queue) ".";
+      flex-shrink: 0;
+      min-width: 14px;
+      font-size: 12px;
+      font-weight: 700;
+      opacity: 0.65;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* chevron — 카드가 펼쳐짐을 알리는 작은 affordance. 뱃지 우측, rotate 로 토글. */
+    .mock-current-user-chevron {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      opacity: 0.7;
+      transition: transform 0.25s ease;
+    }
+    .mock-current-user.is-expanded .mock-current-user-chevron {
+      transform: rotate(180deg);
+    }
+
+    /* 타임존 토글 — 선택중 사용자 카드 바깥, 시간표 구분선 바로 위.
+       뱃지 텍스트 = 전환 대상 기준 (현재 UTC 면 'KST' 라벨 = 클릭 시 KST 로 전환). */
+    .mock-tz {
+      margin: 0 14px 10px;
+      display: flex;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .tz-toggle {
+      background: var(--sk-surface-2);
+      color: var(--sk-text);
+      border: 1px solid var(--sk-border-strong);
+      font-family: inherit;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      outline: none;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .tz-toggle:hover {
+      background: #2c313d;
+      border-color: rgba(255, 255, 255, 0.3);
+      color: var(--sk-text);
+    }
+
+    /* 큐가 비어있을 때 안내 — 5명 이하로 줄어들다 마지막 0명 케이스 */
+    .queue-empty {
+      list-style: none;
+      font-size: 11.5px;
+      opacity: 0.65;
+      font-weight: 500;
+      font-style: italic;
+    }
+    .queue-empty::before { content: none; }
+
+    /* 모든 사용자 선택 완료 상태 — main / queue 둘 다 hide, completed 메시지 노출 */
+    .mock-current-user-completed {
+      display: none;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 0;
+      letter-spacing: 0.01em;
+    }
+    .mock-current-user.is-completed {
+      cursor: default;
+    }
+    .mock-current-user.is-completed:hover { filter: none; }
+    .mock-current-user.is-completed .mock-current-user-main,
+    .mock-current-user.is-completed .mock-current-user-queue-wrap {
+      display: none;
+    }
+    .mock-current-user.is-completed .mock-current-user-completed {
+      display: block;
+    }
+
+    .mock-body {
+      padding: 12px 14px 14px;
+      overflow-y: auto;
+      flex: 1;
+      /* 안내 영역과의 명확한 구분선 — 헤더↔본문 라인(mock-head border-bottom)
+         과 동일한 색/굵기. 시안 시각적 계층: [헤더] = [안내·사용자] = [시간표]. */
+      border-top: 1px solid var(--sk-border);
+    }
+    /* 제출 현황 페이지와 동일한 스크롤바 (src/styles/global.css) — PC 한정.
+       모바일에선 룰 자체를 정의하지 않아 OS native overlay 가 살아남.
+       (max-width 로 webkit-scrollbar { width: 0 } 처리 시 iOS Safari 가
+       native overlay 까지 함께 막아버리는 회귀 있어 min-width 로 분리.) */
+    @media (min-width: 721px) {
+      .mock-body::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .mock-body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .mock-body::-webkit-scrollbar-thumb {
+        background: #d1d9e0;
+        border-radius: 3px;
+      }
+      .mock-body::-webkit-scrollbar-thumb:hover {
+        background: #8b949e;
+      }
+    }
+
+    /* ===== 슬롯 카드 — 제출 현황 row 카드와 통일감 =====
+       제출 카드: background var(--sk-surface) / border var(--sk-border)
+                  border-radius 10px / padding 7px 10px / margin-bottom 5px */
+    .slot-card {
+      background: var(--sk-surface);
+      border: 1px solid var(--sk-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 5px;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .slot-card:last-child { margin-bottom: 0; }
+    /* 선택 가능 슬롯 — 형광 녹색 테두리로 강조. border 두께 유지(1px) → layout shift X.
+       살짝의 글로우로 형광 효과 부각. */
+    .slot-card.is-selectable {
+      border-color: #4ade80;
+      box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.18);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, box-shadow 0.12s;
+    }
+    .slot-card.is-selectable:hover {
+      background: rgba(74, 222, 128, 0.06);
+      box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.28);
+    }
+    /* 점유 완료 슬롯 — 클릭/터치 자체 비활성화. hover 효과도 X. */
+    .slot-card:not(.is-selectable) {
+      pointer-events: none;
+    }
+
+    /* ===== 점유 완료 슬롯 holder 정보 — 모바일 제출 현황 row 의 player 영역과 동일 톤 ===== */
+    .slot-holder {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .slot-holder-photo {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--sk-surface-2);
+      color: var(--sk-text-dim);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+    .slot-holder-meta {
+      min-width: 0;
+      text-align: left;
+    }
+    .slot-holder-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sk-text);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+    .slot-holder-id {
+      font-size: 10.5px;
+      color: var(--sk-text-dim);
+      line-height: 1.2;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ===== 확인 다이얼로그 — 시스템 alert/confirm 대체 ===== */
+    .confirm-dialog {
+      border: none;
+      background: transparent;
+      padding: 0;
+      width: 320px;
+      max-width: 92vw;
+      color: var(--sk-text);
+      position: fixed;
+      inset: 0;
+      margin: auto;
+    }
+    .confirm-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+    }
+    .confirm-card {
+      background: var(--sk-surface);
+      border: 1px solid var(--sk-border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .confirm-body {
+      font-size: 13px;
+      color: var(--sk-text-dim);
+      line-height: 1.55;
+      margin: 0 0 16px;
+    }
+    .confirm-body strong {
+      color: var(--sk-text);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .confirm-actions button {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .confirm-cancel {
+      background: var(--sk-surface-2);
+      color: var(--sk-text);
+      border-color: var(--sk-border);
+    }
+    .confirm-cancel:hover {
+      background: #2c313d;
+      border-color: var(--sk-border-strong);
+    }
+    .confirm-ok {
+      background: var(--sk-accent);
+      color: #fff;
+    }
+    .confirm-ok:hover {
+      background: var(--sk-accent-hover);
+    }
+
+    /* 시간 라벨 — 슬롯 식별자. tabular-nums 로 자리수 alignment.
+       weight/size 는 제출 현황 카드의 .sk-row-name(12.5px/600) 보다 살짝 위로
+       잡아 슬롯 좌측 anchor 역할 강조 — 점유자 영역(우측)이 비었을 때도 카드 형태
+       유지. */
+    .slot-time {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--sk-text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+    }
+  </style>
+</head>
+<body>
+  <div class="mock-dialog">
+    <header class="mock-head">
+      <strong>버프 슬롯 선점</strong>
+      <button class="mock-close" aria-label="닫기">&times;</button>
+    </header>
+    <section class="mock-notice">
+      <ul>
+        <li>예측 점수 순위 기준으로 순차적으로 시간을 선택할 수 있습니다.</li>
+        <li>선택된 시간은 변경이 어려우니 <strong>신중히</strong> 선택해 주세요.</li>
+        <li><strong>"선택중"</strong>인 사용자 프로필을 클릭하면 대기 순번을 일부 볼 수 있습니다.</li>
+        <li>해당 시간 선택은 <strong>UTC 5월 16일 01시 00분부터 03시 00분까지 2시간 동안</strong> 지정할 수 있습니다.</li>
+      </ul>
+    </section>
+    <section class="mock-current-user" id="mock-current-user">
+      <div class="mock-current-user-main">
+        <div class="mock-current-user-photo" id="cu-photo">T</div>
+        <div class="mock-current-user-meta">
+          <div class="mock-current-user-name" id="cu-name">Toycode</div>
+          <div class="mock-current-user-id" id="cu-id">#270680423 · TC 26</div>
+        </div>
+        <span class="mock-current-user-badge">선택중</span>
+        <svg
+          class="mock-current-user-chevron"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+      <div class="mock-current-user-queue-wrap">
+        <div class="mock-current-user-queue">
+          <div class="queue-label">다음 차례</div>
+          <ol class="queue-list" id="cu-queue"></ol>
+        </div>
+      </div>
+      <div class="mock-current-user-completed">
+        모든 사용자가 시간을 선택했습니다
+      </div>
+    </section>
+    <div class="mock-tz">
+      <button type="button" class="tz-toggle" id="tz-toggle">KST</button>
+      <button type="button" class="tz-toggle" id="copy-toggle">복사하기</button>
+    </div>
+    <div class="mock-body" id="slot-grid"></div>
+  </div>
+
+  <!-- 확인 다이얼로그 — 선택 가능 슬롯 클릭 시 노출 -->
+  <dialog class="confirm-dialog" id="confirm-dialog" aria-label="시간 선택 확인">
+    <div class="confirm-card">
+      <p class="confirm-body">
+        <strong id="confirm-time">00:00</strong> 시간을 선택하시겠습니까?
+      </p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-cancel" id="confirm-cancel">취소</button>
+        <button type="button" class="confirm-ok" id="confirm-ok">선택</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    // ===== 48명 가상 사용자 (점수 순위 1~48). rank 46 = Toycode (본인). =====
+    const USERS_48 = [
+      { name: 'Drake',      id: '270001234', tc: 30 }, //  1
+      { name: 'Solar',      id: '269154382', tc: 30 }, //  2
+      { name: 'Crow',       id: '271234567', tc: 30 }, //  3
+      { name: 'Frost',      id: '268745321', tc: 30 }, //  4
+      { name: 'Saber',      id: '274561289', tc: 29 }, //  5
+      { name: 'Rune',       id: '265987134', tc: 29 }, //  6
+      { name: 'Kai',        id: '273458921', tc: 29 }, //  7
+      { name: 'Halo',       id: '266234578', tc: 29 }, //  8
+      { name: 'Onyx',       id: '275432198', tc: 29 }, //  9
+      { name: 'Storm',      id: '267891234', tc: 29 }, // 10
+      { name: 'Pixie',      id: '272345678', tc: 28 }, // 11
+      { name: 'Sage',       id: '268912345', tc: 28 }, // 12
+      { name: 'Talon',      id: '274123589', tc: 28 }, // 13
+      { name: 'Wren',       id: '266583124', tc: 28 }, // 14
+      { name: 'Cipher',     id: '273691254', tc: 28 }, // 15
+      { name: 'Glyph',      id: '269472148', tc: 28 }, // 16
+      { name: 'Mira',       id: '271836492', tc: 28 }, // 17
+      { name: 'Theo',       id: '267429183', tc: 28 }, // 18
+      { name: 'Nyx',        id: '275813629', tc: 28 }, // 19
+      { name: 'Ravel',      id: '268347195', tc: 27 }, // 20
+      { name: 'Apollo',     id: '270125478', tc: 27 }, // 21
+      { name: 'Atlas',      id: '275123698', tc: 27 }, // 22
+      { name: 'Crimson',    id: '265789012', tc: 27 }, // 23
+      { name: 'Dragoon',    id: '271548932', tc: 27 }, // 24
+      { name: 'Echo',       id: '273841596', tc: 27 }, // 25
+      { name: 'Ember',      id: '269275814', tc: 27 }, // 26
+      { name: 'Helix',      id: '269758412', tc: 27 }, // 27
+      { name: 'Lyra',       id: '268473215', tc: 27 }, // 28
+      { name: 'Nova',       id: '274856321', tc: 27 }, // 29
+      { name: 'Orion',      id: '272384156', tc: 27 }, // 30
+      { name: 'Phoenix',    id: '273569841', tc: 27 }, // 31
+      { name: 'Raducanu',   id: '269042150', tc: 27 }, // 32
+      { name: 'Quasar',     id: '276485219', tc: 27 }, // 33
+      { name: 'Si Woo Kim', id: '185324210', tc: 27 }, // 34
+      { name: 'Stark',      id: '271962845', tc: 26 }, // 35
+      { name: 'Vega',       id: '266931254', tc: 26 }, // 36
+      { name: 'Zenith',     id: '267194823', tc: 26 }, // 37
+      { name: 'Lyric',      id: '268547136', tc: 26 }, // 38
+      { name: 'Zelos',      id: '273156298', tc: 26 }, // 39
+      { name: 'Iris',       id: '269841235', tc: 26 }, // 40
+      { name: 'Cobalt',     id: '271425369', tc: 26 }, // 41
+      { name: 'Glow',       id: '268574129', tc: 26 }, // 42
+      { name: 'Bryn',       id: '273916584', tc: 26 }, // 43
+      { name: 'Vox',        id: '269247158', tc: 26 }, // 44
+      { name: 'Lark',       id: '271684253', tc: 26 }, // 45
+      { name: 'Toycode',    id: '270680423', tc: 26 }, // 46 ← 본인
+      { name: 'Juno',       id: '268945721', tc: 26 }, // 47
+      { name: 'Pyre',       id: '273218549', tc: 26 }, // 48
+    ];
+
+    const TOTAL = 48;
+    const TURN_START = 45; // 0~44 (rank 1~45) 이미 선택 완료, 45 (rank 46=Toycode) 가 현재 선택중
+
+    const grid = document.getElementById('slot-grid');
+    const userCard = document.getElementById('mock-current-user');
+    const cuPhoto = document.getElementById('cu-photo');
+    const cuName = document.getElementById('cu-name');
+    const cuId = document.getElementById('cu-id');
+    const cuQueue = document.getElementById('cu-queue');
+    const tzToggle = document.getElementById('tz-toggle');
+    const confirmDialog = document.getElementById('confirm-dialog');
+    const confirmTime = document.getElementById('confirm-time');
+
+    let currentTurnIdx = TURN_START;
+    let pendingCard = null; // 다이얼로그 [선택] 확정 시 채울 슬롯
+    let tzMode = 'UTC';     // 시간표 현재 기준 — 'UTC' | 'KST'
+
+    // 슬롯 인덱스(0~47) + 모드 → 표시 문자열 ("UTC 00:00" / "KST 09:00")
+    function formatTime(idx, mode) {
+      const utcH = Math.floor(idx / 2);
+      const m = (idx % 2) * 30;
+      const h = mode === 'KST' ? (utcH + 9) % 24 : utcH;
+      return `${mode} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    // ===== 슬롯 48개 초기화 =====
+    // random 3개 인덱스를 빈(선택 가능) 슬롯으로, 나머지 45개에는 rank 1~45 사용자 배치
+    function initSlots() {
+      const idx = Array.from({ length: TOTAL }, (_, i) => i);
+      for (let i = idx.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [idx[i], idx[j]] = [idx[j], idx[i]];
+      }
+      const emptySlots = new Set(idx.slice(0, TOTAL - TURN_START)); // 빈 3개
+
+      let userPtr = 0; // rank 1 부터 순차로 점유 슬롯 배치
+      for (let i = 0; i < TOTAL; i++) {
+        const time = formatTime(i, tzMode);
+        const card = document.createElement('div');
+        card.className = 'slot-card';
+        card.dataset.slotIdx = String(i); // 토글 시 시간 재계산용
+        if (emptySlots.has(i)) {
+          card.classList.add('is-selectable');
+          card.innerHTML = `<span class="slot-time">${time}</span>`;
+        } else {
+          fillSlotHTML(card, time, USERS_48[userPtr++]);
+        }
+        grid.appendChild(card);
+      }
+    }
+
+    // 시간표 전체의 시간 라벨을 현재 tzMode 기준으로 재렌더
+    function rerenderTimes() {
+      grid.querySelectorAll('.slot-card').forEach((card) => {
+        const idx = Number(card.dataset.slotIdx);
+        card.querySelector('.slot-time').textContent = formatTime(idx, tzMode);
+      });
+    }
+
+    // 슬롯 카드 내용을 holder 정보로 채움 (innerHTML 전체)
+    function fillSlotHTML(card, time, user) {
+      card.innerHTML =
+        `<span class="slot-time">${time}</span>` +
+        `<div class="slot-holder">` +
+        `<div class="slot-holder-photo">${user.name.charAt(0)}</div>` +
+        `<div class="slot-holder-meta">` +
+        `<div class="slot-holder-name">${user.name}</div>` +
+        `<div class="slot-holder-id">#${user.id} · TC ${user.tc}</div>` +
+        `</div></div>`;
+    }
+
+    // 현재 차례 카드 + 다음 차례 큐 재렌더
+    function renderTurn() {
+      if (currentTurnIdx >= TOTAL) {
+        // 모든 사용자 선택 완료
+        userCard.classList.add('is-completed');
+        userCard.classList.remove('is-expanded');
+        return;
+      }
+      const u = USERS_48[currentTurnIdx];
+      cuPhoto.textContent = u.name.charAt(0);
+      cuName.textContent = u.name;
+      cuId.textContent = `#${u.id} · TC ${u.tc}`;
+
+      // 다음 차례: currentTurnIdx+1 부터 5명까지 (남은 인원에 따라 자동 truncate)
+      cuQueue.innerHTML = '';
+      const remaining = USERS_48.slice(currentTurnIdx + 1, currentTurnIdx + 1 + 5);
+      if (remaining.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'queue-empty';
+        li.textContent = '대기 중인 사용자가 없습니다';
+        cuQueue.appendChild(li);
+      } else {
+        for (const r of remaining) {
+          const li = document.createElement('li');
+          li.textContent = r.name;
+          cuQueue.appendChild(li);
+        }
+      }
+    }
+
+    initSlots();
+    renderTurn();
+
+    // ===== 현재 사용자 카드 — 클릭 시 큐 영역 토글 (완료 상태에선 비활성) =====
+    userCard.addEventListener('click', () => {
+      if (userCard.classList.contains('is-completed')) return;
+      userCard.classList.toggle('is-expanded');
+    });
+
+    // ===== 타임존 토글 — 뱃지 라벨 = 전환 대상 (UTC 모드일 때 'KST' 라벨) =====
+    tzToggle.addEventListener('click', () => {
+      tzMode = tzMode === 'UTC' ? 'KST' : 'UTC';
+      tzToggle.textContent = tzMode === 'UTC' ? 'KST' : 'UTC';
+      rerenderTimes();
+    });
+
+    // ===== 복사하기 — 점유 슬롯의 "{TZ HH:MM} - {닉네임}" 줄을 시간 순으로 정렬 후 클립보드 =====
+    const copyToggle = document.getElementById('copy-toggle');
+    copyToggle.addEventListener('click', async () => {
+      const items = [];
+      grid.querySelectorAll('.slot-card:not(.is-selectable)').forEach((card) => {
+        const nameEl = card.querySelector('.slot-holder-name');
+        if (!nameEl) return; // selectable 외에도 holder 없는 케이스 방어
+        items.push({
+          time: card.querySelector('.slot-time').textContent,
+          name: nameEl.textContent,
+        });
+      });
+      // 시간 문자열 정렬 — prefix(TZ) 동일하므로 자연스럽게 HH:MM 순서
+      items.sort((a, b) => a.time.localeCompare(b.time));
+      const text = items.map((it) => `${it.time} - ${it.name}`).join('\n');
+
+      const flashCopied = () => {
+        const original = '복사하기';
+        copyToggle.textContent = '복사됨';
+        setTimeout(() => { copyToggle.textContent = original; }, 1500);
+      };
+
+      try {
+        await navigator.clipboard.writeText(text);
+        flashCopied();
+      } catch {
+        // 폴백 — file:// / 비-secure context / 권한 거부 시
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch {}
+        document.body.removeChild(ta);
+        flashCopied();
+      }
+    });
+
+    // ===== 슬롯 클릭 → 확인 다이얼로그 =====
+    grid.addEventListener('click', (e) => {
+      const card = e.target.closest('.slot-card.is-selectable');
+      if (!card) return;
+      pendingCard = card;
+      confirmTime.textContent = card.querySelector('.slot-time').textContent;
+      confirmDialog.showModal();
+    });
+    document.getElementById('confirm-cancel').addEventListener('click', () => {
+      pendingCard = null;
+      confirmDialog.close();
+    });
+    document.getElementById('confirm-ok').addEventListener('click', () => {
+      if (pendingCard && currentTurnIdx < TOTAL) {
+        // 클릭한 슬롯을 현재 차례 사용자 정보로 채움 → selectable 제거
+        const time = pendingCard.querySelector('.slot-time').textContent;
+        pendingCard.classList.remove('is-selectable');
+        fillSlotHTML(pendingCard, time, USERS_48[currentTurnIdx]);
+        currentTurnIdx++;
+        renderTurn();
+      }
+      pendingCard = null;
+      confirmDialog.close();
+    });
+    confirmDialog.addEventListener('click', (e) => {
+      if (e.target === confirmDialog) {
+        pendingCard = null;
+        confirmDialog.close();
+      }
+    });
+  </script>
+</body>
+</html>
