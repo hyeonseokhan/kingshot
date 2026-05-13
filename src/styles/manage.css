@@ -873,12 +873,15 @@
   color: var(--text3);
 }
 /* iOS Safari 줌 방지 — input font-size < 16px 이면 focus 시 자동 zoom-in.
-   데스크탑 12px 디자인은 유지, 모바일만 16px 강제. height 약간 커지지만
-   모바일 터치 영역으로 오히려 자연스러움. */
+   데스크탑 12px 디자인은 유지, 모바일만 16px 강제. 글자만 키우면 12px 디자인의
+   tight padding 이 비좁아 보여 → box 자체를 padding/height 로 키워 16px 글자가
+   자연스럽게 자리잡도록 (모바일 터치 영역도 함께 확대 — iOS HIG 부합). */
 @media (max-width: 720px) {
   .coupon-search-input,
   .member-search-input {
     font-size: 16px;
+    height: 36px;
+    padding: 6px 10px;
   }
 }
 
