@@ -275,6 +275,7 @@ function openAddModal(): void {
   editingId = null;
   setText('bl-modal-title', t('blacklist.modal.addTitle'));
   setText('bl-modal-submit', t('blacklist.modal.submit'));
+  setText('bl-search-btn', t('blacklist.modal.searchButton'));
   ($('bl-modal-delete')!).style.display = 'none';
   $('bl-modal-overlay')!.classList.add('open');
 }
@@ -295,6 +296,8 @@ function openEditModal(entry: BlacklistEntry): void {
   };
   setText('bl-modal-title', t('blacklist.modal.editTitle'));
   setText('bl-modal-submit', t('blacklist.modal.submitEdit'));
+  // 수정 모드: ID 는 변경 불가, 조회 → 갱신 (재조회로 player info 최신화).
+  setText('bl-search-btn', t('blacklist.modal.refreshButton'));
   ($('bl-modal-delete')!).style.display = '';
 
   $<HTMLInputElement>('bl-input-id')!.value = entry.kingshot_id;
@@ -389,7 +392,9 @@ function searchPlayer(): void {
     return;
   }
 
-  setText('bl-search-btn', t('blacklist.modal.searchingButton'));
+  // 라벨은 모드별 분기 — 등록: 조회/조회중, 수정: 갱신/갱신중.
+  const inProgressKey = editingId ? 'blacklist.modal.refreshingButton' : 'blacklist.modal.searchingButton';
+  setText('bl-search-btn', t(inProgressKey));
   ($('bl-search-btn') as HTMLButtonElement).disabled = true;
 
   fetch(REDEEM_API, {
@@ -414,7 +419,8 @@ function searchPlayer(): void {
       appAlert(t(isNotFound ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
     })
     .finally(() => {
-      setText('bl-search-btn', t('blacklist.modal.searchButton'));
+      const idleKey = editingId ? 'blacklist.modal.refreshButton' : 'blacklist.modal.searchButton';
+      setText('bl-search-btn', t(idleKey));
       ($('bl-search-btn') as HTMLButtonElement).disabled = false;
     });
 }

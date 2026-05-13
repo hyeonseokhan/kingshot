@@ -128,24 +128,95 @@
   font-size: 16px;
 }
 
-/* 이미지 첨부 영역 — modal 안에서만 사용 */
-.bl-image-hint {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
+/* ===== B3 다이얼로그 레이아웃 — 인라인 라벨 + pill 결과 카드 + 압축 이미지 행 =====
+   현재(stack) 대비 ~30% 세로 절감. 라벨이 input 좌측 64px 컬럼에 배치되고,
+   조회 결과 player-info 와 image-row 는 input 컬럼(74px) 에 들여쓰기 정렬. */
+.bl-modal-body {
+  padding: 14px 16px;
 }
-.bl-image-status {
+
+/* 라벨 좌측 + input 우측 한 줄 배치 */
+.bl-field {
   display: flex;
-  gap: 12px;
   align-items: center;
-  padding: 10px;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.bl-field-label {
+  flex: 0 0 64px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  text-align: right;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bl-field-input {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.bl-field-input input[type='text'] { flex: 1; min-width: 0; }
+.bl-field-input input[type='file'] { flex: 1; min-width: 0; font-size: 13px; }
+.bl-field-input input:disabled {
+  background: var(--bg2);
+  color: var(--text3);
+  cursor: not-allowed;
+}
+
+/* 조회 결과 pill — fit-content + 들여쓰기. 결과가 ID 입력의 응답임을 시각 표현. */
+.bl-pill {
+  margin-left: 74px;          /* 64px label + 10px gap → input 컬럼 정렬 */
+  margin-bottom: 10px;
+  width: fit-content;
+  max-width: calc(100% - 74px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  background: var(--bg3);
+  border-radius: 20px;
+}
+.bl-pill-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--border2);
+}
+.bl-pill-text {
+  font-size: 12px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bl-pill-text strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.bl-pill-sep {
+  color: var(--text3);
+  margin: 0 4px;
+}
+
+/* 이미지 행 — 기존/신규 모두 동일 스타일 (한 줄 컴팩트) */
+.bl-image-row {
+  margin-left: 74px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
   background: var(--bg2);
   border-radius: 6px;
-  margin-top: 8px;
 }
 .bl-image-thumb {
-  width: 64px;
-  height: 64px;
+  width: 40px;
+  height: 40px;
   border-radius: 4px;
   overflow: hidden;
   flex-shrink: 0;
@@ -156,16 +227,18 @@
   height: 100%;
   object-fit: cover;
 }
-.bl-image-meta {
+.bl-image-row-text {
   flex: 1;
   font-size: 12px;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.4;
+  min-width: 0;
 }
-.bl-image-remove {
-  flex-shrink: 0;
-  font-size: 12px;
-  padding: 6px 10px;
+.bl-image-hint {
+  margin-left: 74px;
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.4;
 }
 
 .btn-danger {

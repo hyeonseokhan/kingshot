@@ -82,61 +82,72 @@ const navItems = manage.submenus!.map((s) => ({
           <h3 id="bl-modal-title" data-i18n="blacklist.modal.addTitle">블랙리스트 등록</h3>
           <button class="modal-close" id="bl-modal-close" type="button">&times;</button>
         </div>
-        <div class="modal-body">
-          <label for="bl-input-id" data-i18n="blacklist.modal.idLabel">킹샷 ID</label>
-          <div class="input-row">
-            <input
-              type="text"
-              id="bl-input-id"
-              placeholder="킹샷 아이디 입력"
-              data-i18n-attr-placeholder="blacklist.modal.idPlaceholder"
-              inputmode="numeric"
-            />
-            <button class="btn btn-secondary" id="bl-search-btn" type="button" data-i18n="blacklist.modal.searchButton">조회</button>
-            <button class="btn btn-secondary" id="bl-copy-id-btn" type="button" data-i18n="blacklist.modal.copyId">복사</button>
-          </div>
-
-          <!-- 조회 결과 미리보기 — player-card 공통 패턴 사용 -->
-          <div id="bl-preview" class="player-card" style="display:none">
-            <img id="bl-preview-img" class="player-card-photo" src="" alt="" />
-            <div class="player-card-info">
-              <div class="player-card-name" id="bl-preview-name">-</div>
-              <div class="player-card-detail">
-                <span data-i18n="blacklist.modal.kingdomLabel">서버:</span> <strong id="bl-preview-kingdom">-</strong>
-              </div>
+        <div class="modal-body bl-modal-body">
+          <!-- 킹샷 ID 행 — 라벨 좌측 컬럼, input/조회/복사 우측 -->
+          <div class="bl-field">
+            <label class="bl-field-label" for="bl-input-id" data-i18n="blacklist.modal.idLabel">킹샷 ID</label>
+            <div class="bl-field-input">
+              <input
+                type="text"
+                id="bl-input-id"
+                placeholder="킹샷 아이디 입력"
+                data-i18n-attr-placeholder="blacklist.modal.idPlaceholder"
+                inputmode="numeric"
+              />
+              <button class="btn btn-secondary btn-sm" id="bl-search-btn" type="button" data-i18n="blacklist.modal.searchButton">조회</button>
+              <button class="btn btn-secondary btn-sm" id="bl-copy-id-btn" type="button" data-i18n="blacklist.modal.copyId">복사</button>
             </div>
           </div>
 
-          <label for="bl-input-note" data-i18n="blacklist.modal.noteLabel">메모</label>
-          <input
-            type="text"
-            id="bl-input-note"
-            maxlength="20"
-            data-i18n-attr-placeholder="blacklist.modal.notePlaceholder"
-            placeholder="사유 / 요약 (최대 20자)"
-          />
-
-          <label data-i18n="blacklist.modal.imageLabel">증거 이미지 (선택)</label>
-
-          <!-- 수정 모드에서 기존 저장 이미지가 있을 때만 노출. [제거] 누르면 storage 에서 삭제 의도(저장 시점에 실제 삭제). -->
-          <div class="bl-image-existing" id="bl-image-existing" style="display:none">
-            <div class="bl-image-thumb">
-              <img id="bl-image-existing-img" src="" alt="" />
-            </div>
-            <div class="bl-image-existing-label" data-i18n="blacklist.modal.imageExistingLabel">
-              현재 등록된 이미지
-            </div>
-            <button class="btn btn-secondary bl-image-remove" id="bl-image-existing-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
+          <!-- 조회 결과 pill — input 컬럼에 들여쓰기, fit-content 폭 (B3).
+               형식: [avatar] {nickname} · #{server}  — "서버:" 라벨 생략 (pill 컴팩트). -->
+          <div id="bl-preview" class="bl-pill" style="display:none">
+            <img id="bl-preview-img" class="bl-pill-img" src="" alt="" />
+            <span class="bl-pill-text">
+              <strong id="bl-preview-name">-</strong>
+              <span class="bl-pill-sep">·</span>
+              <strong id="bl-preview-kingdom">-</strong>
+            </span>
           </div>
 
-          <input type="file" id="bl-input-image" accept="image/*" />
+          <!-- 메모 행 -->
+          <div class="bl-field">
+            <label class="bl-field-label" for="bl-input-note" data-i18n="blacklist.modal.noteLabel">메모</label>
+            <div class="bl-field-input">
+              <input
+                type="text"
+                id="bl-input-note"
+                maxlength="20"
+                data-i18n-attr-placeholder="blacklist.modal.notePlaceholder"
+                placeholder="사유 / 요약 (최대 20자)"
+              />
+            </div>
+          </div>
+
+          <!-- 이미지 행 -->
+          <div class="bl-field">
+            <label class="bl-field-label" data-i18n="blacklist.modal.imageLabel">증거 이미지</label>
+            <div class="bl-field-input">
+              <input type="file" id="bl-input-image" accept="image/*" />
+            </div>
+          </div>
+
+          <!-- 기존 등록 이미지 (수정 모드에서 image_path 있을 때만) — input 컬럼 정렬 -->
+          <div class="bl-image-row" id="bl-image-existing" style="display:none">
+            <div class="bl-image-thumb"><img id="bl-image-existing-img" src="" alt="" /></div>
+            <span class="bl-image-row-text" data-i18n="blacklist.modal.imageExistingLabel">현재 등록된 이미지</span>
+            <button class="btn btn-secondary btn-xs" id="bl-image-existing-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
+          </div>
+
+          <!-- 신규 업로드 status -->
+          <div class="bl-image-row" id="bl-image-status" style="display:none">
+            <div class="bl-image-thumb"><img id="bl-image-thumb-img" src="" alt="" /></div>
+            <span class="bl-image-row-text" id="bl-image-meta"></span>
+            <button class="btn btn-secondary btn-xs" id="bl-image-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
+          </div>
+
           <div class="bl-image-hint" data-i18n="blacklist.modal.imageHint">
             큰 파일은 자동으로 압축됩니다 (1080px / WebP / 최대 ~150 KB).
-          </div>
-          <div class="bl-image-status" id="bl-image-status" style="display:none">
-            <div class="bl-image-thumb"><img id="bl-image-thumb-img" src="" alt="" /></div>
-            <div class="bl-image-meta" id="bl-image-meta"></div>
-            <button class="btn btn-secondary bl-image-remove" id="bl-image-remove" type="button" data-i18n="blacklist.modal.imageRemove">제거</button>
           </div>
         </div>
         <div class="modal-footer">

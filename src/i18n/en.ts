@@ -348,6 +348,8 @@ export const en: Translations = {
       idPlaceholder: 'Enter Kingshot ID',
       searchButton: 'Search',
       searchingButton: 'Searching...',
+      refreshButton: 'Refresh',
+      refreshingButton: 'Refreshing...',
       copyId: 'Copy',
       copyIdDone: 'Copied',
       kingdomLabel: 'Server:',
