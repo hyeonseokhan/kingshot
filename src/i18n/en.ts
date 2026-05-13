@@ -374,7 +374,7 @@ export const en: Translations = {
       delete: 'Remove {name} from the blacklist? The attached image will also be deleted.',
     },
     refreshAll: {
-      confirm: 'Refresh latest profile for {n} entries from the official API? (Batched 5 at a time)',
+      confirm: 'Refresh latest profile for {n} entries?',
       done: 'Refreshed {n} entries',
       partial: '{ok} succeeded / {fail} failed',
     },

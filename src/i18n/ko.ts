@@ -372,7 +372,7 @@ export const ko = {
       delete: '{name} 을(를) 블랙리스트에서 삭제하시겠습니까? 첨부 이미지도 함께 삭제됩니다.',
     },
     refreshAll: {
-      confirm: '{n}명의 최신 프로필을 공식 API 에서 가져와 갱신할까요? (5명씩 묶어 비동기 처리)',
+      confirm: '{n}명의 최신 프로필을 갱신할까요?',
       done: '{n}명 갱신 완료',
       partial: '{ok}명 성공 / {fail}명 실패',
     },
