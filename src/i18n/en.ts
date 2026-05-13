@@ -16,6 +16,8 @@ export const en: Translations = {
     logout: 'Sign Out',
     sortBy: 'Sort',
     contents: 'Contents',
+    playerLookupNotFound: "Player ID not found. Please double-check the ID.",
+    playerLookupFailed: 'Lookup failed due to a temporary issue. Please try again in a moment.',
   },
   header: {
     title: 'Alliance Guide',

@@ -15,6 +15,10 @@ export const ko = {
     logout: '로그아웃',
     sortBy: '정렬',
     contents: '목차',
+    // 킹샷 ID 조회 실패 시 사용자 친화 메시지 (members/coupons/blacklist 공유).
+    // raw "Sign Error" 등 외부 API 의 개발자용 메시지를 노출하지 않기 위함.
+    playerLookupNotFound: '존재하지 않는 킹샷 ID 예요. ID를 다시 확인해주세요.',
+    playerLookupFailed: '일시적인 문제로 조회에 실패했어요. 잠시 후 다시 시도해주세요.',
   },
   header: {
     title: '연맹 가이드',

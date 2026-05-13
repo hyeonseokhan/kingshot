@@ -26,6 +26,7 @@ import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
 import { t, onLangChange } from '@/i18n';
+import { appAlert } from '@/lib/dialog';
 
 // ===== 상수 =====
 
@@ -1314,7 +1315,9 @@ function bindEventListeners(): void {
         $<HTMLButtonElement>('coupon-modal-save').disabled = false;
       })
       .catch((err: Error) => {
-        alert(t('coupons.msg.searchFailed', { message: err.message }));
+        // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
+        const isNotFound = /not.*exist|not.*found/i.test(err.message);
+        appAlert(t(isNotFound ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
         couponSearchData = null;
       })
       .finally(() => {

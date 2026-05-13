@@ -19,6 +19,7 @@ import { optimizeImage, formatBytes } from '@/lib/image-optimize';
 import { patchList, patchText } from '@/lib/dom-diff';
 import { esc } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
+import { appAlert } from '@/lib/dialog';
 
 const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
 const REST_BASE = SUPABASE_URL + '/rest/v1';
@@ -408,7 +409,9 @@ function searchPlayer(): void {
       renderPreview(lookupResult);
     })
     .catch((err: Error) => {
-      alert(err.message || t('blacklist.msg.apiSearchFailed'));
+      // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
+      const isNotFound = /not.*exist|not.*found/i.test(err.message);
+      appAlert(t(isNotFound ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
     })
     .finally(() => {
       setText('bl-search-btn', t('blacklist.modal.searchButton'));

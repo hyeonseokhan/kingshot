@@ -681,7 +681,10 @@ function initPage(): void {
         $<HTMLButtonElement>('btn-modal-save').disabled = false;
       })
       .catch((err: Error) => {
-        appAlert(t('members.errors.refreshFailed', { message: err.message }));
+        // 외부 API 의 raw msg ("Sign Error", "Player Not Existed" 등) 노출 금지.
+        // not-found 만 별도 메시지로 분기, 나머지는 generic friendly.
+        const isNotFound = /not.*exist|not.*found/i.test(err.message);
+        appAlert(t(isNotFound ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
         searchData = null;
         $<HTMLButtonElement>('btn-modal-save').disabled = true;
       })
