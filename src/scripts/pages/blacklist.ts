@@ -507,7 +507,14 @@ async function submitForm(): Promise<void> {
       //   (b) 기존 이미지 제거만           → image_path = NULL,        기존 storage 삭제
       //   (c) 새 첨부 + 기존 제거         → (a) 와 동일 (제거 의도는 새것으로 덮임)
       //   (d) 이미지 변경 없음            → patch 에서 image_path 생략 (보존)
-      const patch: Record<string, unknown> = { note: note || null };
+      // player 필드(nickname/avatar_url/kingdom) 도 PATCH 에 포함 — "갱신" 후 저장 시
+      // 최신값 반영. 갱신 안 했어도 lookupResult 는 entry 원본값으로 채워져있어 안전 (no-op).
+      const patch: Record<string, unknown> = {
+        nickname: lookupResult.nickname,
+        avatar_url: lookupResult.avatar_url,
+        kingdom: lookupResult.kingdom,
+        note: note || null,
+      };
       if (newImagePath) {
         patch.image_path = newImagePath;
       } else if (existingImageRemoved) {
