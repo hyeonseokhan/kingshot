@@ -321,6 +321,7 @@ export const en: Translations = {
     thead: {
       avatar: 'Avatar',
       nickname: 'Nickname',
+      level: 'Level',
       kingdom: 'Server',
       kingshotId: 'Kingshot ID',
       note: 'Note',

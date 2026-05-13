@@ -64,6 +64,7 @@ const navItems = manage.submenus!.map((s) => ({
           <tr>
             <th class="bl-th-avatar" data-i18n="blacklist.thead.avatar">아바타</th>
             <th class="bl-th-name" data-i18n="blacklist.thead.nickname">닉네임</th>
+            <th class="bl-th-level" data-i18n="blacklist.thead.level">레벨</th>
             <th class="bl-th-kingdom" data-i18n="blacklist.thead.kingdom">서버</th>
             <th class="bl-th-id" data-i18n="blacklist.thead.kingshotId">킹샷 ID</th>
             <th class="bl-th-note" data-i18n="blacklist.thead.note">메모</th>
@@ -100,11 +101,13 @@ const navItems = manage.submenus!.map((s) => ({
           </div>
 
           <!-- 조회 결과 pill — input 컬럼에 들여쓰기, fit-content 폭 (B3).
-               형식: [avatar] {nickname} · #{server}  — "서버:" 라벨 생략 (pill 컴팩트). -->
+               형식: [avatar] {nickname} · Lv.{level} · #{server} -->
           <div id="bl-preview" class="bl-pill" style="display:none">
             <img id="bl-preview-img" class="bl-pill-img" src="" alt="" />
             <span class="bl-pill-text">
               <strong id="bl-preview-name">-</strong>
+              <span class="bl-pill-sep">·</span>
+              <strong id="bl-preview-level">-</strong>
               <span class="bl-pill-sep">·</span>
               <strong id="bl-preview-kingdom">-</strong>
             </span>

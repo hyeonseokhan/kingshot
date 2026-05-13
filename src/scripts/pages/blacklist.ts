@@ -41,6 +41,7 @@ interface BlacklistEntry {
   nickname: string;
   avatar_url: string | null;
   kingdom: number | null;
+  level: number | null;
   note: string | null;
   image_path: string | null;
   created_by: string | null;
@@ -53,6 +54,7 @@ interface PlayerLookup {
   nickname: string;
   avatar_url: string | null;
   kingdom: number | null;
+  level: number | null;
 }
 
 let entries: BlacklistEntry[] = [];
@@ -183,6 +185,7 @@ function createRow(e: BlacklistEntry): HTMLTableRowElement {
   row.innerHTML = `
     <td class="bl-td-avatar"><div class="bl-avatar"><img class="bl-avatar-img" alt=""/><span class="bl-avatar-empty"></span></div></td>
     <td class="bl-td-name"></td>
+    <td class="bl-td-level"></td>
     <td class="bl-td-kingdom"></td>
     <td class="bl-td-id"></td>
     <td class="bl-td-note"></td>
@@ -221,6 +224,10 @@ function updateRow(row: HTMLTableRowElement, e: BlacklistEntry): void {
   }
 
   patchText(row.querySelector<HTMLElement>('.bl-td-name'), e.nickname);
+  patchText(
+    row.querySelector<HTMLElement>('.bl-td-level'),
+    e.level != null ? 'Lv.' + e.level : '-',
+  );
   patchText(
     row.querySelector<HTMLElement>('.bl-td-kingdom'),
     e.kingdom != null ? '#' + e.kingdom : '-',
@@ -293,6 +300,7 @@ function openEditModal(entry: BlacklistEntry): void {
     nickname: entry.nickname,
     avatar_url: entry.avatar_url,
     kingdom: entry.kingdom,
+    level: entry.level,
   };
   setText('bl-modal-title', t('blacklist.modal.editTitle'));
   setText('bl-modal-submit', t('blacklist.modal.submitEdit'));
@@ -410,6 +418,8 @@ function searchPlayer(): void {
         nickname: json.data.nickname,
         avatar_url: json.data.avatar_image ?? null,
         kingdom: json.data.kid ?? null,
+        // stove_lv = city center level. members.ts 패턴 따라 stove_lv_content fallback.
+        level: parseInt(String(json.data.stove_lv ?? json.data.stove_lv_content ?? ''), 10) || null,
       };
       renderPreview(lookupResult);
     })
@@ -434,6 +444,7 @@ function renderPreview(p: PlayerLookup): void {
     img.style.display = 'none';
   }
   setText('bl-preview-name', p.nickname);
+  setText('bl-preview-level', p.level != null ? 'Lv.' + p.level : '-');
   setText('bl-preview-kingdom', p.kingdom != null ? '#' + p.kingdom : '-');
   $('bl-preview')!.style.display = '';
 }
@@ -513,6 +524,7 @@ async function submitForm(): Promise<void> {
         nickname: lookupResult.nickname,
         avatar_url: lookupResult.avatar_url,
         kingdom: lookupResult.kingdom,
+        level: lookupResult.level,
         note: note || null,
       };
       if (newImagePath) {
@@ -542,6 +554,7 @@ async function submitForm(): Promise<void> {
           nickname: lookupResult.nickname,
           avatar_url: lookupResult.avatar_url,
           kingdom: lookupResult.kingdom,
+          level: lookupResult.level,
           note: note || null,
           image_path: newImagePath,
           created_by: session.player_id,

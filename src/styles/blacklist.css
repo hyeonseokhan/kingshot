@@ -42,6 +42,7 @@
 .bl-table tbody tr:hover { background: var(--bg2); }
 
 .bl-th-avatar, .bl-td-avatar { width: 56px; }
+.bl-th-level, .bl-td-level { width: 56px; text-align: center; }
 .bl-th-image, .bl-td-image {
   width: 56px;
   text-align: center;
@@ -282,8 +283,10 @@
 }
 
 /* 모바일 좁은 화면 — 아바타 / 닉네임 / 메모 / 이미지 / 관리만 노출.
-   서버(kingdom) + 킹샷 ID 컬럼은 숨김 (좁은 화면에서 가독성 우선). */
+   레벨 / 서버(kingdom) / 킹샷 ID 컬럼은 숨김 (좁은 화면에서 가독성 우선,
+   레벨/서버는 다이얼로그 pill 에서 확인 가능). */
 @media (max-width: 640px) {
+  .bl-th-level, .bl-td-level,
   .bl-th-kingdom, .bl-td-kingdom,
   .bl-th-id, .bl-td-id {
     display: none;

@@ -319,6 +319,7 @@ export const ko = {
     thead: {
       avatar: '아바타',
       nickname: '닉네임',
+      level: '레벨',
       kingdom: '서버',
       kingshotId: '킹샷 ID',
       note: '메모',
