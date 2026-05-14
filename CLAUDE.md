@@ -1,44 +1,138 @@
 # PNX 연맹 사이트 — Claude 작업 지침
 
 이 파일은 Claude Code 세션 시작 시 자동 로드되는 프로젝트 컨텍스트야.
-새 세션에서도 작업 흐름과 결정사항을 잃지 않기 위한 단일 진실 공급원(SSOT).
+**현재 사용 가능한 자원 + 구조 + 룰** 의 단일 진실 공급원(SSOT). 진행 이력은 git log 가 진실 — 본 문서는 "지금 상태" 만.
+
+---
+
+## ⚠️ 작업 시작 전 필독 — 재사용 우선 룰
+
+**신규 기능/페이지/유틸 작성 전 반드시 아래 절차 수행. 사본 코드/중복 컴포넌트 방지의 1차 방어선.**
+
+1. **"재사용 자산 인덱스" 섹션 통독** (바로 아래) — 컴포넌트/유틸/store/패턴 카탈로그
+2. **"도메인 맵" 으로 유사 도메인 진입점 확인** → 그 파일들에서 패턴 grep
+   - 예: 다이얼로그 → `dialog.ts` / `AuthDialog.astro` / `appConfirm` grep
+   - 예: 리스트 갱신 → `patchList` grep
+   - 예: 페이지 간 데이터 공유 → `createStore` / `membersStore` grep
+3. **동일 패턴 발견 시 추출/재사용 우선, 사본 작성 금지.** 약간 달라도 props/옵션으로 흡수
+4. **새 공통 자산을 만들면** `src/lib/` 또는 `src/components/` 에 두고 **본 문서의 인덱스에 한 줄 추가**.
+   인덱스에 없는 자산은 다음 세션이 못 찾음 — 사실상 죽은 코드
+
+---
+
+## 📘 지침 문서 운영 룰 (생명주기)
+
+**4단계 사이클 — 매번이 아니라 "맥락 묶음" 단위로 회전.** 꼬리 질문마다 사이클 돌면 토큰 낭비.
+
+1. **조회** — 작업 시작 시 본 문서 + 메모리 통독
+2. **참고** — 인덱스/도메인 맵으로 재사용 가능한 자원 식별, 패턴 따라 작업
+3. **산출 정리** — 한 묶음 작업이 끝나면 ① 새 자산 발생 여부 ② 새 운영 함정 ③ 새 도메인/페이지 ④ 임시 분기(TEST_MODE 등) 점검
+4. **갱신** — 위 4종이 있으면 본 문서 해당 섹션에 한 줄 추가/수정
+
+**무엇을 기록하나 (영구 가치 기준):**
+- ✅ 자산: 재사용 가능한 컴포넌트/유틸/패턴 → "인덱스" 섹션
+- ✅ 도메인: 새 페이지/기능 진입점 → "도메인 맵"
+- ✅ 함정: 다시 만나면 똑같이 당할 PG/DOM/i18n 함정 → "운영 함정"
+- ✅ 임시 분기: TEST_MODE 같은 일회성 가지 → "운영 중 임시 분기"
+- ❌ **기록 X**: 진행 이력, 일회성 incident, 커밋 단위 변경 — `git log` / `git blame` 이 진실
+- ❌ **기록 X**: 단순한 사실 나열 — "왜 그렇게 했나" 가 있어야 가치
+
+**문서 비대 방지**: 본 문서가 400 줄 넘으면 압축 검토. "현재 상태" 만 남기고 과거 결정 사유는 git commit body 로 이관.
+
+---
+
+## 재사용 자산 인덱스
+
+> 📌 작업 시작 전 반드시 스캔. 누락된 자산이 있으면 본 인덱스도 함께 갱신.
+
+### 컴포넌트 ([src/components/](src/components/))
+
+| 컴포넌트 | 용도 | 사용처 |
+|---------|------|--------|
+| `AuthDialog.astro` + `scripts/pages/tile-match-auth.ts` | PIN 4자리 인증 다이얼로그 (kingshot_id + PIN) | 미니게임 4종, kvk-survey |
+| `Header.astro` | 상단 헤더 (로고 + 메뉴 + LoginedUserInfo + LangSwitcher) | BaseLayout 자동 |
+| `LoginedUserInfo.astro` | 인증 위젯 (아바타 + 닉네임 + 💎 잔액 + 로그아웃) | Header 안 자동 |
+| `LangSwitcher.astro` | 🌐 KOR/ENG 토글 — 클라이언트 swap | Header 안 자동 |
+| `LeftNav` / `MobileNav` / `RightToc` | 가이드 네비게이션 | GuideLayout 자동 |
+| `RefreshButton.astro` + `bindRefreshButton()` | 공통 새로고침 버튼 (회전 spinner, 최소 350ms) | 모든 list/ranking |
+| `RankingTable.astro` + `renderRankingTable()` | 미니게임 랭킹 (1·2·3등 글로우 + 사진 fade + 정렬 pill) | tile-match, pvp |
+| `MinigameLaunchCard.astro` | 미니게임 진입 카드 (라벨 + 메타 + CTA) | tile-match, partner-draw |
+| `WeeklyRankingsPanel.astro` | 주간 1·2·3등 알림 패널 | 미니게임 상단 |
+
+### 클라이언트 유틸 ([src/lib/](src/lib/))
+
+| 모듈 | 핵심 API | 언제 쓰나 |
+|------|---------|----------|
+| `store.ts` | `createStore<T>({storageKey, ttlMs, validate})` | **페이지 간 데이터 공유** — 모듈 변수 패턴 금지 |
+| `stores/members.ts` | `membersStore`, `fetchMembers()` | 연맹원 로스터 (4 페이지 공유) — `members` 직접 fetch 금지 |
+| `dom-diff.ts` | `patchList({container,items,key,render,update})`, `patchText(el,val)` | **데이터 갱신 시 필수** — `innerHTML=''` 금지 |
+| `dialog.ts` | `appAlert(msg)`, `appConfirm(msg, {variant:'danger'})` | **window.alert/confirm 금지** — 사이트 토큰 디자인 |
+| `utils.ts` | `esc`, `formatDate`, `formatDateTime`, `formatRelativeTime`, `formatNum`, `formatPower`, `getLevelClass`, `truncate`, `delay`, `toggleOverlay`, `describeRedeemError`, `isAlreadyRedeemed` | 텍스트 포매팅 / HTML escape / 레벨 테두리 / 쿠폰 응답 해석 |
+| `image-optimize.ts` | `optimizeImage(file, {maxWidth, quality, mimeType})`, `formatBytes` | 사용자 업로드 PNG/JPEG → WebP resize. iOS Safari 17 이하 WASM 폴백 |
+| `balance.ts` | `rewardForStage`, `enhanceCostFor`, `accumulatedPower`, `tierForLevel`, `TIER_LABEL`, `EQUIPMENT_SLOTS`, `SLOT_LABEL` | 크리스탈/강화 (서버 mirror — 변경 시 양쪽 동시) |
+| `equipment-tier-fx.ts` | `applyStageTier(stageEl, tier)`, `lowestStageTier(rows)` | 장비 stage 배경 + 모션 효과 |
+| `kvk-score.ts` | `estimateKvKScore({construction, training, general, cityLevel})` | KvK 1일차/4일차 예상 점수 |
+| `ranking-table.ts` | `renderRankingTable({bodyId, columns, items, clickable})`, `setActiveSortPill` | RankingTable.astro 짝꿍 |
+| `refresh-button.ts` | `bindRefreshButton(id, fn)` | RefreshButton.astro 짝꿍 |
+| `troops-calculator.ts` | `calculate(input, mode)`, `validate(input)`, `formatRatio` | 부대 분배 — 순수 함수 |
+| `cache.ts` | `getGiftCodesCache`, `getAccountsCache`, `invalidateAccountsCache`, `getFailedRefresh`, … | 쿠폰/계정/실패이력 sessionStorage 캐시 |
+| `guides.ts` | `getGuidesByCategory`, `getGuideEn`, `buildNavItems` | 가이드 ko/en pair 매칭 |
+| `supabase.ts` | `supabase`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Supabase 클라이언트 단일 인스턴스 |
+| `types.ts` | `Member`, `CouponAccount`, `ActiveCoupon`, `RedeemAccount`, … | DB row 타입 |
+
+### 패턴 / 규칙 (이름 없는 자산이지만 항상 적용)
+
+- **데이터 fetch**: 페이지 간 공유는 `createStore` + sessionStorage TTL. 모듈 변수 + custom event 금지
+- **Mutation 후**: 반드시 `store.refresh(fetcher, true)` 로 force 갱신. 안 그러면 freshness 체크에 막혀 stale
+- **리스트/row 갱신**: `patchList` + `data-key`. `innerHTML = ''` 또는 `el.innerHTML = template(items)` 금지
+- **사진 페이드**: `<X>-photo-wrap` (grid stack) + placeholder span + `<img>` onload 시 `.<X>-photo-loaded` 클래스. transition 80ms
+- **이벤트 핸들러**: 인라인 `onclick="X.foo(...)"` 금지. 컨테이너 click 위임 + `data-action` + `data-*`
+- **다이얼로그**: native `<dialog>` (top layer) 또는 `appAlert`/`appConfirm`. 외부 fixed 토스트는 backdrop 가려짐 → dialog 내부 absolute
+- **i18n**: 정적은 `data-i18n="key"` / `data-i18n-html` / `data-i18n-attr-*`. 동적 textContent 는 `onLangChange(() => 재렌더)` 콜백 필수
+- **밸런스 상수**: `src/lib/balance.ts` (클라 mirror) + `supabase/functions/{economy,equipment}/index.ts` (authoritative) — 변경 시 양쪽 동시
+- **새 Edge Function**: anon key 미사용 시 `supabase/config.toml` 의 `[functions.<name>]` 에 `verify_jwt = false` 등록
+- **마이그레이션 파일명**: `YYYYMMDDHHMMSS_<verb>_<subject>.sql` + 파일 상단에 ROLLBACK SQL 주석 보존
+- **컴포넌트/페이지**: `.astro` (마크업) + `src/scripts/{components,pages}/<name>.ts` (로직). 짝꿍 패턴
 
 ---
 
 ## 프로젝트 개요
 
-- **목적**: PNX 연맹(Kingshot 게임) 사이트 — 가이드 + 멤버 관리 + 쿠폰 + 미니게임
+- **목적**: PNX 연맹(Kingshot 게임) 사이트 — 가이드 + 멤버 관리 + 쿠폰 + 미니게임 + 관리도구 + KvK 설문
 - **스택**: Astro 5 + TypeScript + Tailwind v4 + Supabase
 - **호스팅**: GitHub Pages (정적 배포, `kingshot.wooju-home.org`)
 - **배포 자동화**: `main` push → `.github/workflows/deploy.yml` 자동 트리거
 - **인증**: 멤버 로스터 PIN 4자리 (Supabase Auth 사용 안 함)
 - **사용자 식별자**: `members.kingshot_id` (TEXT, 모든 도메인 테이블의 FK)
 
-## 디렉토리 구조 (요약)
+---
+
+## 디렉토리 구조
 
 ```
 src/
-  components/   # AuthDialog, Header, LangSwitcher, LeftNav, MobileNav, RightToc, ...
-  layouts/      # AppLayout, BaseLayout, GuideLayout
+  components/    # 재사용 자산 인덱스 참고
+  layouts/       # AppLayout, BaseLayout, GuideLayout, SurveyLayout
   pages/
-    manage/     # members, coupons (관리자 도구)
-    minigame/   # tile-match, partner-draw, equipment, pvp
-    beginner/   # 가이드
-    events/
+    manage/      # members, blacklist, coupons
+    minigame/    # tile-match, partner-draw, equipment, pvp
+    game-tools/  # troops-calculator (관리자 전용)
+    survey/      # kvk (가속권 설문 + 버프 예약)
+    beginner/    # 가이드 (Content Collection)
+    events/      # 이벤트 가이드
   scripts/
-    components/ # lang-switcher 등 컴포넌트 클라이언트 로직
-    pages/      # 각 페이지의 클라이언트 로직 (TypeScript)
-    legacy-hash-redirect.ts
-  styles/       # global, components, manage, minigame
-  lib/          # supabase, types, utils, cache, store, dom-diff, balance,
-                # equipment-tier-fx, ranking-table, guides, stores/
-  i18n/         # ko / en / index — 다국어 사전 + 헬퍼
-  content/      # Astro Content Collection (가이드 마크다운, ko/en pair)
-  data/         # navigation 등 정적 데이터
+    components/  # lang-switcher, logined-user-info, weekly-rankings-panel
+    pages/       # 각 페이지 클라 로직
+  styles/        # global, components, manage, minigame, game-tools, survey-kvk
+  lib/           # 재사용 자산 인덱스 참고
+  i18n/          # ko / en / index (다국어 사전 + 헬퍼)
+  content/       # Astro Content Collection (가이드 마크다운, ko/en pair)
+  data/          # navigation.ts (상단 메뉴 구조)
 
 supabase/
-  migrations/   # SQL 마이그레이션
-  functions/    # Edge Functions (Deno + TS)
+  migrations/    # YYYYMMDDHHMMSS_*.sql
+  functions/     # Edge Functions (Deno + TS) — 도메인 맵 참고
+  config.toml    # 함수별 verify_jwt 정책
 ```
 
 ---
@@ -47,413 +141,142 @@ supabase/
 
 | 작업 | 담당 |
 |------|------|
-| `.sql` 마이그레이션 파일 작성 | Claude |
-| Edge Function `index.ts` 작성 | Claude |
-| 클라이언트 코드 (Astro/TS/CSS) | Claude |
-| `npm run build`, 타입체크, 빌드 검증 | Claude |
-| git 브랜치/커밋/push (PR 생성) | Claude |
-| **`supabase db push`** (production DB 적용) | **Claude → 결과 사용자 보고** |
-| **`supabase functions deploy <name>`** | **Claude → 결과 사용자 보고** |
-| GitHub Secrets / Pages / 환경 설정 | **사용자** |
-| 브라우저에서 실제 동작 확인 (UI 회귀) | **사용자** |
+| `.sql` 마이그레이션 / Edge Function / 클라 코드 / 빌드 검증 / git 커밋·PR | Claude |
+| `supabase db push` (production DB 적용) | Claude (직접 실행 + 결과 보고) |
+| `supabase functions deploy <name>` | Claude (직접 실행 + 결과 보고) |
+| GitHub Secrets / Pages / 환경 설정 | 사용자 |
+| 브라우저 UI 회귀 검증 | 사용자 |
 
-### Supabase CLI 운영 원칙 (mac / windows 공통)
+### Supabase CLI 운영
 
-**기본 원칙 (2026-05-13 정책 변경)**:
-production 적용 명령(`supabase db push`, `supabase functions deploy`)도 Claude 가 **먼저 실행하고**
-결과(성공/실패/에러 메시지)를 사용자에게 한 번에 보고. 사용자가 매번 명령어 복붙할 필요 없도록.
-
-흐름:
-1. 마이그레이션 SQL / Edge Function 코드 작성 + 클라이언트 변경 + 빌드 검증
-2. **Claude 가 직접 실행** — 안전한 순서로 (DB 마이그레이션 → Edge Function → 클라이언트 push)
-3. 각 단계 결과를 사용자에게 한 번에 요약 보고 (예: "DB 적용 ✅ / Function 배포 ✅ / push ✅")
-4. 실패 시 즉시 진단 + 후속 조치
-
-**도구 설치는 여전히 사용자 확인 필요**:
-- 현재 환경에 `supabase` CLI 가 이미 설치돼있어 (`/Users/toycode/bin/supabase`) 사용 가능.
-- CLI 자체가 없는 환경(다른 PC 등)에선 brew/npm 으로 새로 설치하기 전에 사용자에게 확인.
-- 과거 세션에서 CLI 검증·우회 설치에만 시간 낭비한 적 있어 — 이미 있으면 그대로 쓰고, 없으면 묻기.
-
-**인증**:
-- `SUPABASE_ACCESS_TOKEN` 은 `.env` 에 있음. `set -a && source .env && set +a` 패턴으로 functions deploy 시 inject.
-- DB push 는 별도 토큰 없이도 동작 (이미 link 돼있음).
-
-**가벼운 검증은 CLI 없이도 가능**:
-anon key 또는 REST API 만으로 검증 가능한 작업 (예: 컬럼 존재 확인, 함수 응답 테스트)
-은 curl 로 가능 — 그건 CLI 거치지 않고 직접 호출.
-
-### Edge Function 배포 시 verify_jwt 옵션
-
-배포 시 `--no-verify-jwt` 같은 플래그를 매번 깜박할 위험이 있어 `supabase/config.toml`
-에 함수별 정책을 영구화함. 새 Edge Function 추가 시:
-- 클라가 anon key 를 함께 보냄 (`Authorization: Bearer ${anon}`) → config.toml 등록 불필요 (default)
-- 클라가 anon key 없이 호출 → `[functions.<name>]` 블록에 `verify_jwt = false` 등록 필요
+- **CLI 위치**: `/Users/toycode/bin/supabase` (이미 설치됨, 그대로 사용)
+- **인증**: `.env` 의 `SUPABASE_ACCESS_TOKEN`. functions deploy 시 `set -a && source .env && set +a` 패턴으로 inject
+- **DB push**: 별도 토큰 없이 동작 (link 됨)
+- **흐름**: 코드 작성 + 빌드 검증 → Claude 가 DB → Function → push 순서로 직접 실행 → 결과 한 번에 요약 보고
+- **CLI 없는 환경**: 새로 설치 전 사용자에게 확인 (과거 검증·우회에 시간 낭비한 적 있음)
+- **가벼운 검증**: REST API + curl 로 anon key 만으로 가능한 작업은 CLI 거치지 않음
 
 ---
 
-## 신규 컨텐츠: 미니게임 확장 (PNX_Game_Proposal)
+## 도메인 맵
 
-### 목표 (Core Loop)
-**타일 매치 클리어 → 크리스탈 보상 → 장비 강화 → 전투력 상승 → PvP 카드 대결**
+각 도메인 작업 시 진입점 파일부터 확인. 백엔드는 Edge Function 우선, 없으면 클라 직접 supabase.
 
-### 네비게이션 추가
-```
-/minigame/tile-match/    (기존)
-/minigame/partner-draw/  (기존)
-/minigame/equipment/     ← 신규 "장비/강화"
-/minigame/pvp/           ← 신규 "매칭 대결" (페이지 하단에 랭킹 섹션 통합)
-```
+| 도메인 | URL | 클라 진입점 | 백엔드 (테이블 / Edge Function) |
+|--------|-----|------------|-------------------------------|
+| 회원 관리 | `/manage/members` | `members.ts` | `members` (RLS write 차단) |
+| 블랙리스트 | `/manage/blacklist` | `blacklist.ts` | `blacklist` |
+| 쿠폰 | `/manage/coupons` | `coupons.ts` | `redeem-coupon`, `player-info`, `gift-codes` EF |
+| 가이드 | `/beginner/*`, `/events/*` | (Astro Content Collection) | 정적 빌드 (ko/en pair) |
+| 타일매치 | `/minigame/tile-match` | `tile-match.ts` | `tile_match_records` + `economy` EF (`claim-stage-reward`) |
+| 운명파트너 | `/minigame/partner-draw` | `partner-draw.ts` | `tile_match_records`, `members` |
+| 장비 강화 | `/minigame/equipment` | `equipment.ts` | `equipment_levels` + `equipment` EF (`enhance`) |
+| PvP | `/minigame/pvp` | `pvp.ts` | `pvp_battles`, `pvp_daily_state` + `pvp` EF |
+| 부대 계산기 | `/game-tools/troops-calculator` | `game-tools-troops-calculator.ts` (+ `game-tools-guard.ts`) | 순수 클라 (관리자 한정 — `kingshot_id == '270680423'`) |
+| KvK 설문/버프예약 | `/survey/kvk` | `survey-kvk.ts`, `survey-kvk-buff.ts` | `kvk_speedup_survey`, `kvk_buff_state`, `kvk_buff_participants` + `kvk-survey`, `kvk-buff` EF |
 
-### 디자인 결정사항 (확정)
-
-#### 데이터 보존 전략
-- 장비 / 크리스탈 잔액 / 강화 상태: **영구 누적**
-- `pvp_battles` 정리 정책: **수동 정리** (시즌 오프 시 사용자가 일괄 삭제). 자동 청소는 운영 복잡도 대비 이득 작아 포기 (트랙 4-2, 2026-04-30).
-
-#### 크리스탈 보상
-- 같은 stage 재클리어는 **첫 클리어만** 지급 (`crystal_transactions.ref_key` UNIQUE 강제)
-- 스테이지별 **결정적 매핑**:
-  - Stage 1: 100 (튜토리얼 보너스)
-  - Stage 2~10: 10~50 (5씩 점진)
-  - Stage 11~20: 100~300 (점진)
-  - Stage 21~45: 500+α
-  - Stage 46+: 0 (난이도 cap, 보상 의미 없음)
-- 정확한 stage→reward 테이블은 Phase A 마이그레이션에서 상수화 (`src/lib/balance.ts`)
-
-#### 장비 강화 (6부위: 월계관/목걸이/상의/하의/반지/지팡이)
-- 실패 시: 크리스탈만 소모, 등급 유지
-- **+10 (Silver) 가 현재 최대치** — 추후 해금으로 +11+ 확장 (DB 제약은 열어둠, cap은 코드에서만 강제)
-- 강화 밸런스 테이블:
-
-| 단계 | 비용 | 전투력 +Δ | 성공률 |
-|------|------|----------|--------|
-| +1 | 100 | +50 | 100% |
-| +2 | 200 | +60 | 100% |
-| +3 | 400 | +80 | 90% |
-| +4 | 800 | +120 | 80% |
-| +5 (Bronze) | 1,500 | +200 | 70% |
-| +6 | 2,200 | +330 | 66% |
-| +7 | 2,900 | +460 | 62% |
-| +8 | 3,600 | +600 | 58% |
-| +9 | 4,300 | +780 | 54% |
-| +10 (Silver) | 5,000 | +1,000 | 50% |
-
-→ 부위당 풀강 +3,420 / 6부위 풀강 합계 **+20,520**
-
-#### PvP
-- **비동기 PvP**: 방어자는 DB에 저장된 power로 자동 응전
-- **매칭**: 랭킹 ±N등 범위 내 랜덤 3명 후보 → 1명 선택
-- **HP**: 양쪽 1000 고정 (전투력은 데미지 곱셈에만 작용)
-- **턴**: 5턴 후 잔여 HP 비교, HP 0 즉시 종료
-- **일일 제한**: 공격 5회 (KST 자정 리셋), 방어 무제한
-- **카드** (매 턴 3장 중 1택):
-  - 공격(Red): 데미지 120~150%
-  - 강화(Blue): 크리티컬 확률 증가
-  - 방어(Green): 피격 데미지 50% 감소
-- **데미지 공식** (서버측 계산, 클라이언트 조작 방지):
-  ```
-  Damage = max(0, floor(MyPower × CardEffect × Random(0.85~1.15) - EnemyDefense))
-  ```
-
-#### 전투력 합산
-```
-TotalPower(player) = members.power + Σ(equipment_levels[player].power for slot in 6슬롯)
-```
-
-### 데이터 모델 (신규 테이블 5종)
-
-| 테이블 | 용도 | 핵심 컬럼 |
-|--------|------|----------|
-| `crystal_balances` | 잔액 요약 | player_id PK, balance, total_earned, total_spent |
-| `crystal_transactions` | 거래 원장 (감사 + 멱등성) | id, player_id, amount, source, ref_key UNIQUE, ref_data |
-| `equipment_levels` | 6부위 강화 상태 | (player_id, slot) PK, level, power |
-| `pvp_battles` | 전투 로그 (시즌 오프 시 수동 정리) | id, attacker_id, defender_id, winner_id, turns_log JSONB |
-| `pvp_daily_state` | 일일 공격 횟수 | (player_id, date) PK, attacks_used |
-
-**RLS 원칙**:
-- `crystal_balances`, `equipment_levels`: SELECT public, write 차단 (Edge Function only)
-- `pvp_battles`: SELECT public (랭킹/전적 조회), write 차단
-- 모든 변경은 Edge Function (service_role) 통과 필수
-
-### Edge Functions (신규 3종)
-- `economy/index.ts` — `claim-stage-reward`, `get-balance`, `spend-crystals`
-- `equipment/index.ts` — `get-equipment`, `enhance`
-- `pvp/index.ts` — `list-opponents`, `start-battle`, `play-card`, `get-result`
-
-기존 `tile-match-auth/index.ts` 의 PIN 검증 로직을 공유 모듈로 분리하여 재사용.
-
-### Phase 진행 상황
-
-- [x] **Phase A** — 크리스탈 경제 기반 (PR #1, commit `3b9deaf`, main 머지됨)
-  - [x] DB 마이그레이션 (`crystal_balances`, `crystal_transactions`) — production 적용 완료
-  - [x] Edge Function `economy/` — production 배포 완료, smoke test 3/3 pass
-  - [x] tile-match 클리어 시 보상 청구 통합
-  - [x] 헤더 잔액 배지 (이후 `LoginedUserInfo` 위젯으로 흡수)
-  - [x] 빌드 검증 + PR + main 머지 + GitHub Pages 배포
-  - [x] 브라우저 회귀 검증 + 22명/526 stages 데이터 백필 (2026-04-29)
-- [x] **Phase B** — 장비 강화 (`/minigame/equipment/`) (PR #2~#8, 최종 commit `3dc7cce`)
-  - [x] DB 마이그레이션 (`equipment_levels` + `enhance_equipment` RPC)
-  - [x] Edge Function `equipment/` — production 배포 완료
-  - [x] `/minigame/equipment/` 페이지 — 캐릭터 중심 레이아웃 + 모달 + RPG 게임 아이콘 PNG
-  - [x] **100단계 확장** + 6 RPG 등급 (일반/고급/희귀/영웅/레전드/신화) — `ENHANCE_RANGES` 보간
-  - [x] **결정적 회귀 fix** — `apply_crystal_transaction` 의 CHECK violation 버그 (마이그레이션 `20260429120000`)
-  - [x] **데이터 백필** (2026-04-29 재밸런스) — 22명/655 거래/220,165 크리스탈,
-    `tile_match_records` 는 건드리지 않음. 강화/잔액/거래 모두 새 시스템 기준 재지급
-  - [x] Stage 46+ 반복 파밍 (100/회, ref_key NULL) — 일상 활동 재화
-  - [x] **브라우저 회귀 검증** (사용자 직접, 2026-04-29 OK)
-- [x] **Phase C** — PvP 카드 대결 + 랭킹 섹션 (`/minigame/pvp/`) (commit `e8923ff` + 후속 fix 다수)
-  - [x] DB 마이그레이션 (`pvp_battles`, `pvp_daily_state`, `is_ranked` 컬럼)
-  - [x] Edge Function `pvp/` — 데미지/카드효과/크리/보상 모두 서버측 계산
-  - [x] `/minigame/pvp/` 페이지 — 매칭 → 배틀 → 결과 → 랭킹 통합
-  - [x] **밸런스 재설계** — share-based 데미지 + chip floor (1턴 즉사 차단)
-  - [x] cooldown (enhance/defend 직후 attack 만) + 격돌 메커닉
-  - [x] 연습 모드 (일일 5회 후 자유 매칭, 보상/승수 X) + `is_ranked` 분리
-  - [x] **브라우저 회귀 검증** + 모바일 컬럼 줄바꿈/연습승수 합산 fix (commit `b05f450`)
-
-### 보안 / 무결성 체크리스트
-- [x] anon key로 통화 테이블 직접 변경 차단 (RLS write 차단)
-- [x] 보상 중복 청구 방지 (`crystal_transactions.ref_key` UNIQUE)
-- [x] 강화 race condition 방지 (DB 함수 단일 트랜잭션 + `target == current+1` 검증)
-- [x] **무료 강화 hole 차단** — 음수 amount + 잔액 row 미존재 케이스를 명시적 `check_violation` 으로 거부
-  (마이그레이션 `20260429120000_fix_apply_crystal_transaction.sql`)
-- [x] PvP 데미지 계산 서버측 강제 (클라이언트는 카드 선택만 전송)
-- [x] PvP 자기공격 (`self_attack_forbidden`) / 일일 한도 위반 차단 + 멱등 보상 (`ref_key=pvp:<battle_id>:reward`)
-
-### 후속 작업 트랙 (Phase A/B/C 완료 이후)
-
-위에서 아래로 순차 진행. 각 트랙은 **이전 트랙 완료 + 사용자 회귀 검증** 후 시작.
-
-1. **트랙 1: 웹 프로젝트 설계 재검토 — 깜박임 100% 제거** ✅ 완료 (commits 574e0d9 ~ 7697e28)
-   - **달성**: 데이터 갱신 시 row 단위 keyed reconcile + 사진 placeholder + 페이드 인 패턴 적용.
-     `innerHTML = ...` 통째 교체 패턴이 제거된 곳:
-     - 회원 관리 (members.ts) — row + 사진
-     - 쿠폰 받기 (coupons.ts) — 계정 목록 + 쿠폰 카드 + 진행 UI + 수령 이력 + pagination
-     - 타일매치 랭킹 (tile-match.ts) — row 의 부분 patch + 사진 fade
-     - PvP 검색 모드 (pvp.ts) — allMembersCache → membersStore
-   - **남은 곳 (의도적)**: 타일매치 게임 보드 자체는 frame animation 필수라 손대지 않음
-   - **신규 인프라**:
-     - `src/lib/store.ts` — createStore<T> (get/set/subscribe/refresh + sessionStorage TTL + in-flight 보호)
-     - `src/lib/stores/members.ts` — membersStore (4페이지 공유)
-     - `.mc-photo-fade`, `.tm-rank-photo-fade` 마커 — img.onload 시 .loaded 클래스로 페이드 인 (transition 80ms)
-
-2. **트랙 2: 메모리 / Supabase I/O 최적화** ✅ 완료 (commits 9868cb5 ~ e12c029)
-   - **달성**: 페이지 간 중복 fetch 약 60% 감소 (5 페이지 순회 시 16건 → 6건).
-     `members` 로스터를 4 페이지가 각자 fetch 하던 패턴 → 단일 store 공유.
-   - **변경 (PR 1~3)**:
-     - `store.refresh(fetcher, force?)` 에 freshness 체크 추가 — TTL 안이면 fetch 스킵
-     - `tile-match-auth.ts` 가 자체 fetch 대신 `membersStore` 사용 (미니게임 4 페이지 영향)
-     - `partner-draw.ts` / `tile-match.ts` (랭킹 join) / `coupons.ts` (loadAccounts) 도 store 활용
-   - **Mutation fix**: 회원 변경 5곳 (저장/삭제/등록/단일갱신/전체갱신) 에서 `force=true` 호출 →
-     freshness 체크가 변경 누락하던 회귀 차단
-   - **남은 영역 (다음 트랙들에서 자연스럽게)**: balance store, equipment store, ranking store,
-     daily-state store. 각 도메인 자체 작업 시 같은 패턴으로 추출
-
-3. **트랙 3: 데이터베이스 최적화 — 누적된 dead column / index 정리** ✅ 완료 (2026-04-30)
-
-   #### Track 3-1 ✅ 완료 (마이그레이션 `20260430120000_drop_dead_columns_indexes.sql`)
-   - **삭제한 dead 컬럼 4개** (members 테이블, 코드 grep 매칭 0건):
-     - `troop_count` (bigint), `kill_points` (bigint), `alliance_role` (text), `last_active_at` (timestamptz)
-   - **삭제한 dead 인덱스 2개** (idx_scan=0 + 매칭 쿼리 패턴 없음):
-     - `idx_pvp_battles_attacker_created`, `idx_pvp_battles_defender_created`
-   - 마이그레이션 파일 상단에 ROLLBACK SQL 주석 보존 (필요 시 그대로 실행)
-   - **보존**: `idx_crystal_tx_ref_unique` (UNIQUE 제약 핵심), `idx_pvp_battles_winner_ranked` (랭킹 쿼리, 데이터 늘면 활용)
-
-   #### Track 3-2 ✅ 완료 (마이그레이션 `20260430130000_drop_pvp_cleanup.sql`)
-   - 결정: **자동 청소 포기 (옵션 B)**. 운영 복잡도 대비 이득 작음. 시즌 오프 시 사용자가 수동 정리.
-   - 삭제: `idx_pvp_battles_finished_at` 인덱스 + `cleanup_old_pvp_battles()` 함수
-   - 마이그레이션 파일 상단에 ROLLBACK SQL 주석 보존 (필요 시 함수 + 인덱스 복원).
-
-4. **트랙 4: KOR/ENG 다국어 지원** ✅ 완료 (2026-05-01 ~ 2026-05-04)
-   - PR #10 ~ #14: 인프라(`src/i18n/{ko,en,index}.ts`) + 페이지 swap + 가이드 ko/en pair + 햄버거 메뉴 + 각종 fix
-   - 모든 페이지에 `data-i18n` / `data-i18n-html` / `data-i18n-attr-*` 마커 + `t()` 함수 적용
-   - `LangSwitcher` 컴포넌트 (헤더 우측) + `lang-switcher.ts` 클라이언트 로직
-   - 가이드 본문도 ko/en pair 로 다국어 (beginner 7 + events 3)
-   - 라우팅: 클라이언트 사이드 swap (URL 그대로) — 자동 감지 (`navigator.language`) + localStorage 기억
-
-### Phase B 운영 메모 (Phase C 작업 시 알아둘 것)
-
-- **100단계 + 6 RPG 등급 시스템** (2026-04-29 재밸런스, 2026-04-30 등급 boundary 시프트) — `src/lib/balance.ts` 의
-  `ENHANCE_RANGES` 객체 + 선형 보간 함수. Phase C 의 PvP 데미지 공식에서 장비 power
-  계산 시 `accumulatedPower(level)` 활용 가능.
-  현재 boundary: 일반(+0) · 고급(+1~9) · 희귀(+10~24) · 영웅(+25~44) · 레전드(+45~69) · 신화(+70~100).
-  변경 시 양쪽 동기 수정 필수: 본 파일 + `supabase/functions/equipment/index.ts` + `src/pages/minigame/equipment.astro` 안내 텍스트.
-  기존 player power 재계산은 `20260430000000_rebalance_equipment_power_tier_shift.sql` 패턴 참조.
-- **`apply_crystal_transaction` 의 PG 동작 함정** — INSERT...ON CONFLICT 의 row CHECK
-  는 conflict 분기보다 먼저 검사됨. 음수 amount(차감) 시 INSERT VALUES 의 balance
-  컬럼에 raw 값 넣으면 항상 CHECK violation. 향후 통화 차감 마이그레이션 작성 시
-  반드시 `INSERT VALUES (..., GREATEST(amount, 0), ...)` 패턴 사용 + `DO UPDATE`
-  분기에서만 raw amount 적용.
-- **Stage 46+ 반복 파밍** — `claim-stage-reward` 가 stage 46+ 에 ref_key NULL 사용해
-  매 클리어마다 새 거래 INSERT. PvP 보상도 비슷하게 ref_key 패턴 결정 필요
-  (시즌별 또는 매번).
-- **Stage cap 회귀 함정** (2026-05-01 ISSUES #8) — 서버 입력 검증 cap 이 클라이언트 보상 매핑보다
-  좁게 되어 있으면 silent 손실 발생. `economy/index.ts` 의 stage cap 200 이 무한 stage 도입 후 잔재로
-  남아 stage 201+ 클리어 모두 거부됨 → 클라이언트 다이얼로그엔 "+100" 표시되는데 잔액 안 늘어남
-  (silent 손실). 검증 cap 은 `balance.ts` 의 `rewardForStage` 와 일치 유지 (또는 의도적으로 비현실적 큰 값으로만
-  방어). 또한 클라 onClear() 의 청구 실패 응답을 silent 무시하지 말고 토스트로 알릴 것 (`showClaimFailureToast`).
-- **데이터 백필 표준 패턴** — 두 번 실행됨 (2026-04-29 두 차례).
-  `tile_match_records.best_stage` 보고 `crystal_transactions` 행별 INSERT +
-  `crystal_balances` 합산 INSERT. `tile_match_records` 는 절대 건드리지 않음.
-- **모달 결과 토스트 패턴** — native `<dialog>` 가 top layer 라 외부 fixed 토스트는
-  backdrop 블러에 가려짐. dialog 내부 absolute 로 두면 같은 top layer.
-
-### Phase A 운영 메모 (Phase B 이전)
-
-- **production schema_migrations 와 supabase CLI 추적 sync 완료** (2026-04-28).
-  과거 dashboard SQL Editor 로 직접 적용된 6개 마이그레이션이 CLI 추적엔 누락돼있어
-  `supabase migration repair --status applied <ts>...` 로 sync. Phase B 부터는 `supabase db push` 가
-  깔끔하게 새 마이그레이션 1개만 적용함 (이 단계 다시 할 필요 없음).
-- **데이터 백필 완료** (2026-04-29): 22명 / 526 stages / +187,940 크리스탈 소급 지급.
-  `claim-stage-reward` Edge Function 멱등 호출로 처리 (audit trail: `source=tile_match_clear`).
-  → production `crystal_transactions` 에 이미 526건 거래 기록 존재. Phase B 의 강화 거래는
-  `source=equipment_enhance` 로 별도 분류해서 audit 분리.
-- **헤더 잔액 표시 위치 변경**: 별도 배지(`header-crystal-badge.ts`, 삭제됨) → `LoginedUserInfo`
-  위젯 (`src/components/LoginedUserInfo.astro`) 으로 통합. Phase B 의 강화 결과로 잔액이 변경되면
-  `crystal-balance-update` 이벤트 dispatch — 위젯이 자동 갱신함 (이벤트 listener 위치는 위젯 내부).
-- **Stage→reward mirror**: 클라이언트도 보상 amount 를 즉시 알아야 fire-and-forget UI 가 가능해서
-  `src/lib/balance.ts` 에 `rewardForStage()` mirror 도입. 서버(`economy/index.ts`)가 진실의 원천,
-  클라이언트는 표시용. **변경 시 양쪽 동시 수정**. Phase B 의 강화 표(비용/확률)도 같은 패턴으로
-  `src/lib/balance.ts` 확장 권장.
-- **DOM diff 헬퍼 도입**: `src/lib/dom-diff.ts` 의 `patchList`/`patchText`. Phase B 의 장비 강화
-  결과 갱신, 인벤토리 표시 등에서도 처음부터 이 헬퍼로 갱신 — `innerHTML=''` 패턴 사용 금지.
-
-### 트랙 4 운영 메모 (i18n — 신규 화면/문구 추가 시 알아둘 것)
-
-- **사전 위치**: `src/i18n/ko.ts` (source of truth) + `src/i18n/en.ts`. ko 에 새 키 추가하면 en 의
-  같은 키도 채워야 컴파일 통과 (`Translations` 타입으로 강제). `astro check` 가 누락 검출.
-- **사용 패턴**:
-  - 정적 마크업: `<elem data-i18n="namespace.key">한국어 폴백</elem>`
-  - HTML 포함: `<elem data-i18n-html="key"><strong>...</strong> 등</elem>`
-  - 속성: `data-i18n-attr-placeholder="key"`, `data-i18n-attr-title="key"`
-  - 동적 텍스트: `import { t } from '@/i18n'` + `el.textContent = t('key', { n: 5 })`
-- **언어 변경 시 동적 갱신** — 정적 마크업은 자동 swap 되지만, JS 가 `textContent` 로 직접 박은
-  값(예: `formatRelativeTime` 결과, 카운트 라벨)은 `onLangChange()` 콜백으로 직접 다시 그려야 함.
-  레퍼런스: `tile-match.ts` 의 `onLangChange(() => { loadRanking(); ... })`.
-- **가이드 본문 다국어**: `src/content/{beginner,events}/<slug>.md` (한글) + `<slug>.en.md` (영문) pair.
-  파일명 매칭 + frontmatter 의 `pair` 필드로 swap.
-- **게임 영문 용어**: 한국어판과 영문판 표기가 다른 항목들 (장비명/스킬명 등) 은 en.ts 에 반영됨.
-  새 게임 용어 추가 시 게임 영문판 표기 따르고, 모를 땐 사용자 confirm.
-
-### 트랙 2 운영 메모 (트랙 3~ 작업 시 알아둘 것)
-
-- **store API 변경** — `refresh(fetcher, force?)` 에 freshness 체크 추가됨. 페이지 진입은 force=false
-  (캐시 활용), **변경 작업 후엔 반드시 force=true** (안 그러면 stale 반환). Mutation 후 누락하면 다른
-  페이지에서 변경 미반영. members.ts 의 5곳이 레퍼런스 패턴.
-- **Akamai CDN** — 사진은 `got-global-avatar.akamaized.net` (게임 공식 avatar). Supabase Storage 가
-  아님 → Cache-Control 못 건드리지만 브라우저 disk cache 작동.
-- **Playwright 진단 패턴** — 트랙 2 에서 매 PR 마다 `/tmp` 또는 임시 `diag-*.mjs` 로 페이지별
-  네트워크 캡처. 영구 도구화 안 함 — 필요 시 그때그때 작성. (이미 정형화된 패턴: page.on('request')
-  필터링 + label 별 grouping + 응답시간/size 출력)
-- **store 의 추가 도메인 후보** — `balanceStore` (현재는 LoginedUserInfo 가 별도 fetch + custom event
-  로 sync), `equipmentStore` (현재는 equipment.ts 의 모듈 변수), `rankingStore` (tile-match/PvP).
-  각 도메인 자체 변경 PR 시 자연스럽게 store 화 가능.
-- **store 캐시 TTL 60초** — members 변경이 잦은 프로젝트면 짧게, 정적이면 길게. 22명 규모라
-  60초 적정. 변경 시 force refresh 가 캐시 우회 → TTL 보다 정확.
-
-### 트랙 1 운영 메모 (트랙 2~ 작업 시 알아둘 것)
-
-- **단일 store 패턴** — `src/lib/stores/<name>.ts` 가 표준. members 외에 balance/equipment/rankings 등도
-  같은 패턴으로 추가 가능. 트랙 2 의 I/O 최적화는 store 화 안 된 데이터(예: tile-match 의 ranking
-  records, members.ts 의 RANK_WEIGHT 정렬 후 view-model) 를 store 화 하는 것이 자연스럽게 이어짐.
-- **사진 페이드 패턴 일관성** — placeholder(첫 글자) 항상 보이고 `<img>` 가 onload 시
-  `.<X>-photo-loaded` 추가로 페이드 인. transition 80ms (Playwright 진단 기반 — cache hit 시
-  200ms 면 lag 감각). 마커 클래스(`.mc-photo-fade`, `.tm-rank-photo-fade`) 한정 적용 — 다른 페이지의
-  같은 base class(.mc-photo) 는 영향 X.
-- **이미지 cache** — 사진은 Akamai CDN(got-global-avatar.akamaized.net), Cache-Control 헤더 부재지만
-  브라우저 heuristic 으로 disk cache 작동. 두 번째 진입 0~1ms. Supabase 무관.
-- **`.<X>-photo-wrap` grid stack** — flex(단일 자식) → grid + place-items + grid-area:1/1 로 두 자식
-  (empty placeholder + img) 같은 셀에 stack. 다른 페이지에서 같은 wrap class 단일 자식만 쓰면 영향 X.
-- **이벤트 위임** — 인라인 `onclick="X.foo(...)"` 는 신규 코드에서 금지. 대신 컨테이너에 click 위임 +
-  `data-action="..."` + `data-*` 로 정보 전달. members.ts/coupons.ts 가 레퍼런스.
-- **patchList container 안 비-row 자식** — patchList 는 `data-key` 있는 자식만 reconcile. 그 외 자식
-  (status div, label 등) 은 형제 element 로 분리해서 patchList container 밖에 둘 것 (그렇지 않으면
-  새 row appendChild 가 비-row 자식 뒤로 밀어버려 순서 꼬임).
-
-### Phase C 운영 메모 (트랙 1 작업 시 알아둘 것)
-
-- **`is_ranked` 분리** — `pvp_battles.is_ranked` 가 ranked(일일 5회 안) / 연습(자유) 매치 구분.
-  보상 적립도 ranked 만, 클라이언트 승수 집계 쿼리도 `is_ranked=eq.true` 필터 필수
-  (한번 빠뜨려서 fix 한 적 있음 — commit `b05f450`).
-- **share-based 데미지 공식** — `pvp/index.ts` 의 `rollCardDamage()` 가 share + chip 합산.
-  단순 (MyPower - EnemyDefense) 곱셈에서 변경됨. 트랙 1/2 에서 PvP 화면 손볼 때 참조.
-- **격돌(collision) 메커닉** — 양쪽 동시 attack 시 일반 데미지 X, 양쪽 정액 200 (HP 의 20%).
-  화면에 별도 banner 노출. 깜박임 제거 작업 시 이 banner 도 keyed 갱신 대상.
+**Edge Function 디스패치 패턴**: 모든 함수는 action 디스패치 방식. 레퍼런스 = `supabase/functions/tile-match-auth/index.ts` (PIN 검증), `economy/index.ts` (stage→reward + RPC), `pvp/index.ts` (서버측 데미지 + 멱등 보상).
 
 ---
 
-## 신규 컨텐츠: 게임도구 (Game Tools)
+## 핵심 밸런스 / 비즈니스 룰
 
-### 개요
+### 크리스탈 보상 (`balance.ts:rewardForStage` + `economy/index.ts`)
+- Stage 1: 100 (튜토리얼) · 2~10: 5씩 점진 · 11~20: 100~300 · 21~45: 500+20씩 · 46~999: 100 반복 · 1000+: 1000 (D11)
+- 첫 클리어만 (`crystal_transactions.ref_key` UNIQUE). 46+ 는 ref_key NULL 로 반복 파밍
 
-상단 메뉴 5번째 **게임도구** 카테고리 — 미니게임과 분리된 "외부 게임 플레이를
-보조하는 계산기/툴" 의 자리. Phase 1 = 부대 계산기 (곰 사냥).
+### 장비 강화 (`balance.ts:ENHANCE_RANGES` + `equipment/index.ts`)
+- 6 부위 (월계관/목걸이/상의/하의/반지/지팡이) × 최대 +100 단계
+- 6 RPG 등급: 일반(+0) / 고급(+1~9) / 희귀(+10~24) / 영웅(+25~44) / 레전드(+45~69) / 신화(+70~100)
+- 실패 시 크리스탈만 소모, 등급 유지
+- **변경 시 양쪽 동시**: `src/lib/balance.ts` + `supabase/functions/equipment/index.ts` + `equipment.astro` 안내 텍스트
 
-### 노출 규칙 (관리자 한정)
+### PvP (`pvp/index.ts`)
+- 비동기 — 방어자는 DB power 로 자동 응전
+- HP 1000 고정 · 5턴 후 잔여 HP 비교 · 일일 공격 5회 (KST 자정 리셋), 방어 무제한
+- 카드 3종 (공격/강화/방어) — 매 턴 3장 중 1택
+- 데미지 서버 계산 (share-based + chip floor + 격돌 메커닉), 클라는 카드 선택만 전송
+- `is_ranked` 분리: ranked (일일 5회 안) / 연습 (자유) — 보상/승수는 ranked 만
 
-- **`members.kingshot_id == '270680423'` (Toycode) 한정** — 그 외 사용자는 메뉴
-  자체가 DOM 에서 제외됨. 정적 빌드 특성상 페이지 URL 은 존재 → 페이지 진입에도
-  동일 가드 (`game-tools-guard.ts`) 적용해 미인증/타 사용자면 홈 리디렉트.
-- 향후 일반 공개 결정 시 `requiresKingshotId` 메타만 제거하면 됨.
+### KvK 점수 추정 (`kvk-score.ts`)
+- 1일차: 건설 가속권 1분 = 30P
+- 4일차: 티어 9 (45P/병, baseTrainSec 131) 또는 티어 10 (60P/병, baseTrainSec 152, cityLevel ≥ 30)
+- 가속 버프 190% multiplier 2.9 (현재 고정값)
+- 오차 ±5%
 
-### 부대 계산기 (Phase 1, `/game-tools/troops-calculator/`)
-
-- **목적**: 곰 사냥 출진 직전 — 보유 보병/기병/궁병 + 1부대 수용량 + 운영 편대 수
-  입력 → 편대별 분배량 + 잔류 + 실제 비율 즉시 계산.
-- **분배 비율 옵션** (commit `9da2c8c`):
-  - **권장(1:1:8)** — 곰 사냥 표준
-  - **균등** — 보:기:궁 동일 분배 (vikings 등 다른 시나리오 임시 대응)
-  - 두 옵션은 토글, custom 입력은 Phase 2+
-- **궁병 우선 알고리즘** — 궁병 부족 케이스에선 `궁병 = floor(arc/N)`, 나머지는
-  보·기 균등으로 채워 합 cap 유지. 정확한 의사코드는 `src/lib/troops-calculator.ts`.
-- **결과 셀 클릭 → 클립보드 복사 + 토스트 + 터치 피드백** (commit `17b472d`) —
-  편대별 숫자를 게임 UI 에 빠르게 옮기기 위한 UX.
-- **DB / Edge Function 변경 0건** — 순수 클라이언트 계산.
-
-### 코드 배치
-
-| 영역 | 파일 |
-|------|------|
-| 페이지 | `src/pages/game-tools/{index,troops-calculator}.astro` |
-| 클라 로직 | `src/scripts/pages/game-tools-troops-calculator.ts` |
-| 순수 계산 | `src/lib/troops-calculator.ts` |
-| 권한 가드 | `src/scripts/pages/game-tools-guard.ts` |
-| 스타일 | `src/styles/game-tools.css` |
-| nav | `src/data/navigation.ts` 의 `gameTools` 카테고리 |
-| i18n | `src/i18n/{ko,en}.ts` 의 `nav.gameTools` + `gameTools.troopsCalculator.*` |
-
-### 후속 (Phase 2+)
-
-- Vikings 부대 계산기 (60/40/0)
-- 비율 커스텀 입력 (슬라이더 또는 자유 입력)
-- 그 외 도구 (자원 변환, 훈련 시간 계산기 등)
-- Toycode 외 일반 공개 — 사용량 보고 결정
+### KvK 버프 슬롯 예약 (`kvk-buff` EF + `kvk_buff_state` / `_participants`)
+- 슬롯 holder/empty 우측 정렬, admin 6명 (270680423, Raducanu, SsungBi, Pirate King, ISU, 271728683) skip/swap 권한
+- 가속권 페이지 안 다이얼로그 통합 (`/survey/kvk-buff/` 페이지는 다이얼로그 진입점만)
 
 ---
 
-## 코딩 컨벤션 (이 프로젝트 한정)
+## 운영 함정 (영구 가치)
 
-- 컴포넌트: `.astro`, 클라이언트 로직: `src/scripts/pages/<page>.ts`
-- 스타일: `src/styles/{global,components,manage,minigame}.css` 분리 유지
-- 한국어 식별자(키) 사용 시 주석으로 의미 부연 (예: `kingshot_id` 가 게임 ID)
-- Edge Function: Deno + TypeScript, action 디스패치 패턴 (기존 `tile-match-auth/index.ts` 참조)
-- 마이그레이션 파일명: `YYYYMMDDHHMMSS_<verb>_<subject>.sql`
+다시 만나면 똑같이 당함. 신규 작업 시 해당 영역 건드리면 본 섹션 먼저 체크.
+
+- **`apply_crystal_transaction` PG `INSERT...ON CONFLICT` CHECK 함정** — 음수 amount 차감 시 INSERT VALUES 의 balance 컬럼에 raw 값 넣으면 항상 CHECK violation. `INSERT VALUES (..., GREATEST(amount, 0), ...)` + `DO UPDATE` 분기에서만 raw amount 적용
+- **Stage cap 회귀** — 서버 입력 검증 cap 이 클라 `rewardForStage` 보다 좁으면 silent 손실. cap 은 `balance.ts:rewardForStage` 와 일치 유지. 청구 실패 응답은 silent 무시 X, 토스트로 표시
+- **patchList container 안 비-row 자식** — `data-key` 없는 자식(status/label 등)이 있으면 새 row appendChild 가 그 뒤로 밀려 순서 꼬임. 비-row 는 형제 element 로 분리해서 patchList container **밖**에 둘 것
+- **store force=true 누락** — Mutation 후 `store.refresh(fetcher, true)` 안 부르면 freshness 체크에 막혀 stale. `members.ts` 의 5곳 레퍼런스 패턴
+- **모달 결과 토스트** — native `<dialog>` 가 top layer 라 외부 fixed 토스트는 backdrop 에 가려짐. dialog 내부 absolute 로 두기
+- **i18n 동적 텍스트** — JS 가 `textContent` 로 박은 곳은 `onLangChange(() => 재렌더)` 콜백 필수. 정적 마크업만 자동 swap. 새 키는 `ko.ts` + `en.ts` 둘 다 채워야 `astro check` 통과
+- **이미지 dialog src 교체 잔상** — `<img>` src 만 바꾸면 새 이미지 디코드 전까지 이전 이미지 그대로 보임. src 교체 직전 `img.src = ''` 또는 명시 hide → 새 src 로 (블랙리스트/KvK 인증샷 lightbox 레퍼런스)
+- **speedup-stats Blob URL 매초 refetch 회귀** — 이미지 캐시 안 되는 endpoint 는 매초 refetch 가 비용 큼. 한 번 fetch 후 Blob URL 로 메모리 캐시
+
+---
+
+## 운영 중 임시 분기
+
+종료 시 정리해야 하는 일회성 가지. 작업 시 인지 + 종료 절차 메모리에 기록.
+
+- **KvK buff TEST_MODE** (2026-05-14 도입) — `?test=1` URL → `_test` 테이블/RPC 격리. 운영 buff 와 분리해 관리자 실증 테스트용.
+  종료 절차: `TEST_MODE` grep 으로 4 위치 + ROLLBACK SQL 실행. 자세한 절차는 [memory `project_kvk_buff_test_mode.md`](~/.claude/projects/-Users-toycode-Documents-00-Private-05-github-kingshot/memory/project_kvk_buff_test_mode.md)
+
+---
+
+## 완료된 마일스톤
+
+진행 이력 — 자세한 변경은 `git log` 로 추적.
+
+- **Phase A** (2026-04): 크리스탈 경제 기반 — `crystal_balances/transactions` + `economy` EF + tile-match 보상 청구
+- **Phase B** (2026-04): 장비 강화 — `equipment_levels` + `equipment` EF + 100 단계/6 RPG 등급
+- **Phase C** (2026-04): PvP 카드 대결 — `pvp_battles/daily_state` + `pvp` EF + share-based 데미지 + 연습/랭크 분리
+- **트랙 1** (2026-04): 깜박임 100% 제거 — keyed reconcile + 사진 fade (`dom-diff.ts`, `store.ts`)
+- **트랙 2** (2026-04): I/O 최적화 — 페이지 간 중복 fetch 60% 감소 (`membersStore` 도입)
+- **트랙 3** (2026-04): DB 정리 — dead column/index 4+2 개 삭제 + pvp 자동청소 포기 결정
+- **트랙 4** (2026-05): KOR/ENG 다국어 — `src/i18n/{ko,en}.ts` + 가이드 pair + LangSwitcher
+- **블랙리스트** (2026-05): `/manage/blacklist` + `blacklist` 테이블
+- **KvK 설문** (2026-05): `/survey/kvk` + `kvk_speedup_survey` + 인증샷 업로드 + 평일/주말 정렬
+- **KvK 버프 예약** (2026-05): 가속권 페이지 안 다이얼로그 + `kvk_buff_*` 테이블 + admin skip/swap
+
+---
+
+## 코딩 컨벤션
+
+- 컴포넌트: `.astro`, 클라 로직: `src/scripts/{components,pages}/<name>.ts` (짝꿍)
+- 스타일: 도메인별 CSS 파일 분리 (`global`, `components`, `manage`, `minigame`, `game-tools`, `survey-kvk` 등)
+- 한국어 식별자(키) 사용 시 주석으로 의미 부연 (예: `kingshot_id` = 게임 ID)
+- Edge Function: Deno + TS, action 디스패치 패턴 (`tile-match-auth/index.ts` 레퍼런스)
+- 마이그레이션: `YYYYMMDDHHMMSS_<verb>_<subject>.sql` + 파일 상단 ROLLBACK SQL 주석
 
 ---
 
 ## 참고 문서
 
-- 신규 미니게임 확장 기획서 (PDF, 사내 문서 — repo 외부 보관). 핵심 내용은 본 문서의 "디자인 결정사항" 섹션에 모두 반영됨
-- `supabase/migrations/` — 기존 스키마 (가장 최근: `20260429160000_pvp_is_ranked.sql`)
-- `supabase/functions/tile-match-auth/index.ts` — Edge Function 패턴 레퍼런스
-- `supabase/functions/economy/index.ts` — Phase A 의 stage→reward 매핑 + RPC 호출 패턴
-- `supabase/functions/pvp/index.ts` — Phase C 의 서버측 데미지 계산 + 멱등 보상 패턴
+- `supabase/migrations/` — DB 스키마 (최신: `20260515000400_reset_kvk_buff_production_data.sql`)
+- `supabase/functions/tile-match-auth/index.ts` — Edge Function 패턴 레퍼런스 (PIN 검증)
+- `supabase/functions/economy/index.ts` — stage→reward 매핑 + RPC 호출 패턴
+- `supabase/functions/pvp/index.ts` — 서버측 데미지 + 멱등 보상 패턴
+- `~/.claude/projects/.../memory/` — 사용자 메모리 (TEST_MODE 절차 등)
+
+---
 
 ## 다른 PC 합류 시 setup
 
 ```bash
 git pull origin main
 npm install
-# .env 파일은 git ignore 되어있음 — 다른 PC 에 별도 복사 필요
+# .env 파일은 git ignore — 다른 PC 에 별도 복사 필요
 #   필수 키: PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, SUPABASE_ACCESS_TOKEN
 npm run dev   # 로컬 미리보기 (Astro dev server)
 ```
