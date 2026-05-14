@@ -15,7 +15,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { t, onLangChange } from '@/i18n';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-buff';
-const SURVEY_DEADLINE_ISO = '2026-05-16T01:00:00Z';
+// TEMP: 5명 admin 실증 테스트 동안 임시로 과거 시각 (잠금 즉시 해제). 운영 복귀 시 '2026-05-16T01:00:00Z' 로 원복.
+const SURVEY_DEADLINE_ISO = '2024-01-01T00:00:00Z';
 const TOTAL_SLOTS = 48;
 const POLL_INTERVAL_MS = 5000;
 
@@ -158,7 +159,12 @@ function renderLocked(): void {
 
 function renderCurrent(): void {
   const card = $('sk-buff-current');
-  if (!buffState || buffState.current_turn_idx >= TOTAL_SLOTS) {
+  // 완료 판정 — current_turn_idx 가 max(turn_idx)+1 이상이면 모든 참가자 끝.
+  // 5명 테스트 (turn_idx 0~4) 의 경우 5 도달 시 완료. 48명 운영의 경우 48 도달 시 완료.
+  const maxTurn = participants.length > 0
+    ? Math.max(...participants.map((p) => p.turn_idx))
+    : -1;
+  if (!buffState || buffState.current_turn_idx > maxTurn) {
     card.classList.add('is-completed');
     card.classList.remove('is-expanded');
     return;

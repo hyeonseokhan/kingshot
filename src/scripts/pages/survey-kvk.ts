@@ -74,8 +74,10 @@ interface PlayerInfo {
 /** TC(센터) 레벨 최소 자격. 서버측 검증과 일치 유지 (kvk-survey/index.ts MIN_CITY_LEVEL). */
 const MIN_CITY_LEVEL = 26;
 
-/** 설문 등록 마감 시각 (UTC). 안내문의 UTC 5월 16일 01:00 과 일치 유지. */
-const SURVEY_DEADLINE_ISO = '2026-05-16T01:00:00Z';
+/** 설문 등록 마감 시각 (UTC). 안내문의 UTC 5월 16일 01:00 과 일치 유지.
+ *  TEMP: 5명 admin 실증 테스트 동안 임시 단축 (가속권 페이지의 [등록/수정] → [버프 예약] 자동 전환).
+ *        운영 복귀 시 '2026-05-16T01:00:00Z' 로 원복. */
+const SURVEY_DEADLINE_ISO = '2024-01-01T00:00:00Z';
 /** urgency 단계 (남은 시간 ms): 24h 이하 = 노랑, 6h 이하 = 빨강 + pulse */
 const URGENCY_WARN_MS = 24 * 60 * 60 * 1000;
 const URGENCY_DANGER_MS = 6 * 60 * 60 * 1000;
