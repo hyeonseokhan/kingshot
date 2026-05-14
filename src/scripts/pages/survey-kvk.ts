@@ -1485,7 +1485,9 @@ function init(): void {
     setBuffTestMode(true);
     openBuffOverlay();
   });
-  syncTestBtn();
+  // syncTestBtn() boot 즉시 호출 안 함 — HTML 의 `hidden` 기본값 유지.
+  // verify-token 응답 후 saveAuth()/clearAuth() 가 자동으로 syncTestBtn() 호출 → 서버 검증된
+  // is_admin 으로만 노출 결정. (캐시 stale admin=true 로 잠깐 보였다가 사라지는 깜박임 차단.)
 
   // 마감 카운트다운 — 등록/수정 버튼 안 카운트다운 텍스트 + urgency 색 단계 갱신.
   startDeadlineCountdown();

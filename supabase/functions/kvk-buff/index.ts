@@ -8,6 +8,7 @@
  *   { action: 'pick-slot', token, slot_idx, expected_turn_idx, test_mode? }        → { ok }
  *   { action: 'admin-skip', token, expected_turn_idx, test_mode? }                 → { ok }
  *   { action: 'admin-swap', token, slot_a_idx, slot_b_idx, test_mode? }            → { ok }
+ *   { action: 'finalize', token, test_mode? }                                       → { ok }   (admin 만, state.finalized_at = now)
  *   { action: 'admin-reset-test', token, test_mode: true }                         → { ok }   (TEST_MODE 전용 [재시작])
  *
  * 권한: token 으로 kingshot_id 추출. admin 액션은 is_admin=TRUE 검증.
@@ -86,6 +87,8 @@ const KNOWN_ERRORS = new Set([
   "all_picked", "not_bootstrapped", "before_deadline",
   // admin
   "not_admin", "slot_not_occupied", "no_next", "same_slot",
+  // finalize
+  "finalized", "already_finalized",
   // 인증/검증
   "invalid_token", "token_expired",
   "invalid_slot_idx", "invalid_turn_idx", "missing_auth",
@@ -172,7 +175,7 @@ async function getState(token: unknown, isTest: boolean) {
 
   // 2. state + participants 조회 (참가자엔 닉네임/avatar 도 join 필요)
   const state = await dbSelectOne(
-    `${t("kvk_buff_state", isTest)}?id=eq.1&select=bootstrapped_at,current_turn_idx,turn_started_at,updated_at`,
+    `${t("kvk_buff_state", isTest)}?id=eq.1&select=bootstrapped_at,current_turn_idx,turn_started_at,finalized_at,updated_at`,
   );
   // PostgREST embedded resource — kvk_speedup_survey 와 join (FK 자동 활용)
   // _test 의 FK 도 운영 kvk_speedup_survey 참조 → 같은 embedded 패턴 동작.
@@ -253,6 +256,19 @@ async function adminSwap(token: unknown, slotA: unknown, slotB: unknown, isTest:
   }
 }
 
+/** 예약 마감 — admin only. 호출 시 state.finalized_at = now() 로 모든 mutation 차단. */
+async function finalize(token: unknown, isTest: boolean) {
+  const auth = await authenticate(token);
+  if (!auth.ok) return auth;
+  if (!auth.me.is_admin) return { ok: false, error: "not_admin" };
+  try {
+    await dbRpc(t("kvk_buff_finalize", isTest), {});
+    return { ok: true };
+  } catch (e) {
+    return maskError(e, { action: "finalize", kingshotId: auth.me.kingshot_id });
+  }
+}
+
 /** !!! TEST_MODE 전용 — admin 만 호출. _test 참가자 전체 + state 초기화. !!!
  *  운영(isTest=false) 호출은 reject. 다음 get-state 가 lazy bootstrap 으로 admin 6명 다시 INSERT. */
 async function adminResetTest(token: unknown, isTest: boolean) {
@@ -288,6 +304,9 @@ Deno.serve(async (req: Request) => {
         break;
       case "admin-swap":
         result = await adminSwap(token, slot_a_idx, slot_b_idx, isTest);
+        break;
+      case "finalize":
+        result = await finalize(token, isTest);
         break;
       case "admin-reset-test":
         result = await adminResetTest(token, isTest);

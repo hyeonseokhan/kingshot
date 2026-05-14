@@ -51,6 +51,7 @@ interface BuffState {
   bootstrapped_at: string | null;
   current_turn_idx: number;
   turn_started_at: string | null;
+  finalized_at: string | null; // admin "예약 마감" 호출 시각. NULL=진행 중.
   updated_at: string;
 }
 
@@ -181,6 +182,8 @@ function applyAdminClass(): void {
   // me (kvk-buff get-state 응답) 가 우선, 없으면 (다이얼로그 오픈 직후 race) 캐시 fallback.
   const isAdmin = me?.is_admin === true || (me === null && readCachedIsAdmin());
   page.classList.toggle('is-admin', isAdmin);
+  // 예약 마감 상태 — CSS 로 [예약 마감] 버튼 숨김 + 향후 마감 배지/안내 노출 hooks.
+  page.classList.toggle('is-finalized', !!buffState?.finalized_at);
   // TEST_MODE — page + overlay 양쪽에 토글. overlay 는 head 영역의 [TEST] 라벨/[재시작] 게이트용.
   page.classList.toggle('is-test', testMode);
   document.getElementById('sk-buff-overlay')?.classList.toggle('is-test', testMode);
@@ -207,6 +210,15 @@ function renderLocked(): void {
 
 function renderCurrent(): void {
   const card = $('sk-buff-current');
+  // 마감 분기 — admin 이 [예약 마감] 누른 후. "선택중" 영역 + 타이머 정지 + 별도 메시지.
+  // .is-completed 도 같이 부여 → 기존 완료 시 시각 효과(스킵 버튼 숨김 등) 자동 적용.
+  if (buffState?.finalized_at) {
+    card.classList.add('is-completed');
+    card.classList.add('is-finalized');
+    card.classList.remove('is-expanded');
+    return;
+  }
+  card.classList.remove('is-finalized');
   // 완료 판정 — current_turn_idx 가 max(turn_idx)+1 이상이면 모든 참가자 끝.
   // 5명 테스트 (turn_idx 0~4) 의 경우 5 도달 시 완료. 48명 운영의 경우 48 도달 시 완료.
   const maxTurn = participants.length > 0
@@ -343,6 +355,13 @@ function onGridClick(e: Event): void {
   const slotIdx = Number(card.dataset.slotIdx);
   if (Number.isNaN(slotIdx)) return;
 
+  // 마감 가드 — RPC 도 'finalized' 로 reject 하지만, UI 차원에서 confirm 다이얼로그 자체가
+  // 안 뜨도록 차단 (swap 흐름의 첫 번째 클릭 후 마감된 경우 두 번째 클릭에서 dialog 가 떴던 회귀 막음).
+  if (buffState?.finalized_at) {
+    clearSwapSelection();
+    return;
+  }
+
   // (a) 빈 슬롯 — 본인 차례일 때만 pick confirm
   if (card.classList.contains('is-selectable')) {
     if (!me || !buffState) return;
@@ -443,11 +462,25 @@ async function onSkipConfirm(): Promise<void> {
   await pollState();
 }
 
+/** admin: 예약 마감 — confirm 후 state.finalized_at 세팅. 시스템 confirm() 사용 (페이지 일관). */
+async function onFinalizeClick(): Promise<void> {
+  if (!me?.is_admin) return;
+  if (!confirm(t('survey.kvkBuff.confirm.finalize'))) return;
+  const res = await callFn<{ ok: boolean; error?: string }>({ action: 'finalize', token });
+  if (!res.ok) {
+    alertError(res.error);
+    return;
+  }
+  await pollState();
+}
+
 /** !!! TEST_MODE — _test 참가자 + state reset. confirm 후 실행. */
 async function onResetTestClick(): Promise<void> {
   if (!testMode) return;
   if (!confirm(t('survey.kvkBuff.test.resetConfirm'))) return;
-  const res = await callFn<{ ok: boolean; error?: string }>({ action: 'admin-reset-test' });
+  // token 동봉 누락 시 Edge Function 의 authenticate(token) 가 invalid_token 으로 reject →
+  // 사용자에겐 "가속권 현황 조사에서 먼저 로그인" 안내가 잘못 노출됨. 다른 admin 액션과 동일하게 token 전달.
+  const res = await callFn<{ ok: boolean; error?: string }>({ action: 'admin-reset-test', token });
   if (!res.ok) {
     alertError(res.error);
     return;
@@ -587,6 +620,9 @@ function init(): void {
   // !!! TEST_MODE — admin 전용 [재시작] 버튼: _test 참가자 + state 일괄 reset.
   // 운영 호출 시 서버가 'test_mode_only' 로 거부 → 안전.
   document.getElementById('sk-buff-test-reset')?.addEventListener('click', onResetTestClick);
+
+  // admin 전용 [예약 마감] — confirm() 후 finalize API 호출. 페이지 내 다른 흐름과 동일하게 시스템 confirm 사용.
+  $('sk-buff-finalize-btn').addEventListener('click', onFinalizeClick);
 
   // 마감 전이면 잠금 화면 + 마감 시각까지 카운트다운만 띄움 (state 무관 우선 표시)
   renderLocked();

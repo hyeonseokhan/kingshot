@@ -122,6 +122,21 @@
 .sk-buff-page.is-admin .sk-buff-skip-btn { display: inline-block; }
 .sk-buff-current.is-completed .sk-buff-skip-btn { display: none !important; }
 
+/* admin 전용 [예약 마감] — .sk-buff-tz 줄의 다른 토글과 같은 스타일에 위험 색상만 강조.
+   default: 숨김 → .sk-buff-page.is-admin 일 때만 노출. 마감 후엔 .is-finalized 로 다시 숨김. */
+.sk-buff-finalize-btn {
+  display: none !important;
+  color: #f87171;
+  border-color: #f87171;
+}
+.sk-buff-finalize-btn:hover { background: rgba(248, 113, 113, 0.12); }
+.sk-buff-page.is-admin .sk-buff-finalize-btn { display: inline-flex !important; }
+.sk-buff-page.is-finalized .sk-buff-finalize-btn { display: none !important; }
+
+/* 마감 상태 배지 — .is-finalized 일 때만 노출, 그 외엔 항상 숨김 */
+.sk-buff-finalized-badge { display: none; }
+.sk-buff-page.is-finalized .sk-buff-finalized-badge { display: inline-flex; }
+
 /* chevron */
 .sk-buff-current-chevron {
   flex-shrink: 0;
@@ -200,10 +215,30 @@
 .sk-buff-current.is-completed .sk-buff-current-queue-wrap { display: none; }
 .sk-buff-current.is-completed .sk-buff-current-completed { display: block; }
 
+/* finalized 분기 — admin [예약 마감] 후 노출. .is-completed 도 같이 붙기 때문에 우선순위로
+   completed 메시지 숨기고 finalized 메시지 노출. */
+.sk-buff-current-finalized {
+  display: none;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #f87171;            /* 마감 위험/확정 의미 — 마감 버튼과 동일 톤 */
+  padding: 4px 0;
+}
+.sk-buff-current.is-finalized .sk-buff-current-completed { display: none; }
+.sk-buff-current.is-finalized .sk-buff-current-finalized { display: block; }
+
+/* 마감 후 grid 전체 클릭 비활성 + 시각적 표시 — admin 도 변경 불가 (RPC 가 차단하지만 UI 도 명확).
+   slot 까지 셀렉터 포함 — 일부 브라우저에서 부모 pointer-events: none 이 자식 hover 차단 안 하는 케이스 방어. */
+.sk-buff-page.is-finalized .sk-buff-grid,
+.sk-buff-page.is-finalized .sk-buff-slot { pointer-events: none; }
+.sk-buff-page.is-finalized .sk-buff-grid { opacity: 0.7; }
+
 /* ===== Toolbar — 시간대 토글 / 남은 자리 / 복사 ===== */
 .sk-buff-tz {
   display: flex;
   justify-content: flex-start;
+  flex-wrap: wrap;          /* 좁은 화면에서 4번째 버튼(예약 마감) 부터 다음 줄로 자연스럽게 떨어짐 */
   gap: 6px;
   margin: 0 0 10px;
 }
@@ -221,6 +256,7 @@
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   outline: none;
+  white-space: nowrap;      /* "남은 자 리" 같은 단어 강제 줄바꿈 차단 — 텍스트는 항상 한 줄 */
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .sk-buff-toggle:hover {

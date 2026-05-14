@@ -819,6 +819,7 @@ export const en: Translations = {
       selecting: 'Picking',
       nextLabel: 'Up next',
       completed: 'All users have picked their slots',
+      finalizedMsg: '🔒 Booking finalized — no further changes',
       queueEmpty: 'No users waiting',
       slotEmpty: 'Empty',
       skipButton: 'Skip',
@@ -826,6 +827,7 @@ export const en: Translations = {
       filterAll: 'Show all',
       copyButton: 'Copy',
       copied: 'Copied',
+      finalizeButton: 'Finalize',
       notice: {
         triggerLabel: 'Must-read notice',
         flow: {
@@ -854,12 +856,15 @@ export const en: Translations = {
         pickSlot: 'Pick this slot?',
         skipBody: 'Swap order: {cur} (#{curIdx}) ↔ {next} (#{nextIdx})?',
         swapBody: 'Swap slots between {a} and {b}?',
+        finalize: 'Finalize the buff booking?\nNo one will be able to register or change afterward.',
       },
       error: {
         notYourTurn: "It's not your turn",
         turn_changed: 'Turn order changed — refreshing',
         already_picked: 'You already picked a slot',
         slot_taken: 'Another user just took this slot. Please refresh and pick another time.',
+        finalized: 'Booking has been finalized — no further changes are allowed.',
+        already_finalized: 'Booking has already been finalized.',
         all_picked: 'All users have already picked',
         not_admin: 'Admin permission required',
         not_bootstrapped: 'Booking has not started yet',

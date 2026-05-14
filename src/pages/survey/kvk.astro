@@ -688,12 +688,18 @@ import '@/styles/survey-kvk-buff.css';
               <div class="sk-buff-current-completed" data-i18n="survey.kvkBuff.completed">
                 모든 사용자가 시간을 선택했습니다
               </div>
+              <!-- admin [예약 마감] 호출 후 노출 — .is-finalized 클래스로 CSS 분기. -->
+              <div class="sk-buff-current-finalized" data-i18n="survey.kvkBuff.finalizedMsg">
+                예약이 마감됐습니다
+              </div>
             </section>
 
             <div class="sk-buff-tz">
               <button type="button" class="sk-buff-toggle" id="sk-buff-tz-toggle">KST → UTC</button>
               <button type="button" class="sk-buff-toggle" id="sk-buff-filter-toggle" data-i18n="survey.kvkBuff.filterAvailable">남은 자리</button>
               <button type="button" class="sk-buff-toggle" id="sk-buff-copy-toggle" data-i18n="survey.kvkBuff.copyButton">복사하기</button>
+              <!-- admin 전용 [예약 마감] — .sk-buff-page.is-admin 일 때만 노출. 마감 후엔 .is-finalized 로 숨김. -->
+              <button type="button" class="sk-buff-toggle sk-buff-finalize-btn" id="sk-buff-finalize-btn" data-i18n="survey.kvkBuff.finalizeButton">예약 마감</button>
             </div>
 
             <div class="sk-buff-grid" id="sk-buff-grid"></div>

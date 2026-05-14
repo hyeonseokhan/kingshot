@@ -818,6 +818,7 @@ export const ko = {
       selecting: '선택중',
       nextLabel: '다음 차례',
       completed: '모든 사용자가 시간을 선택했습니다',
+      finalizedMsg: '🔒 예약이 마감됐습니다 — 더 이상 변경할 수 없습니다',
       queueEmpty: '대기 중인 사용자가 없습니다',
       slotEmpty: '비어있음',
       skipButton: '스킵',
@@ -825,6 +826,7 @@ export const ko = {
       filterAll: '전체 보기',
       copyButton: '복사하기',
       copied: '복사됨',
+      finalizeButton: '예약 마감',
       notice: {
         triggerLabel: '필독 안내문',
         flow: {
@@ -853,12 +855,15 @@ export const ko = {
         pickSlot: '시간을 선택하시겠습니까?',
         skipBody: '{cur}({curIdx}번)을 {next}({nextIdx}번)과 순서를 바꾸겠습니까?',
         swapBody: '{a} 와 {b} 유저의 자리를 바꾸겠습니까?',
+        finalize: '버프 예약을 마감하겠습니까?\n이후 누구도 등록·변경할 수 없습니다.',
       },
       error: {
         notYourTurn: '당신의 차례가 아닙니다',
         turn_changed: '차례가 바뀌었습니다 — 화면을 새로고침합니다',
         already_picked: '이미 슬롯을 점유했습니다',
         slot_taken: '다른 사용자가 방금 이 시간을 선점했어요. 새로고침 후 다른 시간을 선택해주세요.',
+        finalized: '예약이 마감되어 더 이상 변경할 수 없습니다.',
+        already_finalized: '이미 예약이 마감되었습니다.',
         all_picked: '모든 사용자가 선택을 완료했습니다',
         not_admin: '관리자 권한이 필요합니다',
         not_bootstrapped: '예약이 아직 시작되지 않았습니다',
