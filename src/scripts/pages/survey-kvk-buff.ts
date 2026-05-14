@@ -389,6 +389,28 @@ function clearSwapSelection(): void {
   pendingSwapTargetSlotIdx = null;
 }
 
+/**
+ * 서버 응답의 error 코드를 i18n 키로 찾아 친화적 메시지로 alert.
+ *
+ *   - 알려진 코드(turn_changed, slot_taken, …) → 해당 i18n 메시지
+ *   - 미정의 키 (Edge Function 의 unexpected_error 포함, 또는 신규 코드가 사전에 미반영) →
+ *     `survey.kvkBuff.error.unexpected_error` 로 fallback. raw 코드/JSON 절대 노출 안 함.
+ *
+ * t() 가 키 못 찾으면 key 자체 (문자열) 를 반환하는 동작을 활용해 fallback 분기.
+ */
+function alertError(errorCode: string | undefined): void {
+  const code = errorCode ?? 'unexpected_error';
+  const key = 'survey.kvkBuff.error.' + code;
+  const translated = t(key);
+  if (translated === key) {
+    // i18n 사전에 키 없음 → unexpected_error 메시지 노출. console 에는 원본 코드 기록.
+    console.warn('[kvk-buff] unmapped error code:', code);
+    alert(t('survey.kvkBuff.error.unexpected_error'));
+    return;
+  }
+  alert(translated);
+}
+
 // ===== confirm: pick slot =====
 async function onPickConfirm(): Promise<void> {
   if (pendingSlotIdx === null || !buffState) return;
@@ -402,7 +424,7 @@ async function onPickConfirm(): Promise<void> {
   pendingSlotIdx = null;
   dlg.close();
   if (!res.ok) {
-    alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+    alertError(res.error);
   }
   await pollState();
 }
@@ -417,7 +439,7 @@ async function onSkipConfirm(): Promise<void> {
     expected_turn_idx: buffState.current_turn_idx,
   });
   dlg.close();
-  if (!res.ok) alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+  if (!res.ok) alertError(res.error);
   await pollState();
 }
 
@@ -427,7 +449,7 @@ async function onResetTestClick(): Promise<void> {
   if (!confirm(t('survey.kvkBuff.test.resetConfirm'))) return;
   const res = await callFn<{ ok: boolean; error?: string }>({ action: 'admin-reset-test' });
   if (!res.ok) {
-    alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+    alertError(res.error);
     return;
   }
   await pollState();
@@ -461,7 +483,7 @@ async function onSwapConfirm(): Promise<void> {
   });
   clearSwapSelection();
   dlg.close();
-  if (!res.ok) alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+  if (!res.ok) alertError(res.error);
   await pollState();
 }
 

@@ -78,6 +78,37 @@ function isValidToken(t: unknown): t is string {
   return typeof t === "string" && /^[0-9a-f-]{36}$/i.test(t);
 }
 
+/** RPC / 내부 로직이 raise 한 알려진 에러 코드 — 그대로 클라 i18n 키로 forward 안전.
+ *  그 외 메시지(특히 PostgreSQL raw 에러 JSON)는 'unexpected_error' 로 단일화 + Function logs 기록. */
+const KNOWN_ERRORS = new Set([
+  // pick_slot / state
+  "turn_changed", "already_picked", "slot_taken", "not_your_turn",
+  "all_picked", "not_bootstrapped", "before_deadline",
+  // admin
+  "not_admin", "slot_not_occupied", "no_next", "same_slot",
+  // 인증/검증
+  "invalid_token", "token_expired",
+  "invalid_slot_idx", "invalid_turn_idx", "missing_auth",
+  // TEST_MODE
+  "test_mode_only",
+]);
+
+/** RPC catch 블록 공통 — 알려진 에러만 forward, 그 외는 'unexpected_error' 로 마스킹.
+ *  raw 메시지는 Supabase Function logs (console.error) 에 기록 → Dashboard 에서 검색. */
+function maskError(err: unknown, ctx: { action: string; kingshotId?: string | null }): {
+  ok: false;
+  error: string;
+} {
+  const raw = String((err as Error)?.message ?? err);
+  if (KNOWN_ERRORS.has(raw)) {
+    return { ok: false, error: raw };
+  }
+  console.error(
+    `[kvk-buff] unexpected error action=${ctx.action} kingshot_id=${ctx.kingshotId ?? "-"} message=${raw}`,
+  );
+  return { ok: false, error: "unexpected_error" };
+}
+
 function isValidSlotIdx(n: unknown): n is number {
   return typeof n === "number" && Number.isInteger(n) && n >= 0 && n < 48;
 }
@@ -186,7 +217,7 @@ async function pickSlot(token: unknown, slotIdx: unknown, expectedTurnIdx: unkno
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return maskError(e, { action: "pick-slot", kingshotId: auth.me.kingshot_id });
   }
 }
 
@@ -199,7 +230,7 @@ async function adminSkip(token: unknown, expectedTurnIdx: unknown, isTest: boole
     await dbRpc(t("kvk_buff_admin_skip", isTest), { p_expected_turn_idx: expectedTurnIdx });
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return maskError(e, { action: "admin-skip", kingshotId: auth.me.kingshot_id });
   }
 }
 
@@ -218,7 +249,7 @@ async function adminSwap(token: unknown, slotA: unknown, slotB: unknown, isTest:
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return maskError(e, { action: "admin-swap", kingshotId: auth.me.kingshot_id });
   }
 }
 
@@ -233,7 +264,7 @@ async function adminResetTest(token: unknown, isTest: boolean) {
     await dbRpc("kvk_buff_reset_test", {});
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return maskError(e, { action: "admin-reset-test", kingshotId: auth.me.kingshot_id });
   }
 }
 
@@ -269,8 +300,11 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    // 최외곽 catch — JSON parse / 예측 못한 throw. raw 메시지는 logs 에만 남기고
+    // 클라엔 일반 키만 (i18n fallback 으로 친화적 안내).
+    console.error("[kvk-buff] outer error:", String((err as Error)?.message ?? err));
     return new Response(
-      JSON.stringify({ ok: false, error: String((err as Error).message ?? err) }),
+      JSON.stringify({ ok: false, error: "unexpected_error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
