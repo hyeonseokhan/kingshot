@@ -164,9 +164,23 @@ function renderAll(): void {
   renderGrid();
 }
 
+/** localStorage 의 auth.record.is_admin 캐시 — 다이얼로그 오픈 직후 첫 polling 응답 도착 전
+ *  스킵/swap 등 admin UI 가 깜빡이지 않도록 fallback 으로 사용. AUTH_KEY 는 survey-kvk.ts 와 일치. */
+function readCachedIsAdmin(): boolean {
+  try {
+    const raw = localStorage.getItem('pnx-sk-auth-v1');
+    if (!raw) return false;
+    return JSON.parse(raw)?.record?.is_admin === true;
+  } catch {
+    return false;
+  }
+}
+
 function applyAdminClass(): void {
   const page = $('sk-buff-page');
-  page.classList.toggle('is-admin', me?.is_admin === true);
+  // me (kvk-buff get-state 응답) 가 우선, 없으면 (다이얼로그 오픈 직후 race) 캐시 fallback.
+  const isAdmin = me?.is_admin === true || (me === null && readCachedIsAdmin());
+  page.classList.toggle('is-admin', isAdmin);
   // TEST_MODE — page + overlay 양쪽에 토글. overlay 는 head 영역의 [TEST] 라벨/[재시작] 게이트용.
   page.classList.toggle('is-test', testMode);
   document.getElementById('sk-buff-overlay')?.classList.toggle('is-test', testMode);
@@ -570,6 +584,9 @@ function init(): void {
 /** 다이얼로그 오픈 시 호출 — 첫 fetch + 5초 polling + 1초 tick 시작. */
 export function startBuffPolling(): void {
   if (pollingTimer !== null) return; // 이미 polling 중
+  // 첫 polling 응답 도착 (~수백ms) 전에 캐시 기반으로 .is-admin / .is-test 즉시 sync.
+  // race 회귀 차단 — admin 이 다이얼로그 오픈 직후 잠깐 일반 사용자 UI 로 보이는 깜빡임 제거.
+  applyAdminClass();
   void pollState();
   pollingTimer = window.setInterval(pollState, POLL_INTERVAL_MS);
   elapsedTimer = window.setInterval(tickElapsed, 1000);

@@ -34,6 +34,17 @@ const { title = 'KVK Speed-up Survey', description = 'KVK speed-up inventory sur
     <script>
       import { bootI18n } from '@/i18n';
       bootI18n();
+
+      // iOS Safari focus ring 차단 — 터치 환경에선 키보드 내비 없으므로 의미 없음.
+      // CSS (:focus-visible) 만으론 iOS 가 tap 도 :focus-visible 로 매칭하는 비표준 동작 때문에
+      // 일부 케이스 잔존 → click 후 즉시 blur() 로 focus 자체를 떼어내 ring 차단.
+      // 터치 환경 (hover:none, pointer:coarse) 에서만 적용 — 데스크탑 키보드 내비 a11y 보존.
+      if (matchMedia('(hover: none) and (pointer: coarse)').matches) {
+        document.addEventListener('click', (e) => {
+          const btn = (e.target as HTMLElement | null)?.closest('button');
+          if (btn) btn.blur();
+        });
+      }
     </script>
   </head>
   <body class="survey-body">

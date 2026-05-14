@@ -44,6 +44,29 @@
   outline: none;
 }
 
+/* 모바일/터치 환경 — 키보드 내비 없음 (focus ring 의미 없음).
+   iOS Safari 가 tap 을 :focus-visible 로도 매칭하는 비표준 동작 때문에 위 셀렉터가
+   먹지 않는 케이스 강제 차단. -webkit-tap-highlight-color 도 같이 (탭 시 회색 highlight). */
+@media (hover: none) and (pointer: coarse) {
+  .survey-body button,
+  .survey-body a,
+  .survey-body select,
+  .survey-body [tabindex] {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .survey-body button:focus,
+  .survey-body button:focus-visible,
+  .survey-body a:focus,
+  .survey-body a:focus-visible,
+  .survey-body select:focus,
+  .survey-body select:focus-visible,
+  .survey-body [tabindex]:focus,
+  .survey-body [tabindex]:focus-visible {
+    outline: none !important;
+    box-shadow: none;
+  }
+}
+
 @media (max-width: 768px) {
   /* global.css 의 모바일 body { overflow-x:hidden } 도 명시 override (세로 스크롤은 살림). */
   .survey-body {
