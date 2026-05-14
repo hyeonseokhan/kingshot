@@ -749,6 +749,7 @@ export const ko = {
         deleteConfirm: '이 정보를 삭제할까요? 되돌릴 수 없습니다.',
         deleting: '삭제 중...',
         deleted: '삭제되었습니다',
+        noImageWarn: '"이미지 인증"을 하지 않은 경우 보상 순위에서 감점이 될 수 있습니다.\n그래도 저장하겠습니까?',
         errors: {
           invalidAmount: '수량은 0 이상의 정수여야 합니다',
           invalidPreferredTime: '선호 시간 형식이 올바르지 않습니다',

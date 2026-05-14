@@ -20,6 +20,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
 import { estimateKvKScore } from '@/lib/kvk-score';
 import { optimizeImage } from '@/lib/image-optimize';
+import { appConfirm } from '@/lib/dialog';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-survey';
 
@@ -627,6 +628,17 @@ async function onSaveForm(): Promise<void> {
     setStatus('sk-form-status', t('survey.kvk.form.errors.invalidAmount'), 'err');
     return;
   }
+
+  // 인증샷 미첨부 경고 — 보상 순위에서 감점 사유 (이미지 인증 = 1순위 자격).
+  // 신규 첨부 없고 기존 인증샷도 없으면 (수정 모드에서 [제거] 한 경우 포함) 확인 받음.
+  const willHaveImage =
+    pendingEvidence.pendingBlob !== null ||
+    (!pendingEvidence.removed && session.prefill?.evidence_uploaded_at != null);
+  if (!willHaveImage) {
+    const ok = await appConfirm(t('survey.kvk.form.noImageWarn'));
+    if (!ok) return;
+  }
+
   const btn = $<HTMLButtonElement>('sk-form-save');
   btn.disabled = true;
   setStatus('sk-form-status', t('survey.kvk.form.saving'), '');

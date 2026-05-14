@@ -750,6 +750,7 @@ export const en: Translations = {
         deleteConfirm: 'Delete this entry? This cannot be undone.',
         deleting: 'Deleting...',
         deleted: 'Deleted',
+        noImageWarn: 'Without "image verification", your reward ranking may be penalized.\nSave anyway?',
         errors: {
           invalidAmount: 'Amounts must be non-negative integers',
           invalidPreferredTime: 'Invalid preferred time format',
