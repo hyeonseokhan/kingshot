@@ -253,6 +253,8 @@
 .sk-buff-slot {
   display: flex;
   align-items: center;
+  /* 시간(좌) + holder/empty(우) — 양 끝 정렬. mockup 의 .slot-card 와 동일 패턴. */
+  justify-content: space-between;
   gap: 10px;
   padding: 8px 12px;
   background: var(--sk-surface-2);
@@ -265,7 +267,6 @@
 .sk-buff-slot.is-selectable {
   cursor: pointer;
   border-style: dashed;
-  justify-content: space-between;
 }
 .sk-buff-slot.is-selectable:hover {
   background: rgba(74, 222, 128, 0.10);
