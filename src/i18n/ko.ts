@@ -662,14 +662,34 @@ export const ko = {
     brand: 'KVK 가속권 현황 조사',
     footer: 'KVK Speed-up Survey · 익명 조사용 페이지',
     kvk: {
-      heading: 'KVK 가속권 현황 조사',
       notice: {
         triggerLabel: '필독 안내문',
-        line2: '등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.',
-        reward:
-          '<strong>상위 48명 보상</strong>: 1일차(건설) / 4일차(병사) 국왕스킬을 30분씩 순차 로테이션 (24시간).',
-        usage:
-          '<strong>가속권은 모두 KvK 점수에 투입</strong>해 주세요. 과도 보유 / 허위 제출 시 <strong class="sk-notice-warn">패널티가 부과</strong>됩니다.',
+        signup: {
+          title: '설문 등록',
+          deadline: '마감: <strong>UTC 5월 16일 01:00</strong>',
+          eligibility: '자격: <strong>TC 26 이상</strong>',
+        },
+        ranking: {
+          title: '순위 기준',
+          intro: '보유 가속권의 예측 점수로 순위 결정.',
+          tier1: '<strong>1순위</strong>: 상위 48위 + 이미지 인증',
+          tier2: '<strong>2순위</strong>: 이미지 인증',
+          example: '예) 46~48위(미인증)보다 49위(인증)가 우선.',
+        },
+        reward: {
+          title: '순위 보상',
+          body: '상위 48명에게 <strong>1일차(건설) / 4일차(병사)</strong> 국왕스킬 30분씩 순차 부여.',
+        },
+        schedule: {
+          title: '시간 예약',
+          body1: '설문 종료 후 <strong>버프 예약 페이지</strong>에서 사용 시간 직접 선택.',
+          body2: '순위 1위부터 순차 진행.',
+        },
+        caution: {
+          title: '주의사항',
+          body1: '가속권은 최대한 KvK 점수에 투입해 주세요.',
+          body2: '<strong class="sk-notice-warn">허위 제출 / 예측 점수 미달 시 패널티</strong>가 부과됩니다.',
+        },
       },
       locked: {
         title: '🔒 현황 열람이 잠겨있습니다',
@@ -687,6 +707,7 @@ export const ko = {
         idLabel: '킹샷 ID',
         idPlaceholder: '예: 270680423',
         searchButton: '조회',
+        // searchingButton 제거 — busy 시 동일 텍스트 유지 (폭 jitter 차단 패턴 채택 후 dead).
         confirmHelp:
           '본인이 맞으면 PIN 4자리를 입력해 주세요. (신규는 새 PIN 설정, 기존이면 등록한 PIN)',
         pinLabel: 'PIN 4자리',
@@ -710,7 +731,6 @@ export const ko = {
         preferredTimePlaceholder: '시간 선택',
         evidenceLabel: '인증샷',
         evidencePickButton: '파일 선택',
-        evidenceChangeButton: '변경',
         evidenceRemoveButton: '제거',
         evidenceHint: '1080px / WebP / 최대 ~150 KB 로 자동 압축됩니다.',
         evidenceUploading: '인증샷 업로드 중...',
@@ -736,8 +756,8 @@ export const ko = {
       },
       list: {
         heading: '제출 현황',
-        addButton: '+ 내 정보 등록 / 수정',
-        editButton: '수정',
+        addButton: '등록 / 수정',
+        addButtonClosed: '등록 마감',
         count: '{n}명 제출',
         empty: '아직 제출된 데이터가 없어요. 첫 번째 참가자가 되어 주세요!',
         emptySearch: '검색 결과가 없어요',

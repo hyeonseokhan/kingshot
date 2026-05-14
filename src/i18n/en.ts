@@ -664,14 +664,34 @@ export const en: Translations = {
     brand: 'KVK Speed-up Survey',
     footer: 'KVK Speed-up Survey · anonymous polling page',
     kvk: {
-      heading: 'KVK Speed-up Inventory Survey',
       notice: {
         triggerLabel: 'Must-read notice',
-        line2: 'Registration requires <strong>City Hall level 26 or higher</strong>.',
-        reward:
-          '<strong>Top 48 reward</strong>: King\'s skill rotation on Day 1 (Construction) / Day 4 (Training), 30-min slots over 24 hours.',
-        usage:
-          '<strong>Use all speedups for KvK scoring</strong>. Hoarding or false submissions will incur <strong class="sk-notice-warn">penalties</strong> after KvK ends.',
+        signup: {
+          title: 'Registration',
+          deadline: 'Deadline: <strong>UTC May 16, 01:00</strong>',
+          eligibility: 'Eligibility: <strong>City Hall 26+</strong>',
+        },
+        ranking: {
+          title: 'Ranking',
+          intro: 'Ranks are decided by predicted score from your speedup inventory.',
+          tier1: '<strong>Tier 1</strong>: Top 48 + image verified',
+          tier2: '<strong>Tier 2</strong>: Image verified',
+          example: 'e.g. Rank 49 (verified) outranks ranks 46–48 (unverified).',
+        },
+        reward: {
+          title: 'Rewards',
+          body: 'Top 48 receive <strong>Day 1 (Construction) / Day 4 (Training)</strong> King\'s skill — 30-min sequential slots.',
+        },
+        schedule: {
+          title: 'Time slot booking',
+          body1: 'After the survey ends, pick your slot on the <strong>Buff Booking page</strong>.',
+          body2: 'Booking proceeds from rank 1 onward.',
+        },
+        caution: {
+          title: 'Caution',
+          body1: 'Use as many speedups as possible for KvK scoring.',
+          body2: '<strong class="sk-notice-warn">False submissions or scoring below the predicted estimate</strong> will incur penalties.',
+        },
       },
       locked: {
         title: '🔒 Submissions list is locked',
@@ -712,7 +732,6 @@ export const en: Translations = {
         preferredTimePlaceholder: 'Select time',
         evidenceLabel: 'Screenshot',
         evidencePickButton: 'Pick file',
-        evidenceChangeButton: 'Change',
         evidenceRemoveButton: 'Remove',
         evidenceHint: 'Auto-compressed to 1080px / WebP / ~150 KB max.',
         evidenceUploading: 'Uploading screenshot...',
@@ -738,8 +757,8 @@ export const en: Translations = {
       },
       list: {
         heading: 'Submissions',
-        addButton: '+ Add / Edit my entry',
-        editButton: 'Edit',
+        addButton: 'Submit / Edit',
+        addButtonClosed: 'Registration closed',
         count: '{n} submitted',
         empty: 'No submissions yet. Be the first to share!',
         emptySearch: 'No matching results',

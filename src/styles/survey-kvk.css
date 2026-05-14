@@ -34,6 +34,16 @@
   height: auto;
   overflow: visible;
 }
+/* 마우스/터치로 트리거된 focus 의 outline 제거 — 키보드 Tab 으로 온 focus 는 유지 (접근성).
+   native <dialog> 의 showModal() 이 첫 focusable element (보통 닫기 X 버튼) 에 자동 focus 부여하면서
+   파란 outline 이 떠있는 회귀를 차단. 설문 도메인 전 페이지에 일괄 적용. */
+.survey-body button:focus:not(:focus-visible),
+.survey-body a:focus:not(:focus-visible),
+.survey-body select:focus:not(:focus-visible),
+.survey-body [tabindex]:focus:not(:focus-visible) {
+  outline: none;
+}
+
 @media (max-width: 768px) {
   /* global.css 의 모바일 body { overflow-x:hidden } 도 명시 override (세로 스크롤은 살림). */
   .survey-body {
@@ -134,17 +144,47 @@
   .sk-notice-trigger { animation: none; }
 }
 
-/* 안내문 리스트 — 다이얼로그 본문 안. 이전 .sk-notice 외곽 박스 제거 (다이얼로그 자체가 박스).
-   모바일 가독성 위해 폰트/줄간격/항목 간격 살짝 키움. */
+/* 안내문 — 섹션 단위 (제목 + lead/리스트/example) ===== */
+.sk-notice-section {
+  margin-bottom: 18px;
+}
+.sk-notice-section:last-child { margin-bottom: 0; }
+/* 타이틀 — strong 의 보라와 충돌 방지 위해 본문 톤(흰)으로 + 폰트 크기/weight 로 위계 강조. */
+.sk-notice-section-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--sk-text);
+  letter-spacing: 0.02em;
+}
+.sk-notice-lead {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--sk-text);
+}
+.sk-notice-lead:last-child { margin-bottom: 0; }
+.sk-notice-lead strong { color: var(--sk-accent-hover); font-weight: 700; }
+.sk-notice-example {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sk-text-dim);
+  padding: 7px 10px;
+  background: rgba(99, 102, 241, 0.06);
+  border-left: 2px solid var(--sk-accent-hover);
+  border-radius: 4px;
+}
+
 .sk-notice-list {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 18px;
   list-style: disc;
   color: var(--sk-text);
   font-size: 13.5px;
-  line-height: 1.65;
+  line-height: 1.6;
 }
-.sk-notice-list li { margin-bottom: 12px; }
+.sk-notice-list li { margin-bottom: 6px; }
 .sk-notice-list li:last-child { margin-bottom: 0; }
 .sk-notice-list li::marker { color: var(--sk-accent-hover); }
 .sk-notice-list strong { color: var(--sk-accent-hover); font-weight: 700; }
@@ -363,13 +403,13 @@ html:has(.sk-image-dialog[open]) {
   color: var(--sk-text);
 }
 .sk-dialog-body {
-  padding: 18px 20px 20px;
+  padding: 12px 18px 14px;
 }
 .sk-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 /* ===== 폼 일반 ===== */
@@ -415,7 +455,7 @@ html:has(.sk-image-dialog[open]) {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .sk-pin-header .sk-label {
   margin-bottom: 0;
@@ -434,7 +474,7 @@ html:has(.sk-image-dialog[open]) {
   display: flex;
   justify-content: center;
   width: fit-content;
-  margin: 8px auto 4px;
+  margin: 2px auto 0;
   cursor: text;
 }
 .sk-pin-input {
@@ -479,10 +519,10 @@ html:has(.sk-image-dialog[open]) {
 }
 
 .sk-help {
-  margin: 12px 0 14px;
+  margin: 6px 0 10px;
   font-size: 13px;
   color: var(--sk-text-dim);
-  line-height: 1.55;
+  line-height: 1.5;
 }
 .sk-help-image-trigger {
   background: none;
@@ -535,9 +575,12 @@ html:has(.sk-image-dialog[open]) {
   opacity: 1;
 }
 .sk-status {
-  min-height: 18px;
+  /* min-height 제거 — 메시지 없을 땐 0 차지 (다이얼로그 컴팩트). 메시지 등장 시 layout shift 허용. */
   font-size: 12.5px;
-  margin: 8px 0;
+  margin: 0;
+}
+.sk-status:not(:empty) {
+  margin: 6px 0 0;
 }
 .sk-status-ok {
   color: var(--sk-success);
@@ -550,12 +593,12 @@ html:has(.sk-image-dialog[open]) {
 .sk-player-card {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   background: var(--sk-surface-2);
   border: 1px solid var(--sk-border);
   border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
 }
 .sk-player-card-compact {
   margin: 0;
@@ -564,8 +607,8 @@ html:has(.sk-image-dialog[open]) {
 .sk-player-photo-wrap {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
   background: #2c313d;
@@ -574,7 +617,7 @@ html:has(.sk-image-dialog[open]) {
 }
 .sk-player-photo-empty {
   grid-area: 1 / 1;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--sk-text-dim);
   text-transform: uppercase;
@@ -913,6 +956,55 @@ html:has(.sk-image-dialog[open]) {
   align-items: center;
   flex-shrink: 0;
 }
+/* 등록 / 수정 — 두 줄 (라벨 + 카운트다운). toolbar 의 32px 고정 override. */
+.sk-list-toolbar .sk-list-add {
+  height: auto;
+  min-height: 44px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 14px;
+  line-height: 1.15;
+}
+.sk-list-add-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+.sk-list-add-countdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+/* urgency 단계 — 카운트다운만 색상 변화. <24h 노랑 / <6h 빨강 + pulse halo. */
+.sk-list-add.is-warning .sk-list-add-countdown { color: #fde047; }
+.sk-list-add.is-danger .sk-list-add-countdown { color: #fecaca; }
+.sk-list-add.is-danger {
+  animation: sk-add-pulse 1.6s ease-in-out infinite;
+}
+@keyframes sk-add-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55); }
+  50%      { box-shadow: 0 0 0 6px rgba(248, 113, 113, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-list-add.is-danger { animation: none; }
+}
+/* 마감 후 — 비활성, 카운트다운 숨김 */
+.sk-list-add.is-closed {
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+  opacity: 0.7;
+  animation: none;
+}
+.sk-list-add.is-closed .sk-list-add-countdown { display: none; }
 /* ===== 정렬 컨트롤 바 (PC + 모바일 공용) =====
    PC: 정렬 chip 만 한 줄. 모바일: legend(이모지 가이드) 한 줄 + chip 한 줄. */
 .sk-controls {

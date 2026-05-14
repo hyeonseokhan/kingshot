@@ -185,20 +185,41 @@
       padding: 18px 20px 20px;
       overflow-y: auto;
     }
-    /* 안내문 리스트 — 다이얼로그 안에선 외곽 보라 박스 불필요 (다이얼로그 자체가 박스).
-       모바일 가독성 위해 폰트/줄간격/항목간격 살짝 키움. */
+    /* 안내문 — 섹션 단위 (제목 + lead/리스트). 가속권 현황 조사의 .sk-notice-section 패턴과 일관. */
+    .notice-section {
+      margin-bottom: 18px;
+    }
+    .notice-section:last-child { margin-bottom: 0; }
+    /* 타이틀 — strong 의 보라와 충돌 방지 위해 본문 톤(흰)으로 + 폰트 크기/weight 로 위계 강조. */
+    .notice-section-title {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--sk-text);
+      letter-spacing: 0.02em;
+    }
+    .notice-lead {
+      margin: 0 0 6px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--sk-text);
+    }
+    .notice-lead:last-child { margin-bottom: 0; }
+    .notice-lead strong { color: var(--sk-accent-hover); font-weight: 700; }
+    /* 안내문 리스트 — 다이얼로그 안에선 외곽 보라 박스 불필요 (다이얼로그 자체가 박스). */
     .notice-list {
       margin: 0;
-      padding-left: 20px;
+      padding-left: 18px;
       list-style: disc;
       color: var(--sk-text);
       font-size: 13.5px;
-      line-height: 1.65;
+      line-height: 1.6;
     }
-    .notice-list li { margin-bottom: 12px; }
+    .notice-list li { margin-bottom: 6px; }
     .notice-list li:last-child { margin-bottom: 0; }
     .notice-list li::marker { color: var(--sk-accent-hover); }
     .notice-list strong { color: var(--sk-accent-hover); font-weight: 700; }
+    .notice-list strong.warn { color: #f87171; }
 
     /* ===== 안내 영역 — 제출 현황의 .sk-notice 와 동일 톤 =====
        헤더 아래 고정 위치 (스크롤 영역 밖). mock-body 좌우 padding 과 라인 맞춤.
@@ -680,7 +701,7 @@
 <body>
   <div class="mock-dialog" id="mock-dialog">
     <header class="mock-head">
-      <strong>버프 슬롯 선점</strong>
+      <strong>버프 예약</strong>
       <div class="mock-head-right">
         <!-- 임시: 관리자 권한 시뮬레이션 토글. 운영 이전 시 제거하고 세션 record 의 admin flag 로 .is-admin 클래스 부착. -->
         <button type="button" class="mock-admin-toggle" id="admin-toggle">관리자</button>
@@ -747,12 +768,27 @@
         <button type="button" class="notice-close" id="notice-close" aria-label="닫기">&times;</button>
       </header>
       <div class="notice-body">
-        <ul class="notice-list">
-          <li>예측 점수 순위 기준으로 순차적으로 시간을 선택할 수 있습니다.</li>
-          <li>선택된 시간은 변경이 어려우니 <strong>신중히</strong> 선택해 주세요.</li>
-          <li><strong>"선택중"</strong>인 사용자 프로필을 클릭하면 대기 순번을 일부 볼 수 있습니다.</li>
-          <li>해당 시간 선택은 <strong>UTC 5월 16일 01시 00분부터 03시 00분까지 2시간 동안</strong> 지정할 수 있습니다.</li>
-        </ul>
+        <section class="notice-section">
+          <h4 class="notice-section-title">진행 방식</h4>
+          <ul class="notice-list">
+            <li>예측 점수 <strong>순위 기준</strong>으로 순차적으로 시간 선택.</li>
+            <li><strong>"선택중"</strong>인 사용자 프로필을 클릭하면 대기 순번 일부 노출.</li>
+          </ul>
+        </section>
+
+        <section class="notice-section">
+          <h4 class="notice-section-title">선택 가능 시간</h4>
+          <p class="notice-lead">
+            <strong>UTC 5월 16일 01:00 ~ 03:00</strong> (2시간) 동안 지정 가능.
+          </p>
+        </section>
+
+        <section class="notice-section">
+          <h4 class="notice-section-title">주의사항</h4>
+          <ul class="notice-list">
+            <li>선택된 시간은 <strong class="warn">변경이 어렵습니다</strong> — 신중히 선택해 주세요.</li>
+          </ul>
+        </section>
       </div>
     </div>
   </dialog>
