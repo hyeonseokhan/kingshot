@@ -665,7 +665,6 @@ export const ko = {
       heading: 'KVK 가속권 현황 조사',
       notice: {
         triggerLabel: '필독 안내문',
-        line1: '제출을 완료한 사용자만 현황을 열람할 수 있습니다.',
         line2: '등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.',
         reward:
           '<strong>상위 48명 보상</strong>: 1일차(건설) / 4일차(병사) 국왕스킬을 30분씩 순차 로테이션 (24시간).',

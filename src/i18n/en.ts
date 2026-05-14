@@ -667,7 +667,6 @@ export const en: Translations = {
       heading: 'KVK Speed-up Inventory Survey',
       notice: {
         triggerLabel: 'Must-read notice',
-        line1: 'Only users who have submitted can view the current standings.',
         line2: 'Registration requires <strong>City Hall level 26 or higher</strong>.',
         reward:
           '<strong>Top 48 reward</strong>: King\'s skill rotation on Day 1 (Construction) / Day 4 (Training), 30-min slots over 24 hours.',
