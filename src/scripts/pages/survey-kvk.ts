@@ -215,6 +215,8 @@ function openAuthDialog(): void {
 function closeAuthDialog(): void {
   const dlg = $<HTMLDialogElement>('sk-auth-dialog');
   if (dlg.open) dlg.close();
+  // 다이얼로그가 사용자 cancel 로 닫히면 [버프 예약] 자동 redirect 의도도 취소.
+  pendingBuffNavigate = false;
 }
 
 function resetAuthDialog(): void {
@@ -456,6 +458,13 @@ async function onConfirmPin(): Promise<void> {
     return;
   }
   saveAuth({ token: json.token, expires_at: json.expires_at, record: json.record });
+  // 마감 후 [버프 예약] 클릭으로 진입한 흐름이면 폼 다이얼로그 skip + 즉시 /kvk-buff/.
+  if (pendingBuffNavigate) {
+    pendingBuffNavigate = false;
+    closeAuthDialog();
+    window.location.href = '/kvk-buff/';
+    return;
+  }
   session.pin = pin;
   session.prefill = {
     training: json.record.training,
@@ -1423,6 +1432,11 @@ function formatCountdown(ms: number): string {
 /** 등록/수정 버튼의 카운트다운 텍스트 + urgency 클래스 1초마다 갱신.
  *  마감 시 disabled + "등록 마감" 라벨로 전환 + interval 정리. */
 let countdownTimer: number | null = null;
+
+/** 마감 후 [버프 예약] 클릭 시점에 미인증이면 auth-dialog 오픈 + 이 플래그 set.
+ *  인증 성공 (saveAuth 호출 후) → 자동 /kvk-buff/ 리다이렉트. */
+let pendingBuffNavigate = false;
+
 function startDeadlineCountdown(): void {
   const btn = $<HTMLButtonElement>('sk-list-add');
   const txt = $('sk-list-add-countdown-text');
@@ -1439,8 +1453,17 @@ function startDeadlineCountdown(): void {
       if (labelEl) patchText(labelEl, t('survey.kvk.list.buffBookingButton'));
       const cd = btn.querySelector<HTMLElement>('.sk-list-add-countdown');
       if (cd) cd.style.display = 'none';
-      // 클릭 시 버프 예약 페이지로 이동 (기존 다이얼로그 핸들러는 onclick 으로 override)
-      btn.onclick = () => { window.location.href = '/kvk-buff/'; };
+      // 클릭 시:
+      //  - 인증된 사용자 → 즉시 /kvk-buff/ 이동
+      //  - 미인증 → 기존 auth-dialog (ID + PIN). 인증 성공 후 자동 이동 (pendingBuffNavigate).
+      btn.onclick = () => {
+        if (getAuth()) {
+          window.location.href = '/kvk-buff/';
+        } else {
+          pendingBuffNavigate = true;
+          openAuthDialog();
+        }
+      };
       if (countdownTimer !== null) {
         window.clearInterval(countdownTimer);
         countdownTimer = null;
