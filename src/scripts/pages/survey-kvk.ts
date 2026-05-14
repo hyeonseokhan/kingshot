@@ -24,6 +24,7 @@ import {
   setupBuffDialog,
   startBuffPolling,
   stopBuffPolling,
+  setBuffTestMode,
 } from './survey-kvk-buff';
 import { appConfirm } from '@/lib/dialog';
 
@@ -57,8 +58,8 @@ interface SurveyRow {
 }
 
 /** 토큰 API (login / verify-token / register) 가 반환하는 내 record. SurveyRow 의 subset.
- *  preferred_buff_time: 'HH:MM' 또는 null.
- *  evidence_uploaded_at: ISO 또는 null (미인증). */
+ *  evidence_uploaded_at: ISO 또는 null (미인증).
+ *  is_admin: 자기 자신의 admin 여부. 헤더 [테스트] 버튼 등 관리자 전용 UI 노출 게이트. */
 interface MyRecord {
   kingshot_id: string;
   nickname: string;
@@ -66,8 +67,8 @@ interface MyRecord {
   training: number;
   construction: number;
   general: number;
-  preferred_buff_time: string | null;
   evidence_uploaded_at: string | null;
+  is_admin: boolean;
 }
 
 interface PlayerInfo {
@@ -121,7 +122,6 @@ interface FormSession {
     training: number;
     construction: number;
     general: number;
-    preferred_buff_time: string | null;
     evidence_uploaded_at: string | null; // prefill 시점의 인증 상태 — 폼 입력 후 변경 비교용
   };
 }
@@ -302,10 +302,11 @@ function saveAuth(state: AuthState): void {
   } catch {
     /* quota / private mode — 무시 */
   }
-  // 인증 상태 변화 → 잠금 해제 + 헤더 [로그아웃] 노출 자동 sync.
+  // 인증 상태 변화 → 잠금 해제 + 헤더 [로그아웃] + [테스트](admin) 노출 자동 sync.
   // 호출자는 saveAuth 만 부르면 UI 잠금/헤더/목록 모두 일관 유지됨.
   applyUnlockState();
   syncHeaderLogoutBtn();
+  syncTestBtn();
   if (!wasUnlocked) {
     // 잠금 해제 첫 transition — 목록 자동 fetch (fire-and-forget).
     // 단순 record 갱신 (이미 unlocked) 인 경우엔 중복 fetch 회피.
@@ -331,9 +332,10 @@ function clearAuth(): void {
   } catch {
     /* */
   }
-  // 인증 만료/제거 → 잠금 placeholder + 헤더 [로그아웃] 숨김 자동 sync.
+  // 인증 만료/제거 → 잠금 placeholder + 헤더 [로그아웃]/[테스트] 숨김 자동 sync.
   applyUnlockState();
   syncHeaderLogoutBtn();
+  syncTestBtn();
 }
 
 /** 헤더 우측 [로그아웃] 버튼 visibility — 인증 세션 유무 따라 hidden 토글.
@@ -342,6 +344,14 @@ function syncHeaderLogoutBtn(): void {
   const btn = document.getElementById('sk-logout-btn');
   if (!btn) return;
   btn.hidden = !getAuth();
+}
+
+/** 목록 헤더의 [테스트] 버튼 visibility — 인증된 admin 만 노출.
+ *  saveAuth/clearAuth 시 자동 호출. */
+function syncTestBtn(): void {
+  const btn = document.getElementById('sk-list-test');
+  if (!btn) return;
+  btn.hidden = getAuth()?.record.is_admin !== true;
 }
 
 /** 명시적 로그아웃 — confirm → 서버 token 무효화 (best-effort, fire-and-forget) →
@@ -513,7 +523,6 @@ async function onConfirmPin(): Promise<void> {
     training: json.record.training,
     construction: json.record.construction,
     general: json.record.general,
-    preferred_buff_time: json.record.preferred_buff_time ?? null,
     evidence_uploaded_at: json.record.evidence_uploaded_at ?? null,
   };
   enterFormMode();
@@ -529,9 +538,6 @@ function enterFormMode(): void {
   setNumericInputValue('sk-input-general', session.prefill?.general ?? null);
   setNumericInputValue('sk-input-training', session.prefill?.training ?? null);
   setNumericInputValue('sk-input-construction', session.prefill?.construction ?? null);
-  // 시간 select prefill — 미선택은 빈 placeholder option 으로
-  ($('sk-input-preferred-time') as HTMLSelectElement).value =
-    session.prefill?.preferred_buff_time ?? '';
   // 인증샷 prefill — 기존 업로드 있으면 thumb 표시, 없으면 empty
   resetPendingEvidence();
   syncEvidenceUI();
@@ -627,16 +633,12 @@ function readFormValues(): {
   training: number;
   construction: number;
   general: number;
-  preferred_buff_time: string | null;
 } | null {
   const tr = parseNumericInput('sk-input-training');
   const co = parseNumericInput('sk-input-construction');
   const ge = parseNumericInput('sk-input-general');
   if (![tr, co, ge].every((v) => Number.isInteger(v) && v >= 0 && v <= 9_999_999)) return null;
-  // 시간 미선택은 빈 문자열 → null 로 정규화. 서버 검증은 정규식 + null OK.
-  const rawTime = ($('sk-input-preferred-time') as HTMLSelectElement).value;
-  const preferred_buff_time = rawTime === '' ? null : rawTime;
-  return { training: tr, construction: co, general: ge, preferred_buff_time };
+  return { training: tr, construction: co, general: ge };
 }
 
 async function onDeleteForm(): Promise<void> {
@@ -871,30 +873,6 @@ function renderList(): void {
   });
 }
 
-/** 시간 select 에 placeholder + 48개 옵션 (00:00 ~ 23:30, 30분 단위) 채움.
- *  init 에서 한 번만 호출. 언어 변경 시 placeholder 텍스트 갱신은 onLangChange 에서 처리. */
-function populateTimeOptions(): void {
-  const sel = $<HTMLSelectElement>('sk-input-preferred-time');
-  if (sel.options.length > 0) return; // 이미 채워졌으면 noop
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.disabled = true;
-  placeholder.hidden = true;
-  placeholder.textContent = t('survey.kvk.form.preferredTimePlaceholder');
-  placeholder.dataset.placeholder = '1';
-  sel.appendChild(placeholder);
-  for (let h = 0; h < 24; h++) {
-    for (const m of [0, 30]) {
-      const v = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      const opt = document.createElement('option');
-      opt.value = v;
-      opt.textContent = v;
-      sel.appendChild(opt);
-    }
-  }
-  sel.value = ''; // placeholder 가 보이도록
-}
-
 /** 닉네임 또는 ID 부분일치 (대소문자 무시). 빈 query 면 그대로 반환. */
 function filterRows(rows: SurveyRow[], query: string): SurveyRow[] {
   const q = query.trim().toLowerCase();
@@ -1120,6 +1098,17 @@ function closeImageDialog(): void {
 
 /** 마지막으로 표시한 행 — 다이얼로그 열린 상태에서 언어 토글 시 재렌더용. */
 let detailDialogRow: SurveyRow | null = null;
+/** 가속권/합계 값 표기 모드. 'hms' = "Nd Nh Nm" / 'min' = "63,018분". 페이지 lifetime 동안 유지. */
+let detailUnitMode: 'hms' | 'min' = 'hms';
+
+/** 모드 별 시간 포매팅 — 'min' 일 때만 i18n minutes 키 사용. */
+function formatDurationByMode(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes < 0) return '-';
+  if (detailUnitMode === 'min') {
+    return t('survey.kvk.detail.unit.minutes', { n: formatNum(minutes) });
+  }
+  return formatDuration(minutes);
+}
 
 function openDetailDialog(row: SurveyRow): void {
   detailDialogRow = row;
@@ -1151,7 +1140,7 @@ function renderDetailDialog(): void {
   setBar('general', row.general, total);
   setBar('training', row.training, total);
   setBar('construction', row.construction, total);
-  patchText($('sk-detail-total'), formatDuration(total));
+  patchText($('sk-detail-total'), formatDurationByMode(total));
 
   // KvK 예상 점수 — PLAN.md 의 계산식. city_level 필수 (>=26 이라 항상 숫자).
   const score = estimateKvKScore({
@@ -1193,10 +1182,29 @@ function setBar(
   value: number,
   total: number,
 ): void {
-  patchText($(`sk-detail-${slot}`), formatDuration(value));
+  patchText($(`sk-detail-${slot}`), formatDurationByMode(value));
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
   ($(`sk-detail-bar-${slot}`) as HTMLElement).style.width = pct + '%';
   patchText($(`sk-detail-pct-${slot}`), pct + '%');
+}
+
+/** 단위 토글 — 다이얼로그 우상단 pill 버튼. 모드 전환 + 라벨/data-i18n 동기화 + 재렌더. */
+function toggleDetailUnit(): void {
+  detailUnitMode = detailUnitMode === 'hms' ? 'min' : 'hms';
+  syncDetailUnitButton();
+  renderDetailDialog();
+}
+
+function syncDetailUnitButton(): void {
+  const btn = $<HTMLButtonElement>('sk-detail-unit-toggle');
+  // 버튼은 "다음에 전환할 모드" 를 라벨로 표시 (현재 hms → 분 단위로 보기)
+  const key =
+    detailUnitMode === 'hms'
+      ? 'survey.kvk.detail.unit.toggleToMin'
+      : 'survey.kvk.detail.unit.toggleToHms';
+  btn.dataset.mode = detailUnitMode;
+  btn.setAttribute('data-i18n', key);
+  btn.textContent = t(key);
 }
 
 function closeDetailDialog(): void {
@@ -1261,7 +1269,6 @@ function init(): void {
           training: auth.record.training,
           construction: auth.record.construction,
           general: auth.record.general,
-          preferred_buff_time: auth.record.preferred_buff_time ?? null,
           evidence_uploaded_at: auth.record.evidence_uploaded_at ?? null,
         },
       };
@@ -1322,9 +1329,6 @@ function init(): void {
   $('sk-form-dialog').addEventListener('close', () => {
     session = null;
   });
-
-  // 시간 select option 채우기 — placeholder + 48개 (00:00 ~ 23:30, 30분 단위).
-  populateTimeOptions();
 
   // 폼 input — 입력 중 천 단위 콤마 자동 포맷
   ['sk-input-general', 'sk-input-training', 'sk-input-construction'].forEach((id) => {
@@ -1425,6 +1429,10 @@ function init(): void {
     if (e.target === e.currentTarget) closeDetailDialog();
   });
 
+  // 단위 토글 (시/분/초 ↔ 총 분)
+  $('sk-detail-unit-toggle').addEventListener('click', toggleDetailUnit);
+  syncDetailUnitButton();
+
   // 필독 안내문 다이얼로그 — 트리거 click → showModal, close/backdrop → close
   const noticeDlg = $<HTMLDialogElement>('sk-notice-dialog');
   $('sk-notice-trigger').addEventListener('click', () => {
@@ -1464,17 +1472,20 @@ function init(): void {
     renderList();
     renderBlockedCurrent(); // "현재 레벨: TC N" 동적 텍스트 (있을 때만)
     renderDetailDialog(); // 상세 다이얼로그 점수/시간 동적 텍스트 (열려있을 때만)
-    // 시간 select 의 placeholder 옵션 텍스트 (동적 생성된 항목)
-    const ph = document.querySelector<HTMLOptionElement>(
-      '#sk-input-preferred-time option[data-placeholder="1"]',
-    );
-    if (ph) ph.textContent = t('survey.kvk.form.preferredTimePlaceholder');
   });
 
   // 헤더 우측 로그아웃 버튼 — 핸들러 등록 + 초기 visibility 동기화.
   // 이후 saveAuth/clearAuth 안에서 syncHeaderLogoutBtn 자동 호출되므로 상태 변화 자동 반영.
   document.getElementById('sk-logout-btn')?.addEventListener('click', onLogoutClick);
   syncHeaderLogoutBtn();
+
+  // 관리자 전용 [테스트] 버튼 — admin 만 노출 (saveAuth/clearAuth 시 자동 sync).
+  // 클릭 시 buff 다이얼로그를 TEST_MODE 로 진입 — _test 테이블 사용, 운영 데이터 무영향.
+  document.getElementById('sk-list-test')?.addEventListener('click', () => {
+    setBuffTestMode(true);
+    openBuffOverlay();
+  });
+  syncTestBtn();
 
   // 마감 카운트다운 — 등록/수정 버튼 안 카운트다운 텍스트 + urgency 색 단계 갱신.
   startDeadlineCountdown();
@@ -1483,7 +1494,10 @@ function init(): void {
   setupBuffDialog();
   // 닫기 X 버튼 + ESC/backdrop 시 polling 중지
   document.getElementById('sk-buff-overlay-close')?.addEventListener('click', closeBuffOverlay);
-  document.getElementById('sk-buff-overlay')?.addEventListener('close', () => stopBuffPolling());
+  document.getElementById('sk-buff-overlay')?.addEventListener('close', () => {
+    stopBuffPolling();
+    setBuffTestMode(false); // 다음 진입 (운영 [버프 예약] 등) 이 운영 모드로 들어가도록 reset
+  });
   document.getElementById('sk-buff-overlay')?.addEventListener('click', (e) => {
     const dlg = e.currentTarget as HTMLDialogElement;
     if (e.target === dlg) closeBuffOverlay();

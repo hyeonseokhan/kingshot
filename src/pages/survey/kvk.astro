@@ -243,20 +243,6 @@ import '@/styles/survey-kvk-buff.css';
             >
           </div>
           <div class="sk-form-rows">
-            <!-- 시간 row — select. UTC 기준 30분 단위 48개 옵션은 클라이언트 JS 에서 동적 생성. -->
-            <div class="sk-form-row sk-form-row-time">
-              <span class="sk-form-row-prefix">
-                <span class="sk-form-row-prefix-emoji" aria-hidden="true">🕐</span>
-                <span data-i18n="survey.kvk.form.preferredTimeLabel">버프 시간 (UTC)</span>
-              </span>
-              <select
-                id="sk-input-preferred-time"
-                aria-label="버프 시간 (UTC)"
-                data-i18n-attr-aria-label="survey.kvk.form.preferredTimeLabel"
-              >
-                <!-- placeholder option + 48개 시간 옵션은 JS init() 에서 채움 -->
-              </select>
-            </div>
             <!-- 가속권 3개 — input.num 자체가 컨테이너, prefix(좌) + unit(우) absolute overlay -->
             <div class="sk-form-row">
               <span class="sk-form-row-prefix">
@@ -414,16 +400,31 @@ import '@/styles/survey-kvk-buff.css';
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
             </svg>
           </button>
-          <button
-            type="button"
-            class="sk-btn sk-btn-primary sk-list-add"
-            id="sk-list-add"
-          >
-            <span class="sk-list-add-label" data-i18n="survey.kvk.list.addButton">등록 / 수정</span>
-            <span class="sk-list-add-countdown" id="sk-list-add-countdown" aria-live="off">
-              <span id="sk-list-add-countdown-text">--</span>
-            </span>
-          </button>
+          <!-- [테스트] + [등록/수정] 묶음 — 두 버튼이 항상 한 단위로 행동.
+               [테스트] 가 hidden 토글될 때 layout shift 가 wrapper 안으로 한정되어
+               toolbar 의 다른 자식 (count, refresh, search) 위치가 흔들리지 않음. -->
+          <div class="sk-list-end-actions">
+            <!-- 관리자 전용 [테스트] 버튼 — survey-kvk.ts 의 syncTestBtn 이 is_admin 보고 hidden 토글.
+                 외형 (높이/패딩/font weight) 은 [등록/수정] 과 동일, 색상만 녹색 계열. -->
+            <button
+              type="button"
+              class="sk-btn sk-btn-test sk-list-test"
+              id="sk-list-test"
+              hidden
+            >
+              <span data-i18n="survey.kvk.list.testButton">테스트</span>
+            </button>
+            <button
+              type="button"
+              class="sk-btn sk-btn-primary sk-list-add"
+              id="sk-list-add"
+            >
+              <span class="sk-list-add-label" data-i18n="survey.kvk.list.addButton">등록 / 수정</span>
+              <span class="sk-list-add-countdown" id="sk-list-add-countdown" aria-live="off">
+                <span id="sk-list-add-countdown-text">--</span>
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -532,6 +533,16 @@ import '@/styles/survey-kvk-buff.css';
           </div>
 
           <div class="sk-detail-bars">
+            <!-- 단위 토글 — 시/분/초 ↔ 총 분 수. 첫 가속권 바 위쪽에 우측 정렬. -->
+            <div class="sk-detail-bars-header">
+              <button
+                type="button"
+                class="sk-detail-unit-toggle"
+                id="sk-detail-unit-toggle"
+                data-mode="hms"
+                data-i18n="survey.kvk.detail.unit.toggleToMin"
+              >분 단위로 보기</button>
+            </div>
             <div class="sk-detail-bar">
               <div class="sk-detail-bar-head">
                 <span class="sk-detail-bar-label"><span class="sk-detail-emoji">⭐</span>
@@ -540,8 +551,8 @@ import '@/styles/survey-kvk-buff.css';
               </div>
               <div class="sk-detail-bar-track">
                 <div class="sk-detail-bar-fill" id="sk-detail-bar-general"></div>
+                <div class="sk-detail-bar-pct" id="sk-detail-pct-general">-</div>
               </div>
-              <div class="sk-detail-bar-pct" id="sk-detail-pct-general">-</div>
             </div>
             <div class="sk-detail-bar">
               <div class="sk-detail-bar-head">
@@ -551,8 +562,8 @@ import '@/styles/survey-kvk-buff.css';
               </div>
               <div class="sk-detail-bar-track">
                 <div class="sk-detail-bar-fill" id="sk-detail-bar-training"></div>
+                <div class="sk-detail-bar-pct" id="sk-detail-pct-training">-</div>
               </div>
-              <div class="sk-detail-bar-pct" id="sk-detail-pct-training">-</div>
             </div>
             <div class="sk-detail-bar">
               <div class="sk-detail-bar-head">
@@ -562,8 +573,8 @@ import '@/styles/survey-kvk-buff.css';
               </div>
               <div class="sk-detail-bar-track">
                 <div class="sk-detail-bar-fill" id="sk-detail-bar-construction"></div>
+                <div class="sk-detail-bar-pct" id="sk-detail-pct-construction">-</div>
               </div>
-              <div class="sk-detail-bar-pct" id="sk-detail-pct-construction">-</div>
             </div>
           </div>
 
@@ -631,6 +642,11 @@ import '@/styles/survey-kvk-buff.css';
       <div class="sk-buff-overlay-card">
         <header class="sk-buff-overlay-head">
           <strong id="sk-buff-overlay-title" data-i18n="survey.kvkBuff.title">버프 예약</strong>
+          <!-- !!! TEST_MODE 표시 — sk-buff-page.is-test 일 때만 노출 (CSS) -->
+          <span class="sk-buff-test-badge" data-i18n="survey.kvkBuff.test.badge">TEST</span>
+          <!-- !!! TEST_MODE 전용 [재시작] — admin + test mode 동시 만족 시 노출 (CSS) -->
+          <button type="button" class="sk-buff-test-reset-btn" id="sk-buff-test-reset"
+            data-i18n="survey.kvkBuff.test.resetButton">재시작</button>
           <button type="button" class="sk-dialog-close" id="sk-buff-overlay-close" aria-label="Close">&times;</button>
         </header>
         <div class="sk-buff-overlay-body">

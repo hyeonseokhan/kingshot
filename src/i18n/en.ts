@@ -733,8 +733,6 @@ export const en: Translations = {
         help: 'Enter the minute-based totals shown on the in-game speedup inventory panel.',
         helpImageLink: 'View screenshot',
         warn: 'Submitting false data may result in penalties after KvK ends.',
-        preferredTimeLabel: 'Buff time (UTC)',
-        preferredTimePlaceholder: 'Select time',
         evidenceLabel: 'Screenshot',
         evidencePickButton: 'Pick file',
         evidenceRemoveButton: 'Remove',
@@ -765,6 +763,7 @@ export const en: Translations = {
         heading: 'Submissions',
         addButton: 'Submit / Edit',
         addButtonClosed: 'Registration closed',
+        testButton: 'Test',
         buffBookingButton: 'Buff Booking',
         count: '{n} submitted',
         empty: 'No submissions yet. Be the first to share!',
@@ -790,6 +789,11 @@ export const en: Translations = {
         title: 'Submission Details',
         evidenceButtonTitle: 'View screenshot',
         evidenceButtonTitleEmpty: 'No screenshot',
+        unit: {
+          toggleToMin: 'Show in minutes',
+          toggleToHms: 'Show as time',
+          minutes: '{n} min',
+        },
         scores: {
           title: 'Estimated KvK Score',
           errorNote: '±5% margin',
@@ -806,6 +810,12 @@ export const en: Translations = {
     },
     kvkBuff: {
       title: 'Buff Booking',
+      // !!! TEST_MODE — labels for test-only UI; remove when test phase ends !!!
+      test: {
+        badge: 'TEST',
+        resetButton: 'Restart',
+        resetConfirm: 'Reset all test data? Any in-progress slot selections will be discarded.\nContinue?',
+      },
       selecting: 'Picking',
       nextLabel: 'Up next',
       completed: 'All users have picked their slots',

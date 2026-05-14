@@ -337,6 +337,14 @@
   background: rgba(239, 68, 68, 0.12);
   border-color: var(--sk-danger);
 }
+/* 관리자 [테스트] — sk-btn-primary 와 같은 fill 패턴, 색상만 녹색 (Tailwind green-500/600). */
+.sk-btn-test {
+  background: #22c55e;
+  color: #fff;
+}
+.sk-btn-test:hover:not(:disabled) {
+  background: #16a34a;
+}
 .sk-btn-small {
   padding: 6px 12px;
   font-size: 13px;
@@ -677,9 +685,7 @@ html:has(.sk-image-dialog[open]) {
 
 /* ===== 폼 (다이얼로그 안) — slim row 패턴 =====
    각 가속권 row 는 input.num 자체가 컨테이너이고 prefix(이모지+짧은 라벨) 가 좌측 absolute,
-   단위(분) 가 우측 absolute. → 라벨 줄을 별도로 차지하지 않아 세로 공간 최소화.
-   시간 row (.sk-form-row-time) 은 select 가 prefix overlay 패턴에 맞지 않아 grid 2칼럼 분리,
-   대신 컨테이너 외형(border/background/height)을 input row 와 동일하게 강제. */
+   단위(분) 가 우측 absolute. → 라벨 줄을 별도로 차지하지 않아 세로 공간 최소화. */
 .sk-form-dialog .sk-player-card-compact {
   margin-bottom: 12px;
 }
@@ -754,60 +760,6 @@ html:has(.sk-image-dialog[open]) {
 .sk-form-row-input:focus {
   border-color: var(--sk-accent);
   background: var(--sk-surface);
-}
-
-/* 시간 row — input row 와 동일 컨테이너 외형. 자식: prefix(좌) + select(우). */
-.sk-form-row-time {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  height: 44px;
-  background: var(--sk-surface-2);
-  border: 1px solid var(--sk-border);
-  border-radius: 8px;
-  transition: border-color 0.15s, background 0.15s;
-}
-.sk-form-row-time:focus-within {
-  border-color: var(--sk-accent);
-  background: var(--sk-surface);
-}
-.sk-form-row-time .sk-form-row-prefix {
-  position: static;
-  transform: none;
-  pointer-events: auto;
-}
-.sk-form-row-time select {
-  width: auto;
-  min-width: auto;
-  padding: 0 22px 0 0;
-  background-color: transparent;
-  border: none;
-  outline: none;
-  text-align: right;
-  font-family: inherit;
-  font-size: 16px;
-  color: var(--sk-text);
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236b7390' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 4px center;
-}
-/* select 가 미선택 (placeholder) 일 때 dim 색으로 — value 는 placeholder option 이 빈 문자열 */
-.sk-form-row-time select:invalid,
-.sk-form-row-time select option[value=""][disabled] {
-  color: var(--sk-text-dim);
-}
-/* Windows Chromium native dropdown 팝업 가시성 fix — option 은 SELECT 의 color 를 상속하지
-   않고 OS 기본(라이트모드는 흰바탕+검정, 다크모드는 dim grey-on-grey 회귀) 으로 빠짐.
-   option 자체에 명시 → 모든 OS 테마에서 일관 다크 + 밝은 텍스트. */
-.sk-form-row-time select option {
-  background-color: var(--sk-surface);
-  color: var(--sk-text);
 }
 
 /* ===== 인증샷 row (E 안 패턴 — prefix overlay + 우측에 상태별 컨텐츠) ===== */
@@ -985,6 +937,14 @@ html:has(.sk-image-dialog[open]) {
   align-items: center;
   flex-shrink: 0;
 }
+/* [테스트] + [등록/수정] 묶음 — 두 버튼을 한 단위로 묶어 hidden 토글 시
+   toolbar 의 다른 자식 layout 변동 없게. test 가 hidden 이면 add 만 보이고,
+   둘 다 보이면 [test][add] 순서 (gap 8px). */
+.sk-list-end-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 /* 등록 / 수정 — 두 줄 (라벨 + 카운트다운). toolbar 의 32px 고정 override. */
 .sk-list-toolbar .sk-list-add {
   height: auto;
@@ -994,6 +954,15 @@ html:has(.sk-image-dialog[open]) {
   justify-content: center;
   gap: 5px;
   padding: 5px 14px;
+  line-height: 1.15;
+}
+/* 관리자 [테스트] — sk-list-add 와 동일 컨테이너 외형 (높이/패딩/폰트). 한 줄 (라벨만). */
+.sk-list-toolbar .sk-list-test {
+  height: auto;
+  min-height: 44px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.15;
 }
 .sk-list-add-label {
@@ -1338,8 +1307,8 @@ html:has(.sk-image-dialog[open]) {
     flex: 1;
     text-align: left;
   }
-  .sk-list-toolbar .sk-btn-primary {
-    margin-left: auto; /* 등록/수정 버튼 우측 정렬 */
+  .sk-list-toolbar .sk-list-end-actions {
+    margin-left: auto; /* [테스트]+[등록/수정] 묶음을 우측 정렬 */
   }
   /* 모바일: 검색 input 은 항상 새 행 전체 너비 — count/refresh/add 와 같은 행에 욱여넣지 않음 */
   .sk-list-search {
@@ -1560,12 +1529,39 @@ html:has(.sk-image-dialog[open]) {
   background: rgba(74, 222, 128, 0.10);
 }
 
-/* 가속권 3종 — 각 row 는 [label, value] + bar + pct */
+/* 가속권 3종 — 각 row 는 [label, value] + bar(pct 오버레이) */
 .sk-detail-bars {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   margin-top: 4px;
+}
+/* 첫 바 위쪽 헤더 — 단위 토글 우측 정렬 */
+.sk-detail-bars-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -4px;
+}
+.sk-detail-unit-toggle {
+  appearance: none;
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  color: var(--sk-text-dim);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.sk-detail-unit-toggle:hover {
+  color: var(--sk-text);
+  border-color: var(--sk-border-strong);
+}
+.sk-detail-unit-toggle[data-mode='min'] {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.5);
+  color: var(--sk-accent-hover);
 }
 .sk-detail-bar-head {
   display: flex;
@@ -1588,7 +1584,7 @@ html:has(.sk-image-dialog[open]) {
 }
 .sk-detail-bar-track {
   position: relative;
-  height: 8px;
+  height: 18px;
   background: var(--sk-surface-2);
   border-radius: 999px;
   overflow: hidden;
@@ -1600,12 +1596,20 @@ html:has(.sk-image-dialog[open]) {
   border-radius: 999px;
   transition: width 0.35s ease;
 }
+/* 퍼센트 — 트랙 내부 오른쪽에 오버레이. 채워진 영역/빈 영역 모두에서 가독성 확보. */
 .sk-detail-bar-pct {
-  margin-top: 4px;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
   font-size: 10.5px;
-  color: var(--sk-text-dim);
-  text-align: right;
+  font-weight: 700;
+  color: var(--sk-text);
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
 }
 .sk-detail-emoji {
   font-size: 14px;

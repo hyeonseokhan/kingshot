@@ -732,8 +732,6 @@ export const ko = {
         help: '게임 내 가속권 현황 상태에서 분 단위로 설정한 값을 입력해주세요',
         helpImageLink: '이미지 보기',
         warn: '허위 정보를 제출한 경우, KvK 종료 후 패널티가 부과됩니다.',
-        preferredTimeLabel: '버프 시간 (UTC)',
-        preferredTimePlaceholder: '시간 선택',
         evidenceLabel: '인증샷',
         evidencePickButton: '파일 선택',
         evidenceRemoveButton: '제거',
@@ -764,6 +762,7 @@ export const ko = {
         heading: '제출 현황',
         addButton: '등록 / 수정',
         addButtonClosed: '등록 마감',
+        testButton: '테스트',
         buffBookingButton: '버프 예약',
         count: '{n}명 제출',
         empty: '아직 제출된 데이터가 없어요. 첫 번째 참가자가 되어 주세요!',
@@ -789,6 +788,11 @@ export const ko = {
         title: '제출 정보',
         evidenceButtonTitle: '인증샷 보기',
         evidenceButtonTitleEmpty: '인증샷 없음',
+        unit: {
+          toggleToMin: '분 단위로 보기',
+          toggleToHms: '시간 단위로 보기',
+          minutes: '{n}분',
+        },
         scores: {
           title: 'KvK 예상 점수',
           errorNote: '오차 ±5%',
@@ -805,6 +809,12 @@ export const ko = {
     },
     kvkBuff: {
       title: '버프 예약',
+      // !!! TEST_MODE 전용 라벨 — 종료 후 제거 대상 !!!
+      test: {
+        badge: 'TEST',
+        resetButton: '재시작',
+        resetConfirm: '테스트 데이터를 초기화합니다. 진행 중인 슬롯 선택 결과가 모두 사라집니다.\n계속하시겠습니까?',
+      },
       selecting: '선택중',
       nextLabel: '다음 차례',
       completed: '모든 사용자가 시간을 선택했습니다',
