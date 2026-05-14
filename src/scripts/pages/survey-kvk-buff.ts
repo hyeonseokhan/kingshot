@@ -17,19 +17,31 @@ import { t, onLangChange } from '@/i18n';
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-buff';
 
 // !!! TEST_MODE — 관리자 필드 테스트용 분기. 종료 후 제거 대상 !!!
-//   활성화: URL 쿼리에 ?test=1 (예: https://survey.kingshot.wooju-home.org/kvk/?test=1)
+//   활성화 경로 두 가지:
+//     1) URL 쿼리 ?test=1 — 페이지 로드 시 자동 활성 (기존 패턴)
+//     2) survey-kvk.ts 의 [테스트] 버튼 클릭 → setBuffTestMode(true) + openBuffOverlay() (admin 전용)
 //   영향:
-//     - SURVEY_DEADLINE_ISO 가 과거로 → 잠금 placeholder skip, 즉시 그리드 표시.
+//     - SURVEY_DEADLINE_ISO 가드 무시 → 잠금 placeholder skip, 즉시 그리드 표시.
 //     - callFn body 에 test_mode: true 자동 동봉 → Edge Function 이 _test 테이블/RPC 사용.
+//     - TOTAL_SLOTS 가 6 으로 축소 (admin 6명 전원 1슬롯씩 시나리오).
 //   인증은 운영 그대로 (kvk_speedup_survey 의 본인 PIN 으로 로그인).
 //   제거: `TEST_MODE` 키워드 grep → 본 분기 + survey-kvk.ts + Edge Function + 마이그레이션 ROLLBACK.
-const TEST_MODE = typeof window !== 'undefined' &&
+let testMode = typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('test');
-const SURVEY_DEADLINE_ISO = TEST_MODE
-  ? '2024-01-01T00:00:00Z'
-  : '2026-05-16T01:00:00Z';
+const SURVEY_DEADLINE_ISO = '2026-05-16T01:00:00Z';
+const TEST_TOTAL_SLOTS = 6;
+const PROD_TOTAL_SLOTS = 48;
 
-const TOTAL_SLOTS = 48;
+/** 외부(survey-kvk.ts) 가 [테스트] 버튼 클릭 시 호출 — 다이얼로그를 격리 모드로 진입.
+ *  setupBuffDialog() 한 번 호출 후 매번 토글 가능. */
+export function setBuffTestMode(v: boolean): void {
+  testMode = v;
+}
+
+function totalSlots(): number {
+  return testMode ? TEST_TOTAL_SLOTS : PROD_TOTAL_SLOTS;
+}
+
 const POLL_INTERVAL_MS = 5000;
 
 /** localStorage key — 가속권 현황 조사 페이지의 토큰을 그대로 공유. */
@@ -80,7 +92,11 @@ let me: Me | null = null;
 let token: string | null = null;
 let tzMode: 'UTC' | 'KST' = 'KST';
 let pendingSlotIdx: number | null = null; // confirm 다이얼로그 대기 중 slot idx
-let swapSourceCard: HTMLElement | null = null;
+// swap selection — DOM element 가 아닌 slot_idx 값으로 보존.
+// (이전엔 swapSourceCard:HTMLElement 였는데 5초 polling 의 renderGrid 가 grid.innerHTML='' 로
+//  통째 재생성하면서 detached element 되어 두 번째 클릭 시 swap 시작점을 잃는 회귀 발생.)
+// 값 보존 + renderGrid 후 슬롯 카드에 .is-swap-source 재마킹 → polling 무관 selection 유지.
+let swapSourceSlotIdx: number | null = null;
 let pendingSwapTargetSlotIdx: number | null = null;
 let pollingTimer: number | null = null;
 let elapsedTimer: number | null = null;
@@ -103,7 +119,7 @@ async function callFn<T = unknown>(body: Record<string, unknown>): Promise<T> {
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
     // !!! TEST_MODE — 모든 액션 body 에 test_mode 자동 동봉 (서버에서 _test 분기) !!!
-    body: JSON.stringify({ ...body, test_mode: TEST_MODE }),
+    body: JSON.stringify({ ...body, test_mode: testMode }),
   });
   return res.json();
 }
@@ -149,14 +165,19 @@ function renderAll(): void {
 }
 
 function applyAdminClass(): void {
-  $('sk-buff-page').classList.toggle('is-admin', me?.is_admin === true);
+  const page = $('sk-buff-page');
+  page.classList.toggle('is-admin', me?.is_admin === true);
+  // TEST_MODE — page + overlay 양쪽에 토글. overlay 는 head 영역의 [TEST] 라벨/[재시작] 게이트용.
+  page.classList.toggle('is-test', testMode);
+  document.getElementById('sk-buff-overlay')?.classList.toggle('is-test', testMode);
 }
 
 function renderLocked(): void {
   const locked = $('sk-buff-locked');
   const grid = $('sk-buff-grid');
   const current = $('sk-buff-current');
-  const isBeforeDeadline = new Date() < new Date(SURVEY_DEADLINE_ISO);
+  // !!! TEST_MODE — 테스트는 deadline 무시 (즉시 bootstrap 가능). 운영만 deadline 가드. !!!
+  const isBeforeDeadline = !testMode && new Date() < new Date(SURVEY_DEADLINE_ISO);
   const notBootstrapped = !buffState?.bootstrapped_at;
   const showLocked = isBeforeDeadline || notBootstrapped;
   locked.hidden = !showLocked;
@@ -230,7 +251,8 @@ function renderGrid(): void {
   }
   // mockup 처럼 fragment 단위로 재구성. 갱신 잦지만 48개라 부담 X.
   grid.innerHTML = '';
-  for (let i = 0; i < TOTAL_SLOTS; i++) {
+  const slots = totalSlots();
+  for (let i = 0; i < slots; i++) {
     const card = document.createElement('div');
     card.className = 'sk-buff-slot';
     card.dataset.slotIdx = String(i);
@@ -263,6 +285,11 @@ function renderGrid(): void {
     }
     grid.appendChild(card);
   }
+  // polling 으로 grid 재생성된 후에도 admin swap selection 유지 — slot_idx 로 새 카드에 재마킹.
+  if (swapSourceSlotIdx !== null) {
+    grid.querySelector(`.sk-buff-slot[data-slot-idx="${swapSourceSlotIdx}"]`)
+      ?.classList.add('is-swap-source');
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -273,7 +300,7 @@ function escapeHtml(s: string): string {
 
 // ===== 카운트다운 (turn_started_at 기준 경과) =====
 function tickElapsed(): void {
-  if (!buffState?.turn_started_at || (buffState.current_turn_idx >= TOTAL_SLOTS)) {
+  if (!buffState?.turn_started_at || (buffState.current_turn_idx >= totalSlots())) {
     $('sk-buff-current-elapsed').textContent = '';
     return;
   }
@@ -318,32 +345,33 @@ function onGridClick(e: Event): void {
 
   // (b) 점유 슬롯 — admin 모드일 때만 swap
   if (!me?.is_admin) return;
-  if (!swapSourceCard) {
-    swapSourceCard = card;
+  if (swapSourceSlotIdx === null) {
+    swapSourceSlotIdx = slotIdx;
     card.classList.add('is-swap-source');
     return;
   }
-  if (swapSourceCard === card) {
+  if (swapSourceSlotIdx === slotIdx) {
+    // 같은 슬롯 다시 클릭 → 선택 해제
     card.classList.remove('is-swap-source');
-    swapSourceCard = null;
+    swapSourceSlotIdx = null;
     return;
   }
   // 두 번째 점유 슬롯 → swap confirm
-  const a = swapSourceCard.querySelector<HTMLElement>('.sk-buff-slot-name')?.textContent ?? '';
+  const sourceCard = document.querySelector<HTMLElement>(
+    `.sk-buff-slot[data-slot-idx="${swapSourceSlotIdx}"]`,
+  );
+  const a = sourceCard?.querySelector<HTMLElement>('.sk-buff-slot-name')?.textContent ?? '';
   const b = card.querySelector<HTMLElement>('.sk-buff-slot-name')?.textContent ?? '';
   pendingSwapTargetSlotIdx = slotIdx;
-  $('sk-buff-swap-body').innerHTML =
-    `<strong>${escapeHtml(a)}</strong>` +
-    t('survey.kvkBuff.confirm.swapBody', { a: '', b: '' }).replace('{a}', '').replace('{b}', '') +
-    `<strong>${escapeHtml(b)}</strong>`;
-  // i18n 패턴 단순화 — 직접 조립
   $('sk-buff-swap-body').textContent = t('survey.kvkBuff.confirm.swapBody', { a, b });
   $<HTMLDialogElement>('sk-buff-swap-dialog').showModal();
 }
 
 function clearSwapSelection(): void {
-  if (swapSourceCard) swapSourceCard.classList.remove('is-swap-source');
-  swapSourceCard = null;
+  // 모든 카드의 is-swap-source 제거 (현재 source 카드 또는 polling 으로 재생성된 것 모두 cover).
+  document.querySelectorAll('.sk-buff-slot.is-swap-source')
+    .forEach((el) => el.classList.remove('is-swap-source'));
+  swapSourceSlotIdx = null;
   pendingSwapTargetSlotIdx = null;
 }
 
@@ -379,8 +407,20 @@ async function onSkipConfirm(): Promise<void> {
   await pollState();
 }
 
+/** !!! TEST_MODE — _test 참가자 + state reset. confirm 후 실행. */
+async function onResetTestClick(): Promise<void> {
+  if (!testMode) return;
+  if (!confirm(t('survey.kvkBuff.test.resetConfirm'))) return;
+  const res = await callFn<{ ok: boolean; error?: string }>({ action: 'admin-reset-test' });
+  if (!res.ok) {
+    alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+    return;
+  }
+  await pollState();
+}
+
 function openSkipDialog(): void {
-  if (!buffState || buffState.current_turn_idx >= TOTAL_SLOTS - 1) return;
+  if (!buffState || buffState.current_turn_idx >= totalSlots() - 1) return;
   const cur = participants.find((p) => p.turn_idx === buffState!.current_turn_idx);
   const next = participants.find((p) => p.turn_idx === buffState!.current_turn_idx + 1);
   if (!cur || !next) return;
@@ -396,9 +436,9 @@ function openSkipDialog(): void {
 
 // ===== admin: swap =====
 async function onSwapConfirm(): Promise<void> {
-  if (!swapSourceCard || pendingSwapTargetSlotIdx === null) return;
+  if (swapSourceSlotIdx === null || pendingSwapTargetSlotIdx === null) return;
   const dlg = $<HTMLDialogElement>('sk-buff-swap-dialog');
-  const slotA = Number(swapSourceCard.dataset.slotIdx);
+  const slotA = swapSourceSlotIdx;
   const res = await callFn<{ ok: boolean; error?: string }>({
     action: 'admin-swap',
     token,
@@ -418,7 +458,8 @@ function onCopyClick(): void {
   for (const p of participants) {
     if (p.slot_idx !== null) occupied.set(p.slot_idx, p);
   }
-  for (let i = 0; i < TOTAL_SLOTS; i++) {
+  const slots = totalSlots();
+  for (let i = 0; i < slots; i++) {
     const holder = occupied.get(i);
     items.push({ time: formatSlotTime(i, tzMode), name: holder?.survey?.nickname ?? '❌' });
   }
@@ -506,6 +547,10 @@ function init(): void {
     $<HTMLDialogElement>('sk-buff-swap-dialog').close();
   });
   $('sk-buff-swap-ok').addEventListener('click', onSwapConfirm);
+
+  // !!! TEST_MODE — admin 전용 [재시작] 버튼: _test 참가자 + state 일괄 reset.
+  // 운영 호출 시 서버가 'test_mode_only' 로 거부 → 안전.
+  document.getElementById('sk-buff-test-reset')?.addEventListener('click', onResetTestClick);
 
   // 마감 전이면 잠금 화면 + 마감 시각까지 카운트다운만 띄움 (state 무관 우선 표시)
   renderLocked();

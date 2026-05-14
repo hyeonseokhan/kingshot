@@ -9,10 +9,8 @@
  *   { action: "login",        kingshot_id, pin }                                     → { ok, token, expires_at, record }
  *   { action: "verify-token", token }                                                → { ok, record }   (boot 자동)
  *   { action: "logout",       token }                                                → { ok }            (DB session_token NULL 처리, best-effort)
- *   { action: "register",     kingshot_id, pin, training, construction, general,
- *                             preferred_buff_time? }                                 → { ok, token, expires_at, record }
- *   { action: "update",       token, training, construction, general,
- *                             preferred_buff_time? }                                 → { ok }
+ *   { action: "register",     kingshot_id, pin, training, construction, general }    → { ok, token, expires_at, record }
+ *   { action: "update",       token, training, construction, general }               → { ok }
  *                            (또는 백워드 호환: kingshot_id, pin, training, ...)
  *   { action: "set-evidence", token, has_evidence: boolean }                         → { ok, evidence_uploaded_at }
  *                            클라가 Storage 업로드/삭제 끝낸 후 호출.
@@ -23,7 +21,6 @@
  *   { action: "verify",       kingshot_id, pin }                                     → { ok, record }  (deprecated)
  *   { action: "list",         token }                                                → { ok, items: [...] }  (인증 필수, pin_hash/salt/token 제외)
  *
- * preferred_buff_time: 선호 버프 시작 시간 (UTC). 'HH:MM' (HH=00..23, MM=00|30) 또는 null/빈값.
  * evidence_uploaded_at: 인증샷 마지막 업로드 시점. NULL=미인증. Storage path 는 deterministic
  *                       (`kvk-survey/{kingshot_id}.webp` in `blacklist-evidence` bucket).
  *
@@ -137,14 +134,6 @@ function isValidKingshotId(id: unknown): id is string {
 
 function isNonNegInt(n: unknown): n is number {
   return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 9_999_999;
-}
-
-/** 'HH:MM' (HH=00..23, MM=00|30) 또는 null. 빈 문자열도 null 로 정규화. */
-function parsePreferredTime(v: unknown): { ok: true; value: string | null } | { ok: false } {
-  if (v === undefined || v === null || v === "") return { ok: true, value: null };
-  if (typeof v !== "string") return { ok: false };
-  if (!/^([01][0-9]|2[0-3]):(00|30)$/.test(v)) return { ok: false };
-  return { ok: true, value: v };
 }
 
 // ===== 세션 토큰 =====
@@ -292,7 +281,6 @@ async function register(
   training: unknown,
   construction: unknown,
   general: unknown,
-  preferredTime: unknown,
   meta: { ip: string | null; country: string | null; platform: string | null },
 ) {
   if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
@@ -300,8 +288,6 @@ async function register(
   if (!isNonNegInt(training) || !isNonNegInt(construction) || !isNonNegInt(general)) {
     return { ok: false, error: "invalid_amount" };
   }
-  const tParsed = parsePreferredTime(preferredTime);
-  if (!tParsed.ok) return { ok: false, error: "invalid_preferred_time" };
   const existing = await dbSelectOne(
     `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=kingshot_id`
   );
@@ -327,7 +313,6 @@ async function register(
     training: training as number,
     construction: construction as number,
     general: general as number,
-    preferred_buff_time: tParsed.value,
     ip: meta.ip,
     country: meta.country,
     platform: meta.platform,
@@ -345,8 +330,8 @@ async function register(
       training: training as number,
       construction: construction as number,
       general: general as number,
-      preferred_buff_time: tParsed.value,
       evidence_uploaded_at: null, // 신규 등록 시점엔 항상 미인증
+      is_admin: false, // 신규 등록 시점엔 항상 일반 사용자 — 별도 SQL 로 부여
     },
   };
 }
@@ -359,7 +344,7 @@ async function login(kingshotId: string, pin: unknown) {
   if (!isValidKingshotId(kingshotId)) return { ok: false, error: "invalid_id" };
   if (!isValidPin(pin)) return { ok: false, error: "invalid_pin" };
   const row = await dbSelectOne(
-    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt,training,construction,general,nickname,avatar_url,preferred_buff_time,evidence_uploaded_at`
+    `kvk_speedup_survey?kingshot_id=eq.${encodeURIComponent(kingshotId)}&select=pin_hash,pin_salt,training,construction,general,nickname,avatar_url,evidence_uploaded_at,is_admin`
   );
   if (!row) return { ok: false, error: "not_registered" };
   const computed = await sha256Hex((pin as string) + row.pin_salt);
@@ -381,8 +366,8 @@ async function login(kingshotId: string, pin: unknown) {
       training: row.training,
       construction: row.construction,
       general: row.general,
-      preferred_buff_time: row.preferred_buff_time ?? null,
       evidence_uploaded_at: row.evidence_uploaded_at ?? null,
+      is_admin: row.is_admin === true,
     },
   };
 }
@@ -413,7 +398,7 @@ async function logout(token: unknown) {
 async function verifyToken(token: unknown) {
   if (!isValidToken(token)) return { ok: false, error: "invalid_token" };
   const row = await dbSelectOne(
-    `kvk_speedup_survey?session_token=eq.${encodeURIComponent(token)}&select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,preferred_buff_time,evidence_uploaded_at,session_expires_at`
+    `kvk_speedup_survey?session_token=eq.${encodeURIComponent(token)}&select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,evidence_uploaded_at,session_expires_at,is_admin`
   );
   if (!row) return { ok: false, error: "invalid_token" };
   if (isTokenExpired(row.session_expires_at)) return { ok: false, error: "token_expired" };
@@ -430,8 +415,8 @@ async function verifyToken(token: unknown) {
       training: row.training,
       construction: row.construction,
       general: row.general,
-      preferred_buff_time: row.preferred_buff_time ?? null,
       evidence_uploaded_at: row.evidence_uploaded_at ?? null,
+      is_admin: row.is_admin === true,
     },
   };
 }
@@ -494,14 +479,11 @@ async function updateRow(
   training: unknown,
   construction: unknown,
   general: unknown,
-  preferredTime: unknown,
   meta: { ip: string | null; country: string | null; platform: string | null },
 ) {
   if (!isNonNegInt(training) || !isNonNegInt(construction) || !isNonNegInt(general)) {
     return { ok: false, error: "invalid_amount" };
   }
-  const tParsed = parsePreferredTime(preferredTime);
-  if (!tParsed.ok) return { ok: false, error: "invalid_preferred_time" };
   const auth = await authenticate(opts);
   if (!auth.ok) return auth;
   // 닉네임/아바타/city_level 모두 동기 — 게임 내 변경 시 자동 반영
@@ -518,7 +500,6 @@ async function updateRow(
     training: training as number,
     construction: construction as number,
     general: general as number,
-    preferred_buff_time: tParsed.value,
     ip: meta.ip,
     country: meta.country,
     platform: meta.platform,
@@ -596,7 +577,6 @@ Deno.serve(async (req: Request) => {
       training,
       construction,
       general,
-      preferred_buff_time,
       has_evidence,
     } = body ?? {};
     // IP / country 는 헤더에서만 추출 — 클라이언트 페이로드는 신뢰하지 않음
@@ -622,7 +602,6 @@ Deno.serve(async (req: Request) => {
           training,
           construction,
           general,
-          preferred_buff_time,
           meta,
         );
         break;
@@ -636,7 +615,6 @@ Deno.serve(async (req: Request) => {
           training,
           construction,
           general,
-          preferred_buff_time,
           meta,
         );
         break;

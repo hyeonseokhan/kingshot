@@ -8,6 +8,7 @@
  *   { action: 'pick-slot', token, slot_idx, expected_turn_idx, test_mode? }        → { ok }
  *   { action: 'admin-skip', token, expected_turn_idx, test_mode? }                 → { ok }
  *   { action: 'admin-swap', token, slot_a_idx, slot_b_idx, test_mode? }            → { ok }
+ *   { action: 'admin-reset-test', token, test_mode: true }                         → { ok }   (TEST_MODE 전용 [재시작])
  *
  * 권한: token 으로 kingshot_id 추출. admin 액션은 is_admin=TRUE 검증.
  *
@@ -221,6 +222,21 @@ async function adminSwap(token: unknown, slotA: unknown, slotB: unknown, isTest:
   }
 }
 
+/** !!! TEST_MODE 전용 — admin 만 호출. _test 참가자 전체 + state 초기화. !!!
+ *  운영(isTest=false) 호출은 reject. 다음 get-state 가 lazy bootstrap 으로 admin 6명 다시 INSERT. */
+async function adminResetTest(token: unknown, isTest: boolean) {
+  if (!isTest) return { ok: false, error: "test_mode_only" };
+  const auth = await authenticate(token);
+  if (!auth.ok) return auth;
+  if (!auth.me.is_admin) return { ok: false, error: "not_admin" };
+  try {
+    await dbRpc("kvk_buff_reset_test", {});
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -241,6 +257,9 @@ Deno.serve(async (req: Request) => {
         break;
       case "admin-swap":
         result = await adminSwap(token, slot_a_idx, slot_b_idx, isTest);
+        break;
+      case "admin-reset-test":
+        result = await adminResetTest(token, isTest);
         break;
       default:
         result = { ok: false, error: "unknown_action" };

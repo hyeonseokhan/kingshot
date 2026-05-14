@@ -404,7 +404,8 @@
    native <dialog> 의 showModal() 이 자동 lock 을 안 해서 wheel/touch 가 body 로 propagate 됨.
    :has() 는 모던 브라우저 모두 지원 (Chrome 105+, Safari 15.4+, FF 121+) — 외부 설문 사용자도 호환. */
 html:has(.sk-dialog[open]),
-html:has(.sk-image-dialog[open]) {
+html:has(.sk-image-dialog[open]),
+html:has(.sk-buff-overlay[open]) {
   overflow: hidden;
 }
 .sk-dialog-card {

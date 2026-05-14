@@ -447,6 +447,48 @@
   font-size: 15px;
   font-weight: 800;
 }
+/* close 버튼은 항상 우측 끝 — head 자식이 늘어나도 (TEST_MODE badge/reset) 위치 보장. */
+.sk-buff-overlay-head .sk-dialog-close { margin-left: auto; }
+
+/* !!! TEST_MODE 표지 — overlay.is-test 시 노출. 운영 모드엔 보이지 않음. !!! */
+.sk-buff-test-badge { display: none; }
+.sk-buff-overlay.is-test .sk-buff-test-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  margin-left: 8px;
+  background: #f59e0b;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+/* !!! TEST_MODE [재시작] 버튼 — overlay.is-test 시 노출. hover 시 빨강 톤 (위험 액션 시그널). !!! */
+.sk-buff-test-reset-btn { display: none; }
+.sk-buff-overlay.is-test .sk-buff-test-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  margin-left: 6px;
+  background: transparent;
+  border: 1px solid var(--sk-border);
+  border-radius: 6px;
+  color: var(--sk-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.sk-buff-overlay.is-test .sk-buff-test-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fecaca;
+}
 .sk-buff-overlay-body {
   overflow-y: auto;
   padding: 0;
