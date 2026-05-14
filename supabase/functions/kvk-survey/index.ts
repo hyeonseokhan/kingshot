@@ -8,6 +8,7 @@
  *   { action: "lookup",       kingshot_id }                                          → { ok, player, registered }
  *   { action: "login",        kingshot_id, pin }                                     → { ok, token, expires_at, record }
  *   { action: "verify-token", token }                                                → { ok, record }   (boot 자동)
+ *   { action: "logout",       token }                                                → { ok }            (DB session_token NULL 처리, best-effort)
  *   { action: "register",     kingshot_id, pin, training, construction, general,
  *                             preferred_buff_time? }                                 → { ok, token, expires_at, record }
  *   { action: "update",       token, training, construction, general,
@@ -20,7 +21,7 @@
  *                            (또는 백워드 호환: kingshot_id, pin)
  *                            row 삭제와 함께 Storage 의 kvk-survey/{id}.webp 도 service_role 로 삭제.
  *   { action: "verify",       kingshot_id, pin }                                     → { ok, record }  (deprecated)
- *   { action: "list" }                                                               → { ok, items: [...] }  (pin_hash/salt/token 제외)
+ *   { action: "list",         token }                                                → { ok, items: [...] }  (인증 필수, pin_hash/salt/token 제외)
  *
  * preferred_buff_time: 선호 버프 시작 시간 (UTC). 'HH:MM' (HH=00..23, MM=00|30) 또는 null/빈값.
  * evidence_uploaded_at: 인증샷 마지막 업로드 시점. NULL=미인증. Storage path 는 deterministic
@@ -387,6 +388,25 @@ async function login(kingshotId: string, pin: unknown) {
 }
 
 /**
+ * 명시적 로그아웃 — DB 의 session_token, session_expires_at 을 NULL 처리해 즉시 무효화.
+ * 무효한 토큰이거나 PATCH 실패해도 ok 응답 (클라는 어차피 로컬 cleanup 진행).
+ * 같은 ID 로 재로그인하면 새 token 발급되므로 별도 정리 불필요.
+ */
+async function logout(token: unknown) {
+  if (!isValidToken(token)) return { ok: true };
+  try {
+    await dbPatch(
+      `kvk_speedup_survey?session_token=eq.${encodeURIComponent(token as string)}`,
+      { session_token: null, session_expires_at: null },
+    );
+  } catch (e) {
+    // best-effort — 클라는 어차피 로컬 정리 진행
+    console.error("logout patch failed (ignored):", (e as Error).message);
+  }
+  return { ok: true };
+}
+
+/**
  * 클라이언트 boot 시 자동 호출. 토큰 유효성 + 만료 + city_level 게이트 모두 검사.
  * 만료/무효면 클라에서 토큰 제거 + 로그인 다이얼로그.
  */
@@ -542,9 +562,22 @@ async function setEvidence(opts: { token?: unknown }, hasEvidence: unknown) {
   return { ok: true, evidence_uploaded_at: ts };
 }
 
-async function list() {
-  // city_level >= 26 인 row 만 노출. NULL (기존 등록자) 도 자동 제외 — gte 가 NULL 매치 안 함.
-  // 사용자는 [등록/수정] 재진행으로 city_level 채워지면 다시 표시됨.
+/**
+ * 제출 현황 목록 — 인증 토큰 필수 (defense in depth).
+ * 클라이언트 측에서도 isUnlocked()=!!getAuth() 가드가 있지만, anon key 로 직접 호출 시
+ * 명단/가속권 데이터 노출 방지를 위해 서버 게이트 추가. 토큰 만료/무효 → 'unauthorized'.
+ *
+ * city_level >= 26 인 row 만 노출. NULL (기존 등록자) 도 자동 제외 — gte 가 NULL 매치 안 함.
+ * 사용자는 [등록/수정] 재진행으로 city_level 채워지면 다시 표시됨.
+ */
+async function list(token: unknown) {
+  if (!isValidToken(token)) return { ok: false, error: "unauthorized" };
+  const me = await dbSelectOne(
+    `kvk_speedup_survey?session_token=eq.${encodeURIComponent(token as string)}&select=session_expires_at`,
+  );
+  if (!me) return { ok: false, error: "unauthorized" };
+  if (isTokenExpired(me.session_expires_at)) return { ok: false, error: "token_expired" };
+
   const rows = await dbSelect(
     `kvk_speedup_survey?select=kingshot_id,nickname,avatar_url,training,construction,general,city_level,evidence_uploaded_at,updated_at&city_level=gte.${MIN_CITY_LEVEL}&order=updated_at.desc`
   );
@@ -579,6 +612,9 @@ Deno.serve(async (req: Request) => {
       case "verify-token":
         result = await verifyToken(token);
         break;
+      case "logout":
+        result = await logout(token);
+        break;
       case "register":
         result = await register(
           kingshot_id,
@@ -611,7 +647,7 @@ Deno.serve(async (req: Request) => {
         result = await deleteRow({ token, kingshotId: kingshot_id, pin });
         break;
       case "list":
-        result = await list();
+        result = await list(token);
         break;
       default:
         result = { ok: false, error: "unknown_action" };

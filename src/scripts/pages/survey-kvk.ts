@@ -98,11 +98,6 @@ const SURVEY_DEADLINE_ISO = TEST_MODE
 const URGENCY_WARN_MS = 24 * 60 * 60 * 1000;
 const URGENCY_DANGER_MS = 6 * 60 * 60 * 1000;
 
-/** 열람 잠금 해제 상태 키 — sessionStorage 라 탭 닫으면 자동 reset.
- *  토큰 기반 인증 도입 후에도 유지: localStorage AUTH 가 verify-token 으로 인증되면 이 키도 같이 세팅.
- *  (UI 의 .is-unlocked 클래스는 한 곳에서만 토글하면 됨) */
-const UNLOCK_KEY = 'sk-unlocked';
-
 /** 세션 토큰 + 캐시된 record — localStorage 영구. 90일 후 서버에서 만료.
  *  boot 시 verify-token API 로 검증 → 성공이면 자동 로그인.
  *  로그아웃 버튼 없음 (1인 1행 설문이라 다른 계정 전환 불필요). */
@@ -281,24 +276,14 @@ function renderBlockedCurrent(): void {
       : t('survey.kvk.blocked.currentLevel', { n: blockedDialogLevel });
 }
 
-/** 열람 잠금/해제 — sessionStorage 상태 + DOM 클래스 동기. unlock 직후 목록 자동 fetch. */
+/** 열람 잠금/해제 — 인증 세션(getAuth) 유무로 derive (단일 source of truth).
+ *  이전엔 sessionStorage UNLOCK_KEY 가 별개라 토큰 만료/삭제 후에도 잠금이 풀린 상태로 남는
+ *  회귀가 있었음. 이젠 saveAuth/clearAuth 가 자동으로 applyUnlockState 호출 → 항상 동기. */
 function isUnlocked(): boolean {
-  try {
-    return sessionStorage.getItem(UNLOCK_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return getAuth() !== null;
 }
 function applyUnlockState(): void {
   ($('sk-page') as HTMLElement).classList.toggle('is-unlocked', isUnlocked());
-}
-function setUnlocked(): void {
-  try {
-    sessionStorage.setItem(UNLOCK_KEY, '1');
-  } catch {
-    /* private mode etc. — 메모리상 클래스만 토글되고 새로고침 시 다시 잠김 */
-  }
-  applyUnlockState();
 }
 
 /** 인증 정보 영구 저장 / 조회 / 제거 — token + 캐시된 record. */
@@ -308,10 +293,23 @@ interface AuthState {
   record: MyRecord; // 마지막으로 알려진 내 데이터 (boot prefill, UI 캐시용)
 }
 function saveAuth(state: AuthState): void {
+  // 잠금 → 해제 transition 감지 (localStorage 변경 전 측정).
+  // 호출자가 enterFormMode 같은 modal 진입을 바로 해도, background 에서 자동 fetch 끝나있게.
+  // 이전엔 login 직후 폼 [취소] 시 list 가 비어있는 회귀가 있었음 (refreshList trigger 누락).
+  const wasUnlocked = isUnlocked();
   try {
     localStorage.setItem(AUTH_KEY, JSON.stringify(state));
   } catch {
     /* quota / private mode — 무시 */
+  }
+  // 인증 상태 변화 → 잠금 해제 + 헤더 [로그아웃] 노출 자동 sync.
+  // 호출자는 saveAuth 만 부르면 UI 잠금/헤더/목록 모두 일관 유지됨.
+  applyUnlockState();
+  syncHeaderLogoutBtn();
+  if (!wasUnlocked) {
+    // 잠금 해제 첫 transition — 목록 자동 fetch (fire-and-forget).
+    // 단순 record 갱신 (이미 unlocked) 인 경우엔 중복 fetch 회피.
+    void refreshList();
   }
 }
 function getAuth(): AuthState | null {
@@ -333,6 +331,36 @@ function clearAuth(): void {
   } catch {
     /* */
   }
+  // 인증 만료/제거 → 잠금 placeholder + 헤더 [로그아웃] 숨김 자동 sync.
+  applyUnlockState();
+  syncHeaderLogoutBtn();
+}
+
+/** 헤더 우측 [로그아웃] 버튼 visibility — 인증 세션 유무 따라 hidden 토글.
+ *  saveAuth/clearAuth/bootVerifyAuth 등 상태 변화 시점마다 자동 호출. */
+function syncHeaderLogoutBtn(): void {
+  const btn = document.getElementById('sk-logout-btn');
+  if (!btn) return;
+  btn.hidden = !getAuth();
+}
+
+/** 명시적 로그아웃 — confirm → 서버 token 무효화 (best-effort, fire-and-forget) →
+ *  로컬 cleanup → 다이얼로그 모두 닫고 잠금 placeholder 로 전환. */
+async function onLogoutClick(): Promise<void> {
+  if (!confirm(t('survey.header.logoutConfirm'))) return;
+  const token = getToken();
+  if (token) {
+    // best-effort — 응답 안 기다리고 즉시 로컬 정리. 네트워크 실패해도 클라는 진행.
+    void callFn({ action: 'logout', token });
+  }
+  // clearAuth 가 자동으로 applyUnlockState + syncHeaderLogoutBtn 호출 → 잠금 placeholder + 헤더 sync.
+  clearAuth();
+  // 열려있을 수 있는 다이얼로그 모두 close
+  closeAuthDialog();
+  closeBuffOverlay();
+  const formDlg = document.getElementById('sk-form-dialog') as HTMLDialogElement | null;
+  if (formDlg?.open) formDlg.close();
+  void refreshList();
 }
 /** 현재 토큰 (localStorage). 없으면 null. mutation API 호출 시 사용. */
 function getToken(): string | null {
@@ -700,10 +728,10 @@ async function onSaveForm(): Promise<void> {
       });
     }
     if (!json.ok) {
-      // 토큰 만료/무효 시 자동 로그아웃 + 다이얼로그 안내
+      // 토큰 만료/무효 시 자동 로그아웃 — clearAuth 가 잠금 placeholder 자동 적용.
+      // (이전엔 clearAuth + setUnlocked 동시 호출로 잠금 풀린 채 노출되는 회귀 있었음.)
       if (json.error === 'token_expired' || json.error === 'invalid_token') {
         clearAuth();
-        setUnlocked(); // 이미 표시된 목록은 그대로 두되 다음 boot 부터 잠금 풀려있어도 verify-token 실패로 lock
       }
       setStatus('sk-form-status', mapError(json.error), 'err');
       btn.disabled = false;
@@ -733,7 +761,7 @@ async function onSaveForm(): Promise<void> {
     if (evidenceOk) {
       setStatus('sk-form-status', t('survey.kvk.form.saved'), 'ok');
     }
-    setUnlocked();
+    // saveAuth (위 register/update 분기) 가 이미 잠금 해제 sync 한 상태.
     await refreshList();
     setTimeout(() => exitFormMode(), evidenceOk ? 600 : 1500);
   } catch (err) {
@@ -786,14 +814,23 @@ async function applyPendingEvidence(kingshotId: string): Promise<boolean> {
 
 async function refreshList(): Promise<void> {
   // 잠금 상태에선 list API 호출 자체 차단 — 서버 부하 절감 + 잠금 placeholder 유지.
+  // (서버도 list 액션에 token 게이트 있어 anon 직접 호출 차단 — defense in depth.)
   if (!isUnlocked()) return;
+  const token = getToken();
+  if (!token) return; // isUnlocked 가 !!getAuth 라 사실상 도달 X — 방어 차원
   const loadingEl = $('sk-loading');
   loadingEl.hidden = false;
   try {
-    const json = await callFn<{ ok: boolean; items?: SurveyRow[] }>({ action: 'list' });
+    const json = await callFn<{ ok: boolean; error?: string; items?: SurveyRow[] }>({
+      action: 'list',
+      token,
+    });
     if (json.ok && json.items) {
       rowsCache = json.items;
       renderList();
+    } else if (json.error === 'token_expired' || json.error === 'unauthorized') {
+      // 서버가 토큰 만료/무효 판정 → 로컬도 정리. clearAuth 가 잠금 placeholder 자동 전환.
+      clearAuth();
     }
   } finally {
     loadingEl.hidden = true;
@@ -1434,6 +1471,11 @@ function init(): void {
     if (ph) ph.textContent = t('survey.kvk.form.preferredTimePlaceholder');
   });
 
+  // 헤더 우측 로그아웃 버튼 — 핸들러 등록 + 초기 visibility 동기화.
+  // 이후 saveAuth/clearAuth 안에서 syncHeaderLogoutBtn 자동 호출되므로 상태 변화 자동 반영.
+  document.getElementById('sk-logout-btn')?.addEventListener('click', onLogoutClick);
+  syncHeaderLogoutBtn();
+
   // 마감 카운트다운 — 등록/수정 버튼 안 카운트다운 텍스트 + urgency 색 단계 갱신.
   startDeadlineCountdown();
 
@@ -1530,25 +1572,23 @@ async function bootVerifyAuth(): Promise<void> {
     refreshList(); // 잠금이라 list API 호출 안 함 (refreshList 자체가 가드)
     return;
   }
-  // 토큰 있음 — verify-token 으로 서버 검증
+  // 토큰 있음 — verify-token 으로 서버 검증.
+  // saveAuth/clearAuth 가 applyUnlockState + syncHeaderLogoutBtn 자동 호출 → 별도 sync 호출 불필요.
   try {
     const json = await callFn<{ ok: boolean; error?: string; record?: MyRecord }>({
       action: 'verify-token',
       token: auth.token,
     });
     if (json.ok && json.record) {
-      // 서버 record 로 캐시 갱신 (게임 닉네임/수치 변경 반영)
+      // 서버 record 로 캐시 갱신 (게임 닉네임/수치 변경 반영) → unlock 자동.
       saveAuth({ ...auth, record: json.record });
-      setUnlocked();
     } else {
-      // 만료/무효/강등 — 토큰 폐기
+      // 만료/무효/강등 — 토큰 폐기 → 잠금 자동.
       clearAuth();
     }
   } catch {
-    // 네트워크 오류 — 캐시 신뢰하고 일단 unlock (다음 mutation 에서 재검증)
-    setUnlocked();
+    // 네트워크 오류 — 클라 token 그대로 유지 (이미 isUnlocked()=true). 다음 mutation 에서 재검증.
   }
-  applyUnlockState();
   refreshList();
 }
 

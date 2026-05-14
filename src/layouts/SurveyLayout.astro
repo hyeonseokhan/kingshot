@@ -40,7 +40,34 @@ const { title = 'KVK Speed-up Survey', description = 'KVK speed-up inventory sur
     <header class="survey-header">
       <div class="survey-header-inner">
         <h1 class="survey-brand" data-i18n="survey.brand">KVK 가속권 현황 조사</h1>
-        <LangSwitcher />
+        <div class="survey-header-actions">
+          <!-- 로그아웃 버튼 — 인증 세션이 있을 때만 노출 (survey-kvk.ts 가 .is-authed 토글). -->
+          <button
+            id="sk-logout-btn"
+            class="survey-logout-btn"
+            type="button"
+            hidden
+            data-i18n-attr-title="survey.header.logoutTooltip"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span data-i18n="survey.header.logout">로그아웃</span>
+          </button>
+          <LangSwitcher />
+        </div>
       </div>
     </header>
     <main class="survey-main">

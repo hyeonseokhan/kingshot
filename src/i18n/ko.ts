@@ -661,6 +661,11 @@ export const ko = {
   survey: {
     brand: 'KVK 가속권 현황 조사',
     footer: 'KVK Speed-up Survey · 익명 조사용 페이지',
+    header: {
+      logout: '로그아웃',
+      logoutTooltip: '인증 세션을 즉시 만료합니다',
+      logoutConfirm: '로그아웃하시겠습니까?\n같은 브라우저에서 다시 사용하려면 PIN을 다시 입력해야 합니다.',
+    },
     kvk: {
       notice: {
         triggerLabel: '필독 안내문',

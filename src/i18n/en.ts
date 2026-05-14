@@ -663,6 +663,11 @@ export const en: Translations = {
   survey: {
     brand: 'KVK Speed-up Survey',
     footer: 'KVK Speed-up Survey · anonymous polling page',
+    header: {
+      logout: 'Log out',
+      logoutTooltip: 'End the current session immediately',
+      logoutConfirm: 'Log out?\nYou will need to re-enter your PIN to use this browser again.',
+    },
     kvk: {
       notice: {
         triggerLabel: 'Must-read notice',

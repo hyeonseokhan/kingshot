@@ -76,6 +76,35 @@
   letter-spacing: -0.01em;
   color: var(--sk-text-dim);
 }
+
+/* 헤더 우측 액션 — 로그아웃 + LangSwitcher 묶음 */
+.survey-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* LangSwitcher 와 동일 톤 (rgba 텍스트 + hover 배경). 인증 시에만 노출 — JS 가 hidden 토글. */
+.survey-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: all 0.15s;
+}
+.survey-logout-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.survey-logout-btn[hidden] { display: none; }
 .survey-main {
   flex: 1;
   max-width: 1100px;
