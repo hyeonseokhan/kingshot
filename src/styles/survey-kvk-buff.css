@@ -295,10 +295,25 @@
   background: #2c313d;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+/* placeholder(글자) + img 같은 셀에 stack — img 로드되면 글자 위로 덮음 */
+.sk-buff-slot-photo > * { grid-area: 1 / 1; }
+.sk-buff-slot-photo-letter {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
   font-weight: 700;
   font-size: 12px;
   color: var(--sk-text-dim);
-  flex-shrink: 0;
+}
+.sk-buff-slot-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 .sk-buff-slot-meta { min-width: 0; }
 .sk-buff-slot-name {

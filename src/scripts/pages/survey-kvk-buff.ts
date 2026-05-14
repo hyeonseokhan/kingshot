@@ -15,8 +15,20 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { t, onLangChange } from '@/i18n';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-buff';
-// TEMP: 5명 admin 실증 테스트 동안 임시로 과거 시각 (잠금 즉시 해제). 운영 복귀 시 '2026-05-16T01:00:00Z' 로 원복.
-const SURVEY_DEADLINE_ISO = '2024-01-01T00:00:00Z';
+
+// !!! TEST_MODE — 관리자 필드 테스트용 분기. 종료 후 제거 대상 !!!
+//   활성화: URL 쿼리에 ?test=1 (예: https://survey.kingshot.wooju-home.org/kvk/?test=1)
+//   영향:
+//     - SURVEY_DEADLINE_ISO 가 과거로 → 잠금 placeholder skip, 즉시 그리드 표시.
+//     - callFn body 에 test_mode: true 자동 동봉 → Edge Function 이 _test 테이블/RPC 사용.
+//   인증은 운영 그대로 (kvk_speedup_survey 의 본인 PIN 으로 로그인).
+//   제거: `TEST_MODE` 키워드 grep → 본 분기 + survey-kvk.ts + Edge Function + 마이그레이션 ROLLBACK.
+const TEST_MODE = typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('test');
+const SURVEY_DEADLINE_ISO = TEST_MODE
+  ? '2024-01-01T00:00:00Z'
+  : '2026-05-16T01:00:00Z';
+
 const TOTAL_SLOTS = 48;
 const POLL_INTERVAL_MS = 5000;
 
@@ -90,7 +102,8 @@ async function callFn<T = unknown>(body: Record<string, unknown>): Promise<T> {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify(body),
+    // !!! TEST_MODE — 모든 액션 body 에 test_mode 자동 동봉 (서버에서 _test 분기) !!!
+    body: JSON.stringify({ ...body, test_mode: TEST_MODE }),
   });
   return res.json();
 }
@@ -224,10 +237,17 @@ function renderGrid(): void {
     const time = formatSlotTime(i, tzMode);
     const holder = occupied.get(i);
     if (holder) {
+      const letter = escapeHtml(holder.survey?.nickname.charAt(0).toUpperCase() ?? '?');
+      const avatar = holder.survey?.avatar_url ?? '';
+      // letter placeholder 항상 깔고, avatar_url 있으면 img 로 위에 stack (grid:1/1).
+      // img 가 늦게 로드되더라도 빈 자리/깜박임 없음.
+      const photoHtml = avatar
+        ? `<span class="sk-buff-slot-photo-letter">${letter}</span><img class="sk-buff-slot-photo-img" src="${escapeHtml(avatar)}" alt="" loading="lazy" />`
+        : `<span class="sk-buff-slot-photo-letter">${letter}</span>`;
       card.innerHTML = `
         <span class="sk-buff-slot-time">${time}</span>
         <div class="sk-buff-slot-holder">
-          <div class="sk-buff-slot-photo">${escapeHtml(holder.survey?.nickname.charAt(0).toUpperCase() ?? '?')}</div>
+          <div class="sk-buff-slot-photo">${photoHtml}</div>
           <div class="sk-buff-slot-meta">
             <div class="sk-buff-slot-name">${escapeHtml(holder.survey?.nickname ?? holder.kingshot_id)}</div>
             <div class="sk-buff-slot-id">#${holder.kingshot_id}</div>

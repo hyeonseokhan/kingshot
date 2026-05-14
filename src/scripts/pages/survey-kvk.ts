@@ -80,10 +80,20 @@ interface PlayerInfo {
 /** TC(센터) 레벨 최소 자격. 서버측 검증과 일치 유지 (kvk-survey/index.ts MIN_CITY_LEVEL). */
 const MIN_CITY_LEVEL = 26;
 
-/** 설문 등록 마감 시각 (UTC). 안내문의 UTC 5월 16일 01:00 과 일치 유지.
- *  TEMP: 5명 admin 실증 테스트 동안 임시 단축 (가속권 페이지의 [등록/수정] → [버프 예약] 자동 전환).
- *        운영 복귀 시 '2026-05-16T01:00:00Z' 로 원복. */
-const SURVEY_DEADLINE_ISO = '2024-01-01T00:00:00Z';
+/** 설문 등록 마감 시각 (UTC). 안내문의 UTC 5월 16일 01:00 과 일치 유지. */
+//
+// !!! TEST_MODE — 관리자 필드 테스트용 분기. 종료 후 제거 대상 !!!
+//   활성화: URL 쿼리에 ?test=1 (예: https://survey.kingshot.wooju-home.org/kvk/?test=1)
+//   영향:
+//     - SURVEY_DEADLINE_ISO 가 과거로 → 즉시 buff 단계 진입 + 잠금 해제.
+//     - callFn body 에 test_mode: true 동봉 (survey-kvk-buff.ts) → Edge Function 이 _test 테이블 사용.
+//   인증/회원은 운영 그대로 (관리자 본인 PIN 으로 로그인).
+//   제거: `TEST_MODE` 키워드 grep → 본 분기 + survey-kvk-buff.ts + Edge Function + 마이그레이션 ROLLBACK.
+const TEST_MODE = typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('test');
+const SURVEY_DEADLINE_ISO = TEST_MODE
+  ? '2024-01-01T00:00:00Z'
+  : '2026-05-16T01:00:00Z';
 /** urgency 단계 (남은 시간 ms): 24h 이하 = 노랑, 6h 이하 = 빨강 + pulse */
 const URGENCY_WARN_MS = 24 * 60 * 60 * 1000;
 const URGENCY_DANGER_MS = 6 * 60 * 60 * 1000;
@@ -1184,8 +1194,19 @@ function mapError(code: string | null | undefined): string {
 // ===== boot =====
 
 function init(): void {
-  // 등록/수정 버튼 — 로그인 상태(=토큰 유효)면 폼 다이얼로그 바로, 미로그인이면 인증 다이얼로그.
+  // 등록/수정 버튼 — 마감 전: 로그인 상태에 따라 폼/인증 다이얼로그 / 마감 후: 버프 예약 다이얼로그.
+  // (마감 후 라벨/스타일 전환은 startDeadlineCountdown 이 처리. 클릭 분기는 여기 한 곳에서만.)
   $('sk-list-add').addEventListener('click', () => {
+    const isPastDeadline = Date.now() >= new Date(SURVEY_DEADLINE_ISO).getTime();
+    if (isPastDeadline) {
+      if (getAuth()) {
+        openBuffOverlay();
+      } else {
+        pendingBuffNavigate = true;
+        openAuthDialog();
+      }
+      return;
+    }
     const auth = getAuth();
     if (auth) {
       // 이미 로그인된 사용자 — PIN step skip 하고 폼 직진.
@@ -1476,23 +1497,14 @@ function startDeadlineCountdown(): void {
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
       // 마감 후 — 등록 차단하고 [버프 예약] 페이지 진입 버튼으로 자동 전환.
+      // 클릭 분기는 init() 의 단일 addEventListener 가 SURVEY_DEADLINE_ISO 기준으로 처리.
+      // (onclick 으로 또 다른 핸들러 박으면 두 핸들러 모두 발화 → 두 다이얼로그 동시 오픈 회귀.)
       btn.classList.remove('is-warning', 'is-danger', 'is-closed');
       btn.classList.add('is-buff-link');
       btn.disabled = false;
       if (labelEl) patchText(labelEl, t('survey.kvk.list.buffBookingButton'));
       const cd = btn.querySelector<HTMLElement>('.sk-list-add-countdown');
       if (cd) cd.style.display = 'none';
-      // 클릭 시:
-      //  - 인증된 사용자 → 버프 다이얼로그 즉시 오픈
-      //  - 미인증 → 기존 auth-dialog (ID + PIN). 인증 성공 후 자동 다이얼로그 오픈 (pendingBuffNavigate).
-      btn.onclick = () => {
-        if (getAuth()) {
-          openBuffOverlay();
-        } else {
-          pendingBuffNavigate = true;
-          openAuthDialog();
-        }
-      };
       if (countdownTimer !== null) {
         window.clearInterval(countdownTimer);
         countdownTimer = null;

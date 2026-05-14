@@ -2,12 +2,12 @@
  * kvk-buff Edge Function — KvK 버프 예약 페이지의 백엔드.
  *
  * 액션:
- *   { action: 'get-state', token? }                                    → { ok, state, participants[], me? }
+ *   { action: 'get-state', token?, test_mode? }                                    → { ok, state, participants[], me? }
  *     bootstrap 안 됐고 마감 지났으면 자동 init.
  *     token 주면 me (현재 사용자 정보 + is_admin) 도 함께 응답.
- *   { action: 'pick-slot', token, slot_idx, expected_turn_idx }        → { ok }
- *   { action: 'admin-skip', token, expected_turn_idx }                 → { ok }
- *   { action: 'admin-swap', token, slot_a_idx, slot_b_idx }            → { ok }
+ *   { action: 'pick-slot', token, slot_idx, expected_turn_idx, test_mode? }        → { ok }
+ *   { action: 'admin-skip', token, expected_turn_idx, test_mode? }                 → { ok }
+ *   { action: 'admin-swap', token, slot_a_idx, slot_b_idx, test_mode? }            → { ok }
  *
  * 권한: token 으로 kingshot_id 추출. admin 액션은 is_admin=TRUE 검증.
  *
@@ -15,6 +15,12 @@
  *
  * 동시성: 모든 변경은 plpgsql RPC 안에서 SELECT ... FOR UPDATE + 단일 UPDATE statement 로 atomic.
  *         RPC 가 stale 감지 시 'turn_changed' 에러 → 클라가 즉시 새 state fetch + 새로고침.
+ *
+ * !!! TEST_MODE — 관리자 필드 테스트 종료 후 제거 대상 !!!
+ *   body.test_mode === true → kvk_buff_*_test 테이블 + _test RPC 사용.
+ *   격리 범위: buff 테이블만. 인증/회원 (kvk_speedup_survey) 은 운영 그대로 공유.
+ *   bootstrap_test 는 deadline 검증 skip (테스트는 즉시 시작 가능).
+ *   제거: `TEST_MODE` 키워드 grep + isTest 분기 코드 일괄 제거 + 마이그레이션 ROLLBACK 적용.
  */
 
 const corsHeaders = {
@@ -85,7 +91,8 @@ interface Me {
   is_admin: boolean;
 }
 
-/** token → kvk_speedup_survey 의 사용자 정보 + is_admin. 만료 검증. */
+/** token → kvk_speedup_survey 의 사용자 정보 + is_admin. 만료 검증.
+ *  TEST_MODE 와 무관 — 인증/회원은 운영 테이블 그대로 사용. */
 async function authenticate(
   token: unknown,
 ): Promise<{ ok: true; me: Me } | { ok: false; error: string }> {
@@ -111,12 +118,20 @@ async function authenticate(
 /** 마감 시각 — 마이그레이션의 RPC 와 일치 유지. */
 const DEADLINE_ISO = "2026-05-16T01:00:00Z";
 
-async function getState(token: unknown) {
+// !!! TEST_MODE 분기 helper — 테스트 종료 후 제거 대상 !!!
+//   isTest=true 면 _test 테이블/RPC 이름 반환.
+const t = (name: string, isTest: boolean) => `${name}${isTest ? "_test" : ""}`;
+
+async function getState(token: unknown, isTest: boolean) {
   // 1. lazy bootstrap 시도 (마감 지났고 아직 init 안 됐으면)
-  const stateProbe = await dbSelectOne(`kvk_buff_state?id=eq.1&select=bootstrapped_at`);
-  if (stateProbe && !stateProbe.bootstrapped_at && new Date() >= new Date(DEADLINE_ISO)) {
+  //    !!! TEST_MODE: deadline 검증 skip — 테스트는 항상 즉시 bootstrap 가능
+  const stateProbe = await dbSelectOne(
+    `${t("kvk_buff_state", isTest)}?id=eq.1&select=bootstrapped_at`,
+  );
+  const canBootstrap = isTest || new Date() >= new Date(DEADLINE_ISO);
+  if (stateProbe && !stateProbe.bootstrapped_at && canBootstrap) {
     try {
-      await dbRpc("kvk_buff_bootstrap", {});
+      await dbRpc(t("kvk_buff_bootstrap", isTest), {});
     } catch (e) {
       // 두 클라 동시 호출 시 한 쪽은 NOOP 또는 race. 무시하고 진행.
       console.error("bootstrap (race ok):", (e as Error).message);
@@ -125,11 +140,12 @@ async function getState(token: unknown) {
 
   // 2. state + participants 조회 (참가자엔 닉네임/avatar 도 join 필요)
   const state = await dbSelectOne(
-    `kvk_buff_state?id=eq.1&select=bootstrapped_at,current_turn_idx,turn_started_at,updated_at`,
+    `${t("kvk_buff_state", isTest)}?id=eq.1&select=bootstrapped_at,current_turn_idx,turn_started_at,updated_at`,
   );
   // PostgREST embedded resource — kvk_speedup_survey 와 join (FK 자동 활용)
+  // _test 의 FK 도 운영 kvk_speedup_survey 참조 → 같은 embedded 패턴 동작.
   const participants = await dbSelect(
-    `kvk_buff_participants?select=kingshot_id,turn_idx,score_rank,was_verified,slot_idx,picked_at,survey:kvk_speedup_survey(nickname,avatar_url,city_level)` +
+    `${t("kvk_buff_participants", isTest)}?select=kingshot_id,turn_idx,score_rank,was_verified,slot_idx,picked_at,survey:kvk_speedup_survey(nickname,avatar_url,city_level)` +
       `&order=turn_idx.asc`,
   );
 
@@ -156,13 +172,13 @@ async function getState(token: unknown) {
   };
 }
 
-async function pickSlot(token: unknown, slotIdx: unknown, expectedTurnIdx: unknown) {
+async function pickSlot(token: unknown, slotIdx: unknown, expectedTurnIdx: unknown, isTest: boolean) {
   if (!isValidSlotIdx(slotIdx)) return { ok: false, error: "invalid_slot_idx" };
   if (!isValidTurnIdx(expectedTurnIdx)) return { ok: false, error: "invalid_turn_idx" };
   const auth = await authenticate(token);
   if (!auth.ok) return auth;
   try {
-    await dbRpc("kvk_buff_pick_slot", {
+    await dbRpc(t("kvk_buff_pick_slot", isTest), {
       p_kingshot_id: auth.me.kingshot_id,
       p_slot_idx: slotIdx,
       p_expected_turn_idx: expectedTurnIdx,
@@ -173,20 +189,20 @@ async function pickSlot(token: unknown, slotIdx: unknown, expectedTurnIdx: unkno
   }
 }
 
-async function adminSkip(token: unknown, expectedTurnIdx: unknown) {
+async function adminSkip(token: unknown, expectedTurnIdx: unknown, isTest: boolean) {
   if (!isValidTurnIdx(expectedTurnIdx)) return { ok: false, error: "invalid_turn_idx" };
   const auth = await authenticate(token);
   if (!auth.ok) return auth;
   if (!auth.me.is_admin) return { ok: false, error: "not_admin" };
   try {
-    await dbRpc("kvk_buff_admin_skip", { p_expected_turn_idx: expectedTurnIdx });
+    await dbRpc(t("kvk_buff_admin_skip", isTest), { p_expected_turn_idx: expectedTurnIdx });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
 }
 
-async function adminSwap(token: unknown, slotA: unknown, slotB: unknown) {
+async function adminSwap(token: unknown, slotA: unknown, slotB: unknown, isTest: boolean) {
   if (!isValidSlotIdx(slotA) || !isValidSlotIdx(slotB)) {
     return { ok: false, error: "invalid_slot_idx" };
   }
@@ -195,7 +211,10 @@ async function adminSwap(token: unknown, slotA: unknown, slotB: unknown) {
   if (!auth.ok) return auth;
   if (!auth.me.is_admin) return { ok: false, error: "not_admin" };
   try {
-    await dbRpc("kvk_buff_admin_swap", { p_slot_a_idx: slotA, p_slot_b_idx: slotB });
+    await dbRpc(t("kvk_buff_admin_swap", isTest), {
+      p_slot_a_idx: slotA,
+      p_slot_b_idx: slotB,
+    });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
@@ -207,19 +226,21 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { action, token, slot_idx, expected_turn_idx, slot_a_idx, slot_b_idx } = body ?? {};
+    // !!! TEST_MODE — 클라가 ?test=1 일 때만 true. default false (운영). !!!
+    const isTest = body?.test_mode === true;
     let result;
     switch (action) {
       case "get-state":
-        result = await getState(token);
+        result = await getState(token, isTest);
         break;
       case "pick-slot":
-        result = await pickSlot(token, slot_idx, expected_turn_idx);
+        result = await pickSlot(token, slot_idx, expected_turn_idx, isTest);
         break;
       case "admin-skip":
-        result = await adminSkip(token, expected_turn_idx);
+        result = await adminSkip(token, expected_turn_idx, isTest);
         break;
       case "admin-swap":
-        result = await adminSwap(token, slot_a_idx, slot_b_idx);
+        result = await adminSwap(token, slot_a_idx, slot_b_idx, isTest);
         break;
       default:
         result = { ok: false, error: "unknown_action" };
