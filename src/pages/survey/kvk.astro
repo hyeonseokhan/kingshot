@@ -1,6 +1,8 @@
 ---
 import SurveyLayout from '@/layouts/SurveyLayout.astro';
 import '@/styles/survey-kvk.css';
+// 버프 예약 다이얼로그 (sk-buff-*) — 마감 후 [버프 예약] 클릭 시 노출.
+import '@/styles/survey-kvk-buff.css';
 ---
 
 <SurveyLayout
@@ -622,6 +624,140 @@ import '@/styles/survey-kvk.css';
         src=""
         alt="인증샷"
       />
+    </dialog>
+
+    <!-- ===== 버프 예약 다이얼로그 (마감 후 [버프 예약] 클릭 시 노출) ===== -->
+    <dialog class="sk-buff-overlay" id="sk-buff-overlay" aria-labelledby="sk-buff-overlay-title">
+      <div class="sk-buff-overlay-card">
+        <header class="sk-buff-overlay-head">
+          <strong id="sk-buff-overlay-title" data-i18n="survey.kvkBuff.title">버프 예약</strong>
+          <button type="button" class="sk-dialog-close" id="sk-buff-overlay-close" aria-label="Close">&times;</button>
+        </header>
+        <div class="sk-buff-overlay-body">
+          <div class="sk-buff-page" id="sk-buff-page">
+            <button type="button" class="sk-notice-trigger" id="sk-buff-notice-trigger">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <span data-i18n="survey.kvkBuff.notice.triggerLabel">필독 안내문</span>
+            </button>
+
+            <section class="sk-buff-current" id="sk-buff-current">
+              <div class="sk-buff-current-main">
+                <div class="sk-buff-current-photo-wrap">
+                  <div class="sk-buff-current-photo-empty" id="sk-buff-current-photo-empty">?</div>
+                  <img class="sk-buff-current-photo" id="sk-buff-current-photo" alt="" hidden />
+                </div>
+                <div class="sk-buff-current-meta">
+                  <div class="sk-buff-current-name" id="sk-buff-current-name">-</div>
+                  <div class="sk-buff-current-id" id="sk-buff-current-id">-</div>
+                </div>
+                <button type="button" class="sk-buff-skip-btn" id="sk-buff-skip-btn" data-i18n="survey.kvkBuff.skipButton">스킵</button>
+                <span class="sk-buff-current-badge">
+                  <span data-i18n="survey.kvkBuff.selecting">선택중</span>
+                  <span class="sk-buff-current-elapsed" id="sk-buff-current-elapsed">0:00</span>
+                </span>
+                <svg class="sk-buff-current-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div class="sk-buff-current-queue-wrap">
+                <div class="sk-buff-current-queue">
+                  <div class="sk-buff-queue-label" data-i18n="survey.kvkBuff.nextLabel">다음 차례</div>
+                  <ol class="sk-buff-queue-list" id="sk-buff-current-queue"></ol>
+                </div>
+              </div>
+              <div class="sk-buff-current-completed" data-i18n="survey.kvkBuff.completed">
+                모든 사용자가 시간을 선택했습니다
+              </div>
+            </section>
+
+            <div class="sk-buff-tz">
+              <button type="button" class="sk-buff-toggle" id="sk-buff-tz-toggle">KST → UTC</button>
+              <button type="button" class="sk-buff-toggle" id="sk-buff-filter-toggle" data-i18n="survey.kvkBuff.filterAvailable">남은 자리</button>
+              <button type="button" class="sk-buff-toggle" id="sk-buff-copy-toggle" data-i18n="survey.kvkBuff.copyButton">복사하기</button>
+            </div>
+
+            <div class="sk-buff-grid" id="sk-buff-grid"></div>
+
+            <div class="sk-buff-locked" id="sk-buff-locked" hidden>
+              <div class="sk-buff-locked-title" data-i18n="survey.kvkBuff.locked.title">🔒 아직 예약을 시작할 수 없어요</div>
+              <p class="sk-buff-locked-body" id="sk-buff-locked-body" data-i18n="survey.kvkBuff.locked.bodyBeforeDeadline">
+                설문 마감 (UTC 5월 16일 01:00) 후 자동으로 예약이 시작됩니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- 버프 안내문 다이얼로그 -->
+    <dialog class="sk-dialog sk-buff-notice-dialog" id="sk-buff-notice-dialog" aria-labelledby="sk-buff-notice-title">
+      <div class="sk-dialog-card">
+        <header class="sk-dialog-head">
+          <strong id="sk-buff-notice-title" data-i18n="survey.kvkBuff.notice.triggerLabel">필독 안내문</strong>
+          <button type="button" class="sk-dialog-close" id="sk-buff-notice-close" aria-label="Close">&times;</button>
+        </header>
+        <div class="sk-dialog-body">
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvkBuff.notice.flow.title">진행 방식</h4>
+            <ul class="sk-notice-list">
+              <li data-i18n-html="survey.kvkBuff.notice.flow.body1">예측 점수 <strong>순위 기준</strong>으로 순차적으로 시간 선택.</li>
+              <li data-i18n-html="survey.kvkBuff.notice.flow.body2"><strong>"선택중"</strong>인 사용자 프로필을 클릭하면 대기 순번 일부 노출.</li>
+            </ul>
+          </section>
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvkBuff.notice.window.title">선택 가능 시간</h4>
+            <p class="sk-notice-lead" data-i18n-html="survey.kvkBuff.notice.window.body">
+              <strong>UTC 5월 16일 01:00 ~ 03:00</strong> (2시간) 동안 지정 가능.
+            </p>
+          </section>
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvkBuff.notice.caution.title">주의사항</h4>
+            <ul class="sk-notice-list">
+              <li data-i18n-html="survey.kvkBuff.notice.caution.body">선택된 시간은 <strong class="sk-notice-warn">변경이 어렵습니다</strong> — 신중히 선택해 주세요.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- 슬롯 선택 confirm -->
+    <dialog class="sk-buff-confirm" id="sk-buff-confirm-dialog" aria-label="시간 선택 확인">
+      <div class="sk-buff-confirm-card">
+        <p class="sk-buff-confirm-body">
+          <strong id="sk-buff-confirm-time">00:00</strong>
+          <span data-i18n="survey.kvkBuff.confirm.pickSlot">시간을 선택하시겠습니까?</span>
+        </p>
+        <div class="sk-buff-confirm-actions">
+          <button type="button" class="sk-buff-confirm-cancel" id="sk-buff-confirm-cancel" data-i18n="survey.kvkBuff.confirm.cancel">취소</button>
+          <button type="button" class="sk-buff-confirm-ok" id="sk-buff-confirm-ok" data-i18n="survey.kvkBuff.confirm.pick">선택</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- 스킵 confirm (admin) -->
+    <dialog class="sk-buff-confirm" id="sk-buff-skip-dialog" aria-label="순서 변경 확인">
+      <div class="sk-buff-confirm-card">
+        <p class="sk-buff-confirm-body" id="sk-buff-skip-body"></p>
+        <div class="sk-buff-confirm-actions">
+          <button type="button" class="sk-buff-confirm-cancel" id="sk-buff-skip-cancel" data-i18n="survey.kvkBuff.confirm.cancel">취소</button>
+          <button type="button" class="sk-buff-confirm-ok" id="sk-buff-skip-ok" data-i18n="survey.kvkBuff.confirm.confirm">확인</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- swap confirm (admin) -->
+    <dialog class="sk-buff-confirm" id="sk-buff-swap-dialog" aria-label="자리 교환 확인">
+      <div class="sk-buff-confirm-card">
+        <p class="sk-buff-confirm-body" id="sk-buff-swap-body"></p>
+        <div class="sk-buff-confirm-actions">
+          <button type="button" class="sk-buff-confirm-cancel" id="sk-buff-swap-cancel" data-i18n="survey.kvkBuff.confirm.cancel">취소</button>
+          <button type="button" class="sk-buff-confirm-ok" id="sk-buff-swap-ok" data-i18n="survey.kvkBuff.confirm.confirm">확인</button>
+        </div>
+      </div>
     </dialog>
   </div>
 

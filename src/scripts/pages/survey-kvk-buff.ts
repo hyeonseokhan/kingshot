@@ -487,15 +487,8 @@ function init(): void {
   });
   $('sk-buff-swap-ok').addEventListener('click', onSwapConfirm);
 
-  // 카운트다운 1초 tick
-  elapsedTimer = window.setInterval(tickElapsed, 1000);
-
   // 마감 전이면 잠금 화면 + 마감 시각까지 카운트다운만 띄움 (state 무관 우선 표시)
   renderLocked();
-
-  // 첫 fetch + 5초 polling
-  void pollState();
-  pollingTimer = window.setInterval(pollState, POLL_INTERVAL_MS);
 
   // 언어 변경 시 dynamic 텍스트 재렌더
   onLangChange(() => {
@@ -509,9 +502,28 @@ function init(): void {
   });
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
+/** 다이얼로그 오픈 시 호출 — 첫 fetch + 5초 polling + 1초 tick 시작. */
+export function startBuffPolling(): void {
+  if (pollingTimer !== null) return; // 이미 polling 중
+  void pollState();
+  pollingTimer = window.setInterval(pollState, POLL_INTERVAL_MS);
+  elapsedTimer = window.setInterval(tickElapsed, 1000);
+}
+
+/** 다이얼로그 close 시 호출 — polling/tick 중지 (네트워크/CPU 절약). */
+export function stopBuffPolling(): void {
+  if (pollingTimer !== null) {
+    window.clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
+  if (elapsedTimer !== null) {
+    window.clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+}
+
+/** 가속권 페이지가 호출 — DOM 준비된 후 한 번만. 이벤트 핸들러 등록만 (polling X). */
+export function setupBuffDialog(): void {
   init();
 }
 

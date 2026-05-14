@@ -20,6 +20,11 @@ import { formatRelativeTime } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
 import { estimateKvKScore } from '@/lib/kvk-score';
 import { optimizeImage } from '@/lib/image-optimize';
+import {
+  setupBuffDialog,
+  startBuffPolling,
+  stopBuffPolling,
+} from './survey-kvk-buff';
 import { appConfirm } from '@/lib/dialog';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-survey';
@@ -458,11 +463,11 @@ async function onConfirmPin(): Promise<void> {
     return;
   }
   saveAuth({ token: json.token, expires_at: json.expires_at, record: json.record });
-  // 마감 후 [버프 예약] 클릭으로 진입한 흐름이면 폼 다이얼로그 skip + 즉시 /kvk-buff/.
+  // 마감 후 [버프 예약] 클릭으로 진입한 흐름이면 폼 다이얼로그 skip + 즉시 버프 오버레이 오픈.
   if (pendingBuffNavigate) {
     pendingBuffNavigate = false;
     closeAuthDialog();
-    window.location.href = '/kvk-buff/';
+    openBuffOverlay();
     return;
   }
   session.pin = pin;
@@ -1411,6 +1416,16 @@ function init(): void {
   // 마감 카운트다운 — 등록/수정 버튼 안 카운트다운 텍스트 + urgency 색 단계 갱신.
   startDeadlineCountdown();
 
+  // 버프 다이얼로그 — 이벤트 핸들러 등록 (polling 은 다이얼로그 오픈 시).
+  setupBuffDialog();
+  // 닫기 X 버튼 + ESC/backdrop 시 polling 중지
+  document.getElementById('sk-buff-overlay-close')?.addEventListener('click', closeBuffOverlay);
+  document.getElementById('sk-buff-overlay')?.addEventListener('close', () => stopBuffPolling());
+  document.getElementById('sk-buff-overlay')?.addEventListener('click', (e) => {
+    const dlg = e.currentTarget as HTMLDialogElement;
+    if (e.target === dlg) closeBuffOverlay();
+  });
+
   // boot — 저장된 토큰 있으면 서버 verify-token 으로 검증 후 자동 로그인 + 잠금 해제.
   // verify-token 실패 (만료/무효/강등) 시 토큰 제거 → 잠금 placeholder 노출.
   void bootVerifyAuth();
@@ -1434,8 +1449,22 @@ function formatCountdown(ms: number): string {
 let countdownTimer: number | null = null;
 
 /** 마감 후 [버프 예약] 클릭 시점에 미인증이면 auth-dialog 오픈 + 이 플래그 set.
- *  인증 성공 (saveAuth 호출 후) → 자동 /kvk-buff/ 리다이렉트. */
+ *  인증 성공 (saveAuth 호출 후) → 자동 버프 오버레이 오픈. */
 let pendingBuffNavigate = false;
+
+/** 버프 다이얼로그 — 같은 페이지에 통합. 오픈 시 polling 시작, close 시 중지. */
+function openBuffOverlay(): void {
+  const dlg = document.getElementById('sk-buff-overlay') as HTMLDialogElement | null;
+  if (!dlg) return;
+  if (!dlg.open) dlg.showModal();
+  startBuffPolling();
+}
+function closeBuffOverlay(): void {
+  const dlg = document.getElementById('sk-buff-overlay') as HTMLDialogElement | null;
+  if (!dlg) return;
+  if (dlg.open) dlg.close();
+  stopBuffPolling();
+}
 
 function startDeadlineCountdown(): void {
   const btn = $<HTMLButtonElement>('sk-list-add');
@@ -1454,11 +1483,11 @@ function startDeadlineCountdown(): void {
       const cd = btn.querySelector<HTMLElement>('.sk-list-add-countdown');
       if (cd) cd.style.display = 'none';
       // 클릭 시:
-      //  - 인증된 사용자 → 즉시 /kvk-buff/ 이동
-      //  - 미인증 → 기존 auth-dialog (ID + PIN). 인증 성공 후 자동 이동 (pendingBuffNavigate).
+      //  - 인증된 사용자 → 버프 다이얼로그 즉시 오픈
+      //  - 미인증 → 기존 auth-dialog (ID + PIN). 인증 성공 후 자동 다이얼로그 오픈 (pendingBuffNavigate).
       btn.onclick = () => {
         if (getAuth()) {
-          window.location.href = '/kvk-buff/';
+          openBuffOverlay();
         } else {
           pendingBuffNavigate = true;
           openAuthDialog();
