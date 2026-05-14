@@ -31,11 +31,50 @@ import '@/styles/survey-kvk.css';
           >&times;</button>
         </header>
         <div class="sk-dialog-body">
-          <ul class="sk-notice-list">
-            <li data-i18n-html="survey.kvk.notice.line2">등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.</li>
-            <li data-i18n-html="survey.kvk.notice.reward"><strong>상위 48명 보상</strong>: 1일차(건설) / 4일차(병사) 국왕스킬을 30분씩 순차 로테이션 (24시간).</li>
-            <li data-i18n-html="survey.kvk.notice.usage"><strong>가속권은 모두 KvK 점수에 투입</strong>해 주세요. 과도 보유 / 허위 제출 시 <strong class="sk-notice-warn">패널티가 부과</strong>됩니다.</li>
-          </ul>
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvk.notice.signup.title">설문 등록</h4>
+            <ul class="sk-notice-list">
+              <li data-i18n-html="survey.kvk.notice.signup.deadline">마감: <strong>UTC 5월 16일 01:00</strong></li>
+              <li data-i18n-html="survey.kvk.notice.signup.eligibility">자격: <strong>TC 26 이상</strong></li>
+            </ul>
+          </section>
+
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvk.notice.ranking.title">순위 기준</h4>
+            <p class="sk-notice-lead" data-i18n="survey.kvk.notice.ranking.intro">
+              보유 가속권의 예측 점수로 순위 결정.
+            </p>
+            <ul class="sk-notice-list">
+              <li data-i18n-html="survey.kvk.notice.ranking.tier1"><strong>1순위</strong>: 상위 48위 + 이미지 인증</li>
+              <li data-i18n-html="survey.kvk.notice.ranking.tier2"><strong>2순위</strong>: 이미지 인증</li>
+            </ul>
+            <p class="sk-notice-example" data-i18n="survey.kvk.notice.ranking.example">
+              예) 46~48위(미인증)보다 49위(인증)가 우선.
+            </p>
+          </section>
+
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvk.notice.reward.title">순위 보상</h4>
+            <p class="sk-notice-lead" data-i18n-html="survey.kvk.notice.reward.body">
+              상위 48명에게 <strong>1일차(건설) / 4일차(병사)</strong> 국왕스킬 30분씩 순차 부여.
+            </p>
+          </section>
+
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvk.notice.schedule.title">시간 예약</h4>
+            <ul class="sk-notice-list">
+              <li data-i18n-html="survey.kvk.notice.schedule.body1">설문 종료 후 <strong>버프 예약 페이지</strong>에서 사용 시간 직접 선택.</li>
+              <li data-i18n="survey.kvk.notice.schedule.body2">순위 1위부터 순차 진행.</li>
+            </ul>
+          </section>
+
+          <section class="sk-notice-section">
+            <h4 class="sk-notice-section-title" data-i18n="survey.kvk.notice.caution.title">주의사항</h4>
+            <ul class="sk-notice-list">
+              <li data-i18n="survey.kvk.notice.caution.body1">가속권은 최대한 KvK 점수에 투입해 주세요.</li>
+              <li data-i18n-html="survey.kvk.notice.caution.body2"><strong class="sk-notice-warn">허위 제출 / 예측 점수 미달 시 패널티</strong>가 부과됩니다.</li>
+            </ul>
+          </section>
         </div>
       </div>
     </dialog>
@@ -375,10 +414,14 @@ import '@/styles/survey-kvk.css';
           </button>
           <button
             type="button"
-            class="sk-btn sk-btn-primary"
+            class="sk-btn sk-btn-primary sk-list-add"
             id="sk-list-add"
-            data-i18n="survey.kvk.list.addButton"
-          >등록 / 수정</button>
+          >
+            <span class="sk-list-add-label" data-i18n="survey.kvk.list.addButton">등록 / 수정</span>
+            <span class="sk-list-add-countdown" id="sk-list-add-countdown" aria-live="off">
+              <span id="sk-list-add-countdown-text">--</span>
+            </span>
+          </button>
         </div>
       </header>
 
@@ -556,13 +599,17 @@ import '@/styles/survey-kvk.css';
       </div>
     </dialog>
 
-    <!-- (D-2) 도움말 이미지 lightbox — 아무 곳이나 클릭하면 닫힘 -->
+    <!-- (D-2) 도움말 이미지 lightbox — 아무 곳이나 클릭하면 닫힘.
+         src 는 의도적으로 비워둠. data-src 에 실제 경로 두고, openImageDialog() 가
+         첫 오픈 시점에 src 를 set. 이유: loading="lazy" + <dialog>(display:none) 조합에서
+         카운트다운 1s tick 의 layout 변경이 IntersectionObserver 재평가 트리거 → 매초 fetch
+         발생. JS 제어로 첫 오픈 시 1회만 로드하면 이후 브라우저 캐시 히트. -->
     <dialog class="sk-image-dialog" id="sk-image-dialog" aria-label="가속권 현황 화면 예시">
       <img
         class="sk-image-dialog-img"
-        src="/images/survey/speedup-stats.png"
+        id="sk-image-dialog-img"
+        data-src="/images/survey/speedup-stats.png"
         alt="게임 내 가속권 현황 화면"
-        loading="lazy"
       />
     </dialog>
 

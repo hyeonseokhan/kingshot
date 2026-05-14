@@ -74,6 +74,12 @@ interface PlayerInfo {
 /** TC(센터) 레벨 최소 자격. 서버측 검증과 일치 유지 (kvk-survey/index.ts MIN_CITY_LEVEL). */
 const MIN_CITY_LEVEL = 26;
 
+/** 설문 등록 마감 시각 (UTC). 안내문의 UTC 5월 16일 01:00 과 일치 유지. */
+const SURVEY_DEADLINE_ISO = '2026-05-16T01:00:00Z';
+/** urgency 단계 (남은 시간 ms): 24h 이하 = 노랑, 6h 이하 = 빨강 + pulse */
+const URGENCY_WARN_MS = 24 * 60 * 60 * 1000;
+const URGENCY_DANGER_MS = 6 * 60 * 60 * 1000;
+
 /** 열람 잠금 해제 상태 키 — sessionStorage 라 탭 닫으면 자동 reset.
  *  토큰 기반 인증 도입 후에도 유지: localStorage AUTH 가 verify-token 으로 인증되면 이 키도 같이 세팅.
  *  (UI 의 .is-unlocked 클래스는 한 곳에서만 토글하면 됨) */
@@ -1009,6 +1015,12 @@ function formatDuration(minutes: number): string {
 
 function openImageDialog(): void {
   const dlg = $<HTMLDialogElement>('sk-image-dialog');
+  // 첫 오픈 시점에만 data-src → src swap. 이후 브라우저 cache 히트.
+  // (HTML 에 src 박아두고 loading="lazy" 쓰면 카운트다운 매 tick 마다 재fetch 발생 — astro 의 known issue)
+  const img = $<HTMLImageElement>('sk-image-dialog-img');
+  if (img && !img.src && img.dataset.src) {
+    img.src = img.dataset.src;
+  }
   if (!dlg.open) dlg.showModal();
 }
 
@@ -1361,9 +1373,58 @@ function init(): void {
     if (ph) ph.textContent = t('survey.kvk.form.preferredTimePlaceholder');
   });
 
+  // 마감 카운트다운 — 등록/수정 버튼 안 카운트다운 텍스트 + urgency 색 단계 갱신.
+  startDeadlineCountdown();
+
   // boot — 저장된 토큰 있으면 서버 verify-token 으로 검증 후 자동 로그인 + 잠금 해제.
   // verify-token 실패 (만료/무효/강등) 시 토큰 제거 → 잠금 placeholder 노출.
   void bootVerifyAuth();
+}
+
+/** 마감까지 남은 시간 포맷. 항상 초 단위 포함. 큰 단위는 0 일 때 자동 truncate. */
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m ${s}s`;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+/** 등록/수정 버튼의 카운트다운 텍스트 + urgency 클래스 1초마다 갱신.
+ *  마감 시 disabled + "등록 마감" 라벨로 전환 + interval 정리. */
+let countdownTimer: number | null = null;
+function startDeadlineCountdown(): void {
+  const btn = $<HTMLButtonElement>('sk-list-add');
+  const txt = $('sk-list-add-countdown-text');
+  const labelEl = btn.querySelector<HTMLElement>('.sk-list-add-label');
+  const deadline = new Date(SURVEY_DEADLINE_ISO).getTime();
+
+  function tick() {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      btn.classList.remove('is-warning', 'is-danger');
+      btn.classList.add('is-closed');
+      btn.disabled = true;
+      if (labelEl) patchText(labelEl, t('survey.kvk.list.addButtonClosed'));
+      if (countdownTimer !== null) {
+        window.clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+      return;
+    }
+    patchText(txt, formatCountdown(remaining));
+    btn.classList.toggle(
+      'is-warning',
+      remaining <= URGENCY_WARN_MS && remaining > URGENCY_DANGER_MS,
+    );
+    btn.classList.toggle('is-danger', remaining <= URGENCY_DANGER_MS);
+  }
+  tick();
+  countdownTimer = window.setInterval(tick, 1000);
 }
 
 async function bootVerifyAuth(): Promise<void> {
