@@ -27,6 +27,7 @@ import {
   setBuffTestMode,
 } from './survey-kvk-buff';
 import { appConfirm } from '@/lib/dialog';
+import { SURVEY_DEADLINE_ISO } from '@/lib/survey-deadline';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-survey';
 
@@ -81,20 +82,8 @@ interface PlayerInfo {
 /** TC(센터) 레벨 최소 자격. 서버측 검증과 일치 유지 (kvk-survey/index.ts MIN_CITY_LEVEL). */
 const MIN_CITY_LEVEL = 26;
 
-/** 설문 등록 마감 시각 (UTC). 안내문의 UTC 5월 16일 01:00 과 일치 유지. */
-//
-// !!! TEST_MODE — 관리자 필드 테스트용 분기. 종료 후 제거 대상 !!!
-//   활성화: URL 쿼리에 ?test=1 (예: https://survey.kingshot.wooju-home.org/kvk/?test=1)
-//   영향:
-//     - SURVEY_DEADLINE_ISO 가 과거로 → 즉시 buff 단계 진입 + 잠금 해제.
-//     - callFn body 에 test_mode: true 동봉 (survey-kvk-buff.ts) → Edge Function 이 _test 테이블 사용.
-//   인증/회원은 운영 그대로 (관리자 본인 PIN 으로 로그인).
-//   제거: `TEST_MODE` 키워드 grep → 본 분기 + survey-kvk-buff.ts + Edge Function + 마이그레이션 ROLLBACK.
-const TEST_MODE = typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).has('test');
-const SURVEY_DEADLINE_ISO = TEST_MODE
-  ? '2024-01-01T00:00:00Z'
-  : '2026-05-16T01:00:00Z';
+/** 설문 등록 마감 시각 (UTC). 안내문의 UTC 5월 16일 01:00 과 일치 유지.
+ *  단일 source — src/lib/survey-deadline.ts. 클라/서버 동기화 정책은 그 파일 참조. */
 /** urgency 단계 (남은 시간 ms): 24h 이하 = 노랑, 6h 이하 = 빨강 + pulse */
 const URGENCY_WARN_MS = 24 * 60 * 60 * 1000;
 const URGENCY_DANGER_MS = 6 * 60 * 60 * 1000;
@@ -306,7 +295,7 @@ function saveAuth(state: AuthState): void {
   // 호출자는 saveAuth 만 부르면 UI 잠금/헤더/목록 모두 일관 유지됨.
   applyUnlockState();
   syncHeaderLogoutBtn();
-  syncTestBtn();
+  syncListButtons();
   if (!wasUnlocked) {
     // 잠금 해제 첫 transition — 목록 자동 fetch (fire-and-forget).
     // 단순 record 갱신 (이미 unlocked) 인 경우엔 중복 fetch 회피.
@@ -335,7 +324,7 @@ function clearAuth(): void {
   // 인증 만료/제거 → 잠금 placeholder + 헤더 [로그아웃]/[테스트] 숨김 자동 sync.
   applyUnlockState();
   syncHeaderLogoutBtn();
-  syncTestBtn();
+  syncListButtons();
 }
 
 /** 헤더 우측 [로그아웃] 버튼 visibility — 인증 세션 유무 따라 hidden 토글.
@@ -346,12 +335,26 @@ function syncHeaderLogoutBtn(): void {
   btn.hidden = !getAuth();
 }
 
-/** 목록 헤더의 [테스트] 버튼 visibility — 인증된 admin 만 노출.
- *  saveAuth/clearAuth 시 자동 호출. */
-function syncTestBtn(): void {
-  const btn = document.getElementById('sk-list-test');
-  if (!btn) return;
-  btn.hidden = getAuth()?.record.is_admin !== true;
+/** 목록 헤더의 액션 버튼 3종 visibility — deadline + auth + admin 보고 한 곳에서 토글.
+ *  saveAuth/clearAuth (인증 변화) / startDeadlineCountdown 의 tick (마감 도달) 시 자동 호출.
+ *
+ *  노출 매트릭스:
+ *    [등록/수정] sk-list-add  : 마감 전만
+ *    [버프 예약] sk-list-buff : 마감 후만
+ *    [테스트]    sk-list-test : admin (마감 전/후 무관)
+ *
+ *  각 버튼은 자기 클릭 핸들러 (onClickRegister / onClickBuffBooking / onClickTest) 한 개씩만 가짐.
+ *  → if 분기로 한 핸들러 안에서 시점에 따라 동작 swap 하던 구조 제거 → 유지보수 용이. */
+function syncListButtons(): void {
+  const isPastDeadline = Date.now() >= new Date(SURVEY_DEADLINE_ISO).getTime();
+  const isAdmin = getAuth()?.record.is_admin === true;
+  const setHidden = (id: string, hidden: boolean) => {
+    const el = document.getElementById(id);
+    if (el) (el as HTMLButtonElement).hidden = hidden;
+  };
+  setHidden('sk-list-add', isPastDeadline);
+  setHidden('sk-list-buff', !isPastDeadline);
+  setHidden('sk-list-test', !isAdmin);
 }
 
 /** 명시적 로그아웃 — confirm → 서버 token 무효화 (best-effort, fire-and-forget) →
@@ -1238,45 +1241,56 @@ function mapError(code: string | null | undefined): string {
 
 // ===== boot =====
 
+/** [등록/수정] 클릭 — 마감 전 등록 폼 진입. 인증 됨이면 폼 직진, 미인증이면 인증 다이얼로그. */
+function onClickRegister(): void {
+  const auth = getAuth();
+  if (auth) {
+    // 이미 로그인된 사용자 — PIN step skip 하고 폼 직진.
+    // 캐시된 record + 최신 nickname/avatar 는 server 갱신본을 update 응답에서 받음.
+    session = {
+      player: {
+        kingshot_id: auth.record.kingshot_id,
+        nickname: auth.record.nickname,
+        avatar_url: auth.record.avatar_url,
+        city_level: MIN_CITY_LEVEL, // 자격 미달이면 update API 가 다시 차단 (서버 게이트)
+      },
+      pin: '',
+      mode: 'update',
+      prefill: {
+        training: auth.record.training,
+        construction: auth.record.construction,
+        general: auth.record.general,
+        evidence_uploaded_at: auth.record.evidence_uploaded_at ?? null,
+      },
+    };
+    enterFormMode();
+  } else {
+    openAuthDialog();
+  }
+}
+
+/** [버프 예약] 클릭 — 마감 후 운영 buff overlay (testMode=false) 진입.
+ *  미인증이면 인증 다이얼로그 + pendingBuffNavigate 플래그 (인증 성공 후 자동 진입). */
+function onClickBuffBooking(): void {
+  if (getAuth()) {
+    openBuffOverlay();
+  } else {
+    pendingBuffNavigate = true;
+    openAuthDialog();
+  }
+}
+
+/** [테스트] 클릭 — admin 전용. _test 테이블 격리 모드로 buff overlay 진입. */
+function onClickTest(): void {
+  setBuffTestMode(true);
+  openBuffOverlay();
+}
+
 function init(): void {
-  // 등록/수정 버튼 — 마감 전: 로그인 상태에 따라 폼/인증 다이얼로그 / 마감 후: 버프 예약 다이얼로그.
-  // (마감 후 라벨/스타일 전환은 startDeadlineCountdown 이 처리. 클릭 분기는 여기 한 곳에서만.)
-  $('sk-list-add').addEventListener('click', () => {
-    const isPastDeadline = Date.now() >= new Date(SURVEY_DEADLINE_ISO).getTime();
-    if (isPastDeadline) {
-      if (getAuth()) {
-        openBuffOverlay();
-      } else {
-        pendingBuffNavigate = true;
-        openAuthDialog();
-      }
-      return;
-    }
-    const auth = getAuth();
-    if (auth) {
-      // 이미 로그인된 사용자 — PIN step skip 하고 폼 직진.
-      // 캐시된 record + 최신 nickname/avatar 는 server 갱신본을 update 응답에서 받음.
-      session = {
-        player: {
-          kingshot_id: auth.record.kingshot_id,
-          nickname: auth.record.nickname,
-          avatar_url: auth.record.avatar_url,
-          city_level: MIN_CITY_LEVEL, // 자격 미달이면 update API 가 다시 차단 (서버 게이트)
-        },
-        pin: '',
-        mode: 'update',
-        prefill: {
-          training: auth.record.training,
-          construction: auth.record.construction,
-          general: auth.record.general,
-          evidence_uploaded_at: auth.record.evidence_uploaded_at ?? null,
-        },
-      };
-      enterFormMode();
-    } else {
-      openAuthDialog();
-    }
-  });
+  // 액션 버튼 3종 — 각자 자기 트리거 함수만 가짐. visibility 는 syncListButtons 일괄 토글.
+  $('sk-list-add').addEventListener('click', onClickRegister);
+  $('sk-list-buff').addEventListener('click', onClickBuffBooking);
+  $('sk-list-test').addEventListener('click', onClickTest);
   $('sk-auth-close').addEventListener('click', closeAuthDialog);
   $('sk-id-search').addEventListener('click', onSearchId);
   $('sk-id-input').addEventListener('keydown', (e) => {
@@ -1479,17 +1493,14 @@ function init(): void {
   document.getElementById('sk-logout-btn')?.addEventListener('click', onLogoutClick);
   syncHeaderLogoutBtn();
 
-  // 관리자 전용 [테스트] 버튼 — admin 만 노출 (saveAuth/clearAuth 시 자동 sync).
-  // 클릭 시 buff 다이얼로그를 TEST_MODE 로 진입 — _test 테이블 사용, 운영 데이터 무영향.
-  document.getElementById('sk-list-test')?.addEventListener('click', () => {
-    setBuffTestMode(true);
-    openBuffOverlay();
-  });
-  // syncTestBtn() boot 즉시 호출 안 함 — HTML 의 `hidden` 기본값 유지.
-  // verify-token 응답 후 saveAuth()/clearAuth() 가 자동으로 syncTestBtn() 호출 → 서버 검증된
-  // is_admin 으로만 노출 결정. (캐시 stale admin=true 로 잠깐 보였다가 사라지는 깜박임 차단.)
+  // 액션 버튼 visibility — boot 즉시 호출 안 함. HTML 의 `hidden` 기본값 유지 →
+  // verify-token 응답 후 saveAuth()/clearAuth() 가 자동으로 syncListButtons() 호출 →
+  // 서버 검증된 is_admin + 현재 시각 vs deadline 으로 노출 결정. (캐시 stale admin=true 로
+  // 잠깐 보였다가 사라지는 깜박임 차단.) 마감 미인증 사용자엔 [등록/수정] 만 노출되도록
+  // syncListButtons 가 mb-deadline 만 보고 노출 — 인증 안 됐어도 클릭 시 인증 다이얼로그.
 
-  // 마감 카운트다운 — 등록/수정 버튼 안 카운트다운 텍스트 + urgency 색 단계 갱신.
+  // 마감 카운트다운 — [등록/수정] 의 카운트다운 텍스트 + urgency 색 단계.
+  // 마감 도달 시 syncListButtons() 호출 → [등록/수정] hidden + [버프 예약] show 자동 전환.
   startDeadlineCountdown();
 
   // 버프 다이얼로그 — 이벤트 핸들러 등록 (polling 은 다이얼로그 오픈 시).
@@ -1548,21 +1559,14 @@ function closeBuffOverlay(): void {
 function startDeadlineCountdown(): void {
   const btn = $<HTMLButtonElement>('sk-list-add');
   const txt = $('sk-list-add-countdown-text');
-  const labelEl = btn.querySelector<HTMLElement>('.sk-list-add-label');
   const deadline = new Date(SURVEY_DEADLINE_ISO).getTime();
 
   function tick() {
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
-      // 마감 후 — 등록 차단하고 [버프 예약] 페이지 진입 버튼으로 자동 전환.
-      // 클릭 분기는 init() 의 단일 addEventListener 가 SURVEY_DEADLINE_ISO 기준으로 처리.
-      // (onclick 으로 또 다른 핸들러 박으면 두 핸들러 모두 발화 → 두 다이얼로그 동시 오픈 회귀.)
-      btn.classList.remove('is-warning', 'is-danger', 'is-closed');
-      btn.classList.add('is-buff-link');
-      btn.disabled = false;
-      if (labelEl) patchText(labelEl, t('survey.kvk.list.buffBookingButton'));
-      const cd = btn.querySelector<HTMLElement>('.sk-list-add-countdown');
-      if (cd) cd.style.display = 'none';
+      // 마감 도달 — [등록/수정] hidden + [버프 예약] show 로 자동 전환.
+      // 라벨/스타일 swap 하지 않고 syncListButtons 가 visibility 만 토글 → 비즈니스 로직 분리 유지.
+      syncListButtons();
       if (countdownTimer !== null) {
         window.clearInterval(countdownTimer);
         countdownTimer = null;
@@ -1578,6 +1582,9 @@ function startDeadlineCountdown(): void {
   }
   tick();
   countdownTimer = window.setInterval(tick, 1000);
+  // 첫 paint 직후 한 번 호출 — 미인증 사용자도 마감 전이면 [등록/수정] 즉시 노출.
+  // (이후 saveAuth/clearAuth 안에서 자동 호출됨.)
+  syncListButtons();
 }
 
 async function bootVerifyAuth(): Promise<void> {

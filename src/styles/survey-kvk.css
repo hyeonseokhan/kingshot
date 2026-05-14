@@ -969,15 +969,36 @@ html:has(.sk-buff-overlay[open]) {
   align-items: center;
   gap: 8px;
 }
-/* 등록 / 수정 — 두 줄 (라벨 + 카운트다운). toolbar 의 32px 고정 override. */
+/* 등록 / 수정 — 두 줄 (라벨 + 카운트다운). toolbar 의 32px 고정 override.
+   min-width 고정 — 카운트다운 자릿수 변화 (1d 2h 3m 4s ↔ 23m 5s) 로 인한 너비 변동 차단. */
 .sk-list-toolbar .sk-list-add {
   height: auto;
   min-height: 44px;
+  min-width: 116px;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
   gap: 5px;
   padding: 5px 14px;
+  line-height: 1.15;
+}
+/* JS 가 deadline 검증 (startDeadlineCountdown) 전 초기 비활성 톤 — 회색 surface + dim 텍스트.
+   .sk-btn:disabled 의 opacity 0.55 만으론 흐릿한 보라가 되어 "비활성 회색" 인상 약함 → override. */
+.sk-list-toolbar .sk-list-add[disabled] {
+  background: var(--sk-surface-2);
+  color: var(--sk-text-dim);
+  opacity: 1;
+  cursor: not-allowed;
+}
+/* [버프 예약] — sk-list-add 와 동일 컨테이너 외형 (높이/패딩/min-width).
+   카운트다운 없는 한 줄 라벨. 색상은 sk-btn-primary (보라). */
+.sk-list-toolbar .sk-list-buff {
+  height: auto;
+  min-height: 44px;
+  min-width: 116px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.15;
 }
 /* 관리자 [테스트] — sk-list-add 와 동일 컨테이너 외형 (높이/패딩/폰트). 한 줄 (라벨만). */

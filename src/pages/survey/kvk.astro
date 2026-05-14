@@ -400,12 +400,14 @@ import '@/styles/survey-kvk-buff.css';
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
             </svg>
           </button>
-          <!-- [테스트] + [등록/수정] 묶음 — 두 버튼이 항상 한 단위로 행동.
-               [테스트] 가 hidden 토글될 때 layout shift 가 wrapper 안으로 한정되어
-               toolbar 의 다른 자식 (count, refresh, search) 위치가 흔들리지 않음. -->
+          <!-- 액션 버튼 묶음 — 세 버튼이 한 wrapper 에 들어가 hidden 토글 시 toolbar 의 다른
+               자식 (count, refresh, search) 위치가 흔들리지 않음.
+               세 버튼 모두 초기 hidden — survey-kvk.ts 의 syncListButtons() 가 deadline + auth + admin
+               조건 보고 노출 결정. 각 버튼은 자기 트리거 함수 한 개씩만 갖고 명확히 분리됨:
+                 [등록/수정] (sk-list-add)   → onClickRegister     마감 전만
+                 [버프 예약] (sk-list-buff)  → onClickBuffBooking  마감 후만
+                 [테스트]    (sk-list-test)  → onClickTest         admin 만 (마감 전/후 무관) -->
           <div class="sk-list-end-actions">
-            <!-- 관리자 전용 [테스트] 버튼 — survey-kvk.ts 의 syncTestBtn 이 is_admin 보고 hidden 토글.
-                 외형 (높이/패딩/font weight) 은 [등록/수정] 과 동일, 색상만 녹색 계열. -->
             <button
               type="button"
               class="sk-btn sk-btn-test sk-list-test"
@@ -418,11 +420,20 @@ import '@/styles/survey-kvk-buff.css';
               type="button"
               class="sk-btn sk-btn-primary sk-list-add"
               id="sk-list-add"
+              hidden
             >
               <span class="sk-list-add-label" data-i18n="survey.kvk.list.addButton">등록 / 수정</span>
               <span class="sk-list-add-countdown" id="sk-list-add-countdown" aria-live="off">
                 <span id="sk-list-add-countdown-text">--</span>
               </span>
+            </button>
+            <button
+              type="button"
+              class="sk-btn sk-btn-primary sk-list-buff"
+              id="sk-list-buff"
+              hidden
+            >
+              <span data-i18n="survey.kvk.list.buffBookingButton">버프 예약</span>
             </button>
           </div>
         </div>

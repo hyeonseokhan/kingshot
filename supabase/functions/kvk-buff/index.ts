@@ -150,7 +150,19 @@ async function authenticate(
   };
 }
 
-/** 마감 시각 — 마이그레이션의 RPC 와 일치 유지. */
+/**
+ * 마감 시각 — 클라 (src/lib/survey-deadline.ts) 와 수동 동기화 필수.
+ *
+ * 변경 절차 (drift 회귀 방지):
+ *   1) src/lib/survey-deadline.ts 의 SURVEY_DEADLINE_ISO 변경
+ *   2) 본 DEADLINE_ISO 도 같은 값으로 변경
+ *   3) i18n 의 마감 안내문 (ko/en) 도 같이 갱신
+ *   4) Edge Function 재배포 (supabase functions deploy kvk-buff)
+ *
+ * 어긋날 때:
+ *   클라 < 서버 → 클라 [버프 예약] 노출되지만 서버 bootstrap 거부 → 잠금 placeholder 표시
+ *   클라 > 서버 → 클라 [등록/수정] 노출되지만 서버는 마감 후 (현재 register API 는 deadline 미검증)
+ */
 const DEADLINE_ISO = "2026-05-16T01:00:00Z";
 
 // !!! TEST_MODE 분기 helper — 테스트 종료 후 제거 대상 !!!

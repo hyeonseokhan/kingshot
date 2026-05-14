@@ -13,22 +13,18 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { t, onLangChange } from '@/i18n';
+import { SURVEY_DEADLINE_ISO } from '@/lib/survey-deadline';
 
 const FN_URL = SUPABASE_URL + '/functions/v1/kvk-buff';
 
 // !!! TEST_MODE — 관리자 필드 테스트용 분기. 종료 후 제거 대상 !!!
-//   활성화 경로 두 가지:
-//     1) URL 쿼리 ?test=1 — 페이지 로드 시 자동 활성 (기존 패턴)
-//     2) survey-kvk.ts 의 [테스트] 버튼 클릭 → setBuffTestMode(true) + openBuffOverlay() (admin 전용)
+//   활성화: survey-kvk.ts 의 [테스트] 버튼 클릭 → setBuffTestMode(true) + openBuffOverlay() (admin 전용)
 //   영향:
-//     - SURVEY_DEADLINE_ISO 가드 무시 → 잠금 placeholder skip, 즉시 그리드 표시.
 //     - callFn body 에 test_mode: true 자동 동봉 → Edge Function 이 _test 테이블/RPC 사용.
 //     - TOTAL_SLOTS 가 6 으로 축소 (admin 6명 전원 1슬롯씩 시나리오).
 //   인증은 운영 그대로 (kvk_speedup_survey 의 본인 PIN 으로 로그인).
 //   제거: `TEST_MODE` 키워드 grep → 본 분기 + survey-kvk.ts + Edge Function + 마이그레이션 ROLLBACK.
-let testMode = typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).has('test');
-const SURVEY_DEADLINE_ISO = '2026-05-16T01:00:00Z';
+let testMode = false;
 const TEST_TOTAL_SLOTS = 6;
 const PROD_TOTAL_SLOTS = 48;
 
@@ -193,18 +189,14 @@ function renderLocked(): void {
   const locked = $('sk-buff-locked');
   const grid = $('sk-buff-grid');
   const current = $('sk-buff-current');
-  // !!! TEST_MODE — 테스트는 deadline 무시 (즉시 bootstrap 가능). 운영만 deadline 가드. !!!
-  const isBeforeDeadline = !testMode && new Date() < new Date(SURVEY_DEADLINE_ISO);
+  // 잠금 = bootstrap 안 된 상태만. (deadline 가드는 외부 [버프 예약] 버튼이 마감 전엔 hidden 으로 막아주므로
+  //  여기까지 도달했다면 — 운영: 마감 통과 / 테스트: 즉시 진입 — 둘 다 deadline 무관.)
   const notBootstrapped = !buffState?.bootstrapped_at;
-  const showLocked = isBeforeDeadline || notBootstrapped;
-  locked.hidden = !showLocked;
-  grid.hidden = showLocked;
-  current.hidden = showLocked;
-  if (showLocked) {
-    const body = $('sk-buff-locked-body');
-    body.textContent = isBeforeDeadline
-      ? t('survey.kvkBuff.locked.bodyBeforeDeadline')
-      : t('survey.kvkBuff.locked.bodyBootstrap');
+  locked.hidden = !notBootstrapped;
+  grid.hidden = notBootstrapped;
+  current.hidden = notBootstrapped;
+  if (notBootstrapped) {
+    $('sk-buff-locked-body').textContent = t('survey.kvkBuff.locked.bodyBootstrap');
   }
 }
 
