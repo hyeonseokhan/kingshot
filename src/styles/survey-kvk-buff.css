@@ -1,0 +1,391 @@
+/* ===== KvK 버프 예약 페이지 — mockup 의 mock-* 스타일을 sk-buff-* 로 rename =====
+   공용 룰 (sk-dialog, sk-notice-*) 은 survey-kvk.css 에서 가져옴 (page frontmatter 가 함께 import). */
+
+.sk-buff-page {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 0 14px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.sk-buff-head {
+  padding: 14px 0 10px;
+}
+.sk-buff-head strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--sk-text);
+  letter-spacing: 0.02em;
+}
+
+/* ===== 현재 차례 카드 — accent gradient 박스, 클릭 시 다음 차례 큐 펼침 ===== */
+.sk-buff-current {
+  margin: 4px 0 8px;
+  background: linear-gradient(135deg, #3730a3, #4f46e5);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #fff;
+  cursor: pointer;
+  transition: filter 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  outline: none;
+}
+.sk-buff-current:focus,
+.sk-buff-current:focus-visible { outline: none; }
+.sk-buff-current:hover { filter: brightness(1.08); }
+
+.sk-buff-current-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sk-buff-current-photo-wrap {
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  position: relative;
+  flex-shrink: 0;
+}
+.sk-buff-current-photo-empty {
+  grid-area: 1 / 1;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  text-transform: uppercase;
+}
+.sk-buff-current-photo {
+  grid-area: 1 / 1;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.sk-buff-current-meta { min-width: 0; flex: 1; }
+.sk-buff-current-name {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sk-buff-current-id {
+  font-size: 11px;
+  line-height: 1.2;
+  margin-top: 2px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "선택중" 뱃지 + 카운트다운 */
+.sk-buff-current-badge {
+  flex-shrink: 0;
+  background: transparent;
+  color: #4ade80;
+  border: 1px solid #4ade80;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 4px 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sk-buff-current-elapsed {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+/* admin 전용 [스킵] — main row 의 .is-admin 클래스로 노출 토글 */
+.sk-buff-skip-btn {
+  display: none;
+  flex-shrink: 0;
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border: 1px solid #f87171;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  margin-right: -6px;
+}
+.sk-buff-skip-btn:hover { background: rgba(248, 113, 113, 0.22); }
+.sk-buff-page.is-admin .sk-buff-skip-btn { display: inline-block; }
+.sk-buff-current.is-completed .sk-buff-skip-btn { display: none !important; }
+
+/* chevron */
+.sk-buff-current-chevron {
+  flex-shrink: 0;
+  width: 14px; height: 14px;
+  opacity: 0.7;
+  transition: transform 0.25s ease;
+}
+.sk-buff-current.is-expanded .sk-buff-current-chevron { transform: rotate(180deg); }
+
+/* 펼쳐지는 큐 영역 — grid 0fr→1fr 트릭으로 부드러운 height 전환 */
+.sk-buff-current-queue-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sk-buff-current.is-expanded .sk-buff-current-queue-wrap { grid-template-rows: 1fr; }
+.sk-buff-current-queue {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease 0.08s;
+}
+.sk-buff-current.is-expanded .sk-buff-current-queue { opacity: 1; }
+.sk-buff-queue-label {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+  margin: 12px 0 6px;
+  letter-spacing: 0.02em;
+}
+.sk-buff-queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  counter-reset: queue;
+}
+.sk-buff-queue-list li {
+  counter-increment: queue;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.sk-buff-queue-list li::before {
+  content: counter(queue) ".";
+  flex-shrink: 0;
+  min-width: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+.sk-buff-queue-empty {
+  list-style: none;
+  font-size: 11.5px;
+  opacity: 0.65;
+  font-style: italic;
+}
+
+/* 모든 사용자 선택 완료 상태 */
+.sk-buff-current-completed {
+  display: none;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  opacity: 0.95;
+  padding: 4px 0;
+}
+.sk-buff-current.is-completed { cursor: default; filter: brightness(0.92); }
+.sk-buff-current.is-completed:hover { filter: brightness(0.92); }
+.sk-buff-current.is-completed .sk-buff-current-main,
+.sk-buff-current.is-completed .sk-buff-current-queue-wrap { display: none; }
+.sk-buff-current.is-completed .sk-buff-current-completed { display: block; }
+
+/* ===== Toolbar — 시간대 토글 / 남은 자리 / 복사 ===== */
+.sk-buff-tz {
+  display: flex;
+  justify-content: flex-start;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+.sk-buff-toggle {
+  background: var(--sk-surface-2);
+  color: var(--sk-text);
+  border: 1px solid var(--sk-border-strong);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  outline: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.sk-buff-toggle:hover {
+  background: #2c313d;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== 슬롯 그리드 ===== */
+.sk-buff-grid {
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: 12px;
+  padding: 10px;
+}
+.sk-buff-grid.is-filtered .sk-buff-slot:not(.is-selectable) { display: none; }
+.sk-buff-page.is-admin .sk-buff-slot:not(.is-selectable) {
+  cursor: pointer;
+  pointer-events: auto;
+}
+.sk-buff-page.is-admin .sk-buff-slot:not(.is-selectable):hover {
+  background: rgba(96, 165, 250, 0.10);
+  border-color: rgba(96, 165, 250, 0.5);
+}
+.sk-buff-slot.is-swap-source {
+  background: rgba(96, 165, 250, 0.20) !important;
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35);
+}
+
+.sk-buff-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  min-height: 44px;
+}
+.sk-buff-slot:last-child { margin-bottom: 0; }
+.sk-buff-slot.is-selectable {
+  cursor: pointer;
+  border-style: dashed;
+  justify-content: space-between;
+}
+.sk-buff-slot.is-selectable:hover {
+  background: rgba(74, 222, 128, 0.10);
+  border-color: rgba(74, 222, 128, 0.55);
+}
+.sk-buff-slot:not(.is-selectable) { pointer-events: none; }
+
+.sk-buff-slot-time {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sk-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  min-width: 92px;
+  flex-shrink: 0;
+}
+.sk-buff-slot-holder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.sk-buff-slot-photo {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #2c313d;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--sk-text-dim);
+  flex-shrink: 0;
+}
+.sk-buff-slot-meta { min-width: 0; }
+.sk-buff-slot-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sk-buff-slot-id {
+  font-size: 10.5px;
+  color: var(--sk-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 잠금 (마감 전) ===== */
+.sk-buff-locked {
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  margin-top: 8px;
+}
+.sk-buff-locked-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sk-text);
+  margin-bottom: 6px;
+}
+.sk-buff-locked-body {
+  font-size: 12.5px;
+  color: var(--sk-text-dim);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ===== 슬롯/스킵/swap confirm 다이얼로그 — survey-kvk 의 .sk-dialog 패턴 차용하지 않고 단순 모달 ===== */
+.sk-buff-confirm {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 320px;
+  max-width: 92vw;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+.sk-buff-confirm::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+}
+.sk-buff-confirm-card {
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: 12px;
+  padding: 18px 20px 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.sk-buff-confirm-body {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--sk-text);
+  line-height: 1.5;
+}
+.sk-buff-confirm-body strong { color: var(--sk-accent-hover); font-weight: 700; }
+.sk-buff-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sk-buff-confirm-cancel,
+.sk-buff-confirm-ok {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sk-buff-confirm-cancel {
+  background: var(--sk-surface-2);
+  color: var(--sk-text);
+  border: 1px solid var(--sk-border);
+}
+.sk-buff-confirm-ok {
+  background: var(--sk-accent);
+  color: #fff;
+}
+.sk-buff-confirm-ok:hover { background: var(--sk-accent-hover); }

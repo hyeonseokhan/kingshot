@@ -1418,10 +1418,15 @@ function startDeadlineCountdown(): void {
   function tick() {
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
-      btn.classList.remove('is-warning', 'is-danger');
-      btn.classList.add('is-closed');
-      btn.disabled = true;
-      if (labelEl) patchText(labelEl, t('survey.kvk.list.addButtonClosed'));
+      // 마감 후 — 등록 차단하고 [버프 예약] 페이지 진입 버튼으로 자동 전환.
+      btn.classList.remove('is-warning', 'is-danger', 'is-closed');
+      btn.classList.add('is-buff-link');
+      btn.disabled = false;
+      if (labelEl) patchText(labelEl, t('survey.kvk.list.buffBookingButton'));
+      const cd = btn.querySelector<HTMLElement>('.sk-list-add-countdown');
+      if (cd) cd.style.display = 'none';
+      // 클릭 시 버프 예약 페이지로 이동 (기존 다이얼로그 핸들러는 onclick 으로 override)
+      btn.onclick = () => { window.location.href = '/kvk-buff/'; };
       if (countdownTimer !== null) {
         window.clearInterval(countdownTimer);
         countdownTimer = null;

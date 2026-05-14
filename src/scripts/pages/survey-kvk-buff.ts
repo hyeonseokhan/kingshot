@@ -1,0 +1,517 @@
+/**
+ * survey.kingshot.wooju-home.org/kvk-buff 페이지 클라이언트 로직.
+ *
+ * 흐름:
+ *   1) boot → localStorage 의 토큰으로 get-state 호출 (token 옵션)
+ *   2) 5초마다 polling (서버 state 와 sync, stale 충돌 회복)
+ *   3) 본인 차례면 slot-card 클릭 → confirm → pick-slot RPC
+ *   4) admin 이면 skip / swap 버튼 활성 (자동, is_admin 기반)
+ *
+ * 모든 변경은 Edge Function `kvk-buff` 통과. RPC 가 atomic 처리.
+ * 마감 전 (UTC 5/16 01:00) 이면 잠금 placeholder.
+ */
+
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { t, onLangChange } from '@/i18n';
+
+const FN_URL = SUPABASE_URL + '/functions/v1/kvk-buff';
+const SURVEY_DEADLINE_ISO = '2026-05-16T01:00:00Z';
+const TOTAL_SLOTS = 48;
+const POLL_INTERVAL_MS = 5000;
+
+/** localStorage key — 가속권 현황 조사 페이지의 토큰을 그대로 공유. */
+const AUTH_KEY = 'pnx-sk-auth-v1';
+
+interface BuffState {
+  bootstrapped_at: string | null;
+  current_turn_idx: number;
+  turn_started_at: string | null;
+  updated_at: string;
+}
+
+interface Participant {
+  kingshot_id: string;
+  turn_idx: number;
+  score_rank: number;
+  was_verified: boolean;
+  slot_idx: number | null;
+  picked_at: string | null;
+  survey: {
+    nickname: string;
+    avatar_url: string | null;
+    city_level: number;
+  } | null;
+}
+
+interface Me {
+  kingshot_id: string;
+  nickname: string;
+  is_admin: boolean;
+  turn_idx?: number;
+  slot_idx?: number | null;
+}
+
+interface StateResponse {
+  ok: boolean;
+  deadline: string;
+  state: BuffState | null;
+  participants: Participant[];
+  me: Me | null;
+  error?: string;
+}
+
+// ===== state =====
+let buffState: BuffState | null = null;
+let participants: Participant[] = [];
+let me: Me | null = null;
+let token: string | null = null;
+let tzMode: 'UTC' | 'KST' = 'KST';
+let pendingSlotIdx: number | null = null; // confirm 다이얼로그 대기 중 slot idx
+let swapSourceCard: HTMLElement | null = null;
+let pendingSwapTargetSlotIdx: number | null = null;
+let pollingTimer: number | null = null;
+let elapsedTimer: number | null = null;
+let countdownTimer: number | null = null;
+
+// ===== DOM =====
+function $<T extends HTMLElement = HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`#${id} not found`);
+  return el as T;
+}
+
+// ===== API =====
+async function callFn<T = unknown>(body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(FN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+function loadToken(): string | null {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    return typeof obj?.token === 'string' ? obj.token : null;
+  } catch {
+    return null;
+  }
+}
+
+// ===== 시간 포맷 =====
+function formatSlotTime(idx: number, mode: 'UTC' | 'KST'): string {
+  const utcH = Math.floor(idx / 2);
+  const m = (idx % 2) * 30;
+  const h = mode === 'KST' ? (utcH + 9) % 24 : utcH;
+  return `${mode} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function tzToggleLabel(mode: 'UTC' | 'KST'): string {
+  return mode === 'KST' ? 'KST → UTC' : 'UTC → KST';
+}
+
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// ===== 렌더링 =====
+function renderAll(): void {
+  applyAdminClass();
+  renderLocked();
+  renderCurrent();
+  renderGrid();
+}
+
+function applyAdminClass(): void {
+  $('sk-buff-page').classList.toggle('is-admin', me?.is_admin === true);
+}
+
+function renderLocked(): void {
+  const locked = $('sk-buff-locked');
+  const grid = $('sk-buff-grid');
+  const current = $('sk-buff-current');
+  const isBeforeDeadline = new Date() < new Date(SURVEY_DEADLINE_ISO);
+  const notBootstrapped = !buffState?.bootstrapped_at;
+  const showLocked = isBeforeDeadline || notBootstrapped;
+  locked.hidden = !showLocked;
+  grid.hidden = showLocked;
+  current.hidden = showLocked;
+  if (showLocked) {
+    const body = $('sk-buff-locked-body');
+    body.textContent = isBeforeDeadline
+      ? t('survey.kvkBuff.locked.bodyBeforeDeadline')
+      : t('survey.kvkBuff.locked.bodyBootstrap');
+  }
+}
+
+function renderCurrent(): void {
+  const card = $('sk-buff-current');
+  if (!buffState || buffState.current_turn_idx >= TOTAL_SLOTS) {
+    card.classList.add('is-completed');
+    card.classList.remove('is-expanded');
+    return;
+  }
+  card.classList.remove('is-completed');
+  const cur = participants.find((p) => p.turn_idx === buffState!.current_turn_idx);
+  if (!cur || !cur.survey) return;
+  ($('sk-buff-current-photo-empty') as HTMLElement).textContent = cur.survey.nickname.charAt(0).toUpperCase();
+  const photo = $<HTMLImageElement>('sk-buff-current-photo');
+  if (cur.survey.avatar_url) {
+    if (photo.src !== cur.survey.avatar_url) photo.src = cur.survey.avatar_url;
+    photo.hidden = false;
+  } else {
+    photo.hidden = true;
+    photo.removeAttribute('src');
+  }
+  $('sk-buff-current-name').textContent = cur.survey.nickname;
+  $('sk-buff-current-id').textContent = `#${cur.kingshot_id} · TC ${cur.survey.city_level}`;
+
+  // 다음 차례 큐 — current+1 부터 5명
+  const queue = $('sk-buff-current-queue');
+  queue.innerHTML = '';
+  const next = participants
+    .filter((p) => p.turn_idx > buffState!.current_turn_idx)
+    .sort((a, b) => a.turn_idx - b.turn_idx)
+    .slice(0, 5);
+  if (next.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'sk-buff-queue-empty';
+    li.textContent = t('survey.kvkBuff.queueEmpty');
+    queue.appendChild(li);
+  } else {
+    for (const p of next) {
+      const li = document.createElement('li');
+      li.textContent = p.survey?.nickname ?? p.kingshot_id;
+      queue.appendChild(li);
+    }
+  }
+}
+
+function renderGrid(): void {
+  const grid = $('sk-buff-grid');
+  if (!buffState) {
+    grid.innerHTML = '';
+    return;
+  }
+  const occupied = new Map<number, Participant>();
+  for (const p of participants) {
+    if (p.slot_idx !== null) occupied.set(p.slot_idx, p);
+  }
+  // mockup 처럼 fragment 단위로 재구성. 갱신 잦지만 48개라 부담 X.
+  grid.innerHTML = '';
+  for (let i = 0; i < TOTAL_SLOTS; i++) {
+    const card = document.createElement('div');
+    card.className = 'sk-buff-slot';
+    card.dataset.slotIdx = String(i);
+    const time = formatSlotTime(i, tzMode);
+    const holder = occupied.get(i);
+    if (holder) {
+      card.innerHTML = `
+        <span class="sk-buff-slot-time">${time}</span>
+        <div class="sk-buff-slot-holder">
+          <div class="sk-buff-slot-photo">${escapeHtml(holder.survey?.nickname.charAt(0).toUpperCase() ?? '?')}</div>
+          <div class="sk-buff-slot-meta">
+            <div class="sk-buff-slot-name">${escapeHtml(holder.survey?.nickname ?? holder.kingshot_id)}</div>
+            <div class="sk-buff-slot-id">#${holder.kingshot_id}</div>
+          </div>
+        </div>
+      `;
+    } else {
+      card.classList.add('is-selectable');
+      card.innerHTML = `
+        <span class="sk-buff-slot-time">${time}</span>
+        <span class="sk-buff-slot-id">${t('survey.kvkBuff.slotEmpty')}</span>
+      `;
+    }
+    grid.appendChild(card);
+  }
+}
+
+function escapeHtml(s: string): string {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ===== 카운트다운 (turn_started_at 기준 경과) =====
+function tickElapsed(): void {
+  if (!buffState?.turn_started_at || (buffState.current_turn_idx >= TOTAL_SLOTS)) {
+    $('sk-buff-current-elapsed').textContent = '';
+    return;
+  }
+  const ms = Date.now() - new Date(buffState.turn_started_at).getTime();
+  $('sk-buff-current-elapsed').textContent = formatElapsed(ms);
+}
+
+// ===== polling =====
+async function pollState(): Promise<void> {
+  try {
+    const res = await callFn<StateResponse>({ action: 'get-state', token });
+    if (!res.ok) return;
+    buffState = res.state;
+    participants = res.participants ?? [];
+    me = res.me;
+    renderAll();
+  } catch (e) {
+    console.error('poll failed', e);
+  }
+}
+
+// ===== 슬롯 클릭 (pick / admin swap) =====
+function onGridClick(e: Event): void {
+  const card = (e.target as HTMLElement).closest<HTMLElement>('.sk-buff-slot');
+  if (!card) return;
+  const slotIdx = Number(card.dataset.slotIdx);
+  if (Number.isNaN(slotIdx)) return;
+
+  // (a) 빈 슬롯 — 본인 차례일 때만 pick confirm
+  if (card.classList.contains('is-selectable')) {
+    if (!me || !buffState) return;
+    if (me.turn_idx !== buffState.current_turn_idx) {
+      alert(t('survey.kvkBuff.error.notYourTurn'));
+      return;
+    }
+    pendingSlotIdx = slotIdx;
+    $('sk-buff-confirm-time').textContent = formatSlotTime(slotIdx, tzMode);
+    const dlg = $<HTMLDialogElement>('sk-buff-confirm-dialog');
+    if (!dlg.open) dlg.showModal();
+    return;
+  }
+
+  // (b) 점유 슬롯 — admin 모드일 때만 swap
+  if (!me?.is_admin) return;
+  if (!swapSourceCard) {
+    swapSourceCard = card;
+    card.classList.add('is-swap-source');
+    return;
+  }
+  if (swapSourceCard === card) {
+    card.classList.remove('is-swap-source');
+    swapSourceCard = null;
+    return;
+  }
+  // 두 번째 점유 슬롯 → swap confirm
+  const a = swapSourceCard.querySelector<HTMLElement>('.sk-buff-slot-name')?.textContent ?? '';
+  const b = card.querySelector<HTMLElement>('.sk-buff-slot-name')?.textContent ?? '';
+  pendingSwapTargetSlotIdx = slotIdx;
+  $('sk-buff-swap-body').innerHTML =
+    `<strong>${escapeHtml(a)}</strong>` +
+    t('survey.kvkBuff.confirm.swapBody', { a: '', b: '' }).replace('{a}', '').replace('{b}', '') +
+    `<strong>${escapeHtml(b)}</strong>`;
+  // i18n 패턴 단순화 — 직접 조립
+  $('sk-buff-swap-body').textContent = t('survey.kvkBuff.confirm.swapBody', { a, b });
+  $<HTMLDialogElement>('sk-buff-swap-dialog').showModal();
+}
+
+function clearSwapSelection(): void {
+  if (swapSourceCard) swapSourceCard.classList.remove('is-swap-source');
+  swapSourceCard = null;
+  pendingSwapTargetSlotIdx = null;
+}
+
+// ===== confirm: pick slot =====
+async function onPickConfirm(): Promise<void> {
+  if (pendingSlotIdx === null || !buffState) return;
+  const dlg = $<HTMLDialogElement>('sk-buff-confirm-dialog');
+  const res = await callFn<{ ok: boolean; error?: string }>({
+    action: 'pick-slot',
+    token,
+    slot_idx: pendingSlotIdx,
+    expected_turn_idx: buffState.current_turn_idx,
+  });
+  pendingSlotIdx = null;
+  dlg.close();
+  if (!res.ok) {
+    alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+  }
+  await pollState();
+}
+
+// ===== admin: skip =====
+async function onSkipConfirm(): Promise<void> {
+  if (!buffState) return;
+  const dlg = $<HTMLDialogElement>('sk-buff-skip-dialog');
+  const res = await callFn<{ ok: boolean; error?: string }>({
+    action: 'admin-skip',
+    token,
+    expected_turn_idx: buffState.current_turn_idx,
+  });
+  dlg.close();
+  if (!res.ok) alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+  await pollState();
+}
+
+function openSkipDialog(): void {
+  if (!buffState || buffState.current_turn_idx >= TOTAL_SLOTS - 1) return;
+  const cur = participants.find((p) => p.turn_idx === buffState!.current_turn_idx);
+  const next = participants.find((p) => p.turn_idx === buffState!.current_turn_idx + 1);
+  if (!cur || !next) return;
+  const body = t('survey.kvkBuff.confirm.skipBody', {
+    cur: cur.survey?.nickname ?? cur.kingshot_id,
+    curIdx: String(buffState.current_turn_idx + 1),
+    next: next.survey?.nickname ?? next.kingshot_id,
+    nextIdx: String(buffState.current_turn_idx + 2),
+  });
+  $('sk-buff-skip-body').textContent = body;
+  $<HTMLDialogElement>('sk-buff-skip-dialog').showModal();
+}
+
+// ===== admin: swap =====
+async function onSwapConfirm(): Promise<void> {
+  if (!swapSourceCard || pendingSwapTargetSlotIdx === null) return;
+  const dlg = $<HTMLDialogElement>('sk-buff-swap-dialog');
+  const slotA = Number(swapSourceCard.dataset.slotIdx);
+  const res = await callFn<{ ok: boolean; error?: string }>({
+    action: 'admin-swap',
+    token,
+    slot_a_idx: slotA,
+    slot_b_idx: pendingSwapTargetSlotIdx,
+  });
+  clearSwapSelection();
+  dlg.close();
+  if (!res.ok) alert(t('survey.kvkBuff.error.' + (res.error ?? 'generic')) || res.error);
+  await pollState();
+}
+
+// ===== 복사 =====
+function onCopyClick(): void {
+  const items: { time: string; name: string }[] = [];
+  const occupied = new Map<number, Participant>();
+  for (const p of participants) {
+    if (p.slot_idx !== null) occupied.set(p.slot_idx, p);
+  }
+  for (let i = 0; i < TOTAL_SLOTS; i++) {
+    const holder = occupied.get(i);
+    items.push({ time: formatSlotTime(i, tzMode), name: holder?.survey?.nickname ?? '❌' });
+  }
+  const URL_LINE = 'https://survey.kingshot.wooju-home.org/kvk-buff/';
+  const text = items.map((it) => `${it.time} - ${it.name}`).join('\n') + `\n\n${URL_LINE}`;
+  navigator.clipboard?.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch { /* ignore */ }
+    document.body.removeChild(ta);
+  });
+  const btn = $('sk-buff-copy-toggle');
+  const original = btn.textContent;
+  btn.textContent = t('survey.kvkBuff.copied');
+  setTimeout(() => { btn.textContent = original; }, 1500);
+}
+
+// ===== init =====
+function init(): void {
+  token = loadToken();
+
+  // 안내문 다이얼로그
+  const noticeDlg = $<HTMLDialogElement>('sk-buff-notice-dialog');
+  $('sk-buff-notice-trigger').addEventListener('click', () => {
+    if (!noticeDlg.open) noticeDlg.showModal();
+  });
+  $('sk-buff-notice-close').addEventListener('click', () => noticeDlg.close());
+  noticeDlg.addEventListener('click', (e) => { if (e.target === noticeDlg) noticeDlg.close(); });
+
+  // 현재 사용자 카드 — 클릭 시 다음 차례 큐 펼침
+  $('sk-buff-current').addEventListener('click', (e) => {
+    // skip 버튼 클릭은 별도 처리
+    if ((e.target as HTMLElement).closest('#sk-buff-skip-btn')) return;
+    const card = $('sk-buff-current');
+    if (card.classList.contains('is-completed')) return;
+    card.classList.toggle('is-expanded');
+  });
+
+  // tz 토글
+  $('sk-buff-tz-toggle').addEventListener('click', () => {
+    tzMode = tzMode === 'UTC' ? 'KST' : 'UTC';
+    $('sk-buff-tz-toggle').textContent = tzToggleLabel(tzMode);
+    renderGrid();
+  });
+
+  // 남은 자리 필터
+  const filterToggle = $('sk-buff-filter-toggle');
+  filterToggle.addEventListener('click', () => {
+    const grid = $('sk-buff-grid');
+    if (!grid.style.minHeight) grid.style.minHeight = grid.offsetHeight + 'px';
+    const filtered = grid.classList.toggle('is-filtered');
+    filterToggle.textContent = filtered
+      ? t('survey.kvkBuff.filterAll')
+      : t('survey.kvkBuff.filterAvailable');
+  });
+
+  // 복사하기
+  $('sk-buff-copy-toggle').addEventListener('click', onCopyClick);
+
+  // 슬롯 그리드 click
+  $('sk-buff-grid').addEventListener('click', onGridClick);
+
+  // pick confirm
+  $('sk-buff-confirm-cancel').addEventListener('click', () => {
+    pendingSlotIdx = null;
+    $<HTMLDialogElement>('sk-buff-confirm-dialog').close();
+  });
+  $('sk-buff-confirm-ok').addEventListener('click', onPickConfirm);
+
+  // skip
+  $('sk-buff-skip-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openSkipDialog();
+  });
+  $('sk-buff-skip-cancel').addEventListener('click', () => $<HTMLDialogElement>('sk-buff-skip-dialog').close());
+  $('sk-buff-skip-ok').addEventListener('click', onSkipConfirm);
+
+  // swap
+  $('sk-buff-swap-cancel').addEventListener('click', () => {
+    clearSwapSelection();
+    $<HTMLDialogElement>('sk-buff-swap-dialog').close();
+  });
+  $('sk-buff-swap-ok').addEventListener('click', onSwapConfirm);
+
+  // 카운트다운 1초 tick
+  elapsedTimer = window.setInterval(tickElapsed, 1000);
+
+  // 마감 전이면 잠금 화면 + 마감 시각까지 카운트다운만 띄움 (state 무관 우선 표시)
+  renderLocked();
+
+  // 첫 fetch + 5초 polling
+  void pollState();
+  pollingTimer = window.setInterval(pollState, POLL_INTERVAL_MS);
+
+  // 언어 변경 시 dynamic 텍스트 재렌더
+  onLangChange(() => {
+    $('sk-buff-tz-toggle').textContent = tzToggleLabel(tzMode);
+    const filterToggleEl = $('sk-buff-filter-toggle');
+    const filtered = $('sk-buff-grid').classList.contains('is-filtered');
+    filterToggleEl.textContent = filtered
+      ? t('survey.kvkBuff.filterAll')
+      : t('survey.kvkBuff.filterAvailable');
+    renderAll();
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+// 페이지 떠날 때 timer 정리 (HMR / SPA-ish 회복)
+window.addEventListener('beforeunload', () => {
+  if (pollingTimer !== null) window.clearInterval(pollingTimer);
+  if (elapsedTimer !== null) window.clearInterval(elapsedTimer);
+  if (countdownTimer !== null) window.clearInterval(countdownTimer);
+});
