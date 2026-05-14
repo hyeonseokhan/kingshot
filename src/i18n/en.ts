@@ -665,8 +665,8 @@ export const en: Translations = {
     footer: 'KVK Speed-up Survey · anonymous polling page',
     kvk: {
       heading: 'KVK Speed-up Inventory Survey',
-      intro: 'Share your current speed-up inventory ahead of the KVK event.',
       notice: {
+        triggerLabel: 'Must-read notice',
         line1: 'Only users who have submitted can view the current standings.',
         line2: 'Registration requires <strong>City Hall level 26 or higher</strong>.',
         reward:

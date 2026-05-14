@@ -8,21 +8,38 @@ import '@/styles/survey-kvk.css';
   description="KVK 이벤트 대비 가속권 보유 현황을 조사하는 페이지입니다"
 >
   <div class="sk-page" id="sk-page">
-    <section class="sk-intro">
-      <p data-i18n="survey.kvk.intro">
-        KVK 이벤트를 앞두고 가속권 보유 현황을 공유해 주세요.
-      </p>
-    </section>
+    <!-- 필독 안내문 트리거 — 클릭 시 별도 다이얼로그. 강조 톤 (빨강/주황 + pulse) 으로 주의 환기. -->
+    <button type="button" class="sk-notice-trigger" id="sk-notice-trigger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      <span data-i18n="survey.kvk.notice.triggerLabel">필독 안내문</span>
+    </button>
 
-    <!-- 상시 안내 — 자격 / 열람 권한 / 보상 / 가속권 사용 -->
-    <section class="sk-notice">
-      <ul>
-        <li data-i18n="survey.kvk.notice.line1">제출을 완료한 사용자만 현황을 열람할 수 있습니다.</li>
-        <li data-i18n-html="survey.kvk.notice.line2">등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.</li>
-        <li data-i18n-html="survey.kvk.notice.reward"><strong>상위 48명 보상</strong>: 1일차(건설) / 4일차(병사) 국왕스킬을 30분씩 순차 로테이션 (24시간).</li>
-        <li data-i18n-html="survey.kvk.notice.usage"><strong>가속권은 모두 KvK 점수에 투입</strong>해 주세요. 과도 보유 / 허위 제출 시 <strong class="sk-notice-warn">패널티가 부과</strong>됩니다.</li>
-      </ul>
-    </section>
+    <!-- 필독 안내문 다이얼로그 — 트리거 클릭 시 노출. 닫기 버튼 / ESC / backdrop 으로 닫힘. -->
+    <dialog class="sk-dialog sk-notice-dialog" id="sk-notice-dialog" aria-labelledby="sk-notice-title">
+      <div class="sk-dialog-card">
+        <header class="sk-dialog-head">
+          <strong id="sk-notice-title" data-i18n="survey.kvk.notice.triggerLabel">필독 안내문</strong>
+          <button
+            type="button"
+            class="sk-dialog-close"
+            id="sk-notice-close"
+            aria-label="Close"
+          >&times;</button>
+        </header>
+        <div class="sk-dialog-body">
+          <ul class="sk-notice-list">
+            <li data-i18n="survey.kvk.notice.line1">제출을 완료한 사용자만 현황을 열람할 수 있습니다.</li>
+            <li data-i18n-html="survey.kvk.notice.line2">등록은 <strong>TC 레벨 26 이상</strong> 사용자만 가능합니다.</li>
+            <li data-i18n-html="survey.kvk.notice.reward"><strong>상위 48명 보상</strong>: 1일차(건설) / 4일차(병사) 국왕스킬을 30분씩 순차 로테이션 (24시간).</li>
+            <li data-i18n-html="survey.kvk.notice.usage"><strong>가속권은 모두 KvK 점수에 투입</strong>해 주세요. 과도 보유 / 허위 제출 시 <strong class="sk-notice-warn">패널티가 부과</strong>됩니다.</li>
+          </ul>
+        </div>
+      </div>
+    </dialog>
 
     <!-- (A) 시작 다이얼로그 — ID 입력 + 본인 확인 + PIN -->
     <dialog class="sk-dialog" id="sk-auth-dialog" aria-labelledby="sk-auth-title">

@@ -67,6 +67,138 @@
       padding: 0 4px;
     }
     .mock-close:hover { color: var(--sk-text); }
+    /* 헤더 우측 — admin 토글 + 닫기 버튼 가로 정렬 */
+    .mock-head-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* 임시 — 관리자 권한 시뮬레이션 토글 (mockup 전용).
+       운영에선 제거하고 세션 record 의 admin flag 로 .is-admin 클래스 토글. */
+    .mock-admin-toggle {
+      background: var(--sk-surface-2);
+      color: var(--sk-text-dim);
+      border: 1px solid var(--sk-border-strong);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      outline: none;
+    }
+    .mock-admin-toggle.is-on {
+      color: #4ade80;
+      border-color: #4ade80;
+      background: rgba(74, 222, 128, 0.10);
+    }
+
+    /* ===== 안내 영역 트리거 — "꼭 눌러야 할" 위험성 환기 톤 =====
+       빨강/주황 그라디언트 + pulse halo. 작은 알약 대신 폭 가득 + 강한 색. */
+    .mock-notice-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 12px 14px;
+      width: calc(100% - 28px);
+      background: linear-gradient(135deg, #ef4444, #f97316);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      outline: none;
+      box-shadow: 0 2px 12px rgba(239, 68, 68, 0.35);
+      animation: notice-pulse 2.4s ease-in-out infinite;
+      transition: filter 0.15s, transform 0.12s;
+    }
+    .mock-notice-trigger:hover {
+      filter: brightness(1.10);
+    }
+    .mock-notice-trigger:active {
+      transform: scale(0.98);
+    }
+    .mock-notice-trigger svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    @keyframes notice-pulse {
+      0%, 100% { box-shadow: 0 2px 12px rgba(239, 68, 68, 0.35), 0 0 0 0 rgba(239, 68, 68, 0.55); }
+      50%      { box-shadow: 0 2px 12px rgba(239, 68, 68, 0.35), 0 0 0 8px rgba(239, 68, 68, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .mock-notice-trigger { animation: none; }
+    }
+
+    /* ===== 안내문 다이얼로그 — 트리거 클릭 시 노출 ===== */
+    .notice-dialog {
+      width: 360px;
+      max-width: 92vw;
+      max-height: calc(100vh - 40px);
+      background: var(--sk-surface);
+      border: 1px solid var(--sk-border);
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      padding: 0;
+      color: var(--sk-text);
+      overflow: hidden;
+    }
+    .notice-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.65);
+    }
+    .notice-card {
+      display: flex;
+      flex-direction: column;
+    }
+    .notice-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--sk-border);
+    }
+    .notice-head strong {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .notice-close {
+      background: none;
+      border: none;
+      color: var(--sk-text-dim);
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+    }
+    .notice-close:hover { color: var(--sk-text); }
+    .notice-body {
+      padding: 18px 20px 20px;
+      overflow-y: auto;
+    }
+    /* 안내문 리스트 — 다이얼로그 안에선 외곽 보라 박스 불필요 (다이얼로그 자체가 박스).
+       모바일 가독성 위해 폰트/줄간격/항목간격 살짝 키움. */
+    .notice-list {
+      margin: 0;
+      padding-left: 20px;
+      list-style: disc;
+      color: var(--sk-text);
+      font-size: 13.5px;
+      line-height: 1.65;
+    }
+    .notice-list li { margin-bottom: 12px; }
+    .notice-list li:last-child { margin-bottom: 0; }
+    .notice-list li::marker { color: var(--sk-accent-hover); }
+    .notice-list strong { color: var(--sk-accent-hover); font-weight: 700; }
 
     /* ===== 안내 영역 — 제출 현황의 .sk-notice 와 동일 톤 =====
        헤더 아래 고정 위치 (스크롤 영역 밖). mock-body 좌우 padding 과 라인 맞춤.
@@ -166,8 +298,49 @@
       font-size: 10.5px;
       font-weight: 700;
       letter-spacing: 0.02em;
-      padding: 2px 9px;
+      padding: 4px 12px;
       border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    /* 차례 시작 후 경과 시간 — 뱃지 안 우측. 뱃지보다 약간 옅게/얇게.
+       1초마다 갱신. 1분 미만은 0:SS, 1분 이상은 M:SS, 1시간 이상은 H:MM:SS. */
+    .mock-current-user-elapsed {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      opacity: 0.85;
+      letter-spacing: 0;
+    }
+    /* 관리자 전용 [스킵] 버튼 — "선택중" 뱃지 좌측. .is-admin 일 때만 노출.
+       톤은 위험성 환기 위해 빨강 outline. */
+    .mock-skip-btn {
+      display: none;
+      flex-shrink: 0;
+      background: rgba(248, 113, 113, 0.12);
+      color: #f87171;
+      border: 1px solid #f87171;
+      font-family: inherit;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 4px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      /* main 의 flex gap (10px) 위에 negative margin 으로 [선택중] 뱃지와의 거리 좁힘 */
+      margin-right: -6px;
+    }
+    .mock-skip-btn:hover {
+      background: rgba(248, 113, 113, 0.22);
+    }
+    .mock-dialog.is-admin .mock-skip-btn {
+      display: inline-block;
+    }
+    /* 완료 상태에선 스킵 무의미 — 숨김 */
+    .mock-current-user.is-completed .mock-skip-btn {
+      display: none !important;
     }
 
     /* ===== 펼쳐지는 큐 영역 — grid 0fr→1fr 트릭으로 부드러운 height 전환 =====
@@ -248,10 +421,10 @@
       color: var(--sk-text);
       border: 1px solid var(--sk-border-strong);
       font-family: inherit;
-      font-size: 10.5px;
+      font-size: 12px;
       font-weight: 700;
       letter-spacing: 0.06em;
-      padding: 3px 10px;
+      padding: 5px 14px;
       border-radius: 999px;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
@@ -263,6 +436,28 @@
       background: #2c313d;
       border-color: rgba(255, 255, 255, 0.3);
       color: var(--sk-text);
+    }
+    /* 필터 활성 — 점유된 슬롯은 grid flow 에서 제거 → 빈 자리(.is-selectable) 가 좌상단부터 채움.
+       JS 가 토글 직전 grid.offsetHeight 를 minHeight 로 박아 화면 들썩임 차단. */
+    .mock-body.is-filtered .slot-card:not(.is-selectable) {
+      display: none;
+    }
+
+    /* admin 모드 — 점유 슬롯 클릭 가능 (자리 교환).
+       base 의 pointer-events:none (점유 자리 클릭 비활성) 을 override 해야 click 받음. */
+    .mock-dialog.is-admin .slot-card:not(.is-selectable) {
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .mock-dialog.is-admin .slot-card:not(.is-selectable):hover {
+      background: rgba(96, 165, 250, 0.10);
+      border-color: rgba(96, 165, 250, 0.5);
+    }
+    /* swap source — 첫 클릭 후 활성화 표시. 파란 채움 + 굵은 outline. */
+    .slot-card.is-swap-source {
+      background: rgba(96, 165, 250, 0.20) !important;
+      border-color: #60a5fa !important;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35);
     }
 
     /* 큐가 비어있을 때 안내 — 5명 이하로 줄어들다 마지막 0명 케이스 */
@@ -483,19 +678,23 @@
   </style>
 </head>
 <body>
-  <div class="mock-dialog">
+  <div class="mock-dialog" id="mock-dialog">
     <header class="mock-head">
       <strong>버프 슬롯 선점</strong>
-      <button class="mock-close" aria-label="닫기">&times;</button>
+      <div class="mock-head-right">
+        <!-- 임시: 관리자 권한 시뮬레이션 토글. 운영 이전 시 제거하고 세션 record 의 admin flag 로 .is-admin 클래스 부착. -->
+        <button type="button" class="mock-admin-toggle" id="admin-toggle">관리자</button>
+        <button class="mock-close" aria-label="닫기">&times;</button>
+      </div>
     </header>
-    <section class="mock-notice">
-      <ul>
-        <li>예측 점수 순위 기준으로 순차적으로 시간을 선택할 수 있습니다.</li>
-        <li>선택된 시간은 변경이 어려우니 <strong>신중히</strong> 선택해 주세요.</li>
-        <li><strong>"선택중"</strong>인 사용자 프로필을 클릭하면 대기 순번을 일부 볼 수 있습니다.</li>
-        <li>해당 시간 선택은 <strong>UTC 5월 16일 01시 00분부터 03시 00분까지 2시간 동안</strong> 지정할 수 있습니다.</li>
-      </ul>
-    </section>
+    <button type="button" class="mock-notice-trigger" id="notice-trigger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      필독 안내문
+    </button>
     <section class="mock-current-user" id="mock-current-user">
       <div class="mock-current-user-main">
         <div class="mock-current-user-photo" id="cu-photo">T</div>
@@ -503,7 +702,12 @@
           <div class="mock-current-user-name" id="cu-name">Toycode</div>
           <div class="mock-current-user-id" id="cu-id">#270680423 · TC 26</div>
         </div>
-        <span class="mock-current-user-badge">선택중</span>
+        <!-- 관리자 전용 [스킵] — 현재 차례를 다음 사용자와 swap (병목 사용자 우회용). -->
+        <button type="button" class="mock-skip-btn" id="skip-btn">스킵</button>
+        <span class="mock-current-user-badge">
+          선택중
+          <span class="mock-current-user-elapsed" id="cu-elapsed">0:00</span>
+        </span>
         <svg
           class="mock-current-user-chevron"
           viewBox="0 0 24 24"
@@ -528,11 +732,30 @@
       </div>
     </section>
     <div class="mock-tz">
-      <button type="button" class="tz-toggle" id="tz-toggle">KST</button>
+      <button type="button" class="tz-toggle" id="tz-toggle">KST → UTC</button>
+      <button type="button" class="tz-toggle" id="filter-toggle">남은 자리</button>
       <button type="button" class="tz-toggle" id="copy-toggle">복사하기</button>
     </div>
     <div class="mock-body" id="slot-grid"></div>
   </div>
+
+  <!-- 필독 안내문 다이얼로그 — 트리거 버튼 클릭 시 노출 -->
+  <dialog class="notice-dialog" id="notice-dialog" aria-label="필독 안내문">
+    <div class="notice-card">
+      <header class="notice-head">
+        <strong>필독 안내문</strong>
+        <button type="button" class="notice-close" id="notice-close" aria-label="닫기">&times;</button>
+      </header>
+      <div class="notice-body">
+        <ul class="notice-list">
+          <li>예측 점수 순위 기준으로 순차적으로 시간을 선택할 수 있습니다.</li>
+          <li>선택된 시간은 변경이 어려우니 <strong>신중히</strong> 선택해 주세요.</li>
+          <li><strong>"선택중"</strong>인 사용자 프로필을 클릭하면 대기 순번을 일부 볼 수 있습니다.</li>
+          <li>해당 시간 선택은 <strong>UTC 5월 16일 01시 00분부터 03시 00분까지 2시간 동안</strong> 지정할 수 있습니다.</li>
+        </ul>
+      </div>
+    </div>
+  </dialog>
 
   <!-- 확인 다이얼로그 — 선택 가능 슬롯 클릭 시 노출 -->
   <dialog class="confirm-dialog" id="confirm-dialog" aria-label="시간 선택 확인">
@@ -543,6 +766,29 @@
       <div class="confirm-actions">
         <button type="button" class="confirm-cancel" id="confirm-cancel">취소</button>
         <button type="button" class="confirm-ok" id="confirm-ok">선택</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 스킵 확인 다이얼로그 — 관리자가 [스킵] 클릭 시 노출. body 는 JS 가 동적 채움. -->
+  <dialog class="confirm-dialog" id="skip-dialog" aria-label="순서 변경 확인">
+    <div class="confirm-card">
+      <p class="confirm-body" id="skip-body"></p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-cancel" id="skip-cancel">취소</button>
+        <button type="button" class="confirm-ok" id="skip-ok">확인</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 자리 교환 확인 다이얼로그 — 관리자가 점유 슬롯 두 개 연속 클릭 시 노출.
+       사용 시나리오: 두 사용자가 게임 내 DM 으로 합의 후 관리자에게 요청 → 관리자가 swap. -->
+  <dialog class="confirm-dialog" id="swap-dialog" aria-label="자리 교환 확인">
+    <div class="confirm-card">
+      <p class="confirm-body" id="swap-body"></p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-cancel" id="swap-cancel">취소</button>
+        <button type="button" class="confirm-ok" id="swap-ok">확인</button>
       </div>
     </div>
   </dialog>
@@ -615,7 +861,12 @@
 
     let currentTurnIdx = TURN_START;
     let pendingCard = null; // 다이얼로그 [선택] 확정 시 채울 슬롯
-    let tzMode = 'UTC';     // 시간표 현재 기준 — 'UTC' | 'KST'
+    let tzMode = 'KST';     // 시간표 현재 기준 — 'UTC' | 'KST'. 초기 KST.
+
+    // 토글 버튼 라벨 — 양방향 화살표로 "지금 표시중 → 클릭 시 전환 대상" 명시
+    function tzToggleLabel(mode) {
+      return mode === 'KST' ? 'KST → UTC' : 'UTC → KST';
+    }
 
     // 슬롯 인덱스(0~47) + 모드 → 표시 문자열 ("UTC 00:00" / "KST 09:00")
     function formatTime(idx, mode) {
@@ -671,18 +922,55 @@
         `</div></div>`;
     }
 
+    // ===== 차례 경과 타이머 =====
+    // turnStartedAt = 직전 사용자가 슬롯을 점유한 시각 = 현재 사용자의 차례 시작 시각.
+    //
+    // 운영 이전 시:
+    //   - DB 의 turn_started_at TIMESTAMPTZ 컬럼 (직전 슬롯 점유 시점) 을 select.
+    //   - 5초 polling 응답에서 turn_started_at 갱신 → 차례가 바뀌었으면 자동 새 시작점.
+    //   - boot 시 verify-token / get-turn-order 응답으로 초기값 받음.
+    //   - 클라이언트 시계 vs 서버 시계 drift 보정: 서버가 'now' 도 함께 내려주면
+    //     offset = serverNow - clientNow 로 보정. (mockup 은 단순화 — 클라 시각 그대로)
+    let turnStartedAt = Date.now();
+    const cuElapsed = document.getElementById('cu-elapsed');
+
+    function fmtElapsed(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      const ss = String(s).padStart(2, '0');
+      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${ss}`;
+      return `${m}:${ss}`;
+    }
+
+    function tickElapsed() {
+      if (!cuElapsed) return;
+      // 완료 상태에선 타이머 의미 없음 — 빈 문자열
+      if (currentTurnIdx >= TOTAL) {
+        cuElapsed.textContent = '';
+        return;
+      }
+      cuElapsed.textContent = fmtElapsed(Date.now() - turnStartedAt);
+    }
+    setInterval(tickElapsed, 1000);
+
     // 현재 차례 카드 + 다음 차례 큐 재렌더
     function renderTurn() {
       if (currentTurnIdx >= TOTAL) {
         // 모든 사용자 선택 완료
         userCard.classList.add('is-completed');
         userCard.classList.remove('is-expanded');
+        if (cuElapsed) cuElapsed.textContent = '';
         return;
       }
       const u = USERS_48[currentTurnIdx];
       cuPhoto.textContent = u.name.charAt(0);
       cuName.textContent = u.name;
       cuId.textContent = `#${u.id} · TC ${u.tc}`;
+      // 차례가 바뀐 시점 = 새 turnStartedAt. 운영에선 서버의 turn_started_at 으로 덮어씀.
+      turnStartedAt = Date.now();
+      tickElapsed();
 
       // 다음 차례: currentTurnIdx+1 부터 5명까지 (남은 인원에 따라 자동 truncate)
       cuQueue.innerHTML = '';
@@ -710,28 +998,135 @@
       userCard.classList.toggle('is-expanded');
     });
 
-    // ===== 타임존 토글 — 뱃지 라벨 = 전환 대상 (UTC 모드일 때 'KST' 라벨) =====
+    // ===== 필독 안내문 다이얼로그 — 트리거 click → showModal, close/backdrop → close =====
+    const noticeDialog = document.getElementById('notice-dialog');
+    document.getElementById('notice-trigger').addEventListener('click', () => {
+      if (!noticeDialog.open) noticeDialog.showModal();
+    });
+    document.getElementById('notice-close').addEventListener('click', () => noticeDialog.close());
+    noticeDialog.addEventListener('click', (e) => {
+      if (e.target === noticeDialog) noticeDialog.close();
+    });
+
+    // ===== 타임존 토글 — "현재 → 전환 대상" 양방향 화살표 라벨 =====
     tzToggle.addEventListener('click', () => {
       tzMode = tzMode === 'UTC' ? 'KST' : 'UTC';
-      tzToggle.textContent = tzMode === 'UTC' ? 'KST' : 'UTC';
+      tzToggle.textContent = tzToggleLabel(tzMode);
       rerenderTimes();
+    });
+
+    // ===== 남은 자리 필터 — 점유 슬롯을 grid flow 에서 제거 + 컨테이너 height 잠금 =====
+    const filterToggle = document.getElementById('filter-toggle');
+    filterToggle.addEventListener('click', () => {
+      // 필터 켜기 직전: 현재 자연 height 를 minHeight 로 잠금. 이미 잠겨있으면 skip.
+      // 한 번 잠그면 필터 off 해도 그대로 (전체 height 와 동일하니 무관).
+      if (!grid.style.minHeight) {
+        grid.style.minHeight = grid.offsetHeight + 'px';
+      }
+      const filtered = grid.classList.toggle('is-filtered');
+      filterToggle.textContent = filtered ? '전체 보기' : '남은 자리';
+    });
+
+    // ===== 관리자 권한 시뮬레이션 토글 (mockup 전용) =====
+    // 운영 이전 시 이 블록 통째로 제거 + boot 시 한 번만 .is-admin 클래스 부착하도록 변경.
+    // 권한 판정 자리:
+    //   const session = await callFn({ action: 'verify-token', token: getToken() });
+    //   if (session.ok && session.record.is_admin === true) {
+    //     mockDialog.classList.add('is-admin');
+    //   }
+    // is_admin 컬럼은 kvk_speedup_survey 또는 별도 admin 화이트리스트 테이블에 추가 필요.
+    const mockDialog = document.getElementById('mock-dialog');
+    const adminToggle = document.getElementById('admin-toggle');
+    // mockup 디버깅 편의 — default ON. 일반 사용자 동선 테스트 시 토글로 OFF.
+    mockDialog.classList.add('is-admin');
+    adminToggle.classList.add('is-on');
+    adminToggle.textContent = '관리자 ON';
+    adminToggle.addEventListener('click', () => {
+      const on = mockDialog.classList.toggle('is-admin');
+      adminToggle.classList.toggle('is-on', on);
+      adminToggle.textContent = on ? '관리자 ON' : '관리자';
+      // OFF 시: 진행 중이던 swap source 활성 상태 cleanup
+      if (!on && typeof swapSourceCard !== 'undefined' && swapSourceCard) {
+        swapSourceCard.classList.remove('is-swap-source');
+        swapSourceCard = null;
+      }
+    });
+
+    // ===== 스킵 — 현재 차례 사용자와 다음 사용자 swap (관리자 전용) =====
+    //
+    // 운영 이전 시 비즈니스 로직 추가 자리:
+    //
+    // 1) 스킵 RPC / Edge Function 호출 — atomic swap (트랜잭션 + row lock).
+    //    예: callFn({ action: 'admin-skip', token, current_idx: currentTurnIdx })
+    //    서버는 (current_idx, current_idx+1) 두 row 의 turn_idx 를 단일 트랜잭션 안에서
+    //    교환. 다른 관리자가 동시 swap 시 두 번째 호출은 stale 에러 반환.
+    //
+    // 2) 5초 polling — 모든 클라이언트가 turn_order / 슬롯 상태를 주기 동기화.
+    //    setInterval(async () => {
+    //      const res = await callFn({ action: 'get-turn-order' });
+    //      if (orderChanged(res.order)) {
+    //        applyOrder(res.order);          // USERS_48 + currentTurnIdx 갱신
+    //        renderTurn();
+    //        rerenderSlots();
+    //      }
+    //    }, 5000);
+    //
+    // 3) 슬롯 선택 API 응답이 'turn_changed' / 'not_your_turn' 에러면:
+    //    - "차례가 바뀌었습니다" 알림 (alert 또는 토스트)
+    //    - 즉시 fetchTurnOrder + 화면 새로고침 (또는 location.reload())
+    //    - 5초 polling 사이의 race 를 이걸로 마지막 방어.
+    const skipBtn = document.getElementById('skip-btn');
+    const skipDialog = document.getElementById('skip-dialog');
+    const skipBody = document.getElementById('skip-body');
+    const skipCancel = document.getElementById('skip-cancel');
+    const skipOk = document.getElementById('skip-ok');
+
+    skipBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // 카드 펼침 click 차단
+      // 마지막 차례면 swap 대상 없음 — early return
+      if (currentTurnIdx + 1 >= USERS_48.length) return;
+      const cur = USERS_48[currentTurnIdx];
+      const next = USERS_48[currentTurnIdx + 1];
+      skipBody.innerHTML =
+        `<strong>${cur.name}</strong>(${currentTurnIdx + 1}번)을 ` +
+        `<strong>${next.name}</strong>(${currentTurnIdx + 2}번)과 순서를 바꾸겠습니까?`;
+      if (!skipDialog.open) skipDialog.showModal();
+    });
+    skipCancel.addEventListener('click', () => skipDialog.close());
+    skipOk.addEventListener('click', () => {
+      // ▼▼▼ 운영 코드 자리 ▼▼▼
+      // 위 주석 (1) 의 admin-skip RPC 호출. 성공 시 응답의 새 order 로 local 갱신.
+      // 실패 시 에러 다이얼로그.
+      // ▲▲▲ 본 mockup 은 local USERS_48 만 swap ▲▲▲
+      [USERS_48[currentTurnIdx], USERS_48[currentTurnIdx + 1]] =
+        [USERS_48[currentTurnIdx + 1], USERS_48[currentTurnIdx]];
+      renderTurn();
+      skipDialog.close();
+    });
+    // backdrop 클릭으로도 취소
+    skipDialog.addEventListener('click', (e) => {
+      if (e.target === skipDialog) skipDialog.close();
     });
 
     // ===== 복사하기 — 점유 슬롯의 "{TZ HH:MM} - {닉네임}" 줄을 시간 순으로 정렬 후 클립보드 =====
     const copyToggle = document.getElementById('copy-toggle');
     copyToggle.addEventListener('click', async () => {
       const items = [];
-      grid.querySelectorAll('.slot-card:not(.is-selectable)').forEach((card) => {
-        const nameEl = card.querySelector('.slot-holder-name');
-        if (!nameEl) return; // selectable 외에도 holder 없는 케이스 방어
-        items.push({
-          time: card.querySelector('.slot-time').textContent,
-          name: nameEl.textContent,
-        });
+      // 모든 슬롯 순회 — 점유면 닉네임, 빈 자리면 '❌' 로 표기.
+      grid.querySelectorAll('.slot-card').forEach((card) => {
+        const timeEl = card.querySelector('.slot-time');
+        if (!timeEl) return;
+        const isEmpty = card.classList.contains('is-selectable');
+        const name = isEmpty
+          ? '❌'
+          : (card.querySelector('.slot-holder-name')?.textContent ?? '❌');
+        items.push({ time: timeEl.textContent, name });
       });
       // 시간 문자열 정렬 — prefix(TZ) 동일하므로 자연스럽게 HH:MM 순서
       items.sort((a, b) => a.time.localeCompare(b.time));
-      const text = items.map((it) => `${it.time} - ${it.name}`).join('\n');
+      const SURVEY_URL = 'https://survey.kingshot.wooju-home.org/kvk/';
+      const text =
+        items.map((it) => `${it.time} - ${it.name}`).join('\n') + `\n\n${SURVEY_URL}`;
 
       const flashCopied = () => {
         const original = '복사하기';
@@ -756,13 +1151,88 @@
       }
     });
 
-    // ===== 슬롯 클릭 → 확인 다이얼로그 =====
+    // ===== 슬롯 클릭 — 두 흐름:
+    //   (a) 일반: 빈 슬롯(.is-selectable) 클릭 → 시간 선택 confirm
+    //   (b) admin: 점유 슬롯 클릭 → 첫 번째는 swap source 활성, 두 번째는 swap confirm =====
+    let swapSourceCard = null;
+    let pendingSwapTarget = null;
+    const swapDialog = document.getElementById('swap-dialog');
+    const swapBody = document.getElementById('swap-body');
+
+    function clearSwapSelection() {
+      if (swapSourceCard) swapSourceCard.classList.remove('is-swap-source');
+      swapSourceCard = null;
+      pendingSwapTarget = null;
+    }
+
+    // ===== 자리 교환 — swap-dialog confirm/cancel =====
+    //
+    // 운영 이전 시 비즈니스 로직 자리:
+    // - admin-swap RPC 호출 (예: callFn({ action: 'admin-swap', token, slot_a_idx, slot_b_idx }))
+    //   서버는 두 슬롯의 holder 컬럼을 단일 트랜잭션 안에서 atomic swap.
+    // - swap 도중 한 쪽이 다른 사람으로 바뀌어있으면 (희박) 'stale' 에러 → 알림 + 새로고침.
+    // - 5초 polling 으로 다른 클라이언트 자동 반영.
+    document.getElementById('swap-cancel').addEventListener('click', () => {
+      clearSwapSelection();
+      swapDialog.close();
+    });
+    document.getElementById('swap-ok').addEventListener('click', () => {
+      if (swapSourceCard && pendingSwapTarget) {
+        // ▼▼▼ 본 mockup: 두 카드의 .slot-holder div 만 교환 (slot-time 은 위치 고유) ▼▼▼
+        const a = swapSourceCard.querySelector('.slot-holder');
+        const b = pendingSwapTarget.querySelector('.slot-holder');
+        if (a && b) {
+          const aClone = a.cloneNode(true);
+          const bClone = b.cloneNode(true);
+          a.replaceWith(bClone);
+          b.replaceWith(aClone);
+        }
+        // ▲▲▲ 운영 코드는 위 RPC 응답으로 local 상태 갱신 ▲▲▲
+      }
+      clearSwapSelection();
+      swapDialog.close();
+    });
+    swapDialog.addEventListener('click', (e) => {
+      if (e.target === swapDialog) {
+        clearSwapSelection();
+        swapDialog.close();
+      }
+    });
+
     grid.addEventListener('click', (e) => {
-      const card = e.target.closest('.slot-card.is-selectable');
+      const card = e.target.closest('.slot-card');
       if (!card) return;
-      pendingCard = card;
-      confirmTime.textContent = card.querySelector('.slot-time').textContent;
-      confirmDialog.showModal();
+
+      // (a) 빈 슬롯 — 기존 시간 선택 흐름
+      if (card.classList.contains('is-selectable')) {
+        pendingCard = card;
+        confirmTime.textContent = card.querySelector('.slot-time').textContent;
+        confirmDialog.showModal();
+        return;
+      }
+
+      // (b) 점유 슬롯 — admin 모드일 때만 swap 흐름 활성
+      if (!mockDialog.classList.contains('is-admin')) return;
+
+      // 첫 클릭 — swap source 지정
+      if (!swapSourceCard) {
+        swapSourceCard = card;
+        card.classList.add('is-swap-source');
+        return;
+      }
+      // 같은 카드 다시 클릭 — 선택 해제
+      if (swapSourceCard === card) {
+        card.classList.remove('is-swap-source');
+        swapSourceCard = null;
+        return;
+      }
+      // 두 번째 카드 — swap confirm 다이얼로그
+      const aName = swapSourceCard.querySelector('.slot-holder-name')?.textContent ?? '';
+      const bName = card.querySelector('.slot-holder-name')?.textContent ?? '';
+      pendingSwapTarget = card;
+      swapBody.innerHTML =
+        `<strong>${aName}</strong> 과 <strong>${bName}</strong> 유저의 자리를 바꾸겠습니까?`;
+      if (!swapDialog.open) swapDialog.showModal();
     });
     document.getElementById('confirm-cancel').addEventListener('click', () => {
       pendingCard = null;

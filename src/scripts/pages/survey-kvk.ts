@@ -1315,6 +1315,16 @@ function init(): void {
     if (e.target === e.currentTarget) closeDetailDialog();
   });
 
+  // 필독 안내문 다이얼로그 — 트리거 click → showModal, close/backdrop → close
+  const noticeDlg = $<HTMLDialogElement>('sk-notice-dialog');
+  $('sk-notice-trigger').addEventListener('click', () => {
+    if (!noticeDlg.open) noticeDlg.showModal();
+  });
+  $('sk-notice-close').addEventListener('click', () => noticeDlg.close());
+  noticeDlg.addEventListener('click', (e) => {
+    if (e.target === noticeDlg) noticeDlg.close();
+  });
+
   // 인증샷 lightbox — 상세 다이얼로그의 인증샷 버튼 클릭 → 현재 행의 evidence_uploaded_at 으로 URL 계산.
   // 같은 <img> element 재사용이라 src 만 바꾸면 새 이미지 로드 중에 "이전 사용자 인증샷" 이 잠깐 보임.
   //   (1) .loaded 클래스 제거 → opacity 0 으로 리셋

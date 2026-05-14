@@ -97,44 +97,58 @@
   }
 }
 
-/* ===== 인트로 — 모바일 상단 영역 최소화 ===== */
-.sk-intro {
-  margin-bottom: 10px;
-}
-.sk-intro p {
-  margin: 0;
-  color: var(--sk-text-dim);
-  line-height: 1.5;
+/* ===== 필독 안내문 트리거 — 빨강/주황 그라디언트 + pulse 로 주의 환기 =====
+   클릭 시 .sk-notice-dialog 활성. */
+.sk-notice-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 14px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-family: inherit;
   font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  outline: none;
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.35);
+  animation: sk-notice-pulse 2.4s ease-in-out infinite;
+  transition: filter 0.15s, transform 0.12s;
+}
+.sk-notice-trigger:hover { filter: brightness(1.10); }
+.sk-notice-trigger:active { transform: scale(0.98); }
+.sk-notice-trigger svg { width: 18px; height: 18px; flex-shrink: 0; }
+@keyframes sk-notice-pulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(239, 68, 68, 0.35), 0 0 0 0 rgba(239, 68, 68, 0.55); }
+  50%      { box-shadow: 0 2px 12px rgba(239, 68, 68, 0.35), 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-notice-trigger { animation: none; }
 }
 
-/* ===== 상시 안내 (자격 / 열람 권한 / 복귀 방법) ===== */
-.sk-notice {
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  border-radius: 10px;
-  padding: 12px 14px 12px 18px;
-  margin-bottom: 16px;
-}
-.sk-notice ul {
+/* 안내문 리스트 — 다이얼로그 본문 안. 이전 .sk-notice 외곽 박스 제거 (다이얼로그 자체가 박스).
+   모바일 가독성 위해 폰트/줄간격/항목 간격 살짝 키움. */
+.sk-notice-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 20px;
   list-style: disc;
   color: var(--sk-text);
-  font-size: 12.5px;
-  line-height: 1.7;
+  font-size: 13.5px;
+  line-height: 1.65;
 }
-.sk-notice li::marker {
-  color: var(--sk-accent-hover);
-}
-.sk-notice strong {
-  color: var(--sk-accent-hover);
-  font-weight: 700;
-}
-/* 패널티 등 위험성 강조 — 빨강 톤. .sk-notice strong 의 accent 색을 override. */
-.sk-notice strong.sk-notice-warn {
-  color: #f87171;
-}
+.sk-notice-list li { margin-bottom: 12px; }
+.sk-notice-list li:last-child { margin-bottom: 0; }
+.sk-notice-list li::marker { color: var(--sk-accent-hover); }
+.sk-notice-list strong { color: var(--sk-accent-hover); font-weight: 700; }
+.sk-notice-list strong.sk-notice-warn { color: #f87171; }
 
 /* ===== 잠금 placeholder (목록 영역 — 미인증 시 노출) =====
    .sk-page.is-unlocked 일 때 hidden — 인증 완료 → JS 가 클래스 토글. */
