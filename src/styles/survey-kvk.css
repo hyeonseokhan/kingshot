@@ -341,7 +341,9 @@ html:has(.sk-image-dialog[open]) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  /* 수직 6px — 제목(15px line-height ≈ 20px) / 닫기 버튼(24px font) 모두 수용하는 최소치.
+     기존 16px → 6px 로 다이얼로그 본문에 더 많은 공간 할당. */
+  padding: 6px 20px;
   border-bottom: 1px solid var(--sk-border);
 }
 .sk-dialog-head strong {
