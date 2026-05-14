@@ -1013,13 +1013,25 @@ function formatDuration(minutes: number): string {
 
 // ===== 이미지 다이얼로그 =====
 
-function openImageDialog(): void {
+/** 첫 fetch 결과 blob: URL — 브라우저 네트워크 캐시 우회 (dev server `no-cache` + 카운트다운
+ *  tick 조합으로 매초 refetch 되던 문제 해결). 한 번 만들어두면 페이지 lifetime 동안 메모리에 상주. */
+let speedupStatsBlobUrl: string | null = null;
+
+async function openImageDialog(): Promise<void> {
   const dlg = $<HTMLDialogElement>('sk-image-dialog');
-  // 첫 오픈 시점에만 data-src → src swap. 이후 브라우저 cache 히트.
-  // (HTML 에 src 박아두고 loading="lazy" 쓰면 카운트다운 매 tick 마다 재fetch 발생 — astro 의 known issue)
   const img = $<HTMLImageElement>('sk-image-dialog-img');
   if (img && !img.src && img.dataset.src) {
-    img.src = img.dataset.src;
+    if (!speedupStatsBlobUrl) {
+      try {
+        const res = await fetch(img.dataset.src);
+        const blob = await res.blob();
+        speedupStatsBlobUrl = URL.createObjectURL(blob);
+      } catch {
+        // 네트워크 실패 시 직접 URL fallback (production 에선 어차피 cache hit, dev 에선 매초 fetch 부활하지만 graceful)
+        speedupStatsBlobUrl = img.dataset.src;
+      }
+    }
+    img.src = speedupStatsBlobUrl;
   }
   if (!dlg.open) dlg.showModal();
 }
