@@ -10,6 +10,7 @@
  *   { action: 'admin-replace-current', token, target_kingshot_id,
  *                                       expected_turn_idx, test_mode? }            → { ok }   (admin 만, 현재 차례 ↔ target turn_idx swap)
  *   { action: 'admin-swap', token, slot_a_idx, slot_b_idx, test_mode? }            → { ok }
+ *   { action: 'admin-start', token, test_mode? }                                    → { ok }   (admin 만, bootstrap RPC 호출 → 48명 INSERT)
  *   { action: 'finalize', token, test_mode? }                                       → { ok }   (admin 만, state.finalized_at = now)
  *   { action: 'admin-reset-test', token, test_mode: true }                         → { ok }   (TEST_MODE 전용 [재시작])
  *
@@ -173,22 +174,10 @@ const DEADLINE_ISO = "2026-05-16T01:00:00Z";
 const t = (name: string, isTest: boolean) => `${name}${isTest ? "_test" : ""}`;
 
 async function getState(token: unknown, isTest: boolean) {
-  // 1. lazy bootstrap 시도 (마감 지났고 아직 init 안 됐으면)
-  //    !!! TEST_MODE: deadline 검증 skip — 테스트는 항상 즉시 bootstrap 가능
-  const stateProbe = await dbSelectOne(
-    `${t("kvk_buff_state", isTest)}?id=eq.1&select=bootstrapped_at`,
-  );
-  const canBootstrap = isTest || new Date() >= new Date(DEADLINE_ISO);
-  if (stateProbe && !stateProbe.bootstrapped_at && canBootstrap) {
-    try {
-      await dbRpc(t("kvk_buff_bootstrap", isTest), {});
-    } catch (e) {
-      // 두 클라 동시 호출 시 한 쪽은 NOOP 또는 race. 무시하고 진행.
-      console.error("bootstrap (race ok):", (e as Error).message);
-    }
-  }
+  // bootstrap 은 admin 의 [예약 시작] 액션 (admin-start) 으로만 트리거 — lazy bootstrap 제거.
+  // (이전엔 deadline 통과 시 자동. 새 기획: admin 명시 시작.)
 
-  // 2. state + participants 조회 (참가자엔 닉네임/avatar 도 join 필요)
+  // state + participants 조회 (참가자엔 닉네임/avatar 도 join 필요)
   const state = await dbSelectOne(
     `${t("kvk_buff_state", isTest)}?id=eq.1&select=bootstrapped_at,current_turn_idx,turn_started_at,finalized_at,updated_at`,
   );
@@ -222,26 +211,16 @@ async function getState(token: unknown, isTest: boolean) {
   };
 }
 
-async function pickSlot(token: unknown, slotIdx: unknown, expectedTurnIdx: unknown, isTest: boolean) {
+async function pickSlot(token: unknown, slotIdx: unknown, _expectedTurnIdx: unknown, isTest: boolean) {
+  // 운영/테스트 모두 선착순. expected_turn_idx 무관 (백워드 호환 위해 인자 자리만 유지, 무시).
   if (!isValidSlotIdx(slotIdx)) return { ok: false, error: "invalid_slot_idx" };
-  // 운영 (순차) 만 expected_turn_idx 검증. 테스트 (선착순) 는 무관.
-  if (!isTest && !isValidTurnIdx(expectedTurnIdx)) return { ok: false, error: "invalid_turn_idx" };
   const auth = await authenticate(token);
   if (!auth.ok) return auth;
   try {
-    if (isTest) {
-      // !!! TEST_MODE 선착순 — turn_idx 검증 없이 본인 미점유 + 슬롯 비어있음만 검사
-      await dbRpc("kvk_buff_pick_slot_test", {
-        p_kingshot_id: auth.me.kingshot_id,
-        p_slot_idx: slotIdx,
-      });
-    } else {
-      await dbRpc("kvk_buff_pick_slot", {
-        p_kingshot_id: auth.me.kingshot_id,
-        p_slot_idx: slotIdx,
-        p_expected_turn_idx: expectedTurnIdx,
-      });
-    }
+    await dbRpc(t("kvk_buff_pick_slot", isTest), {
+      p_kingshot_id: auth.me.kingshot_id,
+      p_slot_idx: slotIdx,
+    });
     return { ok: true };
   } catch (e) {
     return maskError(e, { action: "pick-slot", kingshotId: auth.me.kingshot_id });
@@ -320,6 +299,20 @@ async function finalize(token: unknown, isTest: boolean) {
   }
 }
 
+/** [예약 시작] — admin 만 호출. bootstrap RPC 호출 → 48명 INSERT + state.bootstrapped_at 갱신.
+ *  운영/테스트 동일 액션. testMode 면 _test RPC. */
+async function adminStart(token: unknown, isTest: boolean) {
+  const auth = await authenticate(token);
+  if (!auth.ok) return auth;
+  if (!auth.me.is_admin) return { ok: false, error: "not_admin" };
+  try {
+    await dbRpc(t("kvk_buff_bootstrap", isTest), {});
+    return { ok: true };
+  } catch (e) {
+    return maskError(e, { action: "admin-start", kingshotId: auth.me.kingshot_id });
+  }
+}
+
 /** !!! TEST_MODE 전용 — admin 만 호출. _test 참가자 전체 + state 초기화. !!!
  *  운영(isTest=false) 호출은 reject. 다음 get-state 가 lazy bootstrap 으로 admin 6명 다시 INSERT. */
 async function adminResetTest(token: unknown, isTest: boolean) {
@@ -362,6 +355,9 @@ Deno.serve(async (req: Request) => {
         break;
       case "finalize":
         result = await finalize(token, isTest);
+        break;
+      case "admin-start":
+        result = await adminStart(token, isTest);
         break;
       case "admin-reset-test":
         result = await adminResetTest(token, isTest);

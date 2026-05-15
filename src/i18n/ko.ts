@@ -819,7 +819,7 @@ export const ko = {
       nextLabel: '다음 차례',
       completed: '모든 사용자가 시간을 선택했습니다',
       finalizedMsg: '🔒 예약이 마감됐습니다 — 더 이상 변경할 수 없습니다',
-      progress: { label: '선착순 진행' },
+      progress: { label: '선착순 진행', labelFinalized: '🔒 예약 마감' },
       queueEmpty: '대기 중인 사용자가 없습니다',
       slotEmpty: '비어있음',
       skipButton: '스킵', // DEPRECATED — 유지 (미사용 키, 후속 제거)
@@ -835,6 +835,7 @@ export const ko = {
       copyButton: '복사하기',
       copied: '복사됨',
       finalizeButton: '예약 마감',
+      startButton: '예약 시작',
       notice: {
         triggerLabel: '필독 안내문',
         flow: {
@@ -853,8 +854,8 @@ export const ko = {
       },
       locked: {
         title: '🔒 아직 예약을 시작할 수 없어요',
-        bodyBeforeDeadline: '설문 마감 (UTC 5월 16일 01:00) 후 자동으로 예약이 시작됩니다.',
-        bodyBootstrap: '예약 준비 중입니다. 잠시만 기다려주세요.',
+        bodyBeforeDeadline: '관리자가 [예약 시작] 을 누르면 진행됩니다.',
+        bodyBootstrap: '관리자가 [예약 시작] 을 누르면 진행됩니다.',
       },
       confirm: {
         cancel: '취소',
@@ -865,6 +866,7 @@ export const ko = {
         skipBody: '{cur}({curIdx}번)을 {next}({nextIdx}번)과 순서를 바꾸겠습니까?',
         swapBody: '{a} 와 {b} 유저의 자리를 바꾸겠습니까?',
         finalize: '버프 예약을 마감하겠습니까?\n이후 누구도 등록·변경할 수 없습니다.',
+        start: '예약을 시작하겠습니까?\n이미지 인증 우선 + 점수 순으로 48명이 자동 INSERT 됩니다.',
       },
       error: {
         notYourTurn: '당신의 차례가 아닙니다',

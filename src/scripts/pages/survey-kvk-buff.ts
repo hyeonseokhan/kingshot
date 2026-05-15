@@ -111,6 +111,9 @@ function $<T extends HTMLElement = HTMLElement>(id: string): T {
 
 // ===== API =====
 async function callFn<T = unknown>(body: Record<string, unknown>): Promise<T> {
+  // token 매번 fresh 로 읽기 — module-scope token 변수가 init() 시점 stale 인 케이스 차단.
+  // (사용자가 페이지 로드 후 로그인하면 module token 은 여전히 null → invalid_token 회귀.)
+  const freshToken = loadToken();
   const res = await fetch(FN_URL, {
     method: 'POST',
     headers: {
@@ -118,8 +121,9 @@ async function callFn<T = unknown>(body: Record<string, unknown>): Promise<T> {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
+    // 호출자가 token 명시 전달하더라도 freshToken 으로 덮어씀.
     // !!! TEST_MODE — 모든 액션 body 에 test_mode 자동 동봉 (서버에서 _test 분기) !!!
-    body: JSON.stringify({ ...body, test_mode: testMode }),
+    body: JSON.stringify({ ...body, token: freshToken, test_mode: testMode }),
   });
   return res.json();
 }
@@ -160,13 +164,13 @@ function formatElapsed(ms: number): string {
 function renderAll(): void {
   applyAdminClass();
   renderLocked();
-  // testMode (선착순) 일 땐 진행률 카드, 운영 (순차) 일 땐 현재 차례 카드.
-  if (testMode) renderProgress();
-  else renderCurrent();
+  // 운영/테스트 모두 선착순 → 진행률 카드만 노출. (renderCurrent 는 호출 안 함, sk-buff-current 는 CSS 영구 hidden.)
+  renderProgress();
   renderGrid();
 }
 
-/** !!! TEST_MODE 선착순 — 점유 슬롯 수 / 전체 슬롯 수 진행률 표시. */
+/** 선착순 — 점유 슬롯 수 / 전체 슬롯 수 진행률 표시.
+ *  마감 시 카드 자체가 회색 톤 + 제목 "🔒 예약 마감" 으로 swap (점유 카운트는 그대로 유지). */
 function renderProgress(): void {
   const total = totalSlots();
   const done = participants.filter((p) => p.slot_idx !== null).length;
@@ -174,6 +178,12 @@ function renderProgress(): void {
   $('sk-buff-progress-total').textContent = String(total);
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
   ($('sk-buff-progress-fill') as HTMLElement).style.width = pct + '%';
+  // 마감 분기 — 카드 색 swap + 제목 텍스트 swap. (data-i18n 미사용 → JS 가 단일 책임.)
+  const isFinalized = !!buffState?.finalized_at;
+  $('sk-buff-progress').classList.toggle('is-finalized', isFinalized);
+  $('sk-buff-progress-label').textContent = t(
+    isFinalized ? 'survey.kvkBuff.progress.labelFinalized' : 'survey.kvkBuff.progress.label',
+  );
 }
 
 /** localStorage 의 auth.record.is_admin 캐시 — 다이얼로그 오픈 직후 첫 polling 응답 도착 전
@@ -190,14 +200,28 @@ function readCachedIsAdmin(): boolean {
 
 function applyAdminClass(): void {
   const page = $('sk-buff-page');
+  const overlay = document.getElementById('sk-buff-overlay');
   // me (kvk-buff get-state 응답) 가 우선, 없으면 (다이얼로그 오픈 직후 race) 캐시 fallback.
   const isAdmin = me?.is_admin === true || (me === null && readCachedIsAdmin());
   page.classList.toggle('is-admin', isAdmin);
-  // 예약 마감 상태 — CSS 로 [예약 마감] 버튼 숨김 + 향후 마감 배지/안내 노출 hooks.
-  page.classList.toggle('is-finalized', !!buffState?.finalized_at);
+  // overlay 에도 .is-admin — 헤더 영역 (admin 도구 버튼) CSS 게이트용.
+  overlay?.classList.toggle('is-admin', isAdmin);
+  // 시작 여부 — bootstrapped_at 채워졌으면 시작됨. CSS 가드 + admin 도구 disabled 분기.
+  const isStarted = !!buffState?.bootstrapped_at;
+  const isFinalized = !!buffState?.finalized_at;
+  page.classList.toggle('is-started', isStarted);
+  page.classList.toggle('is-finalized', isFinalized);
   // TEST_MODE — page + overlay 양쪽에 토글. overlay 는 head 영역의 [TEST] 라벨/[재시작] 게이트용.
   page.classList.toggle('is-test', testMode);
-  document.getElementById('sk-buff-overlay')?.classList.toggle('is-test', testMode);
+  overlay?.classList.toggle('is-test', testMode);
+
+  // admin 도구 [예약 시작]/[예약 마감] disabled 토글
+  //   [시작]: 시작 전(!isStarted)만 활성. 시작 후 disabled (이중 클릭 차단).
+  //   [마감]: 시작 후만 활성. 시작 전 또는 이미 마감 시 disabled.
+  const startBtn = document.getElementById('sk-buff-start-btn') as HTMLButtonElement | null;
+  const finalizeBtn = document.getElementById('sk-buff-finalize-btn') as HTMLButtonElement | null;
+  if (startBtn) startBtn.disabled = isStarted;
+  if (finalizeBtn) finalizeBtn.disabled = !isStarted || isFinalized;
 }
 
 function renderLocked(): void {
@@ -295,17 +319,8 @@ function renderGrid(): void {
   for (const p of participants) {
     if (p.slot_idx !== null) occupied.set(p.slot_idx, p);
   }
-  // 빈 슬롯 클릭 가능 조건:
-  //   testMode (선착순): 본인이 미점유 (slot_idx 없음) — 누구든 자유롭게 선택
-  //   운영 (순차):       본인 차례 (turn_idx === current_turn_idx)
-  let canPick = false;
-  if (me) {
-    if (testMode) {
-      canPick = me.slot_idx === null || me.slot_idx === undefined;
-    } else {
-      canPick = me.turn_idx === buffState.current_turn_idx;
-    }
-  }
+  // 운영/테스트 모두 선착순: 본인이 미점유 (slot_idx null) 면 누구든 자유롭게 선택.
+  const canPick = !!me && (me.slot_idx === null || me.slot_idx === undefined);
   for (let i = 0; i < slots; i++) {
     paintSlot(list.children[i] as HTMLElement, i, occupied.get(i), canPick);
   }
@@ -580,9 +595,28 @@ async function onReplaceConfirm(): Promise<void> {
   await pollState();
 }
 
+/** admin: 예약 시작 — confirm 후 bootstrap RPC 호출 (인증 우선 + 점수 순 48명 INSERT).
+ *  me 가 polling 응답 전에 null 일 수 있어 캐시 fallback (applyAdminClass 와 같은 패턴). */
+async function onStartClick(): Promise<void> {
+  if (!isAdminLikely()) return;
+  if (!confirm(t('survey.kvkBuff.confirm.start'))) return;
+  const res = await callFn<{ ok: boolean; error?: string }>({ action: 'admin-start', token });
+  if (!res.ok) {
+    alertError(res.error);
+    return;
+  }
+  await pollState();
+}
+
+/** admin 사전 게이트 — me (polling 응답) 우선, 없으면 localStorage 캐시 fallback.
+ *  서버는 자체 검증 (authenticate + is_admin) — 클라는 UX 차원에서만 차단. */
+function isAdminLikely(): boolean {
+  return me?.is_admin === true || (me === null && readCachedIsAdmin());
+}
+
 /** admin: 예약 마감 — confirm 후 state.finalized_at 세팅. 시스템 confirm() 사용 (페이지 일관). */
 async function onFinalizeClick(): Promise<void> {
-  if (!me?.is_admin) return;
+  if (!isAdminLikely()) return;
   if (!confirm(t('survey.kvkBuff.confirm.finalize'))) return;
   const res = await callFn<{ ok: boolean; error?: string }>({ action: 'finalize', token });
   if (!res.ok) {
@@ -735,7 +769,9 @@ function init(): void {
   // 운영 호출 시 서버가 'test_mode_only' 로 거부 → 안전.
   document.getElementById('sk-buff-test-reset')?.addEventListener('click', onResetTestClick);
 
-  // admin 전용 [예약 마감] — confirm() 후 finalize API 호출. 페이지 내 다른 흐름과 동일하게 시스템 confirm 사용.
+  // admin 도구 — buff overlay 헤더의 [예약 시작] / [예약 마감].
+  // disabled 토글은 applyAdminClass (state.bootstrapped_at / finalized_at 따라).
+  $('sk-buff-start-btn').addEventListener('click', onStartClick);
   $('sk-buff-finalize-btn').addEventListener('click', onFinalizeClick);
 
   // 마감 전이면 잠금 화면 + 마감 시각까지 카운트다운만 띄움 (state 무관 우선 표시)

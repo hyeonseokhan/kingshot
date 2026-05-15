@@ -820,7 +820,7 @@ export const en: Translations = {
       nextLabel: 'Up next',
       completed: 'All users have picked their slots',
       finalizedMsg: '🔒 Booking finalized — no further changes',
-      progress: { label: 'First-come picks' },
+      progress: { label: 'First-come picks', labelFinalized: '🔒 Booking closed' },
       queueEmpty: 'No users waiting',
       slotEmpty: 'Empty',
       skipButton: 'Skip', // DEPRECATED — kept for type parity, no longer used
@@ -836,6 +836,7 @@ export const en: Translations = {
       copyButton: 'Copy',
       copied: 'Copied',
       finalizeButton: 'Finalize',
+      startButton: 'Start',
       notice: {
         triggerLabel: 'Must-read notice',
         flow: {
@@ -854,8 +855,8 @@ export const en: Translations = {
       },
       locked: {
         title: '🔒 Booking not open yet',
-        bodyBeforeDeadline: 'Booking opens automatically after the survey deadline (UTC May 16, 01:00).',
-        bodyBootstrap: 'Booking is being prepared. Please wait a moment.',
+        bodyBeforeDeadline: 'Booking starts when an admin clicks [Start].',
+        bodyBootstrap: 'Booking starts when an admin clicks [Start].',
       },
       confirm: {
         cancel: 'Cancel',
@@ -866,6 +867,7 @@ export const en: Translations = {
         skipBody: 'Swap order: {cur} (#{curIdx}) ↔ {next} (#{nextIdx})?',
         swapBody: 'Swap slots between {a} and {b}?',
         finalize: 'Finalize the buff booking?\nNo one will be able to register or change afterward.',
+        start: 'Start booking?\n48 users will be auto-inserted (verified-first + score order).',
       },
       error: {
         notYourTurn: "It's not your turn",
