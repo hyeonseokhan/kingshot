@@ -81,25 +81,24 @@ export async function optimizeImage(
 }
 
 /**
- * WebP 인코딩 — 네이티브 toBlob 먼저, 미지원이면 WASM (@jsquash/webp).
- * iOS Safari 17 이하는 toBlob('image/webp') 호출 시 조용히 PNG 로 폴백 →
- * 결과 blob.type 으로 감지 후 WASM 경로로 재인코딩.
+ * WebP 인코딩 — 네이티브 toBlob 먼저, 미지원이면 JPEG 폴백.
+ * iOS Safari 14 이하는 toBlob('image/webp') 가 조용히 PNG 로 반환 →
+ * blob.type 으로 감지 후 JPEG 로 재인코딩 (storage bucket 은 webp/jpeg 모두 허용).
+ * WASM(@jsquash/webp) 경로는 정적 호스팅(GitHub Pages)에서 WASM URL 해석 실패가
+ * 발생하므로 제거. iOS 15+ 는 네이티브 WebP 인코딩 지원.
  */
 async function encodeWebP(
   canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
+  _ctx: CanvasRenderingContext2D,
+  _width: number,
+  _height: number,
   quality: number,
 ): Promise<Blob> {
   const native = await encodeToBlob(canvas, 'image/webp', quality);
   if (native.type === 'image/webp') return native;
 
-  // 네이티브 미지원 — WASM 폴백. 첫 호출 시에만 모듈 다운로드 (~150 KB).
-  const { encode } = await import('@jsquash/webp');
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const webpBuffer = await encode(imageData, { quality: Math.round(quality * 100) });
-  return new Blob([webpBuffer], { type: 'image/webp' });
+  // 네이티브 WebP 미지원 환경 (iOS 14 이하) → JPEG 폴백
+  return encodeToBlob(canvas, 'image/jpeg', quality);
 }
 
 function encodeToBlob(

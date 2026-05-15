@@ -53,11 +53,5 @@ export default defineConfig({
         },
       }),
     ],
-    // @jsquash/webp 같은 WASM 패키지는 Vite 의 esbuild pre-bundle 에서 import.meta.url 경로가
-    // 깨져 "Failed to fetch dynamically imported module" 에러가 남. exclude 로 pre-bundle 회피
-    // → native ESM 로 로드되면서 WASM URL 이 정상 해결됨. (jSquash 공식 권장 패턴)
-    optimizeDeps: {
-      exclude: ['@jsquash/webp'],
-    },
   },
 });
