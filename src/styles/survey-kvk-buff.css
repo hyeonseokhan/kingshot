@@ -460,6 +460,8 @@
   position: fixed;
   inset: 0;
   margin: auto;
+  /* dialog 자체에 색 명시 — 자식 텍스트가 native 검정 색 받는 회귀 차단. */
+  color: var(--sk-text);
 }
 .sk-buff-replace::backdrop {
   background: rgba(0, 0, 0, 0.65);

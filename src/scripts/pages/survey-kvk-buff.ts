@@ -263,50 +263,74 @@ function renderGrid(): void {
     grid.innerHTML = '';
     return;
   }
+  const slots = totalSlots();
+  // 슬롯 카드 element 풀 — 첫 렌더 시만 생성, 이후 polling 갱신은 내용만 patch.
+  // (이전엔 매 polling 마다 grid.innerHTML='' 으로 통째 재생성 → <img> 도 새로 만들어져 깜박임 회귀.)
+  if (grid.children.length !== slots) {
+    grid.innerHTML = '';
+    for (let i = 0; i < slots; i++) {
+      const c = document.createElement('div');
+      c.className = 'sk-buff-slot';
+      c.dataset.slotIdx = String(i);
+      grid.appendChild(c);
+    }
+  }
   const occupied = new Map<number, Participant>();
   for (const p of participants) {
     if (p.slot_idx !== null) occupied.set(p.slot_idx, p);
   }
-  // mockup 처럼 fragment 단위로 재구성. 갱신 잦지만 48개라 부담 X.
-  grid.innerHTML = '';
-  const slots = totalSlots();
+  // 자기 차례일 때만 빈 슬롯 클릭 가능. (.is-selectable 미적용 시 CSS pointer-events:none 으로 클릭 차단)
+  const isMyTurn = !!me && me.turn_idx === buffState.current_turn_idx;
   for (let i = 0; i < slots; i++) {
-    const card = document.createElement('div');
-    card.className = 'sk-buff-slot';
-    card.dataset.slotIdx = String(i);
-    const time = formatSlotTime(i, tzMode);
-    const holder = occupied.get(i);
-    if (holder) {
-      const letter = escapeHtml(holder.survey?.nickname.charAt(0).toUpperCase() ?? '?');
-      const avatar = holder.survey?.avatar_url ?? '';
-      // letter placeholder 항상 깔고, avatar_url 있으면 img 로 위에 stack (grid:1/1).
-      // img 가 늦게 로드되더라도 빈 자리/깜박임 없음.
-      const photoHtml = avatar
-        ? `<span class="sk-buff-slot-photo-letter">${letter}</span><img class="sk-buff-slot-photo-img" src="${escapeHtml(avatar)}" alt="" loading="lazy" />`
-        : `<span class="sk-buff-slot-photo-letter">${letter}</span>`;
-      card.innerHTML = `
-        <span class="sk-buff-slot-time">${time}</span>
-        <div class="sk-buff-slot-holder">
-          <div class="sk-buff-slot-photo">${photoHtml}</div>
-          <div class="sk-buff-slot-meta">
-            <div class="sk-buff-slot-name">${escapeHtml(holder.survey?.nickname ?? holder.kingshot_id)}</div>
-            <div class="sk-buff-slot-id">#${holder.kingshot_id}</div>
-          </div>
-        </div>
-      `;
-    } else {
-      card.classList.add('is-selectable');
-      card.innerHTML = `
-        <span class="sk-buff-slot-time">${time}</span>
-        <span class="sk-buff-slot-id">${t('survey.kvkBuff.slotEmpty')}</span>
-      `;
-    }
-    grid.appendChild(card);
+    paintSlot(grid.children[i] as HTMLElement, i, occupied.get(i), isMyTurn);
   }
-  // polling 으로 grid 재생성된 후에도 admin swap selection 유지 — slot_idx 로 새 카드에 재마킹.
+  // polling 으로 grid 재구성돼도 admin swap selection 유지 — slot_idx 로 마킹 복구.
   if (swapSourceSlotIdx !== null) {
     grid.querySelector(`.sk-buff-slot[data-slot-idx="${swapSourceSlotIdx}"]`)
       ?.classList.add('is-swap-source');
+  }
+}
+
+/** 슬롯 카드 한 개 patch — holder/selectable 상태 변경 시만 innerHTML 재구성.
+ *  변경 없으면 시간 텍스트만 갱신 (tzMode 토글 케이스). 아바타 img 깜박임 차단의 핵심. */
+function paintSlot(card: HTMLElement, slotIdx: number, holder: Participant | undefined, isMyTurn: boolean): void {
+  const time = formatSlotTime(slotIdx, tzMode);
+  const newHolderId = holder?.kingshot_id ?? '';
+  const oldHolderId = card.dataset.holderId ?? '';
+  const newSelectable = !holder && isMyTurn;
+  const oldSelectable = card.classList.contains('is-selectable');
+
+  if (newHolderId === oldHolderId && newSelectable === oldSelectable) {
+    // 데이터 동일 — 시간 텍스트만 갱신 (tz 토글 시).
+    const timeEl = card.querySelector('.sk-buff-slot-time');
+    if (timeEl && timeEl.textContent !== time) timeEl.textContent = time;
+    return;
+  }
+
+  card.dataset.holderId = newHolderId;
+  card.classList.toggle('is-selectable', newSelectable);
+
+  if (holder) {
+    const letter = escapeHtml(holder.survey?.nickname.charAt(0).toUpperCase() ?? '?');
+    const avatar = holder.survey?.avatar_url ?? '';
+    const photoHtml = avatar
+      ? `<span class="sk-buff-slot-photo-letter">${letter}</span><img class="sk-buff-slot-photo-img" src="${escapeHtml(avatar)}" alt="" loading="lazy" />`
+      : `<span class="sk-buff-slot-photo-letter">${letter}</span>`;
+    card.innerHTML = `
+      <span class="sk-buff-slot-time">${time}</span>
+      <div class="sk-buff-slot-holder">
+        <div class="sk-buff-slot-photo">${photoHtml}</div>
+        <div class="sk-buff-slot-meta">
+          <div class="sk-buff-slot-name">${escapeHtml(holder.survey?.nickname ?? holder.kingshot_id)}</div>
+          <div class="sk-buff-slot-id">#${holder.kingshot_id}</div>
+        </div>
+      </div>
+    `;
+  } else {
+    card.innerHTML = `
+      <span class="sk-buff-slot-time">${time}</span>
+      <span class="sk-buff-slot-id">${t('survey.kvkBuff.slotEmpty')}</span>
+    `;
   }
 }
 
@@ -354,13 +378,9 @@ function onGridClick(e: Event): void {
     return;
   }
 
-  // (a) 빈 슬롯 — 본인 차례일 때만 pick confirm
+  // (a) 빈 슬롯 — paintSlot 가 자기 차례 + 빈 슬롯 일 때만 .is-selectable 부여.
+  // 자기 차례 아니면 .is-selectable 미적용 → CSS pointer-events:none 으로 클릭 자체 차단.
   if (card.classList.contains('is-selectable')) {
-    if (!me || !buffState) return;
-    if (me.turn_idx !== buffState.current_turn_idx) {
-      alert(t('survey.kvkBuff.error.notYourTurn'));
-      return;
-    }
     pendingSlotIdx = slotIdx;
     $('sk-buff-confirm-time').textContent = formatSlotTime(slotIdx, tzMode);
     const dlg = $<HTMLDialogElement>('sk-buff-confirm-dialog');
