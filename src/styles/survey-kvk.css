@@ -1081,6 +1081,14 @@ html:has(.sk-buff-overlay[open]) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between; /* PC: 좌측 그룹 vs 우측 그룹 */
+  gap: 10px;
+}
+.sk-sort-main,
+.sk-sort-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
 }
 .sk-sort-chip {
@@ -1104,49 +1112,125 @@ html:has(.sk-buff-overlay[open]) {
   border-color: var(--sk-accent);
   color: #fff;
 }
-/* 점수 chip — 멤버 페이지의 .btn-primary gradient (호박-빨강) 와 동일 색상.
-   active/inactive 무관 항상 노출. 이모지는 폰트 크기에 자동 맞춰짐 (em 단위). */
+/* 점수 chip — 주황 톤, outline + 연한 배경 (이전 인증 디자인을 색만 바꿔 차용). */
 .sk-sort-chip-score {
-  background: linear-gradient(135deg, #f59e0b, #ef4444);
-  border-color: transparent;
-  color: #fff;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 .sk-sort-chip-score:hover {
-  background: linear-gradient(135deg, #d97706, #dc2626);
-  color: #fff;
-  border-color: transparent;
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.7);
+  color: #fcd34d;
 }
 .sk-sort-chip-score[data-active='true'] {
-  background: linear-gradient(135deg, #d97706, #dc2626);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   border-color: transparent;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+  color: #2d1607;
 }
-/* 인증 chip — 초록 톤 (Verified 색상과 일관). active 무관 항상 색상 노출. */
+/* 인증 chip — 초록 그라데이션 solid (이전 점수 디자인을 색만 바꿔 차용). */
 .sk-sort-chip-verified {
-  background: rgba(74, 222, 128, 0.12);
-  border-color: rgba(74, 222, 128, 0.45);
-  color: #4ade80;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  border-color: transparent;
+  color: #fff;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 .sk-sort-chip-verified:hover {
-  background: rgba(74, 222, 128, 0.2);
-  border-color: rgba(74, 222, 128, 0.7);
-  color: #4ade80;
+  background: linear-gradient(135deg, #22c55e, #15803d);
+  color: #fff;
+  border-color: transparent;
 }
 .sk-sort-chip-verified[data-active='true'] {
-  background: #4ade80;
-  border-color: #4ade80;
-  color: #052e16;
-  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3);
+  background: linear-gradient(135deg, #22c55e, #15803d);
+  border-color: transparent;
+  color: #fff;
 }
 .sk-sort-chip-emoji {
   font-size: 1em; /* chip 폰트 사이즈 따라감 */
   line-height: 1;
+}
+
+/* 점수+인증 chip 그룹 wrap. desktop: display:contents 로 평탄화(기존 한 줄 유지).
+   mobile: 두 번째 줄로 break (아래 @media). */
+.sk-sort-actions {
+  display: contents;
+}
+
+/* [인증] + [순위 복사] 정적 페어 — 한 pill 처럼 항상 붙어 있는 두 클릭 영역.
+   확장 애니메이션 제거 이유: max-width 가 auto 로 transition 안 되어 근사값 멈춤 +
+   chip 의 우측 border-radius instant flip + padding/opacity 동시 트랜지션 어긋남.
+   verified-top-48 순위는 정렬 키와 무관하게 늘 유효하므로 늘 노출이 옳음. */
+.sk-verified-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  vertical-align: middle;
+}
+.sk-verified-wrap .sk-sort-chip-verified {
+  /* 좌측 라운드만 유지 — 우측은 복사 버튼과 시각 접합 */
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.sk-verified-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #16a34a, #14532d);
+  border: 1px solid transparent;
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.95);
+  border-radius: 0 999px 999px 0;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.sk-verified-copy-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+.sk-verified-copy-text {
+  flex-shrink: 0;
+}
+.sk-verified-copy:hover {
+  background: linear-gradient(135deg, #15803d, #052e16);
+  color: #fff;
+}
+.sk-verified-copy:active {
+  background: linear-gradient(135deg, #14532d, #052e16);
+}
+
+/* 화면 가운데 토스트 — 타일매치 .tm-toast / 부대계산기 .tc-toast 와 동일 패턴. */
+.sk-toast {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, calc(-50% + 12px));
+  background: rgba(20, 20, 24, 0.94);
+  color: #ffffff;
+  padding: 16px 28px;
+  border-radius: 26px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.45);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  white-space: nowrap;
+}
+.sk-toast.sk-toast-show {
+  opacity: 1;
+  transform: translate(-50%, -50%);
 }
 
 .sk-table-wrap {
@@ -1329,6 +1413,22 @@ html:has(.sk-buff-overlay[open]) {
     display: flex; /* 모바일에서만 노출 */
   }
   .sk-sort-chip {
+    padding: 4px 10px;
+    font-size: 11.5px;
+  }
+  /* 모바일 두 행 분리: 1행(좌측 정렬) main / 2행(우측 정렬) actions. */
+  .sk-sort-bar {
+    row-gap: 8px;
+  }
+  .sk-sort-main {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+  .sk-sort-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+  .sk-verified-copy {
     padding: 4px 10px;
     font-size: 11.5px;
   }

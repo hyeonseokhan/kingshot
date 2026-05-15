@@ -885,13 +885,12 @@ function filterRows(rows: SurveyRow[], query: string): SurveyRow[] {
   );
 }
 
-/** 점수 기준 상위 N명의 ID 집합. 데이터가 N보다 적으면 전부 포함. */
+/** 인증 기준 상위 N명의 ID 집합 — 1순위: 인증 + 점수 desc / 2순위: 미인증 점수 desc.
+ *  sortRows 의 'verified' 분기 결과 상위 N 과 동일. 데이터가 N보다 적으면 전부 포함.
+ *  버프 보상 수령자와 정확히 일치 → 🎁 아이콘으로 시각 동기화. */
 function computeTopGiftIds(rows: SurveyRow[]): Set<string> {
-  const ranked = rows
-    .map((r) => ({ id: r.kingshot_id, score: rowScore(r) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, TOP_GIFT_COUNT);
-  return new Set(ranked.map((r) => r.id));
+  const ranked = sortRows(rows, { key: 'verified', dir: 'desc' }).slice(0, TOP_GIFT_COUNT);
+  return new Set(ranked.map((r) => r.kingshot_id));
 }
 
 function rowTotal(r: SurveyRow): number {
@@ -1048,6 +1047,61 @@ function onSortClick(key: SortKey): void {
     sort = { key, dir: 'desc' };
   }
   renderList();
+}
+
+// ===== 클립보드 + 토스트 =====
+
+/** Clipboard API 우선, 비-secure context 면 textarea fallback (게임툴/타일매치 동일 패턴). */
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+let _toastTimer: number | null = null;
+function showToast(msg: string): void {
+  const el = document.getElementById('sk-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('sk-toast-show');
+  if (_toastTimer !== null) window.clearTimeout(_toastTimer);
+  _toastTimer = window.setTimeout(() => {
+    el.classList.remove('sk-toast-show');
+    _toastTimer = null;
+  }, 1500);
+}
+
+/** 인증 정렬 + 상위 48명 — `1. Nickname (#id)` 줄바꿈 형식으로 클립보드 복사. */
+async function onCopyVerifiedRanking(): Promise<void> {
+  if (rowsCache.length === 0) {
+    showToast(t('survey.kvk.list.copyToastEmpty'));
+    return;
+  }
+  // 정렬: verified-first → score desc (sortRows 의 verified 분기와 동일 결과)
+  const ranked = sortRows(rowsCache, { key: 'verified', dir: 'desc' }).slice(0, 48);
+  const lines = ranked.map((r, i) => `${i + 1}. ${r.nickname} (#${r.kingshot_id})`);
+  const ok = await copyTextToClipboard(lines.join('\n'));
+  if (ok) {
+    showToast(t('survey.kvk.list.copyToast', { n: ranked.length }));
+  }
 }
 
 // ===== util =====
@@ -1425,6 +1479,12 @@ function init(): void {
       onSortClick(key);
     });
   });
+
+  // [인증] chip 우측 (순위 복사) — 클릭 시 verified 정렬 기준 상위 48명을 클립보드로.
+  // chip 자체 click 과 분리된 별도 button 이라 stopPropagation 불필요.
+  document
+    .getElementById('sk-sort-verified-copy')
+    ?.addEventListener('click', onCopyVerifiedRanking);
 
   // 행 클릭 → 상세 다이얼로그 (이벤트 위임 — tbody 가 patchList 로 매번 갱신돼도 안전)
   $('sk-tbody').addEventListener('click', (e) => {

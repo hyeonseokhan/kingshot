@@ -771,6 +771,9 @@ export const ko = {
         sortRegistered: '등록순',
         sortScore: '점수',
         sortVerified: '인증',
+        copyRanking: '순위 복사',
+        copyToast: '상위 {n}명 순위가 클립보드에 복사되었습니다',
+        copyToastEmpty: '복사할 데이터가 없어요',
         verified: '인증됨',
         unverified: '미인증',
         thead: {

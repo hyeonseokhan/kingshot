@@ -772,6 +772,9 @@ export const en: Translations = {
         sortRegistered: 'Recent',
         sortScore: 'Score',
         sortVerified: 'Verified',
+        copyRanking: 'Copy ranking',
+        copyToast: 'Top {n} ranking copied to clipboard',
+        copyToastEmpty: 'Nothing to copy yet',
         verified: 'Verified',
         unverified: 'Unverified',
         thead: {

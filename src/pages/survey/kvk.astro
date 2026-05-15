@@ -10,6 +10,9 @@ import '@/styles/survey-kvk-buff.css';
   description="KVK 이벤트 대비 가속권 보유 현황을 조사하는 페이지입니다"
 >
   <div class="sk-page" id="sk-page">
+    <!-- 화면 가운데 토스트 (클립보드 복사 피드백) — 타일매치 .tm-toast 패턴 동일. -->
+    <div class="sk-toast" id="sk-toast" role="status" aria-live="polite"></div>
+
     <!-- 필독 안내문 트리거 — 클릭 시 별도 다이얼로그. 강조 톤 (빨강/주황 + pulse) 으로 주의 환기. -->
     <button type="button" class="sk-notice-trigger" id="sk-notice-trigger">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -449,23 +452,41 @@ import '@/styles/survey-kvk-buff.css';
           <span class="sk-legend-item"><span class="sk-legend-emoji">🔨</span>
             <span data-i18n="survey.kvk.list.thead.construction">건설</span></span>
         </div>
+        <!-- 두 그룹 좌우 분리. PC: justify-content: space-between 한 줄. 모바일: 각 그룹 flex-basis 100%
+             → 행 분리 (1행 좌측 정렬, 2행 우측 정렬). -->
         <div class="sk-sort-bar">
-          <button type="button" class="sk-sort-chip" data-sort="general"
-            data-i18n="survey.kvk.list.thead.general">공용</button>
-          <button type="button" class="sk-sort-chip" data-sort="training"
-            data-i18n="survey.kvk.list.thead.training">병사</button>
-          <button type="button" class="sk-sort-chip" data-sort="construction"
-            data-i18n="survey.kvk.list.thead.construction">건설</button>
-          <button type="button" class="sk-sort-chip sk-sort-chip-score" data-sort="score">
-            <span class="sk-sort-chip-emoji" aria-hidden="true">🎁</span>
-            <span data-i18n="survey.kvk.list.sortScore">점수</span>
-          </button>
-          <button type="button" class="sk-sort-chip sk-sort-chip-verified" data-sort="verified">
-            <span class="sk-sort-chip-emoji" aria-hidden="true">✅</span>
-            <span data-i18n="survey.kvk.list.sortVerified">인증</span>
-          </button>
-          <button type="button" class="sk-sort-chip" data-sort="updated_at"
-            data-i18n="survey.kvk.list.sortRegistered">등록순</button>
+          <div class="sk-sort-main">
+            <button type="button" class="sk-sort-chip" data-sort="general"
+              data-i18n="survey.kvk.list.thead.general">공용</button>
+            <button type="button" class="sk-sort-chip" data-sort="training"
+              data-i18n="survey.kvk.list.thead.training">병사</button>
+            <button type="button" class="sk-sort-chip" data-sort="construction"
+              data-i18n="survey.kvk.list.thead.construction">건설</button>
+            <button type="button" class="sk-sort-chip" data-sort="updated_at"
+              data-i18n="survey.kvk.list.sortRegistered">등록순</button>
+          </div>
+          <div class="sk-sort-actions">
+            <button type="button" class="sk-sort-chip sk-sort-chip-score" data-sort="score"
+              data-i18n="survey.kvk.list.sortScore">점수</button>
+            <!-- 인증 chip + 순위 복사 — wrap 이 [data-expanded=true] 일 때만 복사 버튼 슬라이드 인.
+                 확장 토글은 sort.key === 'verified' 일 때 JS 가 동기화.
+                 🎁 이모지 = "이 정렬 기준의 상위 48명에게 버프 보상" 이라는 의미를 chip + 아바타 동시 사용. -->
+            <span class="sk-verified-wrap" id="sk-verified-wrap">
+              <button type="button" class="sk-sort-chip sk-sort-chip-verified" data-sort="verified">
+                <span class="sk-sort-chip-emoji" aria-hidden="true">🎁</span>
+                <span data-i18n="survey.kvk.list.sortVerified">인증</span>
+              </button>
+              <button type="button" class="sk-verified-copy" id="sk-sort-verified-copy"
+                data-i18n-attr-aria-label="survey.kvk.list.copyRanking"
+                aria-label="순위 복사">
+                <svg class="sk-verified-copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span class="sk-verified-copy-text" data-i18n="survey.kvk.list.copyRanking">순위 복사</span>
+              </button>
+            </span>
+          </div>
         </div>
       </div>
 
