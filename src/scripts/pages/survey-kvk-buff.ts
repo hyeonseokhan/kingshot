@@ -41,7 +41,7 @@ function totalSlots(): number {
   return PROD_TOTAL_SLOTS;
 }
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 2000;
 
 /** localStorage key — 가속권 현황 조사 페이지의 토큰을 그대로 공유. */
 const AUTH_KEY = 'pnx-sk-auth-v1';
