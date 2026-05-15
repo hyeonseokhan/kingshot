@@ -35,7 +35,10 @@ export function setBuffTestMode(v: boolean): void {
 }
 
 function totalSlots(): number {
-  return testMode ? TEST_TOTAL_SLOTS : PROD_TOTAL_SLOTS;
+  // testMode: admin 수에 맞춰 동적 (bootstrap_test 가 admin 모두 INSERT → participants.length).
+  // 첫 fetch 응답 전엔 fallback 6 (잠금 placeholder 노출 시점이라 무관).
+  if (testMode) return participants.length || TEST_TOTAL_SLOTS;
+  return PROD_TOTAL_SLOTS;
 }
 
 const POLL_INTERVAL_MS = 5000;
