@@ -164,14 +164,19 @@
 .sk-buff-page.is-admin .sk-buff-skip-btn { display: inline-block; }
 .sk-buff-current.is-completed .sk-buff-skip-btn { display: none !important; }
 
-/* admin 전용 [예약 마감] — .sk-buff-tz 줄의 다른 토글과 같은 스타일에 위험 색상만 강조.
+/* admin 전용 [예약 마감] — 빨강 fill (위험 종료 액션 강한 시각 시그널).
    default: 숨김 → .sk-buff-page.is-admin 일 때만 노출. 마감 후엔 .is-finalized 로 다시 숨김. */
 .sk-buff-finalize-btn {
   display: none !important;
-  color: #f87171;
-  border-color: #f87171;
+  background: rgba(239, 68, 68, 0.18);
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.55);
 }
-.sk-buff-finalize-btn:hover { background: rgba(248, 113, 113, 0.12); }
+.sk-buff-finalize-btn:hover {
+  background: rgba(239, 68, 68, 0.32);
+  border-color: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
 .sk-buff-page.is-admin .sk-buff-finalize-btn { display: inline-flex !important; }
 .sk-buff-page.is-finalized .sk-buff-finalize-btn { display: none !important; }
 
@@ -306,11 +311,26 @@
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* ===== 슬롯 그리드 ===== */
+/* ===== 슬롯 그리드 — head (toolbar) + list (slots) 두 영역으로 분리 ===== */
 .sk-buff-grid {
   background: var(--sk-surface);
   border: 1px solid var(--sk-border);
   border-radius: 12px;
+  /* padding 은 head/list 자체가 책임 — 박스 외곽만 결정 */
+  overflow: hidden;
+}
+/* 헤더 — KST 토글 / 남은 자리 / 복사. 그리드의 일부로 시각 통합. */
+.sk-buff-grid-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sk-border);
+  background: var(--sk-surface-2);
+}
+/* slots 컨테이너 — 기존 sk-buff-grid 의 padding 위치. */
+.sk-buff-grid-list {
   padding: 10px;
 }
 /* "남은 자리만 보기" 필터 — 점유 슬롯 (.is-occupied) 만 hide.

@@ -270,21 +270,22 @@ function renderCurrent(): void {
 }
 
 function renderGrid(): void {
-  const grid = $('sk-buff-grid');
+  // grid 박스 안에 헤더(tz/필터/복사) + list(슬롯들) 두 영역. 클라는 list 만 조작 (헤더 보존).
+  const list = $('sk-buff-grid-list');
   if (!buffState) {
-    grid.innerHTML = '';
+    list.innerHTML = '';
     return;
   }
   const slots = totalSlots();
   // 슬롯 카드 element 풀 — 첫 렌더 시만 생성, 이후 polling 갱신은 내용만 patch.
-  // (이전엔 매 polling 마다 grid.innerHTML='' 으로 통째 재생성 → <img> 도 새로 만들어져 깜박임 회귀.)
-  if (grid.children.length !== slots) {
-    grid.innerHTML = '';
+  // (이전엔 매 polling 마다 innerHTML='' 으로 통째 재생성 → <img> 도 새로 만들어져 깜박임 회귀.)
+  if (list.children.length !== slots) {
+    list.innerHTML = '';
     for (let i = 0; i < slots; i++) {
       const c = document.createElement('div');
       c.className = 'sk-buff-slot';
       c.dataset.slotIdx = String(i);
-      grid.appendChild(c);
+      list.appendChild(c);
     }
   }
   const occupied = new Map<number, Participant>();
@@ -303,11 +304,11 @@ function renderGrid(): void {
     }
   }
   for (let i = 0; i < slots; i++) {
-    paintSlot(grid.children[i] as HTMLElement, i, occupied.get(i), canPick);
+    paintSlot(list.children[i] as HTMLElement, i, occupied.get(i), canPick);
   }
   // polling 으로 grid 재구성돼도 admin swap selection 유지 — slot_idx 로 마킹 복구.
   if (swapSourceSlotIdx !== null) {
-    grid.querySelector(`.sk-buff-slot[data-slot-idx="${swapSourceSlotIdx}"]`)
+    list.querySelector(`.sk-buff-slot[data-slot-idx="${swapSourceSlotIdx}"]`)
       ?.classList.add('is-swap-source');
   }
 }

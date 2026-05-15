@@ -839,8 +839,8 @@ export const ko = {
         triggerLabel: '필독 안내문',
         flow: {
           title: '진행 방식',
-          body1: '예측 점수 <strong>순위 기준</strong>으로 순차적으로 시간 선택.',
-          body2: '<strong>"선택중"</strong>인 사용자 프로필을 클릭하면 대기 순번 일부 노출.',
+          body1: '<strong>선착순</strong> — 누구든 빈 시간대를 자유롭게 선택할 수 있습니다.',
+          body2: '먼저 선점한 사람이 우선. 동일 시간에 한 명만 들어갑니다.',
         },
         window: {
           title: '선택 가능 시간',

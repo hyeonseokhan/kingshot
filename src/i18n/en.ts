@@ -840,8 +840,8 @@ export const en: Translations = {
         triggerLabel: 'Must-read notice',
         flow: {
           title: 'How it works',
-          body1: 'Pick your slot in <strong>predicted-score order</strong>.',
-          body2: 'Click the <strong>"Picking"</strong> profile to see the next-up queue.',
+          body1: '<strong>First-come, first-served</strong> — anyone can pick any open slot.',
+          body2: 'First to claim wins. Only one user per slot.',
         },
         window: {
           title: 'Booking window',
