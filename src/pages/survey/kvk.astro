@@ -671,9 +671,10 @@ import '@/styles/survey-kvk-buff.css';
               <span data-i18n="survey.kvkBuff.notice.triggerLabel">필독 안내문</span>
             </button>
 
-            <!-- !!! TEST_MODE 전용 — 선착순 진행률 카드. CSS .sk-buff-page.is-test 일 때만 노출.
-                 운영(순차)에선 hidden, 아래 sk-buff-current 가 노출. -->
-            <section class="sk-buff-progress" id="sk-buff-progress" hidden>
+            <!-- !!! TEST_MODE 전용 — 선착순 진행률 카드. 노출 결정은 CSS (.sk-buff-page.is-test) 한 곳에서만.
+                 (hidden 속성 사용 금지 — CSS display 토글과 충돌 시 일부 브라우저에서 안 풀리는 회귀.)
+                 운영(순차)에선 .sk-buff-progress { display:none } 로 자동 hide. -->
+            <section class="sk-buff-progress" id="sk-buff-progress">
               <div class="sk-buff-progress-head">
                 <span class="sk-buff-progress-label" data-i18n="survey.kvkBuff.progress.label">선착순 진행</span>
                 <span class="sk-buff-progress-count">
