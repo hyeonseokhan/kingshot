@@ -339,9 +339,9 @@ function syncHeaderLogoutBtn(): void {
  *  saveAuth/clearAuth (인증 변화) / startDeadlineCountdown 의 tick (마감 도달) 시 자동 호출.
  *
  *  노출 매트릭스:
+ *    [테스트]    sk-list-test : admin 만 (마감 전/후 무관) — admin 사전 점검 채널
+ *    [버프 예약] sk-list-buff : 마감 후에만 모두 노출 (admin 도 마감 전엔 hidden — 운영 사전점검은 [테스트] 로)
  *    [등록/수정] sk-list-add  : 마감 전만
- *    [버프 예약] sk-list-buff : 마감 후만
- *    [테스트]    sk-list-test : admin (마감 전/후 무관)
  *
  *  각 버튼은 자기 클릭 핸들러 (onClickRegister / onClickBuffBooking / onClickTest) 한 개씩만 가짐.
  *  → if 분기로 한 핸들러 안에서 시점에 따라 동작 swap 하던 구조 제거 → 유지보수 용이. */
