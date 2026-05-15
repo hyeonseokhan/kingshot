@@ -482,18 +482,27 @@ function alertError(errorCode: string | undefined): void {
 async function onPickConfirm(): Promise<void> {
   if (pendingSlotIdx === null || !buffState) return;
   const dlg = $<HTMLDialogElement>('sk-buff-confirm-dialog');
-  const res = await callFn<{ ok: boolean; error?: string }>({
-    action: 'pick-slot',
-    token,
-    slot_idx: pendingSlotIdx,
-    expected_turn_idx: buffState.current_turn_idx,
-  });
-  pendingSlotIdx = null;
-  dlg.close();
-  if (!res.ok) {
-    alertError(res.error);
+  const okBtn = $<HTMLButtonElement>('sk-buff-confirm-ok');
+  // double-submit 방어 — 이미 in-flight 인데 다시 클릭 시 무시.
+  // (선착순 시나리오에서 빠른 연타로 두 번째 픽이 'already_picked' 받는 race 차단.)
+  if (okBtn.disabled) return;
+  okBtn.disabled = true;
+  try {
+    const res = await callFn<{ ok: boolean; error?: string }>({
+      action: 'pick-slot',
+      token,
+      slot_idx: pendingSlotIdx,
+      expected_turn_idx: buffState.current_turn_idx,
+    });
+    pendingSlotIdx = null;
+    dlg.close();
+    if (!res.ok) {
+      alertError(res.error);
+    }
+    await pollState();
+  } finally {
+    okBtn.disabled = false;
   }
-  await pollState();
 }
 
 // ===== admin: replace current (변경) =====
