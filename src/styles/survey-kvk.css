@@ -961,13 +961,14 @@ html:has(.sk-buff-overlay[open]) {
   align-items: center;
   flex-shrink: 0;
 }
-/* [테스트] + [등록/수정] 묶음 — 두 버튼을 한 단위로 묶어 hidden 토글 시
-   toolbar 의 다른 자식 layout 변동 없게. test 가 hidden 이면 add 만 보이고,
-   둘 다 보이면 [test][add] 순서 (gap 8px). */
+/* 액션 버튼 3종 묶음 — hidden 토글 시 toolbar 의 다른 자식 layout 변동 없게.
+   min-height 로 자식 모두 hidden 이어도 wrapper 자체 공간 유지 → 아래 섹션이
+   위로 올라왔다 내려가는 layout shift 차단 (boot 시 hidden → JS 가 조건 맞는 버튼 노출하는 갭 동안). */
 .sk-list-end-actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
 }
 /* 등록 / 수정 — 두 줄 (라벨 + 카운트다운). toolbar 의 32px 고정 override.
    min-width 고정 — 카운트다운 자릿수 변화 (1d 2h 3m 4s ↔ 23m 5s) 로 인한 너비 변동 차단. */

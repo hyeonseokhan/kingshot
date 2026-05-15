@@ -440,15 +440,73 @@ async function onPickConfirm(): Promise<void> {
   await pollState();
 }
 
-// ===== admin: skip =====
-async function onSkipConfirm(): Promise<void> {
-  if (!buffState) return;
-  const dlg = $<HTMLDialogElement>('sk-buff-skip-dialog');
+// ===== admin: replace current (변경) =====
+//   기존 [스킵] 자동 swap 패턴 (turn_idx ↔ turn_idx+1) 대체.
+//   admin 이 사용자 목록에서 직접 선택 → 두 사람 turn_idx swap → target 즉시 차례.
+//   이전 차례 사용자는 target 의 원래 자리로 밀려남 (옵션 A 동작).
+
+let pendingReplaceTargetId: string | null = null;
+
+/** 변경 다이얼로그 — 사용자 목록 (turn_idx 순) + radio 선택. 완료자/현재차례 본인 disabled. */
+function openReplaceDialog(): void {
+  if (!buffState || !me?.is_admin) return;
+  pendingReplaceTargetId = null;
+  const list = $('sk-buff-replace-list');
+  list.innerHTML = '';
+
+  const sorted = [...participants].sort((a, b) => a.turn_idx - b.turn_idx);
+  for (const p of sorted) {
+    const isCurrent = p.turn_idx === buffState.current_turn_idx;
+    const isPicked = p.slot_idx !== null;
+    const disabled = isCurrent || isPicked;
+    const li = document.createElement('li');
+    li.className = 'sk-buff-replace-item' + (disabled ? ' is-disabled' : '');
+    li.dataset.kingshotId = p.kingshot_id;
+    if (disabled) li.setAttribute('aria-disabled', 'true');
+    else li.setAttribute('role', 'radio');
+
+    const orderLabel = String(p.turn_idx + 1).padStart(2, '0');
+    const name = escapeHtml(p.survey?.nickname ?? p.kingshot_id);
+    let statusLabel = '';
+    if (isCurrent) statusLabel = t('survey.kvkBuff.replaceStatus.current');
+    else if (isPicked) statusLabel = t('survey.kvkBuff.replaceStatus.picked', { time: formatSlotTime(p.slot_idx!, tzMode) });
+
+    li.innerHTML = `
+      <span class="sk-buff-replace-radio" aria-hidden="true"></span>
+      <span class="sk-buff-replace-order">${orderLabel}</span>
+      <span class="sk-buff-replace-name">${name}</span>
+      <span class="sk-buff-replace-status">${escapeHtml(statusLabel)}</span>
+    `;
+    list.appendChild(li);
+  }
+
+  ($('sk-buff-replace-ok') as HTMLButtonElement).disabled = true;
+  $<HTMLDialogElement>('sk-buff-replace-dialog').showModal();
+}
+
+function onReplaceListClick(e: Event): void {
+  const li = (e.target as HTMLElement).closest<HTMLElement>('.sk-buff-replace-item');
+  if (!li || li.classList.contains('is-disabled')) return;
+  const id = li.dataset.kingshotId;
+  if (!id) return;
+  // radio 단일 선택 — 다른 항목 선택 해제
+  document.querySelectorAll('#sk-buff-replace-list .sk-buff-replace-item.is-selected')
+    .forEach((el) => el.classList.remove('is-selected'));
+  li.classList.add('is-selected');
+  pendingReplaceTargetId = id;
+  ($('sk-buff-replace-ok') as HTMLButtonElement).disabled = false;
+}
+
+async function onReplaceConfirm(): Promise<void> {
+  if (!buffState || !pendingReplaceTargetId) return;
+  const dlg = $<HTMLDialogElement>('sk-buff-replace-dialog');
   const res = await callFn<{ ok: boolean; error?: string }>({
-    action: 'admin-skip',
+    action: 'admin-replace-current',
     token,
+    target_kingshot_id: pendingReplaceTargetId,
     expected_turn_idx: buffState.current_turn_idx,
   });
+  pendingReplaceTargetId = null;
   dlg.close();
   if (!res.ok) alertError(res.error);
   await pollState();
@@ -478,21 +536,6 @@ async function onResetTestClick(): Promise<void> {
     return;
   }
   await pollState();
-}
-
-function openSkipDialog(): void {
-  if (!buffState || buffState.current_turn_idx >= totalSlots() - 1) return;
-  const cur = participants.find((p) => p.turn_idx === buffState!.current_turn_idx);
-  const next = participants.find((p) => p.turn_idx === buffState!.current_turn_idx + 1);
-  if (!cur || !next) return;
-  const body = t('survey.kvkBuff.confirm.skipBody', {
-    cur: cur.survey?.nickname ?? cur.kingshot_id,
-    curIdx: String(buffState.current_turn_idx + 1),
-    next: next.survey?.nickname ?? next.kingshot_id,
-    nextIdx: String(buffState.current_turn_idx + 2),
-  });
-  $('sk-buff-skip-body').textContent = body;
-  $<HTMLDialogElement>('sk-buff-skip-dialog').showModal();
 }
 
 // ===== admin: swap =====
@@ -556,8 +599,8 @@ function init(): void {
 
   // 현재 사용자 카드 — 클릭 시 다음 차례 큐 펼침
   $('sk-buff-current').addEventListener('click', (e) => {
-    // skip 버튼 클릭은 별도 처리
-    if ((e.target as HTMLElement).closest('#sk-buff-skip-btn')) return;
+    // [변경] 버튼 클릭은 별도 처리
+    if ((e.target as HTMLElement).closest('#sk-buff-replace-btn')) return;
     const card = $('sk-buff-current');
     if (card.classList.contains('is-completed')) return;
     card.classList.toggle('is-expanded');
@@ -594,13 +637,24 @@ function init(): void {
   });
   $('sk-buff-confirm-ok').addEventListener('click', onPickConfirm);
 
-  // skip
-  $('sk-buff-skip-btn').addEventListener('click', (e) => {
+  // [변경] — admin 이 다음 차례 사용자 명시 지정 (기존 [스킵] 자동 swap 대체)
+  $('sk-buff-replace-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    openSkipDialog();
+    openReplaceDialog();
   });
-  $('sk-buff-skip-cancel').addEventListener('click', () => $<HTMLDialogElement>('sk-buff-skip-dialog').close());
-  $('sk-buff-skip-ok').addEventListener('click', onSkipConfirm);
+  $('sk-buff-replace-close').addEventListener('click', () => $<HTMLDialogElement>('sk-buff-replace-dialog').close());
+  $('sk-buff-replace-cancel').addEventListener('click', () => $<HTMLDialogElement>('sk-buff-replace-dialog').close());
+  $('sk-buff-replace-ok').addEventListener('click', onReplaceConfirm);
+  $('sk-buff-replace-list').addEventListener('click', onReplaceListClick);
+  // backdrop 클릭 close
+  $('sk-buff-replace-dialog').addEventListener('click', (e) => {
+    const dlg = e.currentTarget as HTMLDialogElement;
+    if (e.target === dlg) dlg.close();
+  });
+  // close 시 선택 reset
+  $('sk-buff-replace-dialog').addEventListener('close', () => {
+    pendingReplaceTargetId = null;
+  });
 
   // swap
   $('sk-buff-swap-cancel').addEventListener('click', () => {

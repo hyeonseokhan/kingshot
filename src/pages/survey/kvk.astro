@@ -681,7 +681,9 @@ import '@/styles/survey-kvk-buff.css';
                   <div class="sk-buff-current-name" id="sk-buff-current-name">-</div>
                   <div class="sk-buff-current-id" id="sk-buff-current-id">-</div>
                 </div>
-                <button type="button" class="sk-buff-skip-btn" id="sk-buff-skip-btn" data-i18n="survey.kvkBuff.skipButton">스킵</button>
+                <!-- [변경] — admin 만 노출 (CSS 게이트). 클릭 시 사용자 목록 다이얼로그.
+                     기존 [스킵] 자동 swap 패턴 → admin 이 명시적으로 다음 차례 사용자 지정. -->
+                <button type="button" class="sk-buff-skip-btn" id="sk-buff-replace-btn" data-i18n="survey.kvkBuff.replaceButton">변경</button>
                 <span class="sk-buff-current-badge">
                   <span data-i18n="survey.kvkBuff.selecting">선택중</span>
                   <span class="sk-buff-current-elapsed" id="sk-buff-current-elapsed">0:00</span>
@@ -771,13 +773,24 @@ import '@/styles/survey-kvk-buff.css';
       </div>
     </dialog>
 
-    <!-- 스킵 confirm (admin) -->
-    <dialog class="sk-buff-confirm" id="sk-buff-skip-dialog" aria-label="순서 변경 확인">
-      <div class="sk-buff-confirm-card">
-        <p class="sk-buff-confirm-body" id="sk-buff-skip-body"></p>
-        <div class="sk-buff-confirm-actions">
-          <button type="button" class="sk-buff-confirm-cancel" id="sk-buff-skip-cancel" data-i18n="survey.kvkBuff.confirm.cancel">취소</button>
-          <button type="button" class="sk-buff-confirm-ok" id="sk-buff-skip-ok" data-i18n="survey.kvkBuff.confirm.confirm">확인</button>
+    <!-- [변경] — admin 이 다음 차례 사용자 지정 다이얼로그.
+         사용자 목록 (#sk-buff-replace-list) 은 클라가 동적 렌더 (turn_idx 순).
+         완료 슬롯 점유 사용자 + 현재 차례 본인은 disabled. -->
+    <dialog class="sk-buff-replace" id="sk-buff-replace-dialog" aria-labelledby="sk-buff-replace-title">
+      <div class="sk-buff-replace-card">
+        <header class="sk-buff-replace-head">
+          <strong id="sk-buff-replace-title" data-i18n="survey.kvkBuff.replaceTitle">차례 변경</strong>
+          <button type="button" class="sk-dialog-close" id="sk-buff-replace-close" aria-label="Close">&times;</button>
+        </header>
+        <p class="sk-buff-replace-help" data-i18n="survey.kvkBuff.replaceHelp">
+          현재 차례 사용자와 자리를 교환할 대상을 선택하세요.
+        </p>
+        <ul class="sk-buff-replace-list" id="sk-buff-replace-list" role="radiogroup">
+          <!-- 클라가 turn_idx 순으로 채움 -->
+        </ul>
+        <div class="sk-buff-replace-actions">
+          <button type="button" class="sk-buff-confirm-cancel" id="sk-buff-replace-cancel" data-i18n="survey.kvkBuff.confirm.cancel">취소</button>
+          <button type="button" class="sk-buff-confirm-ok" id="sk-buff-replace-ok" data-i18n="survey.kvkBuff.confirm.apply" disabled>적용</button>
         </div>
       </div>
     </dialog>

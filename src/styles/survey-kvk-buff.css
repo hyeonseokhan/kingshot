@@ -443,6 +443,105 @@
   color: #fff;
 }
 .sk-buff-confirm-ok:hover { background: var(--sk-accent-hover); }
+.sk-buff-confirm-ok:disabled {
+  background: var(--sk-surface-2);
+  color: var(--sk-text-dim);
+  cursor: not-allowed;
+}
+
+/* ===== [변경] 다이얼로그 — admin 이 다음 차례 사용자 선택 ===== */
+.sk-buff-replace {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 360px;
+  max-width: 92vw;
+  max-height: calc(100vh - 48px);
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+.sk-buff-replace::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+}
+.sk-buff-replace-card {
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+}
+.sk-buff-replace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sk-border);
+  flex-shrink: 0;
+}
+.sk-buff-replace-head strong { font-size: 14px; font-weight: 800; }
+.sk-buff-replace-help {
+  margin: 12px 16px 8px;
+  font-size: 12.5px;
+  color: var(--sk-text-dim);
+  line-height: 1.5;
+}
+.sk-buff-replace-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+.sk-buff-replace-item {
+  display: grid;
+  grid-template-columns: 18px 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.sk-buff-replace-item:hover:not(.is-disabled) { background: rgba(96, 165, 250, 0.08); }
+.sk-buff-replace-item.is-selected { background: rgba(96, 165, 250, 0.18); }
+.sk-buff-replace-item.is-disabled { opacity: 0.45; cursor: not-allowed; }
+.sk-buff-replace-radio {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--sk-border-strong);
+  background: transparent;
+  display: inline-block;
+}
+.sk-buff-replace-item.is-selected .sk-buff-replace-radio {
+  border-color: #60a5fa;
+  background: #60a5fa;
+  box-shadow: inset 0 0 0 2px var(--sk-surface);
+}
+.sk-buff-replace-order {
+  font-size: 12px; font-weight: 700;
+  color: var(--sk-text-dim);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sk-buff-replace-name {
+  font-size: 13.5px; font-weight: 600;
+  color: var(--sk-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sk-buff-replace-status {
+  font-size: 11px; color: var(--sk-text-dim);
+  white-space: nowrap;
+}
+.sk-buff-replace-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--sk-border);
+  flex-shrink: 0;
+}
 
 /* ===== 버프 예약 큰 다이얼로그 (가속권 페이지 안 통합) =====
    sk-buff-page 본문을 통째로 감싸는 모달. 모바일에선 거의 풀스크린, 데스크탑은 카드. */

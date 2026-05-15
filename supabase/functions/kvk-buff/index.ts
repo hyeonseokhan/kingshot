@@ -6,7 +6,9 @@
  *     bootstrap 안 됐고 마감 지났으면 자동 init.
  *     token 주면 me (현재 사용자 정보 + is_admin) 도 함께 응답.
  *   { action: 'pick-slot', token, slot_idx, expected_turn_idx, test_mode? }        → { ok }
- *   { action: 'admin-skip', token, expected_turn_idx, test_mode? }                 → { ok }
+ *   { action: 'admin-skip', token, expected_turn_idx, test_mode? }                 → { ok }   (DEPRECATED, 백워드 호환)
+ *   { action: 'admin-replace-current', token, target_kingshot_id,
+ *                                       expected_turn_idx, test_mode? }            → { ok }   (admin 만, 현재 차례 ↔ target turn_idx swap)
  *   { action: 'admin-swap', token, slot_a_idx, slot_b_idx, test_mode? }            → { ok }
  *   { action: 'finalize', token, test_mode? }                                       → { ok }   (admin 만, state.finalized_at = now)
  *   { action: 'admin-reset-test', token, test_mode: true }                         → { ok }   (TEST_MODE 전용 [재시작])
@@ -87,6 +89,7 @@ const KNOWN_ERRORS = new Set([
   "all_picked", "not_bootstrapped", "before_deadline",
   // admin
   "not_admin", "slot_not_occupied", "no_next", "same_slot",
+  "no_current_holder", "same_target", "target_not_found", "target_already_picked",
   // finalize
   "finalized", "already_finalized",
   // 인증/검증
@@ -237,6 +240,7 @@ async function pickSlot(token: unknown, slotIdx: unknown, expectedTurnIdx: unkno
 }
 
 async function adminSkip(token: unknown, expectedTurnIdx: unknown, isTest: boolean) {
+  // DEPRECATED — UI 는 [변경] 액션 사용 (admin-replace-current). 백워드 호환 위해 유지.
   if (!isValidTurnIdx(expectedTurnIdx)) return { ok: false, error: "invalid_turn_idx" };
   const auth = await authenticate(token);
   if (!auth.ok) return auth;
@@ -246,6 +250,32 @@ async function adminSkip(token: unknown, expectedTurnIdx: unknown, isTest: boole
     return { ok: true };
   } catch (e) {
     return maskError(e, { action: "admin-skip", kingshotId: auth.me.kingshot_id });
+  }
+}
+
+/** [변경] — 현재 차례 사용자 turn_idx 와 임의 미완료 사용자 turn_idx 를 swap.
+ *  결과: target 즉시 차례. 이전 차례 사용자는 target 의 원래 자리로 밀려남. */
+async function adminReplaceCurrent(
+  token: unknown,
+  targetKingshotId: unknown,
+  expectedTurnIdx: unknown,
+  isTest: boolean,
+) {
+  if (typeof targetKingshotId !== "string" || !targetKingshotId) {
+    return { ok: false, error: "missing_auth" };
+  }
+  if (!isValidTurnIdx(expectedTurnIdx)) return { ok: false, error: "invalid_turn_idx" };
+  const auth = await authenticate(token);
+  if (!auth.ok) return auth;
+  if (!auth.me.is_admin) return { ok: false, error: "not_admin" };
+  try {
+    await dbRpc(t("kvk_buff_admin_replace_current", isTest), {
+      p_target_kingshot_id: targetKingshotId,
+      p_expected_turn_idx: expectedTurnIdx,
+    });
+    return { ok: true };
+  } catch (e) {
+    return maskError(e, { action: "admin-replace-current", kingshotId: auth.me.kingshot_id });
   }
 }
 
@@ -300,7 +330,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
-    const { action, token, slot_idx, expected_turn_idx, slot_a_idx, slot_b_idx } = body ?? {};
+    const { action, token, slot_idx, expected_turn_idx, slot_a_idx, slot_b_idx, target_kingshot_id } = body ?? {};
     // !!! TEST_MODE — 클라가 ?test=1 일 때만 true. default false (운영). !!!
     const isTest = body?.test_mode === true;
     let result;
@@ -312,10 +342,14 @@ Deno.serve(async (req: Request) => {
         result = await pickSlot(token, slot_idx, expected_turn_idx, isTest);
         break;
       case "admin-skip":
+        // DEPRECATED — UI 에선 admin-replace-current 사용. 본 액션은 백워드 호환 유지용.
         result = await adminSkip(token, expected_turn_idx, isTest);
         break;
       case "admin-swap":
         result = await adminSwap(token, slot_a_idx, slot_b_idx, isTest);
+        break;
+      case "admin-replace-current":
+        result = await adminReplaceCurrent(token, target_kingshot_id, expected_turn_idx, isTest);
         break;
       case "finalize":
         result = await finalize(token, isTest);
