@@ -820,6 +820,7 @@ export const en: Translations = {
       nextLabel: 'Up next',
       completed: 'All users have picked their slots',
       finalizedMsg: '🔒 Booking finalized — no further changes',
+      progress: { label: 'First-come picks' },
       queueEmpty: 'No users waiting',
       slotEmpty: 'Empty',
       skipButton: 'Skip', // DEPRECATED — kept for type parity, no longer used

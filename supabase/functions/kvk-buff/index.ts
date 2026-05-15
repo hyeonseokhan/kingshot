@@ -86,7 +86,7 @@ function isValidToken(t: unknown): t is string {
 const KNOWN_ERRORS = new Set([
   // pick_slot / state
   "turn_changed", "already_picked", "slot_taken", "not_your_turn",
-  "all_picked", "not_bootstrapped", "before_deadline",
+  "all_picked", "not_bootstrapped", "before_deadline", "not_participant",
   // admin
   "not_admin", "slot_not_occupied", "no_next", "same_slot",
   "no_current_holder", "same_target", "target_not_found", "target_already_picked",
@@ -224,15 +224,24 @@ async function getState(token: unknown, isTest: boolean) {
 
 async function pickSlot(token: unknown, slotIdx: unknown, expectedTurnIdx: unknown, isTest: boolean) {
   if (!isValidSlotIdx(slotIdx)) return { ok: false, error: "invalid_slot_idx" };
-  if (!isValidTurnIdx(expectedTurnIdx)) return { ok: false, error: "invalid_turn_idx" };
+  // 운영 (순차) 만 expected_turn_idx 검증. 테스트 (선착순) 는 무관.
+  if (!isTest && !isValidTurnIdx(expectedTurnIdx)) return { ok: false, error: "invalid_turn_idx" };
   const auth = await authenticate(token);
   if (!auth.ok) return auth;
   try {
-    await dbRpc(t("kvk_buff_pick_slot", isTest), {
-      p_kingshot_id: auth.me.kingshot_id,
-      p_slot_idx: slotIdx,
-      p_expected_turn_idx: expectedTurnIdx,
-    });
+    if (isTest) {
+      // !!! TEST_MODE 선착순 — turn_idx 검증 없이 본인 미점유 + 슬롯 비어있음만 검사
+      await dbRpc("kvk_buff_pick_slot_test", {
+        p_kingshot_id: auth.me.kingshot_id,
+        p_slot_idx: slotIdx,
+      });
+    } else {
+      await dbRpc("kvk_buff_pick_slot", {
+        p_kingshot_id: auth.me.kingshot_id,
+        p_slot_idx: slotIdx,
+        p_expected_turn_idx: expectedTurnIdx,
+      });
+    }
     return { ok: true };
   } catch (e) {
     return maskError(e, { action: "pick-slot", kingshotId: auth.me.kingshot_id });

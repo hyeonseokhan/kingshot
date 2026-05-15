@@ -671,6 +671,22 @@ import '@/styles/survey-kvk-buff.css';
               <span data-i18n="survey.kvkBuff.notice.triggerLabel">필독 안내문</span>
             </button>
 
+            <!-- !!! TEST_MODE 전용 — 선착순 진행률 카드. CSS .sk-buff-page.is-test 일 때만 노출.
+                 운영(순차)에선 hidden, 아래 sk-buff-current 가 노출. -->
+            <section class="sk-buff-progress" id="sk-buff-progress" hidden>
+              <div class="sk-buff-progress-head">
+                <span class="sk-buff-progress-label" data-i18n="survey.kvkBuff.progress.label">선착순 진행</span>
+                <span class="sk-buff-progress-count">
+                  <span id="sk-buff-progress-done">0</span>
+                  <span class="sk-buff-progress-divider">/</span>
+                  <span id="sk-buff-progress-total">0</span>
+                </span>
+              </div>
+              <div class="sk-buff-progress-bar">
+                <div class="sk-buff-progress-fill" id="sk-buff-progress-fill" style="width:0%"></div>
+              </div>
+            </section>
+
             <section class="sk-buff-current" id="sk-buff-current">
               <div class="sk-buff-current-main">
                 <div class="sk-buff-current-photo-wrap">

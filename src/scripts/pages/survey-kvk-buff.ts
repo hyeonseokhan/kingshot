@@ -157,8 +157,20 @@ function formatElapsed(ms: number): string {
 function renderAll(): void {
   applyAdminClass();
   renderLocked();
-  renderCurrent();
+  // testMode (선착순) 일 땐 진행률 카드, 운영 (순차) 일 땐 현재 차례 카드.
+  if (testMode) renderProgress();
+  else renderCurrent();
   renderGrid();
+}
+
+/** !!! TEST_MODE 선착순 — 점유 슬롯 수 / 전체 슬롯 수 진행률 표시. */
+function renderProgress(): void {
+  const total = totalSlots();
+  const done = participants.filter((p) => p.slot_idx !== null).length;
+  $('sk-buff-progress-done').textContent = String(done);
+  $('sk-buff-progress-total').textContent = String(total);
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  ($('sk-buff-progress-fill') as HTMLElement).style.width = pct + '%';
 }
 
 /** localStorage 의 auth.record.is_admin 캐시 — 다이얼로그 오픈 직후 첫 polling 응답 도착 전
@@ -279,10 +291,19 @@ function renderGrid(): void {
   for (const p of participants) {
     if (p.slot_idx !== null) occupied.set(p.slot_idx, p);
   }
-  // 자기 차례일 때만 빈 슬롯 클릭 가능. (.is-selectable 미적용 시 CSS pointer-events:none 으로 클릭 차단)
-  const isMyTurn = !!me && me.turn_idx === buffState.current_turn_idx;
+  // 빈 슬롯 클릭 가능 조건:
+  //   testMode (선착순): 본인이 미점유 (slot_idx 없음) — 누구든 자유롭게 선택
+  //   운영 (순차):       본인 차례 (turn_idx === current_turn_idx)
+  let canPick = false;
+  if (me) {
+    if (testMode) {
+      canPick = me.slot_idx === null || me.slot_idx === undefined;
+    } else {
+      canPick = me.turn_idx === buffState.current_turn_idx;
+    }
+  }
   for (let i = 0; i < slots; i++) {
-    paintSlot(grid.children[i] as HTMLElement, i, occupied.get(i), isMyTurn);
+    paintSlot(grid.children[i] as HTMLElement, i, occupied.get(i), canPick);
   }
   // polling 으로 grid 재구성돼도 admin swap selection 유지 — slot_idx 로 마킹 복구.
   if (swapSourceSlotIdx !== null) {
@@ -292,11 +313,12 @@ function renderGrid(): void {
 }
 
 /** 슬롯 카드 한 개 patch — holder/selectable 상태 변경 시만 innerHTML 재구성.
- *  변경 없으면 시간 텍스트만 갱신 (tzMode 토글 케이스). 아바타 img 깜박임 차단의 핵심. */
-function paintSlot(card: HTMLElement, slotIdx: number, holder: Participant | undefined, isMyTurn: boolean): void {
+ *  변경 없으면 시간 텍스트만 갱신 (tzMode 토글 케이스). 아바타 img 깜박임 차단의 핵심.
+ *  canPick: 운영 = 본인 차례 / 테스트 (선착순) = 본인 미점유. */
+function paintSlot(card: HTMLElement, slotIdx: number, holder: Participant | undefined, canPick: boolean): void {
   const time = formatSlotTime(slotIdx, tzMode);
   const newHolderId = holder?.kingshot_id ?? '';
-  const newSelectable = !holder && isMyTurn;
+  const newSelectable = !holder && canPick;
   // 첫 paint 마커 — 빈 카드 (holder=undefined + isMyTurn=false) 케이스에서도 강제 첫 그리기.
   // 마커 없이 oldHolderId='' === newHolderId='' 비교 시 "데이터 동일" 로 잘못 판단 → 카드 비어있는 회귀.
   const isFirstPaint = !card.hasAttribute('data-painted');

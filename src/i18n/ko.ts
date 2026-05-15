@@ -819,6 +819,7 @@ export const ko = {
       nextLabel: '다음 차례',
       completed: '모든 사용자가 시간을 선택했습니다',
       finalizedMsg: '🔒 예약이 마감됐습니다 — 더 이상 변경할 수 없습니다',
+      progress: { label: '선착순 진행' },
       queueEmpty: '대기 중인 사용자가 없습니다',
       slotEmpty: '비어있음',
       skipButton: '스킵', // DEPRECATED — 유지 (미사용 키, 후속 제거)

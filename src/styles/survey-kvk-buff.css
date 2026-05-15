@@ -18,6 +18,48 @@
   letter-spacing: 0.02em;
 }
 
+/* ===== !!! TEST_MODE 진행률 카드 — 선착순 모드 (현재 차례 카드 대체) !!! ===== */
+/* CSS 게이트: page.is-test 일 때만 progress 노출, 그 외엔 current 노출 */
+.sk-buff-progress { display: none; }
+.sk-buff-page.is-test .sk-buff-progress {
+  display: block;
+  margin: 4px 0 8px;
+  background: linear-gradient(135deg, #3730a3, #4f46e5);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #fff;
+}
+.sk-buff-page.is-test .sk-buff-current { display: none; }
+.sk-buff-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sk-buff-progress-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+.sk-buff-progress-count {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sk-buff-progress-divider { opacity: 0.6; margin: 0 2px; }
+.sk-buff-progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sk-buff-progress-fill {
+  height: 100%;
+  background: #fff;
+  transition: width 0.25s ease-out;
+}
+
 /* ===== 현재 차례 카드 — accent gradient 박스, 클릭 시 다음 차례 큐 펼침 ===== */
 .sk-buff-current {
   margin: 4px 0 8px;
