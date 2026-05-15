@@ -271,12 +271,16 @@
   border-radius: 12px;
   padding: 10px;
 }
-.sk-buff-grid.is-filtered .sk-buff-slot:not(.is-selectable) { display: none; }
-.sk-buff-page.is-admin .sk-buff-slot:not(.is-selectable) {
+/* "남은 자리만 보기" 필터 — 점유 슬롯 (.is-occupied) 만 hide.
+   (이전엔 :not(.is-selectable) 으로 점유를 표현했으나 .is-selectable 의미가 좁혀지면서
+    빈 슬롯도 :not(.is-selectable) 에 포함되어 다른 사용자에겐 빈 슬롯도 hide 되는 회귀.) */
+.sk-buff-grid.is-filtered .sk-buff-slot.is-occupied { display: none; }
+/* admin 만 점유 슬롯 클릭 가능 (swap 시작점). 빈 슬롯엔 적용 X — swap 의미 없음. */
+.sk-buff-page.is-admin .sk-buff-slot.is-occupied {
   cursor: pointer;
   pointer-events: auto;
 }
-.sk-buff-page.is-admin .sk-buff-slot:not(.is-selectable):hover {
+.sk-buff-page.is-admin .sk-buff-slot.is-occupied:hover {
   background: rgba(96, 165, 250, 0.10);
   border-color: rgba(96, 165, 250, 0.5);
 }

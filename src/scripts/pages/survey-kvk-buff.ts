@@ -315,6 +315,10 @@ function paintSlot(card: HTMLElement, slotIdx: number, holder: Participant | und
   card.dataset.painted = '1';
   card.dataset.holderId = newHolderId;
   card.classList.toggle('is-selectable', newSelectable);
+  // .is-occupied — 점유 슬롯 의미 명확히. CSS 가 admin 의 클릭 가능 / "남은 자리" 필터 hide 결정.
+  // (이전엔 :not(.is-selectable) 으로 점유를 표현했으나 .is-selectable 의 의미가 "자기 차례 + 빈 슬롯" 으로
+  //  좁혀지면서 빈 슬롯도 :not(.is-selectable) 에 포함되는 회귀.)
+  card.classList.toggle('is-occupied', !!holder);
 
   if (holder) {
     const letter = escapeHtml(holder.survey?.nickname.charAt(0).toUpperCase() ?? '?');
@@ -394,8 +398,11 @@ function onGridClick(e: Event): void {
     return;
   }
 
-  // (b) 점유 슬롯 — admin 모드일 때만 swap
+  // (b) 점유 슬롯 — admin 모드일 때만 swap. 빈 슬롯 (paintSlot 의 .is-occupied X) 은 무시.
+  // (CSS 도 .sk-buff-page.is-admin .sk-buff-slot.is-occupied 로 좁혀 클릭 자체 차단하지만
+  //  defensive 가드 — paintSlot 호출 직전 stale DOM 상태에서도 swap dialog 잘못 뜨지 않게.)
   if (!me?.is_admin) return;
+  if (!card.classList.contains('is-occupied')) return;
   if (swapSourceSlotIdx === null) {
     swapSourceSlotIdx = slotIdx;
     card.classList.add('is-swap-source');
