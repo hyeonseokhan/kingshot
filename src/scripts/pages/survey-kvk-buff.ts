@@ -296,17 +296,23 @@ function renderGrid(): void {
 function paintSlot(card: HTMLElement, slotIdx: number, holder: Participant | undefined, isMyTurn: boolean): void {
   const time = formatSlotTime(slotIdx, tzMode);
   const newHolderId = holder?.kingshot_id ?? '';
-  const oldHolderId = card.dataset.holderId ?? '';
   const newSelectable = !holder && isMyTurn;
-  const oldSelectable = card.classList.contains('is-selectable');
+  // 첫 paint 마커 — 빈 카드 (holder=undefined + isMyTurn=false) 케이스에서도 강제 첫 그리기.
+  // 마커 없이 oldHolderId='' === newHolderId='' 비교 시 "데이터 동일" 로 잘못 판단 → 카드 비어있는 회귀.
+  const isFirstPaint = !card.hasAttribute('data-painted');
 
-  if (newHolderId === oldHolderId && newSelectable === oldSelectable) {
-    // 데이터 동일 — 시간 텍스트만 갱신 (tz 토글 시).
-    const timeEl = card.querySelector('.sk-buff-slot-time');
-    if (timeEl && timeEl.textContent !== time) timeEl.textContent = time;
-    return;
+  if (!isFirstPaint) {
+    const oldHolderId = card.dataset.holderId ?? '';
+    const oldSelectable = card.classList.contains('is-selectable');
+    if (newHolderId === oldHolderId && newSelectable === oldSelectable) {
+      // 데이터 동일 — 시간 텍스트만 갱신 (tz 토글 시).
+      const timeEl = card.querySelector('.sk-buff-slot-time');
+      if (timeEl && timeEl.textContent !== time) timeEl.textContent = time;
+      return;
+    }
   }
 
+  card.dataset.painted = '1';
   card.dataset.holderId = newHolderId;
   card.classList.toggle('is-selectable', newSelectable);
 
