@@ -683,6 +683,23 @@
 .sk-buff-overlay-body .sk-buff-page {
   max-width: none;
   margin: 0;
-  padding: 0 14px 18px;
+  padding: 14px 14px 18px;
+  /* 자식 컴포넌트 (안내문 트리거 / 진행률 / 차례 카드 / toolbar / 그리드 / 잠금) 간 일정 간격.
+     이전엔 자식 각자 margin-bottom 들쭉날쭉 (14/8/10) → gap 패턴으로 통일. */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+/* gap 패턴 적용 후 자식 개별 margin 무효화 — 중복 간격 차단 */
+.sk-buff-overlay-body .sk-buff-page > .sk-notice-trigger,
+.sk-buff-overlay-body .sk-buff-page > .sk-buff-progress,
+.sk-buff-overlay-body .sk-buff-page > .sk-buff-current,
+.sk-buff-overlay-body .sk-buff-page > .sk-buff-tz,
+.sk-buff-overlay-body .sk-buff-page > .sk-buff-grid,
+.sk-buff-overlay-body .sk-buff-page > .sk-buff-locked {
+  margin: 0;
+}
+/* admin [예약 마감] — 좌측 (tz/필터/복사) 와 의미 분리 위해 우측 push.
+   wrap 시에도 다음 줄 끝쪽 정렬 → 일반 사용자 (3 버튼) 와 admin (4 버튼) 모두 깔끔. */
+.sk-buff-tz .sk-buff-finalize-btn { margin-left: auto; }
 /* sk-buff-head 가 다이얼로그 헤더로 흡수돼 본문에선 hidden — 마크업 단순화로 처음부터 안 둠. */
