@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import remarkCjkFriendly from 'remark-cjk-friendly';
 import remarkGfm from 'remark-gfm';
+import obfuscator from 'vite-plugin-javascript-obfuscator';
 
 export default defineConfig({
   site: 'https://kingshot.wooju-home.org',
@@ -21,7 +22,37 @@ export default defineConfig({
     ],
   },
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [
+      tailwindcss(),
+      // 클라이언트 번들 Low 난독화 — production build 만 적용 (dev/HMR 영향 없음).
+      // 효과: 변수명 hex + 문자열 array (base64) 추출 → endpoint/상수가 첫눈에 안 읽힘.
+      // 비활성: control-flow flattening / dead code injection / self-defending — 번들 크기 + 런타임 영향 ↑.
+      // 진짜 보호는 서버측 (Edge Function + RLS) 이 담당. 이 설정은 "탭 열어서 바로 읽힘" 만 차단.
+      obfuscator({
+        apply: 'build',
+        // node_modules 는 그대로 두기 — Astro 런타임 internal + WASM(@jsquash) 깨질 위험 차단.
+        // exclude 패턴은 plugin 의 micromatch 형식.
+        exclude: [/node_modules/],
+        options: {
+          compact: true,
+          identifierNamesGenerator: 'hexadecimal',
+          renameGlobals: false,
+          stringArray: true,
+          stringArrayEncoding: ['base64'],
+          stringArrayThreshold: 1,
+          // 비용 큰 옵션 전부 off (Low 강도 약속)
+          controlFlowFlattening: false,
+          deadCodeInjection: false,
+          debugProtection: false,
+          disableConsoleOutput: false,
+          selfDefending: false,
+          splitStrings: false,
+          unicodeEscapeSequence: false,
+          numbersToExpressions: false,
+          simplify: true,
+        },
+      }),
+    ],
     // @jsquash/webp 같은 WASM 패키지는 Vite 의 esbuild pre-bundle 에서 import.meta.url 경로가
     // 깨져 "Failed to fetch dynamically imported module" 에러가 남. exclude 로 pre-bundle 회피
     // → native ESM 로 로드되면서 WASM URL 이 정상 해결됨. (jSquash 공식 권장 패턴)
