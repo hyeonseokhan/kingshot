@@ -106,38 +106,25 @@ function allocateFull(cap: number): SquadAllocation {
 }
 
 /**
- * Case A — 궁병 우선 분배.
- *   편대당 궁병 = floor(보유 궁병 / N), 단 cap 초과 금지
- *   편대당 (보+기) = cap - 편대당 궁병
- *   편대당 보 = 기 = floor((보+기) / 2)
- *
- * 단, 보병/기병 보유량이 (편대 분배량 × N) 보다 적으면 그쪽을 보유량 한도로 자르고
- * 부족분만큼 다른 쪽으로 보충 (cap 유지). 두 병종 모두 모자라면 cap 미달인 채 반환.
+ * Case A — 효율 우선순위 분배 (궁병 → 보병 → 기병).
+ *   1순위 궁병: floor(보유 / N), cap 초과 금지
+ *   2순위 보병: 남은 슬롯에서 floor(보유 / N) 한도로 채움
+ *   3순위 기병: 그 나머지 슬롯에서 floor(보유 / N) 한도로 채움
+ *   → 잔류는 기병 위주로 남고 cap 은 최대한 채움.
  */
 function allocatePartial(input: TroopsInput): SquadAllocation {
   const { cap, infantry, cavalry, archers, squadCount } = input;
 
-  // 편대당 궁병 — 보유 궁병 균등 분배. cap 초과는 못 가니까 cap 으로 캡.
+  // 1순위: 궁병
   const archerPerSquad = Math.min(Math.floor(archers / squadCount), cap);
-  const remainingPerSquad = cap - archerPerSquad;
+  let remaining = cap - archerPerSquad;
 
-  // 보병/기병 후보치 — 일단 균등 절반.
-  let infPerSquad = Math.floor(remainingPerSquad / 2);
-  let cavPerSquad = remainingPerSquad - infPerSquad;
+  // 2순위: 보병
+  const infPerSquad = Math.min(Math.floor(infantry / squadCount), remaining);
+  remaining -= infPerSquad;
 
-  // 보유량 cap — 편대당 사용량 × N 이 보유량 초과하면 보유량 한도로 자르고 차이를 다른 쪽에 보충.
-  const maxInfPerSquad = Math.floor(infantry / squadCount);
-  const maxCavPerSquad = Math.floor(cavalry / squadCount);
-
-  if (infPerSquad > maxInfPerSquad) {
-    const overflow = infPerSquad - maxInfPerSquad;
-    infPerSquad = maxInfPerSquad;
-    cavPerSquad = Math.min(cavPerSquad + overflow, maxCavPerSquad);
-  } else if (cavPerSquad > maxCavPerSquad) {
-    const overflow = cavPerSquad - maxCavPerSquad;
-    cavPerSquad = maxCavPerSquad;
-    infPerSquad = Math.min(infPerSquad + overflow, maxInfPerSquad);
-  }
+  // 3순위: 기병
+  const cavPerSquad = Math.min(Math.floor(cavalry / squadCount), remaining);
 
   return {
     infantry: infPerSquad,
