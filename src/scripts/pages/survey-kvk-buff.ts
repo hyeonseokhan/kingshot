@@ -319,8 +319,9 @@ function renderGrid(): void {
   for (const p of participants) {
     if (p.slot_idx !== null) occupied.set(p.slot_idx, p);
   }
-  // 운영/테스트 모두 선착순: 본인이 미점유 (slot_idx null) 면 누구든 자유롭게 선택.
-  const canPick = !!me && (me.slot_idx === null || me.slot_idx === undefined);
+  // 운영/테스트 모두 선착순: 본인이 participants 에 있고 (turn_idx != undefined) + 미점유면 선택 가능.
+  // turn_idx 가 undefined 면 top-48 미포함 → 서버도 not_participant 로 거부하지만 UI 차원에서도 차단.
+  const canPick = !!me && me.turn_idx !== undefined && (me.slot_idx === null || me.slot_idx === undefined);
   for (let i = 0; i < slots; i++) {
     paintSlot(list.children[i] as HTMLElement, i, occupied.get(i), canPick);
   }
