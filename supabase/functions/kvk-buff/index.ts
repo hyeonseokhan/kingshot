@@ -217,10 +217,14 @@ async function pickSlot(token: unknown, slotIdx: unknown, _expectedTurnIdx: unkn
   const auth = await authenticate(token);
   if (!auth.ok) return auth;
   try {
-    await dbRpc(t("kvk_buff_pick_slot", isTest), {
+    // kvk_buff_pick_slot 은 TEXT 반환 ('ok' | 'slot_taken').
+    // 트리거 발화(A/B 동적 등록) 시 INSERT 를 커밋한 뒤 'slot_taken' 을 반환.
+    // RAISE EXCEPTION 으로 반환하면 INSERT 도 롤백되므로 RETURN TEXT 로 변경됨.
+    const result = await dbRpc(t("kvk_buff_pick_slot", isTest), {
       p_kingshot_id: auth.me.kingshot_id,
       p_slot_idx: slotIdx,
-    });
+    }) as string | null;
+    if (result === "slot_taken") return { ok: false, error: "slot_taken" };
     return { ok: true };
   } catch (e) {
     return maskError(e, { action: "pick-slot", kingshotId: auth.me.kingshot_id });
