@@ -32,14 +32,15 @@ const LEVEL_CLASSES: Array<{ min: number; cls: string }> = [
   { min: 28, cls: ' lv-28' },
 ];
 
-/** HTML 특수문자 이스케이프 */
+/** HTML 특수문자 이스케이프. attribute 값 (single + double quote 모두) 안전. */
 export function esc(s: unknown): string {
   if (s == null || s === '') return '';
   return String(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /** ISO → YYYY-MM-DD */

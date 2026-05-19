@@ -46,7 +46,7 @@ const CACHE_REFRESH_MS = 5 * 60 * 1000; // 5분 — 새 쿠폰/계정이 짧은 
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 1000;
 const SUMMARY_DISPLAY_MS = 10000;
-const HISTORY_PAGE_SIZE = 5;
+const HISTORY_PAGE_SIZE = 50;
 
 // ===== 모듈 상태 =====
 
@@ -1278,36 +1278,34 @@ function initAddModal(): void {
 }
 
 function handleAddSave(data: PlayerLookup): void {
-  sb.from('members')
-    .select('kingshot_id')
-    .eq('kingshot_id', data.kingshotId)
+  // 연맹원 중복 체크 — membersStore 캐시에서 즉시 (initPage 가 loadAccounts 단계에서 이미 refresh).
+  // 캐시 miss 시 fallback 없이 통과 — 이후 coupon_accounts INSERT 가 UNIQUE 위반으로 정상 거부.
+  const members = membersStore.get();
+  if (members?.some((m) => m.kingshot_id === data.kingshotId)) {
+    appAlert(t('coupons.msg.memberAlreadyRegistered'));
+    return;
+  }
+  sb.from('coupon_accounts')
+    .insert({
+      kingshot_id: data.kingshotId,
+      nickname: data.nickname,
+      level: data.level,
+      kingdom: data.kingdom,
+      profile_photo: data.avatarUrl,
+    })
     .then((res) => {
-      if (res.data && res.data.length > 0) {
-        appAlert(t('coupons.msg.memberAlreadyRegistered'));
+      if (res.error) {
+        // PostgreSQL UNIQUE 위반 SQLSTATE 23505.
+        if (res.error.code === '23505') {
+          appAlert(t('coupons.msg.duplicate'));
+        } else {
+          appAlert(t('coupons.msg.saveFailed', { message: res.error.message }));
+        }
         return;
       }
-      sb.from('coupon_accounts')
-        .insert({
-          kingshot_id: data.kingshotId,
-          nickname: data.nickname,
-          level: data.level,
-          kingdom: data.kingdom,
-          profile_photo: data.avatarUrl,
-        })
-        .then((res2) => {
-          if (res2.error) {
-            // PostgreSQL UNIQUE 위반 SQLSTATE 23505.
-            if (res2.error.code === '23505') {
-              appAlert(t('coupons.msg.duplicate'));
-            } else {
-              appAlert(t('coupons.msg.saveFailed', { message: res2.error.message }));
-            }
-            return;
-          }
-          invalidateAccountsCache();
-          closeCouponModal();
-          initPage();
-        });
+      invalidateAccountsCache();
+      closeCouponModal();
+      initPage();
     });
 }
 

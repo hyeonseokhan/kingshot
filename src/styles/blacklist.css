@@ -302,4 +302,9 @@
   .bl-td-note {
     max-width: none;
   }
+  /* 모바일 터치 hit area — WCAG 권장 44×44 근사. visible icon 위치 유지. */
+  .bl-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
 }

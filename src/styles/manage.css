@@ -1178,10 +1178,15 @@
     gap: 2px;
     margin-left: auto;
   }
+  /* 모바일 터치 hit area — WCAG 권장 44×44 근사 (mc-manage-btn / cp-btn). */
   .mc-manage-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 15px;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  .cp-btn {
+    min-width: 40px;
+    min-height: 40px;
   }
   .manage-dialog {
     width: 92%;
