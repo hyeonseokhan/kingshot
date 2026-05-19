@@ -14,6 +14,9 @@ interface Props {
 }
 
 const { title = '연맹 가이드', description = 'PNX 연맹 가이드' } = Astro.props;
+// SNS / 메신저 미리보기 이미지 — 명시 안 하면 크롤러가 페이지의 첫 큰 이미지(QR 등)를
+// 자동 선택. absolute URL 권장 (일부 크롤러가 relative 처리 안 함). Astro.site 활용.
+const ogImage = new URL('/apple-touch-icon.png', Astro.site).toString();
 ---
 
 <!doctype html>
@@ -27,6 +30,17 @@ const { title = '연맹 가이드', description = 'PNX 연맹 가이드' } = Ast
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Open Graph / Twitter Card — 미리보기 이미지를 favicon (180×180) 로 고정. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="180" />
+    <meta property="og:image:height" content="180" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
       rel="stylesheet"
