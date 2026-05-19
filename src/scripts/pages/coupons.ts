@@ -3,11 +3,11 @@
  * 로직 동등성 우선. Phase 7 에서 타입 강화 + 이벤트 위임 리팩터 검토.
  */
 
-import { supabase as sb, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { supabase as sb } from '@/lib/supabase';
+import { REST_BASE, FN_BASE, restHeaders } from '@/lib/supabase-rest';
 import {
   esc,
   formatDate,
-  delay,
   isAlreadyRedeemed,
   describeRedeemError,
   REDEEM_STATUS,
@@ -26,13 +26,14 @@ import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
 import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
+import { runBatched } from '@/lib/batch';
 import { t, onLangChange } from '@/i18n';
 import { appAlert, appConfirm } from '@/lib/dialog';
 
 // ===== 상수 =====
 
-const GIFT_API = SUPABASE_URL + '/functions/v1/gift-codes';
-const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
+const GIFT_API = FN_BASE + '/gift-codes';
+const REDEEM_API = FN_BASE + '/redeem-coupon';
 const CACHE_REFRESH_MS = 5 * 60 * 1000; // 5분 — 새 쿠폰/계정이 짧은 시간 내 자동 반영. 사용자가 갱신 버튼 안 찾게 함.
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 1000;
@@ -136,13 +137,9 @@ function loadCoupons(callback?: () => void): void {
 function pruneStaleHistory(): void {
   if (!activeCoupons.length) return;
   const codes = activeCoupons.map((c) => c.code).join(',');
-  fetch(SUPABASE_URL + '/rest/v1/coupon_history?coupon_code=not.in.(' + codes + ')', {
+  fetch(REST_BASE + '/coupon_history?coupon_code=not.in.(' + codes + ')', {
     method: 'DELETE',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-      Prefer: 'return=representation',
-    },
+    headers: { ...restHeaders, Prefer: 'return=representation' },
   })
     .then((r) => {
       if (!r.ok) return;
@@ -586,49 +583,35 @@ async function refreshAllExtras(): Promise<void> {
 
   const stats = { success: 0, failed: 0, errors: [] as string[] };
   const total = extras.length;
-  let done = 0;
 
-  const updateBtnText = () => {
+  const updateBtnText = (done: number) => {
     btn.textContent = t('coupons.refreshExtras.progress', { done, total });
   };
-  updateBtnText();
+  updateBtnText(0);
 
-  const batches: RedeemAccount[][] = [];
-  for (let i = 0; i < extras.length; i += BATCH_SIZE) {
-    batches.push(extras.slice(i, i + BATCH_SIZE));
+  await runBatched({
+    items: extras,
+    batchSize: BATCH_SIZE,
+    delayMs: DELAY_BETWEEN_BATCHES,
+    handler: (a) => refreshSingleExtra(a, stats),
+    onBatchComplete: (done) => updateBtnText(done),
+  });
+
+  btn.textContent = originalText;
+  btn.disabled = false;
+  invalidateAccountsCache();
+  loadAccounts(() => renderAccounts());
+  if (stats.failed === 0) {
+    appAlert(t('coupons.refreshExtras.done', { n: stats.success }));
+  } else {
+    appAlert(
+      t('coupons.refreshExtras.partial', {
+        ok: stats.success,
+        fail: stats.failed,
+        errors: stats.errors.slice(0, 3).join(', '),
+      }),
+    );
   }
-
-  let chain: Promise<unknown> = Promise.resolve();
-  batches.forEach((batch, idx) => {
-    chain = chain
-      .then(() =>
-        Promise.all(batch.map((a) => refreshSingleExtra(a, stats))).then(() => {
-          done += batch.length;
-          updateBtnText();
-        }),
-      )
-      .then(() => {
-        if (idx < batches.length - 1) return delay(DELAY_BETWEEN_BATCHES);
-      });
-  });
-
-  chain.then(() => {
-    btn.textContent = originalText;
-    btn.disabled = false;
-    invalidateAccountsCache();
-    loadAccounts(() => renderAccounts());
-    if (stats.failed === 0) {
-      appAlert(t('coupons.refreshExtras.done', { n: stats.success }));
-    } else {
-      appAlert(
-        t('coupons.refreshExtras.partial', {
-          ok: stats.success,
-          fail: stats.failed,
-          errors: stats.errors.slice(0, 3).join(', '),
-        }),
-      );
-    }
-  });
 }
 
 function refreshSingleExtra(
@@ -817,28 +800,17 @@ async function startBulkRedeem(skipConfirm: boolean): Promise<void> {
     : t('coupons.progress.allStart', { n: pending.length, tasks: totalRedeemTasks });
   showProgress(startMsg);
 
-  const batches: RedeemAccount[][] = [];
-  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
-    batches.push(pending.slice(i, i + BATCH_SIZE));
-  }
-
-  let chain: Promise<unknown> = Promise.resolve();
-  batches.forEach((batch, idx) => {
-    chain = chain
-      .then(() => {
-        showProgress(
-          t('coupons.progress.batch', { idx: idx + 1, total: batches.length }),
-        );
-        return Promise.all(batch.map((a) => redeemForMember(a.kingshot_id, a.nickname)));
-      })
-      .then(() => {
-        if (idx < batches.length - 1) return delay(DELAY_BETWEEN_BATCHES);
-      });
+  await runBatched({
+    items: pending,
+    batchSize: BATCH_SIZE,
+    delayMs: DELAY_BETWEEN_BATCHES,
+    handler: (a) => redeemForMember(a.kingshot_id, a.nickname),
+    onBatchStart: (idx, count) => {
+      showProgress(t('coupons.progress.batch', { idx: idx + 1, total: count }));
+    },
   });
-  chain.then(() => {
-    showSummary();
-    renderAccounts();
-  });
+  showSummary();
+  renderAccounts();
 }
 
 // ===== 진행 표시 =====

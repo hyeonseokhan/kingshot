@@ -6,8 +6,9 @@
  * row 내부도 patchText/photo swap 으로 부분 갱신 — 같은 사진은 재로드 X.
  */
 
-import { supabase as sb, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
-import { esc, getLevelClass, formatPower, delay, toggleOverlay } from '@/lib/utils';
+import { supabase as sb } from '@/lib/supabase';
+import { FN_BASE, restJsonHeaders } from '@/lib/supabase-rest';
+import { esc, getLevelClass, formatPower, toggleOverlay } from '@/lib/utils';
 import {
   invalidateAccountsCache,
   getFailedRefresh,
@@ -19,10 +20,11 @@ import { patchList, patchText } from '@/lib/dom-diff';
 import { appAlert, appConfirm } from '@/lib/dialog';
 import type { Member, AllianceRank } from '@/lib/types';
 import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
+import { runBatched } from '@/lib/batch';
 import { t, onLangChange } from '@/i18n';
 import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
 
-const FN_ECONOMY_URL = SUPABASE_URL + '/functions/v1/economy';
+const FN_ECONOMY_URL = FN_BASE + '/economy';
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 500;
 
@@ -320,7 +322,7 @@ async function refreshAllMembers(): Promise<void> {
   refreshMembersByIds(positioned.map((m) => m.id));
 }
 
-function refreshMembersByIds(memberIds: string[]): void {
+async function refreshMembersByIds(memberIds: string[]): Promise<void> {
   if (!memberIds || memberIds.length === 0) return;
   const idSet = new Set(memberIds);
   const targets = buildPositioned().filter((m) => idSet.has(m.id));
@@ -338,45 +340,33 @@ function refreshMembersByIds(memberIds: string[]): void {
     failedNames: [],
   };
   const total = targets.length;
-  let done = 0;
 
-  const updateBtnText = () => {
+  const updateBtnText = (done: number) => {
     btn.textContent = t('members.refreshingButton', { done, total });
   };
-  updateBtnText();
-  setBannerStatus('progress', done, total);
+  updateBtnText(0);
+  setBannerStatus('progress', 0, total);
 
-  const batches: Member[][] = [];
-  for (let i = 0; i < targets.length; i += BATCH_SIZE) {
-    batches.push(targets.slice(i, i + BATCH_SIZE));
+  await runBatched({
+    items: targets,
+    batchSize: BATCH_SIZE,
+    delayMs: DELAY_BETWEEN_BATCHES,
+    handler: (m) => refreshSingleMember(m, stats),
+    onBatchComplete: (done) => {
+      updateBtnText(done);
+      setBannerStatus('progress', done, total);
+    },
+  });
+
+  btn.textContent = originalText;
+  btn.disabled = false;
+  if (stats.failed > 0) {
+    saveFailedRefresh(stats.failedIds, stats.failedNames);
+  } else {
+    clearFailedRefresh();
   }
-
-  let chain: Promise<unknown> = Promise.resolve();
-  batches.forEach((batch, idx) => {
-    chain = chain
-      .then(() =>
-        Promise.all(batch.map((m) => refreshSingleMember(m, stats))).then(() => {
-          done += batch.length;
-          updateBtnText();
-          setBannerStatus('progress', done, total);
-        }),
-      )
-      .then(() => {
-        if (idx < batches.length - 1) return delay(DELAY_BETWEEN_BATCHES);
-      });
-  });
-
-  chain.then(() => {
-    btn.textContent = originalText;
-    btn.disabled = false;
-    if (stats.failed > 0) {
-      saveFailedRefresh(stats.failedIds, stats.failedNames);
-    } else {
-      clearFailedRefresh();
-    }
-    invalidateAccountsCache();
-    refreshFromStore(true);
-  });
+  invalidateAccountsCache();
+  refreshFromStore(true);
 }
 
 function refreshSingleMember(m: Member, stats: RefreshStats): Promise<void> {
@@ -800,11 +790,7 @@ function submitGrant(): void {
 
   fetch(FN_ECONOMY_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-    },
+    headers: restJsonHeaders,
     body: JSON.stringify({
       action: 'admin-grant',
       player_id: session.player_id,

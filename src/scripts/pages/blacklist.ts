@@ -16,34 +16,18 @@ import { t, onLangChange } from '@/i18n';
 import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
 import { optimizeImage, formatBytes } from '@/lib/image-optimize';
 import { patchList, patchText } from '@/lib/dom-diff';
-import { esc, delay } from '@/lib/utils';
+import { esc } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
 import { appAlert, appConfirm } from '@/lib/dialog';
 import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
+import { REST_BASE, STORAGE_BASE, restHeaders, restJsonHeaders } from '@/lib/supabase-rest';
+import { runBatched } from '@/lib/batch';
 
-// import.meta.env 직접 사용 — `@/lib/supabase` (createClient ~200 KB 청크) 의존을
-// 끊어 blacklist 페이지 첫 페인트 크기 축소. supabase-js client 가 필요한 다른
-// 페이지 (members/coupons) 는 그대로 `@/lib/supabase` 사용.
-const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string;
-
-const REST_BASE = SUPABASE_URL + '/rest/v1';
-const STORAGE_BASE = SUPABASE_URL + '/storage/v1';
 const BUCKET = 'blacklist-evidence';
 
-// 일괄 갱신 — 외부 centurygame API rate limit 고려해 5명씩 묶고 배치 사이 1s delay.
-// coupons.ts 의 refreshAllExtras 와 동일 패턴.
+// 외부 centurygame API rate limit 고려해 5명씩 묶고 배치 사이 1s delay.
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 1000;
-
-const restHeaders: Record<string, string> = {
-  apikey: SUPABASE_ANON_KEY,
-  Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-};
-const restJsonHeaders: Record<string, string> = {
-  ...restHeaders,
-  'Content-Type': 'application/json',
-};
 
 interface BlacklistEntry {
   id: string;
@@ -158,13 +142,13 @@ async function refreshAllPlayerInfo(): Promise<void> {
   if (!ok) return;
 
   const stats = { success: 0, failed: 0 };
-  const total = entries.length;
 
-  for (let i = 0; i < total; i += BATCH_SIZE) {
-    const batch = entries.slice(i, i + BATCH_SIZE);
-    await Promise.all(batch.map((e) => refreshSingleEntry(e, stats)));
-    if (i + BATCH_SIZE < total) await delay(DELAY_BETWEEN_BATCHES);
-  }
+  await runBatched({
+    items: entries,
+    batchSize: BATCH_SIZE,
+    delayMs: DELAY_BETWEEN_BATCHES,
+    handler: (e) => refreshSingleEntry(e, stats),
+  });
 
   // DB 변경분 반영을 위해 entries 재로드 + 렌더
   await loadEntriesPromise();
