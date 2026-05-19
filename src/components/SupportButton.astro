@@ -19,6 +19,7 @@
 
 <dialog class="support-dialog" id="support-dialog" aria-labelledby="support-dialog-title">
   <div class="support-dialog-card">
+    <div class="support-dialog-hero" aria-hidden="true">☕</div>
     <h3
       class="support-dialog-title"
       id="support-dialog-title"
@@ -103,18 +104,20 @@
     }
   }
 
-  /* === 다이얼로그 === */
+  /* === 다이얼로그 — Cozy Coffee 톤 ===
+     베이지→흰 그라데이션 카드 + 큰 ☕ 헤더 + 진한 브라운 강조.
+     `var(--bg)`/`var(--text)` 대신 명시 색 (다크모드 무관 cozy 톤 유지). */
   .support-dialog {
     /* native <dialog>[open] 은 position:fixed 가 user-agent default. inset:0 + margin:auto
-       로 viewport 정중앙 정렬 — UA 별 차이 (특히 일부 browser 가 top 위주로 배치) 보정. */
+       로 viewport 정중앙 정렬 — UA 별 차이 보정. */
     position: fixed;
     inset: 0;
     margin: auto;
     border: none;
     padding: 0;
     border-radius: 16px;
-    background: var(--bg);
-    color: var(--text);
+    background: linear-gradient(180deg, #fff7ec 0%, #fff 60%);
+    color: #1f2125;
     max-width: 380px;
     width: calc(100% - 32px);
     max-height: calc(100% - 32px);
@@ -133,22 +136,30 @@
     padding: 24px 24px 20px;
   }
 
+  /* ☕ 큰 헤더 — drop-shadow 로 살짝 떠 있는 느낌, cozy 톤의 시각 강조 */
+  .support-dialog-hero {
+    font-size: 44px;
+    line-height: 1;
+    margin-top: 4px;
+    filter: drop-shadow(0 4px 10px rgba(120, 80, 40, 0.2));
+  }
+
   .support-dialog-title {
     margin: 0;
     font-size: 16px;
     font-weight: 700;
     letter-spacing: -0.01em;
-    color: var(--text);
+    color: #5d3a1a;
   }
 
-  /* 문구 — 부드러운 어조, 작고 친근한 폰트 톤 */
+  /* 문구 — 베이지 브라운, italic 유지 (cozy 친근함) */
   .support-dialog-tagline {
     margin: 0;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.5;
     text-align: center;
-    color: var(--text2);
+    color: #846246;
     font-style: italic;
     letter-spacing: -0.005em;
     max-width: 280px;
@@ -165,12 +176,18 @@
   .support-dialog-actions .btn {
     min-width: 110px;
   }
-  /* <a class="btn"> 시 기본 underline / 색 제거. button 과 시각 일치. */
+  /* <a class="btn"> 시 기본 underline / 색 제거. button 과 시각 일치.
+     primary 그라데이션은 cozy 톤에 맞춰 커피 브라운 으로 override (기본 orange→red 보다 톤 일관). */
   .support-dialog-link {
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    background: linear-gradient(135deg, #b87333 0%, #6f4923 100%);
+    box-shadow: 0 4px 12px rgba(111, 73, 35, 0.32);
+  }
+  .support-dialog-link:hover {
+    background: linear-gradient(135deg, #a06129 0%, #5a3a1c 100%);
   }
 
   @media (max-width: 480px) {
