@@ -23,6 +23,12 @@ export const en: Translations = {
     title: 'Alliance Guide',
     menuOpen: 'Menu',
     menuClose: 'Close menu',
+    support: '☕️ Support',
+    supportShort: '☕️ Tip',
+    supportTitle: 'Support the admin',
+    supportTagline: 'A cup of coffee goes a long way for the admin',
+    supportImageAlt: 'Support QR code',
+    supportLink: 'Open link',
   },
   nav: {
     beginner: 'Beginner Guide',

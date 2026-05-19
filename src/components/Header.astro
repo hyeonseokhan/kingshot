@@ -2,6 +2,7 @@
 import { tabs, findActiveTab } from '@/data/navigation';
 import LoginedUserInfo from '@/components/LoginedUserInfo.astro';
 import LangSwitcher from '@/components/LangSwitcher.astro';
+import SupportButton from '@/components/SupportButton.astro';
 
 const pathname = Astro.url.pathname;
 const activeTab = findActiveTab(pathname);
@@ -29,6 +30,7 @@ const activeTab = findActiveTab(pathname);
       ))
     }
   </nav>
+  <SupportButton />
   <LoginedUserInfo />
   <button
     class="mobile-menu-btn"

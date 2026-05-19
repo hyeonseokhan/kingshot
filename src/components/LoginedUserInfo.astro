@@ -73,7 +73,9 @@
 
 <style>
   .hu {
-    margin-left: auto;
+    /* margin-left 는 Header 의 SupportButton 이 margin-left:auto 로 떠밀어 우측 끝까지
+       옮기므로 본 element 는 자연 인접 (둘 다 auto 면 그 사이 공간이 분할되어 멀어짐). */
+    margin-left: 0;
     display: flex;
     align-items: center;
     justify-content: flex-end;

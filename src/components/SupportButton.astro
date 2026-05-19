@@ -1,0 +1,211 @@
+---
+// 헤더 안 후원 버튼 + 다이얼로그. LoginedUserInfo 좌측에 배치.
+// PC: "☕️ 후원하기", 모바일: "☕️ 후원" — CSS 로 라벨 swap.
+// 클릭 시 native <dialog> 로 QR 이미지 노출 — backdrop / ESC 자동.
+//
+// 동작 로직: src/scripts/components/support-button.ts
+---
+
+<button
+  class="support-btn"
+  id="support-btn"
+  type="button"
+  aria-label="후원"
+  data-i18n-attr-aria-label="header.support"
+>
+  <span class="support-label-pc" data-i18n="header.support">☕️ 후원하기</span>
+  <span class="support-label-mobile" data-i18n="header.supportShort">☕️ 후원</span>
+</button>
+
+<dialog class="support-dialog" id="support-dialog" aria-labelledby="support-dialog-title">
+  <div class="support-dialog-card">
+    <h3
+      class="support-dialog-title"
+      id="support-dialog-title"
+      data-i18n="header.supportTitle"
+    >
+      관리자 후원
+    </h3>
+    <img
+      src="/qr.jpg"
+      class="support-dialog-img"
+      width="320"
+      height="320"
+      alt="후원 QR 코드"
+      data-i18n-attr-alt="header.supportImageAlt"
+      decoding="async"
+    />
+    <p class="support-dialog-tagline" data-i18n="header.supportTagline">
+      커피 한 잔의 선물로 관리자에게 큰 힘이 됩니다
+    </p>
+    <div class="support-dialog-actions">
+      <a
+        class="btn btn-primary support-dialog-link"
+        href="https://qr.kakaopay.com/281006011000024387843562"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-i18n="header.supportLink"
+      >
+        바로가기
+      </a>
+      <button
+        class="btn btn-secondary support-dialog-close"
+        id="support-dialog-close"
+        type="button"
+        data-i18n="common.close"
+      >
+        닫기
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  import '@/scripts/components/support-button';
+</script>
+
+<style>
+  /* === 헤더 버튼 — margin-left:auto 로 우측 끝까지 떠밀려 LoginedUserInfo 와 인접.
+         LoginedUserInfo 의 margin-left 는 0 으로 설정되어 본 버튼과 자연스럽게 붙음.
+         높이는 .hu-trigger (avatar 26px + padding 3+3 = 32px) 와 시각 정렬. === */
+  .support-btn {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .support-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.32);
+  }
+
+  /* PC: 긴 라벨, 모바일: 짧은 라벨 */
+  .support-label-mobile {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .support-btn {
+      height: 28px;
+      padding: 0 10px;
+      font-size: 12px;
+      /* 모바일에선 mobile-menu-btn / LangSwitcher 도 같은 row 에 — gap 으로 충분히 분리됨 */
+    }
+    .support-label-pc {
+      display: none;
+    }
+    .support-label-mobile {
+      display: inline;
+    }
+  }
+
+  /* === 다이얼로그 === */
+  .support-dialog {
+    /* native <dialog>[open] 은 position:fixed 가 user-agent default. inset:0 + margin:auto
+       로 viewport 정중앙 정렬 — UA 별 차이 (특히 일부 browser 가 top 위주로 배치) 보정. */
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    border: none;
+    padding: 0;
+    border-radius: 16px;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 380px;
+    width: calc(100% - 32px);
+    max-height: calc(100% - 32px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
+  }
+  .support-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+  }
+
+  .support-dialog-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 24px 24px 20px;
+  }
+
+  .support-dialog-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+
+  /* QR 이미지 — 정사각, 모바일에서도 적절히 축소 */
+  .support-dialog-img {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    border-radius: 10px;
+    background: #fff;
+    /* QR 이 흰 배경이라 카드 배경과 분리 — 살짝의 inset shadow 로 정렬 강조 */
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.08);
+    object-fit: contain;
+  }
+
+  /* 문구 — 부드러운 어조, 작고 친근한 폰트 톤 */
+  .support-dialog-tagline {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    color: var(--text2);
+    font-style: italic;
+    letter-spacing: -0.005em;
+    max-width: 280px;
+  }
+
+  /* 액션 row — [바로가기] [닫기] 양쪽으로. 모바일에서도 row 유지 (버튼 짧음). */
+  .support-dialog-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+    width: 100%;
+    justify-content: center;
+  }
+  .support-dialog-actions .btn {
+    min-width: 110px;
+  }
+  /* <a class="btn"> 시 기본 underline / 색 제거. button 과 시각 일치. */
+  .support-dialog-link {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (max-width: 480px) {
+    .support-dialog-card {
+      padding: 20px 18px 16px;
+      gap: 12px;
+    }
+    .support-dialog-img {
+      max-width: 240px;
+    }
+    .support-dialog-tagline {
+      font-size: 12.5px;
+    }
+  }
+</style>
