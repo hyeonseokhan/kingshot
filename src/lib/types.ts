@@ -41,6 +41,15 @@ export interface ActiveCoupon {
   expiresAt?: string | null;
 }
 
+/** gift-codes Edge Function 응답 (외부 kingshot.net API 의 giftCodes list 를 캐싱+필터링). */
+export interface GiftCodesResponse {
+  status: 'success' | 'error';
+  message?: string;
+  data?: {
+    giftCodes?: ActiveCoupon[];
+  };
+}
+
 /** centurygame redeem-coupon 응답 (player action) */
 export interface PlayerInfoResponse {
   code: number;

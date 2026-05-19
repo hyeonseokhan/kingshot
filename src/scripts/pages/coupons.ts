@@ -24,7 +24,14 @@ import {
 } from '@/lib/cache';
 import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
-import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
+import type {
+  ActiveCoupon,
+  CouponAccount,
+  GiftCodesResponse,
+  Member,
+  RedeemAccount,
+  RedeemBatchResponse,
+} from '@/lib/types';
 import { lookupPlayer, type PlayerLookup } from '@/lib/api/centurygame';
 import { bindPlayerSearchModal } from '@/lib/player-search-modal';
 import { runBatched } from '@/lib/batch';
@@ -108,10 +115,10 @@ function loadCoupons(callback?: () => void): void {
     return;
   }
   fetch(GIFT_API)
-    .then((r) => r.json())
+    .then((r) => r.json() as Promise<GiftCodesResponse>)
     .then((json) => {
-      if (json.status === 'success' && json.data) {
-        activeCoupons = (json.data.giftCodes || []) as ActiveCoupon[];
+      if (json.status === 'success' && json.data?.giftCodes) {
+        activeCoupons = json.data.giftCodes;
         setGiftCodesCache(activeCoupons);
       }
       pruneSelectedCoupon();
@@ -253,7 +260,7 @@ function loadAccounts(callback?: () => void): void {
   // members 는 store 활용 (auto_coupon=true 는 client filter), coupon_accounts 는 별도 fetch
   Promise.all([
     membersStore.refresh(fetchMembers),
-    sb.from('coupon_accounts').select('*'),
+    sb.from('coupon_accounts').select('*').returns<CouponAccount[]>(),
   ])
     .then((results) => {
       allAccounts = [];
@@ -269,14 +276,14 @@ function loadAccounts(callback?: () => void): void {
         });
       });
       if (results[1].data) {
-        (results[1].data as Array<Record<string, unknown>>).forEach((a) => {
+        results[1].data.forEach((a) => {
           allAccounts.push({
-            id: a.id as string,
-            kingshot_id: a.kingshot_id as string,
-            nickname: a.nickname as string,
-            level: (a.level as number) ?? null,
-            kingdom: (a.kingdom as string) ?? null,
-            profile_photo: (a.profile_photo as string) ?? null,
+            id: a.id,
+            kingshot_id: a.kingshot_id,
+            nickname: a.nickname,
+            level: a.level ?? null,
+            kingdom: a.kingdom ?? null,
+            profile_photo: a.profile_photo ?? null,
             source: 'extra',
           });
         });
@@ -623,9 +630,7 @@ function refreshSingleExtra(
         .eq('id', a.id),
     )
     .then((res) => {
-      if (res && (res as { error?: { message: string } }).error) {
-        throw new Error((res as { error: { message: string } }).error.message);
-      }
+      if (res.error) throw new Error(res.error.message);
       stats.success++;
     })
     .catch((err: Error) => {
@@ -1291,10 +1296,8 @@ function handleAddSave(data: PlayerLookup): void {
         })
         .then((res2) => {
           if (res2.error) {
-            if (
-              res2.error.message.indexOf('duplicate') !== -1 ||
-              res2.error.message.indexOf('unique') !== -1
-            ) {
+            // PostgreSQL UNIQUE 위반 SQLSTATE 23505.
+            if (res2.error.code === '23505') {
               appAlert(t('coupons.msg.duplicate'));
             } else {
               appAlert(t('coupons.msg.saveFailed', { message: res2.error.message }));

@@ -68,7 +68,20 @@ let existingImagePath: string | null = null;
 // 수정 다이얼로그의 "현재 등록된 이미지 [제거]" 클릭 여부. 저장 시 image_path=NULL 로 PATCH.
 let existingImageRemoved = false;
 
-const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T | null;
+/** ID 가 반드시 존재한다고 보장된 element (없으면 throw — 디자인 깨짐). */
+function $req<T extends HTMLElement = HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`#${id} not found`);
+  return el as T;
+}
+
+/** ID 가 옵셔널 (예: page-feature-flag 로 마크업이 조건부 렌더) — 없을 수 있음. */
+function $opt<T extends HTMLElement = HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+// 기존 caller 호환을 위해 nullable 별칭 유지 — 점진적으로 $req / $opt 로 마이그레이션.
+const $ = $opt;
 
 export function initBlacklist(): void {
   if (initialized) return;
@@ -114,8 +127,11 @@ function loadEntriesPromise(): Promise<void> {
   return fetch(REST_BASE + '/blacklist?select=*&order=created_at.desc', {
     headers: restHeaders,
   })
-    .then((r) => r.json())
-    .then((rows: BlacklistEntry[]) => {
+    .then((r) => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json() as Promise<BlacklistEntry[]>;
+    })
+    .then((rows) => {
       entries = Array.isArray(rows) ? rows : [];
       renderList();
     })

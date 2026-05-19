@@ -650,10 +650,8 @@ function handleAddSave(data: PlayerLookup): void {
     })
     .then((res) => {
       if (res.error) {
-        if (
-          res.error.message.indexOf('duplicate') !== -1 ||
-          res.error.message.indexOf('unique') !== -1
-        ) {
+        // PostgreSQL UNIQUE 위반 SQLSTATE 23505. supabase-js 가 error.code 로 노출.
+        if (res.error.code === '23505') {
           appAlert(t('members.errors.duplicate'));
         } else {
           appAlert(t('members.errors.saveFailed', { message: res.error.message }));
@@ -768,7 +766,7 @@ function submitGrant(): void {
   const sourceKind = sourceSelect.value;
   const memo = memoInput.value.trim();
   // UUID — 행위 1회당 새로 생성. 재시도(네트워크 등)는 같은 키 재사용 → 서버 UNIQUE 가 중복 차단.
-  const idempotencyKey = (crypto as Crypto & { randomUUID?: () => string }).randomUUID
+  const idempotencyKey = 'randomUUID' in crypto
     ? crypto.randomUUID()
     : 'fallback-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
 
