@@ -1172,41 +1172,53 @@ function checkAutoRedeem(): void {
 }
 
 function bindEventListeners(): void {
-  // 검색
-  const searchInput = maybe<HTMLInputElement>('coupon-search');
-  if (searchInput) {
-    searchInput.addEventListener('input', () => {
-      searchKeyword = searchInput.value;
-      renderAccounts();
-    });
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        searchInput.value = '';
-        searchKeyword = '';
-        renderAccounts();
-      }
-    });
-  }
+  initSearch();
+  initCouponCardDelegation();
+  initRowDelegation();
+  initAddModal();
+  initActionButtons();
+  initHistoryDialog();
+  initEscapeKey();
+  initLangBinding();
+}
 
+function initSearch(): void {
+  const searchInput = maybe<HTMLInputElement>('coupon-search');
+  if (!searchInput) return;
+  searchInput.addEventListener('input', () => {
+    searchKeyword = searchInput.value;
+    renderAccounts();
+  });
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      searchInput.value = '';
+      searchKeyword = '';
+      renderAccounts();
+    }
+  });
+}
+
+function initCouponCardDelegation(): void {
   // 쿠폰 카드 클릭/키보드 — 컨테이너 위임 (patchList 가 element 재사용해도 listener 한 번만)
   const couponCardsEl = maybe('coupon-cards');
-  if (couponCardsEl) {
-    couponCardsEl.addEventListener('click', (e) => {
-      const card = (e.target as HTMLElement).closest<HTMLElement>('.coupon-card');
-      if (!card) return;
-      const code = card.dataset.code;
-      if (code) selectCoupon(code);
-    });
-    couponCardsEl.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      const card = (e.target as HTMLElement).closest<HTMLElement>('.coupon-card');
-      if (!card) return;
-      e.preventDefault();
-      const code = card.dataset.code;
-      if (code) selectCoupon(code);
-    });
-  }
+  if (!couponCardsEl) return;
+  couponCardsEl.addEventListener('click', (e) => {
+    const card = (e.target as HTMLElement).closest<HTMLElement>('.coupon-card');
+    if (!card) return;
+    const code = card.dataset.code;
+    if (code) selectCoupon(code);
+  });
+  couponCardsEl.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = (e.target as HTMLElement).closest<HTMLElement>('.coupon-card');
+    if (!card) return;
+    e.preventDefault();
+    const code = card.dataset.code;
+    if (code) selectCoupon(code);
+  });
+}
 
+function initRowDelegation(): void {
   // 계정 row 의 redeem / remove 버튼 — 인라인 onclick 대신 컨테이너 위임
   ['coupon-rows-members', 'coupon-rows-extras'].forEach((id) => {
     maybe(id)?.addEventListener('click', (e) => {
@@ -1227,8 +1239,10 @@ function bindEventListeners(): void {
       }
     });
   });
+}
 
-  // 추가 계정 등록 모달
+function initAddModal(): void {
+  // 추가 계정 등록 모달 — 열기/닫기
   $('btn-add-coupon-account').addEventListener('click', () => {
     $<HTMLInputElement>('coupon-input-id').value = '';
     $('coupon-search-result').style.display = 'none';
@@ -1242,92 +1256,97 @@ function bindEventListeners(): void {
     if (e.target === $('coupon-modal-overlay')) closeCouponModal();
   });
 
-  // 모달: 조회
-  $('coupon-btn-search').addEventListener('click', () => {
-    const id = $<HTMLInputElement>('coupon-input-id').value.trim();
-    if (!id) return;
-    const btn = $<HTMLButtonElement>('coupon-btn-search');
-    btn.textContent = t('coupons.modal.searchingButton');
-    btn.disabled = true;
+  // 조회 + 저장
+  $('coupon-btn-search').addEventListener('click', handleAddSearch);
+  $('coupon-modal-save').addEventListener('click', handleAddSave);
+}
 
-    lookupPlayer(id)
-      .then((data) => {
-        couponSearchData = {
-          kingshot_id: data.kingshotId,
+function handleAddSearch(): void {
+  const id = $<HTMLInputElement>('coupon-input-id').value.trim();
+  if (!id) return;
+  const btn = $<HTMLButtonElement>('coupon-btn-search');
+  btn.textContent = t('coupons.modal.searchingButton');
+  btn.disabled = true;
+
+  lookupPlayer(id)
+    .then((data) => {
+      couponSearchData = {
+        kingshot_id: data.kingshotId,
+        nickname: data.nickname,
+        level: data.level,
+        kingdom: data.kingdom,
+        profile_photo: data.avatarUrl,
+      };
+      $('coupon-res-nickname').textContent = couponSearchData.nickname;
+      $('coupon-res-level').textContent = String(couponSearchData.level);
+      $('coupon-res-kingdom').textContent = couponSearchData.kingdom || '-';
+      const photo = $<HTMLImageElement>('coupon-res-photo');
+      if (couponSearchData.profile_photo) {
+        photo.src = couponSearchData.profile_photo;
+        photo.style.display = '';
+      } else {
+        photo.style.display = 'none';
+      }
+      $('coupon-search-result').style.display = '';
+      $<HTMLButtonElement>('coupon-modal-save').disabled = false;
+    })
+    .catch((err: Error) => {
+      // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
+      appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
+      couponSearchData = null;
+    })
+    .finally(() => {
+      btn.textContent = t('coupons.modal.searchButton');
+      btn.disabled = false;
+    });
+}
+
+function handleAddSave(): void {
+  if (!couponSearchData) return;
+  const data = couponSearchData;
+  sb.from('members')
+    .select('kingshot_id')
+    .eq('kingshot_id', data.kingshot_id)
+    .then((res) => {
+      if (res.data && res.data.length > 0) {
+        appAlert(t('coupons.msg.memberAlreadyRegistered'));
+        return;
+      }
+      sb.from('coupon_accounts')
+        .insert({
+          kingshot_id: data.kingshot_id,
           nickname: data.nickname,
           level: data.level,
           kingdom: data.kingdom,
-          profile_photo: data.avatarUrl,
-        };
-        $('coupon-res-nickname').textContent = couponSearchData.nickname;
-        $('coupon-res-level').textContent = String(couponSearchData.level);
-        $('coupon-res-kingdom').textContent = couponSearchData.kingdom || '-';
-        const photo = $<HTMLImageElement>('coupon-res-photo');
-        if (couponSearchData.profile_photo) {
-          photo.src = couponSearchData.profile_photo;
-          photo.style.display = '';
-        } else {
-          photo.style.display = 'none';
-        }
-        $('coupon-search-result').style.display = '';
-        $<HTMLButtonElement>('coupon-modal-save').disabled = false;
-      })
-      .catch((err: Error) => {
-        // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
-        appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
-        couponSearchData = null;
-      })
-      .finally(() => {
-        btn.textContent = t('coupons.modal.searchButton');
-        btn.disabled = false;
-      });
-  });
-
-  // 모달: 저장
-  $('coupon-modal-save').addEventListener('click', () => {
-    if (!couponSearchData) return;
-    const data = couponSearchData;
-    sb.from('members')
-      .select('kingshot_id')
-      .eq('kingshot_id', data.kingshot_id)
-      .then((res) => {
-        if (res.data && res.data.length > 0) {
-          appAlert(t('coupons.msg.memberAlreadyRegistered'));
-          return;
-        }
-        sb.from('coupon_accounts')
-          .insert({
-            kingshot_id: data.kingshot_id,
-            nickname: data.nickname,
-            level: data.level,
-            kingdom: data.kingdom,
-            profile_photo: data.profile_photo,
-          })
-          .then((res2) => {
-            if (res2.error) {
-              if (
-                res2.error.message.indexOf('duplicate') !== -1 ||
-                res2.error.message.indexOf('unique') !== -1
-              ) {
-                appAlert(t('coupons.msg.duplicate'));
-              } else {
-                appAlert(t('coupons.msg.saveFailed', { message: res2.error.message }));
-              }
-              return;
+          profile_photo: data.profile_photo,
+        })
+        .then((res2) => {
+          if (res2.error) {
+            if (
+              res2.error.message.indexOf('duplicate') !== -1 ||
+              res2.error.message.indexOf('unique') !== -1
+            ) {
+              appAlert(t('coupons.msg.duplicate'));
+            } else {
+              appAlert(t('coupons.msg.saveFailed', { message: res2.error.message }));
             }
-            couponSearchData = null;
-            invalidateAccountsCache();
-            closeCouponModal();
-            initPage();
-          });
-      });
-  });
+            return;
+          }
+          couponSearchData = null;
+          invalidateAccountsCache();
+          closeCouponModal();
+          initPage();
+        });
+    });
+}
 
-  // 전체 수령
+function initActionButtons(): void {
+  // 전체 수령 + 추가 갱신
   $('btn-redeem-all').addEventListener('click', () => startBulkRedeem(false));
   $('btn-refresh-extras').addEventListener('click', refreshAllExtras);
+}
 
-  // 수령 이력
+function initHistoryDialog(): void {
   $('btn-history').addEventListener('click', openHistoryDialog);
   $('history-close').addEventListener('click', () => {
     const ov = maybe('history-dialog-overlay');
@@ -1360,7 +1379,9 @@ function bindEventListeners(): void {
       if (ov) ov.classList.remove('open');
     }
   });
+}
 
+function initEscapeKey(): void {
   // Esc → 모든 오버레이 닫기
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
@@ -1369,7 +1390,9 @@ function bindEventListeners(): void {
       if (el?.classList.contains('open')) el.classList.remove('open');
     });
   });
+}
 
+function initLangBinding(): void {
   // 언어 변경 시 동적 렌더 텍스트 (hint / count / 카드 라벨 / 시간 등) 재계산.
   // 정적 마크업의 라벨은 applyTranslations() 가 자동 swap, 동적 textContent 는 마커 없어 이 경로로 수동 갱신.
   onLangChange(() => {

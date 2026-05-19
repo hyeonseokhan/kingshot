@@ -557,7 +557,6 @@ async function submitForm(): Promise<void> {
     return;
   }
   const note = $<HTMLInputElement>('bl-input-note')!.value.trim();
-  const session = getSession()!;
 
   ($('bl-modal-submit') as HTMLButtonElement).disabled = true;
 
@@ -568,54 +567,9 @@ async function submitForm(): Promise<void> {
     }
 
     if (editingId) {
-      // 수정 케이스 4종:
-      //   (a) 새 이미지 첨부              → image_path = newImagePath, 기존 storage 삭제
-      //   (b) 기존 이미지 제거만           → image_path = NULL,        기존 storage 삭제
-      //   (c) 새 첨부 + 기존 제거         → (a) 와 동일 (제거 의도는 새것으로 덮임)
-      //   (d) 이미지 변경 없음            → patch 에서 image_path 생략 (보존)
-      // player 필드(nickname/avatar_url/kingdom) 도 PATCH 에 포함 — "갱신" 후 저장 시
-      // 최신값 반영. 갱신 안 했어도 lookupResult 는 entry 원본값으로 채워져있어 안전 (no-op).
-      const patch: Record<string, unknown> = {
-        nickname: lookupResult.nickname,
-        avatar_url: lookupResult.avatar_url,
-        kingdom: lookupResult.kingdom,
-        level: lookupResult.level,
-        note: note || null,
-      };
-      if (newImagePath) {
-        patch.image_path = newImagePath;
-      } else if (existingImageRemoved) {
-        patch.image_path = null;
-      }
-      const res = await fetch(
-        REST_BASE + '/blacklist?id=eq.' + encodeURIComponent(editingId),
-        {
-          method: 'PATCH',
-          headers: { ...restJsonHeaders, Prefer: 'return=minimal' },
-          body: JSON.stringify(patch),
-        },
-      );
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      // DB PATCH 성공 후에만 storage 정리 (PATCH 실패 시 기존 파일 보존). 실패해도 row 변경은 살림.
-      if (existingImagePath && (newImagePath || existingImageRemoved)) {
-        await deleteStorageObject(existingImagePath).catch(() => {});
-      }
+      await updateEntry(editingId, lookupResult, note, newImagePath);
     } else {
-      const res = await fetch(REST_BASE + '/blacklist', {
-        method: 'POST',
-        headers: { ...restJsonHeaders, Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          kingshot_id: lookupResult.kingshot_id,
-          nickname: lookupResult.nickname,
-          avatar_url: lookupResult.avatar_url,
-          kingdom: lookupResult.kingdom,
-          level: lookupResult.level,
-          note: note || null,
-          image_path: newImagePath,
-          created_by: session.player_id,
-        }),
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await createEntry(lookupResult, note, newImagePath);
     }
 
     closeModal();
@@ -625,6 +579,71 @@ async function submitForm(): Promise<void> {
   } finally {
     ($('bl-modal-submit') as HTMLButtonElement).disabled = false;
   }
+}
+
+/**
+ * 기존 entry 수정. 이미지 4 케이스:
+ *   (a) 새 이미지 첨부              → image_path = newImagePath, 기존 storage 삭제
+ *   (b) 기존 이미지 제거만           → image_path = NULL,        기존 storage 삭제
+ *   (c) 새 첨부 + 기존 제거         → (a) 와 동일 (제거 의도는 새것으로 덮임)
+ *   (d) 이미지 변경 없음            → patch 에서 image_path 생략 (보존)
+ * player 필드(nickname/avatar_url/kingdom/level) 도 PATCH 에 포함 — "갱신" 후 저장 시
+ * 최신값 반영. 갱신 안 했어도 lookupResult 는 entry 원본값으로 채워져있어 안전 (no-op).
+ */
+async function updateEntry(
+  id: string,
+  data: LookupResult,
+  note: string,
+  newImagePath: string | null,
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    nickname: data.nickname,
+    avatar_url: data.avatar_url,
+    kingdom: data.kingdom,
+    level: data.level,
+    note: note || null,
+  };
+  if (newImagePath) {
+    patch.image_path = newImagePath;
+  } else if (existingImageRemoved) {
+    patch.image_path = null;
+  }
+  const res = await fetch(
+    REST_BASE + '/blacklist?id=eq.' + encodeURIComponent(id),
+    {
+      method: 'PATCH',
+      headers: { ...restJsonHeaders, Prefer: 'return=minimal' },
+      body: JSON.stringify(patch),
+    },
+  );
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  // DB PATCH 성공 후에만 storage 정리 (PATCH 실패 시 기존 파일 보존). 실패해도 row 변경은 살림.
+  if (existingImagePath && (newImagePath || existingImageRemoved)) {
+    await deleteStorageObject(existingImagePath).catch(() => {});
+  }
+}
+
+async function createEntry(
+  data: LookupResult,
+  note: string,
+  newImagePath: string | null,
+): Promise<void> {
+  const session = getSession()!;
+  const res = await fetch(REST_BASE + '/blacklist', {
+    method: 'POST',
+    headers: { ...restJsonHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      kingshot_id: data.kingshot_id,
+      nickname: data.nickname,
+      avatar_url: data.avatar_url,
+      kingdom: data.kingdom,
+      level: data.level,
+      note: note || null,
+      image_path: newImagePath,
+      created_by: session.player_id,
+    }),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
 }
 
 // ===== 삭제 =====

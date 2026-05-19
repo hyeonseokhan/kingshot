@@ -468,7 +468,18 @@ function syncRefreshBanner(): void {
 // ===== 초기화 =====
 
 function initPage(): void {
-  // 필터 옵션 30 → 1
+  initFilters();
+  initRowDelegation();
+  initManageDialog();
+  initAddModal();
+  initBulkRefresh();
+  initAdminGrant();
+  initEscapeKey();
+  initStoreBinding();
+}
+
+function initFilters(): void {
+  // 레벨 필터 옵션 30 → 1
   const filterSelect = $<HTMLSelectElement>('filter-level');
   for (let i = 30; i >= 1; i--) {
     const opt = document.createElement('option');
@@ -484,8 +495,10 @@ function initPage(): void {
     searchKeyword = searchInput.value.trim();
     renderMembers();
   });
+}
 
-  // 이벤트 위임 — ⋮ 관리 버튼 클릭
+function initRowDelegation(): void {
+  // ⋮ 관리 버튼 — 행 클릭 위임
   $('members-rows').addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.mc-manage-btn');
     if (!btn) return;
@@ -493,105 +506,111 @@ function initPage(): void {
     const id = row?.dataset.id;
     if (id) openDialog(id);
   });
+}
 
-  // 다이얼로그 핸들러
+function initManageDialog(): void {
+  // 닫기 — backdrop 클릭 + 닫기 버튼
   const dialogOverlay = $('manage-dialog-overlay');
   dialogOverlay.addEventListener('click', (e) => {
     if (e.target === dialogOverlay) closeDialog();
   });
   $('md-close').addEventListener('click', closeDialog);
 
-  // 다이얼로그: 갱신
-  $('md-refresh').addEventListener('click', () => {
-    if (!currentDialogId) return;
-    const m = findMember(currentDialogId);
-    if (!m) return;
-    const btn = $<HTMLButtonElement>('md-refresh');
-    btn.disabled = true;
+  // 액션 버튼
+  $('md-refresh').addEventListener('click', handleManageRefresh);
+  $('md-save').addEventListener('click', handleManageSave);
+  $('md-delete').addEventListener('click', handleManageDelete);
+}
 
-    lookupPlayer(m.kingshot_id)
-      .then((data) =>
-        sb
-          .from('members')
-          .update({
-            nickname: data.nickname,
-            level: data.level,
-            kingdom: data.kingdom,
-            profile_photo: data.avatarUrl,
-          })
-          .eq('id', currentDialogId!)
-          .then((res) => {
-            if (res.error) throw new Error(res.error.message);
-            invalidateAccountsCache();
-            // 갱신된 필드만 m 에 적용 후 openManageDialog 로 전체 재렌더 —
-            // 직접 textContent 만 채우면 power/alliance_rank_pos 등 게임 API 가
-            // 주지 않는 필드가 화면에서 사라지는 회귀 발생.
-            m.nickname = data.nickname;
-            m.level = data.level;
-            m.kingdom = data.kingdom;
-            m.profile_photo = data.avatarUrl;
-            renderDialog(m);
+function handleManageRefresh(): void {
+  if (!currentDialogId) return;
+  const m = findMember(currentDialogId);
+  if (!m) return;
+  const btn = $<HTMLButtonElement>('md-refresh');
+  btn.disabled = true;
+
+  lookupPlayer(m.kingshot_id)
+    .then((data) =>
+      sb
+        .from('members')
+        .update({
+          nickname: data.nickname,
+          level: data.level,
+          kingdom: data.kingdom,
+          profile_photo: data.avatarUrl,
+        })
+        .eq('id', currentDialogId!)
+        .then((res) => {
+          if (res.error) throw new Error(res.error.message);
+          invalidateAccountsCache();
+          // 갱신된 필드만 m 에 적용 후 openManageDialog 로 전체 재렌더 —
+          // 직접 textContent 만 채우면 power/alliance_rank_pos 등 게임 API 가
+          // 주지 않는 필드가 화면에서 사라지는 회귀 발생.
+          m.nickname = data.nickname;
+          m.level = data.level;
+          m.kingdom = data.kingdom;
+          m.profile_photo = data.avatarUrl;
+          renderDialog(m);
+          btn.innerHTML =
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
+          setTimeout(() => {
             btn.innerHTML =
-              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
-            setTimeout(() => {
-              btn.innerHTML =
-                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-            }, 1500);
-            // 백그라운드로 store 강제 갱신 — 변경 사항 반영을 위해 캐시 무시
-            refreshFromStore(true);
-          }),
-      )
-      .catch((err: Error) => appAlert(t('members.errors.refreshFailed', { message: err.message })))
-      .finally(() => {
-        btn.disabled = false;
-      });
-  });
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+          }, 1500);
+          // 백그라운드로 store 강제 갱신 — 변경 사항 반영을 위해 캐시 무시
+          refreshFromStore(true);
+        }),
+    )
+    .catch((err: Error) => appAlert(t('members.errors.refreshFailed', { message: err.message })))
+    .finally(() => {
+      btn.disabled = false;
+    });
+}
 
-  // 다이얼로그: 저장
-  $('md-save').addEventListener('click', () => {
-    if (!currentDialogId) return;
-    sb.from('members')
-      .update({
-        alliance_rank: $<HTMLSelectElement>('md-rank').value,
-        auto_coupon: $<HTMLInputElement>('md-auto-coupon').checked,
-      })
-      .eq('id', currentDialogId)
-      .then((res) => {
-        if (res.error) {
-          appAlert(t('members.errors.saveFailed', { message: res.error.message }));
-          return;
-        }
-        invalidateAccountsCache();
-        closeDialog();
-        refreshFromStore(true);
-      });
-  });
+function handleManageSave(): void {
+  if (!currentDialogId) return;
+  sb.from('members')
+    .update({
+      alliance_rank: $<HTMLSelectElement>('md-rank').value,
+      auto_coupon: $<HTMLInputElement>('md-auto-coupon').checked,
+    })
+    .eq('id', currentDialogId)
+    .then((res) => {
+      if (res.error) {
+        appAlert(t('members.errors.saveFailed', { message: res.error.message }));
+        return;
+      }
+      invalidateAccountsCache();
+      closeDialog();
+      refreshFromStore(true);
+    });
+}
 
-  // 다이얼로그: 삭제
-  $('md-delete').addEventListener('click', async () => {
-    if (!currentDialogId) return;
-    const m = findMember(currentDialogId);
-    if (!m) return;
-    const ok = await appConfirm(
-      t('members.errors.confirmDelete', { name: m.nickname }),
-      { variant: 'danger' },
-    );
-    if (!ok) return;
-    sb.from('members')
-      .delete()
-      .eq('id', currentDialogId)
-      .then((res) => {
-        if (res.error) {
-          appAlert(t('members.errors.deleteFailed', { message: res.error.message }));
-          return;
-        }
-        invalidateAccountsCache();
-        closeDialog();
-        refreshFromStore(true);
-      });
-  });
+async function handleManageDelete(): Promise<void> {
+  if (!currentDialogId) return;
+  const m = findMember(currentDialogId);
+  if (!m) return;
+  const ok = await appConfirm(
+    t('members.errors.confirmDelete', { name: m.nickname }),
+    { variant: 'danger' },
+  );
+  if (!ok) return;
+  sb.from('members')
+    .delete()
+    .eq('id', currentDialogId)
+    .then((res) => {
+      if (res.error) {
+        appAlert(t('members.errors.deleteFailed', { message: res.error.message }));
+        return;
+      }
+      invalidateAccountsCache();
+      closeDialog();
+      refreshFromStore(true);
+    });
+}
 
-  // 등록 모달
+function initAddModal(): void {
+  // 등록 모달 열기/닫기
   $('btn-add-member').addEventListener('click', () => {
     $<HTMLInputElement>('input-kingshot-id').value = '';
     $('search-result').style.display = 'none';
@@ -604,95 +623,98 @@ function initPage(): void {
     if (e.target === $('modal-overlay')) closeModal();
   });
 
-  // 등록 모달: 조회
-  $('btn-search-id').addEventListener('click', () => {
-    const kingshotId = $<HTMLInputElement>('input-kingshot-id').value.trim();
-    if (!kingshotId) return;
-    const btn = $<HTMLButtonElement>('btn-search-id');
-    btn.textContent = t('members.modal.searchingButton');
-    btn.disabled = true;
-    $('search-result').style.display = 'none';
+  // 조회 + 저장
+  $('btn-search-id').addEventListener('click', handleAddSearch);
+  $('btn-modal-save').addEventListener('click', handleAddSave);
+}
 
-    lookupPlayer(kingshotId)
-      .then((data) => {
-        searchData = {
-          kingshot_id: data.kingshotId,
-          nickname: data.nickname,
-          level: data.level,
-          kingdom: data.kingdom,
-          profile_photo: data.avatarUrl,
-        };
-        $('res-nickname').textContent = searchData.nickname;
-        $('res-level').textContent = String(searchData.level);
-        $('res-kingdom').textContent = searchData.kingdom || '-';
-        const photo = $<HTMLImageElement>('res-photo');
-        if (searchData.profile_photo) {
-          photo.src = searchData.profile_photo;
-          photo.style.display = '';
-        } else {
-          photo.style.display = 'none';
-        }
-        $('search-result').style.display = '';
-        $<HTMLButtonElement>('btn-modal-save').disabled = false;
-      })
-      .catch((err: Error) => {
-        // 외부 API 의 raw msg ("Sign Error", "Player Not Existed" 등) 노출 금지.
-        appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
-        searchData = null;
-        $<HTMLButtonElement>('btn-modal-save').disabled = true;
-      })
-      .finally(() => {
-        btn.textContent = t('members.modal.searchButton');
-        btn.disabled = false;
-      });
-  });
+function handleAddSearch(): void {
+  const kingshotId = $<HTMLInputElement>('input-kingshot-id').value.trim();
+  if (!kingshotId) return;
+  const btn = $<HTMLButtonElement>('btn-search-id');
+  btn.textContent = t('members.modal.searchingButton');
+  btn.disabled = true;
+  $('search-result').style.display = 'none';
 
-  // 등록 모달: 저장
-  $('btn-modal-save').addEventListener('click', () => {
-    if (!searchData) {
-      appAlert(t('members.errors.needSearch'));
-      return;
-    }
-    const data = searchData;
-    sb.from('members')
-      .insert({
-        kingshot_id: data.kingshot_id,
+  lookupPlayer(kingshotId)
+    .then((data) => {
+      searchData = {
+        kingshot_id: data.kingshotId,
         nickname: data.nickname,
         level: data.level,
         kingdom: data.kingdom,
-        profile_photo: data.profile_photo,
-      })
-      .then((res) => {
-        if (res.error) {
-          if (
-            res.error.message.indexOf('duplicate') !== -1 ||
-            res.error.message.indexOf('unique') !== -1
-          ) {
-            appAlert(t('members.errors.duplicate'));
-          } else {
-            appAlert(t('members.errors.saveFailed', { message: res.error.message }));
-          }
-          return;
-        }
-        // coupon_accounts 에 동일 ID 가 있으면 자동 정리 (연맹원 우선)
-        sb.from('coupon_accounts')
-          .delete()
-          .eq('kingshot_id', data.kingshot_id)
-          .then(() => {
-            invalidateAccountsCache();
-            searchData = null;
-            closeModal();
-            refreshFromStore(true);
-          });
-      });
-  });
+        profile_photo: data.avatarUrl,
+      };
+      $('res-nickname').textContent = searchData.nickname;
+      $('res-level').textContent = String(searchData.level);
+      $('res-kingdom').textContent = searchData.kingdom || '-';
+      const photo = $<HTMLImageElement>('res-photo');
+      if (searchData.profile_photo) {
+        photo.src = searchData.profile_photo;
+        photo.style.display = '';
+      } else {
+        photo.style.display = 'none';
+      }
+      $('search-result').style.display = '';
+      $<HTMLButtonElement>('btn-modal-save').disabled = false;
+    })
+    .catch((err: Error) => {
+      // 외부 API 의 raw msg ("Sign Error", "Player Not Existed" 등) 노출 금지.
+      appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
+      searchData = null;
+      $<HTMLButtonElement>('btn-modal-save').disabled = true;
+    })
+    .finally(() => {
+      btn.textContent = t('members.modal.searchButton');
+      btn.disabled = false;
+    });
+}
 
+function handleAddSave(): void {
+  if (!searchData) {
+    appAlert(t('members.errors.needSearch'));
+    return;
+  }
+  const data = searchData;
+  sb.from('members')
+    .insert({
+      kingshot_id: data.kingshot_id,
+      nickname: data.nickname,
+      level: data.level,
+      kingdom: data.kingdom,
+      profile_photo: data.profile_photo,
+    })
+    .then((res) => {
+      if (res.error) {
+        if (
+          res.error.message.indexOf('duplicate') !== -1 ||
+          res.error.message.indexOf('unique') !== -1
+        ) {
+          appAlert(t('members.errors.duplicate'));
+        } else {
+          appAlert(t('members.errors.saveFailed', { message: res.error.message }));
+        }
+        return;
+      }
+      // coupon_accounts 에 동일 ID 가 있으면 자동 정리 (연맹원 우선)
+      sb.from('coupon_accounts')
+        .delete()
+        .eq('kingshot_id', data.kingshot_id)
+        .then(() => {
+          invalidateAccountsCache();
+          searchData = null;
+          closeModal();
+          refreshFromStore(true);
+        });
+    });
+}
+
+function initBulkRefresh(): void {
   // 전체 갱신 (모든 회원 프로필 게임 API 재조회 — 무거움)
   $('btn-refresh-all').addEventListener('click', refreshAllMembers);
+}
 
-  // 관리자 — 크리스탈 지급
-  initAdminGrant();
-
+function initEscapeKey(): void {
   // Esc → 모든 오버레이 닫기
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
@@ -701,7 +723,9 @@ function initPage(): void {
       if (el?.classList.contains('open')) el.classList.remove('open');
     });
   });
+}
 
+function initStoreBinding(): void {
   // store 변경 구독 → 자동 렌더 (캐시 있으면 즉시 1회 호출 → 깜박임 없는 첫 표시)
   membersStore.subscribe(() => renderMembers());
   // 백그라운드 fetch — 캐시 있어도 stale-while-revalidate
