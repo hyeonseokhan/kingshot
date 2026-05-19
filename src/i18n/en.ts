@@ -27,7 +27,6 @@ export const en: Translations = {
     supportShort: '☕️ Tip',
     supportTitle: 'Support the admin',
     supportTagline: 'A cup of coffee goes a long way for the admin',
-    supportImageAlt: 'Support QR code',
     supportLink: 'Open link',
   },
   nav: {

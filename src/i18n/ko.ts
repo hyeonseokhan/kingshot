@@ -28,7 +28,6 @@ export const ko = {
     supportShort: '☕️ 후원',
     supportTitle: '관리자 후원',
     supportTagline: '커피 한 잔의 선물로 관리자에게 큰 힘이 됩니다',
-    supportImageAlt: '후원 QR 코드',
     supportLink: '바로가기',
   },
   nav: {

@@ -1,7 +1,7 @@
 ---
 // 헤더 안 후원 버튼 + 다이얼로그. LoginedUserInfo 좌측에 배치.
 // PC: "☕️ 후원하기", 모바일: "☕️ 후원" — CSS 로 라벨 swap.
-// 클릭 시 native <dialog> 로 QR 이미지 노출 — backdrop / ESC 자동.
+// 클릭 시 native <dialog> 로 안내문 + [바로가기]/[닫기] 노출. backdrop / ESC 자동.
 //
 // 동작 로직: src/scripts/components/support-button.ts
 ---
@@ -26,15 +26,6 @@
     >
       관리자 후원
     </h3>
-    <img
-      src="/qr.jpg"
-      class="support-dialog-img"
-      width="320"
-      height="320"
-      alt="후원 QR 코드"
-      data-i18n-attr-alt="header.supportImageAlt"
-      decoding="async"
-    />
     <p class="support-dialog-tagline" data-i18n="header.supportTagline">
       커피 한 잔의 선물로 관리자에게 큰 힘이 됩니다
     </p>
@@ -150,20 +141,6 @@
     color: var(--text);
   }
 
-  /* QR 이미지 — 정사각, 모바일에서도 적절히 축소 */
-  .support-dialog-img {
-    display: block;
-    width: 100%;
-    max-width: 280px;
-    height: auto;
-    aspect-ratio: 1 / 1;
-    border-radius: 10px;
-    background: #fff;
-    /* QR 이 흰 배경이라 카드 배경과 분리 — 살짝의 inset shadow 로 정렬 강조 */
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.08);
-    object-fit: contain;
-  }
-
   /* 문구 — 부드러운 어조, 작고 친근한 폰트 톤 */
   .support-dialog-tagline {
     margin: 0;
@@ -200,9 +177,6 @@
     .support-dialog-card {
       padding: 20px 18px 16px;
       gap: 12px;
-    }
-    .support-dialog-img {
-      max-width: 240px;
     }
     .support-dialog-tagline {
       font-size: 12.5px;
