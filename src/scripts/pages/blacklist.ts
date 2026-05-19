@@ -372,7 +372,7 @@ function openAddModal(): void {
 function openEditModal(entry: BlacklistEntry): void {
   if (!requireLogin()) return;
   if (!canModify(entry)) {
-    alert(t('blacklist.msg.noPermission'));
+    appAlert(t('blacklist.msg.noPermission'));
     return;
   }
   resetModal();
@@ -473,12 +473,12 @@ async function copyKingshotId(): Promise<void> {
 function searchPlayer(): void {
   const id = $<HTMLInputElement>('bl-input-id')!.value.trim();
   if (!/^\d{4,15}$/.test(id)) {
-    alert(t('blacklist.msg.needSearch'));
+    appAlert(t('blacklist.msg.needSearch'));
     return;
   }
   // 중복 체크 (등록 모드에서만)
   if (!editingId && entries.some((e) => e.kingshot_id === id)) {
-    alert(t('blacklist.msg.duplicate'));
+    appAlert(t('blacklist.msg.duplicate'));
     return;
   }
 
@@ -544,7 +544,7 @@ async function onImageSelected(ev: Event): Promise<void> {
     // 새 파일을 골랐다는 건 기존 이미지를 교체할 의도 → 기존 영역 숨김. 저장 시 옛 storage 삭제는 submitForm 이 처리.
     ($('bl-image-existing') as HTMLElement).style.display = 'none';
   } catch (err) {
-    alert(t('blacklist.msg.imageFailed', { message: (err as Error).message }));
+    await appAlert(t('blacklist.msg.imageFailed', { message: (err as Error).message }));
     clearPendingImage();
   }
 }
@@ -580,7 +580,7 @@ function clearPendingImage(): void {
 async function submitForm(): Promise<void> {
   if (!requireLogin()) return;
   if (!lookupResult) {
-    alert(t('blacklist.msg.needSearch'));
+    await appAlert(t('blacklist.msg.needSearch'));
     return;
   }
   const note = $<HTMLInputElement>('bl-input-note')!.value.trim();
@@ -648,7 +648,7 @@ async function submitForm(): Promise<void> {
     closeModal();
     loadEntries();
   } catch (err) {
-    alert(t('blacklist.msg.saveFailed', { message: (err as Error).message }));
+    await appAlert(t('blacklist.msg.saveFailed', { message: (err as Error).message }));
   } finally {
     ($('bl-modal-submit') as HTMLButtonElement).disabled = false;
   }
@@ -661,10 +661,10 @@ async function handleDelete(): Promise<void> {
   const entry = entries.find((e) => e.id === editingId);
   if (!entry) return;
   if (!canModify(entry)) {
-    alert(t('blacklist.msg.noPermission'));
+    await appAlert(t('blacklist.msg.noPermission'));
     return;
   }
-  if (!confirm(t('blacklist.confirm.delete', { name: entry.nickname }))) return;
+  if (!(await appConfirm(t('blacklist.confirm.delete', { name: entry.nickname }), { variant: 'danger' }))) return;
 
   try {
     if (entry.image_path) {
@@ -679,7 +679,7 @@ async function handleDelete(): Promise<void> {
     closeModal();
     loadEntries();
   } catch (err) {
-    alert(t('blacklist.msg.deleteFailed', { message: (err as Error).message }));
+    await appAlert(t('blacklist.msg.deleteFailed', { message: (err as Error).message }));
   }
 }
 
@@ -727,7 +727,7 @@ async function deleteStorageObject(path: string): Promise<void> {
 
 function requireLogin(): boolean {
   if (!getSession()?.player_id) {
-    alert(t('blacklist.msg.needLogin'));
+    appAlert(t('blacklist.msg.needLogin'));
     return false;
   }
   return true;

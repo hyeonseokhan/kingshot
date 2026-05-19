@@ -26,7 +26,7 @@ import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
 import { t, onLangChange } from '@/i18n';
-import { appAlert } from '@/lib/dialog';
+import { appAlert, appConfirm } from '@/lib/dialog';
 
 // ===== 상수 =====
 
@@ -571,13 +571,13 @@ function renderAccounts(): void {
 // ===== 추가 계정 (extras) 일괄 갱신 =====
 // 인게임 프로필 (닉네임/레벨/왕국/사진) 이 변경됐을 때 외부 API 로 재조회 후 DB 업데이트.
 // 연맹원(members) 은 별도 페이지의 "전체 갱신" 버튼이 처리, 여기는 추가 계정만.
-function refreshAllExtras(): void {
+async function refreshAllExtras(): Promise<void> {
   const extras = allAccounts.filter((a) => a.source === 'extra' && a.id);
   if (extras.length === 0) {
-    alert(t('coupons.refreshExtras.empty'));
+    await appAlert(t('coupons.refreshExtras.empty'));
     return;
   }
-  if (!confirm(t('coupons.refreshExtras.confirm', { n: extras.length }))) return;
+  if (!(await appConfirm(t('coupons.refreshExtras.confirm', { n: extras.length })))) return;
 
   const btn = $<HTMLButtonElement>('btn-refresh-extras');
   const originalText = btn.textContent || t('coupons.toolbar.refreshExtras');
@@ -617,9 +617,9 @@ function refreshAllExtras(): void {
     invalidateAccountsCache();
     loadAccounts(() => renderAccounts());
     if (stats.failed === 0) {
-      alert(t('coupons.refreshExtras.done', { n: stats.success }));
+      appAlert(t('coupons.refreshExtras.done', { n: stats.success }));
     } else {
-      alert(
+      appAlert(
         t('coupons.refreshExtras.partial', {
           ok: stats.success,
           fail: stats.failed,
@@ -675,14 +675,14 @@ function closeCouponModal(): void {
 
 // ===== 계정 삭제 =====
 
-function removeAccount(id: string): void {
-  if (!confirm(t('coupons.confirm.deleteAccount'))) return;
+async function removeAccount(id: string): Promise<void> {
+  if (!(await appConfirm(t('coupons.confirm.deleteAccount'), { variant: 'danger' }))) return;
   sb.from('coupon_accounts')
     .delete()
     .eq('id', id)
     .then((res) => {
       if (res.error) {
-        alert(t('coupons.msg.deleteFailed', { message: res.error.message }));
+        appAlert(t('coupons.msg.deleteFailed', { message: res.error.message }));
         return;
       }
       invalidateAccountsCache();
@@ -696,7 +696,7 @@ function redeemOne(fid: string, nickname: string): void {
   const codes = getCodesToRedeem(fid);
   if (codes.length === 0) {
     const sel = getSelectedCoupon();
-    alert(
+    appAlert(
       sel
         ? t('coupons.msg.onePersonAlready', { name: nickname, code: sel.code })
         : t('coupons.msg.onePersonAllAlready', { name: nickname }),
@@ -791,7 +791,7 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
 
 // ===== 전체 수령 =====
 
-function startBulkRedeem(skipConfirm: boolean): void {
+async function startBulkRedeem(skipConfirm: boolean): Promise<void> {
   // skipConfirm 의 의미: confirm prompt 만 생략 — 결과 알림은 항상 표시 (URL 트리거든 버튼 클릭이든
   // 사용자가 명시적으로 액션을 취한 상태이므로 묵음 종료는 혼란만 야기)
   if (activeCoupons.length === 0) {
@@ -811,7 +811,7 @@ function startBulkRedeem(skipConfirm: boolean): void {
   const confirmMsg = sel
     ? t('coupons.confirm.redeemSelected', { n: pending.length, code: sel.code })
     : t('coupons.confirm.redeemAll', { n: pending.length });
-  if (!skipConfirm && !confirm(confirmMsg)) return;
+  if (!skipConfirm && !(await appConfirm(confirmMsg))) return;
 
   redeemStats = { success: 0, already: 0, failed: 0, errors: [] };
   totalRedeemTasks = pending.reduce(
@@ -975,7 +975,7 @@ function showSummary(): void {
   });
   scheduleAutoHide(p);
   if (redeemStats.failed > 0) {
-    alert(t('coupons.summary.detailsHeader', { details: redeemStats.errors.join('\n') }));
+    appAlert(t('coupons.summary.detailsHeader', { details: redeemStats.errors.join('\n') }));
   }
 }
 
@@ -1335,7 +1335,7 @@ function bindEventListeners(): void {
       .eq('kingshot_id', data.kingshot_id)
       .then((res) => {
         if (res.data && res.data.length > 0) {
-          alert(t('coupons.msg.memberAlreadyRegistered'));
+          appAlert(t('coupons.msg.memberAlreadyRegistered'));
           return;
         }
         sb.from('coupon_accounts')
@@ -1352,9 +1352,9 @@ function bindEventListeners(): void {
                 res2.error.message.indexOf('duplicate') !== -1 ||
                 res2.error.message.indexOf('unique') !== -1
               ) {
-                alert(t('coupons.msg.duplicate'));
+                appAlert(t('coupons.msg.duplicate'));
               } else {
-                alert(t('coupons.msg.saveFailed', { message: res2.error.message }));
+                appAlert(t('coupons.msg.saveFailed', { message: res2.error.message }));
               }
               return;
             }

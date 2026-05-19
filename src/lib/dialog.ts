@@ -19,43 +19,24 @@ import { t } from '@/i18n';
 import { esc } from './utils';
 
 export interface ConfirmOptions {
-  title?: string;
-  okLabel?: string;
-  cancelLabel?: string;
   /** 'danger' 면 OK 버튼이 .btn-danger (삭제 같은 비가역 액션). */
   variant?: 'default' | 'danger';
 }
 
-export function appAlert(
-  message: string,
-  options: { title?: string; okLabel?: string } = {},
-): Promise<void> {
-  return open({
-    message,
-    title: options.title,
-    okLabel: options.okLabel,
-    cancelLabel: undefined, // alert 는 OK 만
-  }).then(() => undefined);
+export function appAlert(message: string): Promise<void> {
+  return open({ message, withCancel: false }).then(() => undefined);
 }
 
 export function appConfirm(
   message: string,
   options: ConfirmOptions = {},
 ): Promise<boolean> {
-  return open({
-    message,
-    title: options.title,
-    okLabel: options.okLabel,
-    cancelLabel: options.cancelLabel ?? t('common.cancel'),
-    variant: options.variant,
-  });
+  return open({ message, withCancel: true, variant: options.variant });
 }
 
 interface OpenOpts {
   message: string;
-  title?: string;
-  okLabel?: string;
-  cancelLabel?: string;
+  withCancel: boolean;
   variant?: 'default' | 'danger';
 }
 
@@ -64,14 +45,14 @@ function open(opts: OpenOpts): Promise<boolean> {
     const dlg = document.createElement('dialog');
     dlg.className = 'app-dialog';
     const okClass = opts.variant === 'danger' ? 'btn btn-danger' : 'btn btn-primary';
-    const okLabel = opts.okLabel ?? t('common.confirm');
+    const okLabel = t('common.confirm');
+    const cancelLabel = t('common.cancel');
     dlg.innerHTML =
       '<div class="app-dialog-card">' +
-      (opts.title ? `<h3 class="app-dialog-title">${esc(opts.title)}</h3>` : '') +
       `<p class="app-dialog-msg">${esc(opts.message)}</p>` +
       '<div class="app-dialog-actions">' +
-      (opts.cancelLabel
-        ? `<button class="btn btn-secondary" data-result="false" type="button">${esc(opts.cancelLabel)}</button>`
+      (opts.withCancel
+        ? `<button class="btn btn-secondary" data-result="false" type="button">${esc(cancelLabel)}</button>`
         : '') +
       `<button class="${okClass}" data-result="true" type="button" autofocus>${esc(okLabel)}</button>` +
       '</div>' +
