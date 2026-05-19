@@ -25,6 +25,7 @@ import {
 import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
+import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
 import { t, onLangChange } from '@/i18n';
 import { appAlert, appConfirm } from '@/lib/dialog';
 
@@ -634,26 +635,18 @@ function refreshSingleExtra(
   a: RedeemAccount,
   stats: { success: number; failed: number; errors: string[] },
 ): Promise<void> {
-  return fetch(REDEEM_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'player', fid: a.kingshot_id }),
-  })
-    .then((r) => r.json())
-    .then((json) => {
-      if (json.code !== 0 || !json.data) {
-        throw new Error(json.msg || 'lookup failed');
-      }
-      return sb
+  return lookupPlayer(a.kingshot_id)
+    .then((data) =>
+      sb
         .from('coupon_accounts')
         .update({
-          nickname: json.data.nickname,
-          level: json.data.stove_lv || 0,
-          kingdom: json.data.kid || null,
-          profile_photo: json.data.avatar_image || null,
+          nickname: data.nickname,
+          level: data.level,
+          kingdom: data.kingdom,
+          profile_photo: data.avatarUrl,
         })
-        .eq('id', a.id);
-    })
+        .eq('id', a.id),
+    )
     .then((res) => {
       if (res && (res as { error?: { message: string } }).error) {
         throw new Error((res as { error: { message: string } }).error.message);
@@ -1285,21 +1278,14 @@ function bindEventListeners(): void {
     btn.textContent = t('coupons.modal.searchingButton');
     btn.disabled = true;
 
-    fetch(REDEEM_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'player', fid: id }),
-    })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.code !== 0 || !json.data)
-          throw new Error(json.msg || t('members.errors.apiSearchFailed'));
+    lookupPlayer(id)
+      .then((data) => {
         couponSearchData = {
-          kingshot_id: String(json.data.fid),
-          nickname: json.data.nickname,
-          level: json.data.stove_lv || 0,
-          kingdom: json.data.kid || null,
-          profile_photo: json.data.avatar_image || null,
+          kingshot_id: data.kingshotId,
+          nickname: data.nickname,
+          level: data.level,
+          kingdom: data.kingdom,
+          profile_photo: data.avatarUrl,
         };
         $('coupon-res-nickname').textContent = couponSearchData.nickname;
         $('coupon-res-level').textContent = String(couponSearchData.level);
@@ -1316,8 +1302,7 @@ function bindEventListeners(): void {
       })
       .catch((err: Error) => {
         // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
-        const isNotFound = /not.*exist|not.*found/i.test(err.message);
-        appAlert(t(isNotFound ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
+        appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
         couponSearchData = null;
       })
       .finally(() => {

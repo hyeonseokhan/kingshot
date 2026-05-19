@@ -12,7 +12,6 @@
  * 권한 체크는 UI 가드 — service_role 분리는 후속 작업.
  */
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { t, onLangChange } from '@/i18n';
 import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
 import { optimizeImage, formatBytes } from '@/lib/image-optimize';
@@ -20,8 +19,14 @@ import { patchList, patchText } from '@/lib/dom-diff';
 import { esc, delay } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
 import { appAlert, appConfirm } from '@/lib/dialog';
+import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
 
-const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
+// import.meta.env 직접 사용 — `@/lib/supabase` (createClient ~200 KB 청크) 의존을
+// 끊어 blacklist 페이지 첫 페인트 크기 축소. supabase-js client 가 필요한 다른
+// 페이지 (members/coupons) 는 그대로 `@/lib/supabase` 사용.
+const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string;
+
 const REST_BASE = SUPABASE_URL + '/rest/v1';
 const STORAGE_BASE = SUPABASE_URL + '/storage/v1';
 const BUCKET = 'blacklist-evidence';
@@ -54,7 +59,7 @@ interface BlacklistEntry {
   updated_at: string;
 }
 
-interface PlayerLookup {
+interface LookupResult {
   kingshot_id: string;
   nickname: string;
   avatar_url: string | null;
@@ -67,7 +72,7 @@ let searchTerm = '';
 let initialized = false;
 
 let editingId: string | null = null;
-let lookupResult: PlayerLookup | null = null;
+let lookupResult: LookupResult | null = null;
 let pendingImageBlob: Blob | null = null;
 let pendingImageOriginalSize = 0;
 
@@ -177,21 +182,13 @@ function refreshSingleEntry(
   e: BlacklistEntry,
   stats: { success: number; failed: number },
 ): Promise<void> {
-  return fetch(REDEEM_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'player', fid: e.kingshot_id }),
-  })
-    .then((r) => r.json())
-    .then((json) => {
-      if (json.code !== 0 || !json.data) {
-        throw new Error(json.msg || 'lookup failed');
-      }
+  return lookupPlayer(e.kingshot_id)
+    .then((data) => {
       const patch = {
-        nickname: json.data.nickname,
-        avatar_url: json.data.avatar_image ?? null,
-        kingdom: json.data.kid ?? null,
-        level: parseInt(String(json.data.stove_lv ?? json.data.stove_lv_content ?? ''), 10) || null,
+        nickname: data.nickname,
+        avatar_url: data.avatarUrl,
+        kingdom: data.kingdom,
+        level: data.level || null,
       };
       return fetch(REST_BASE + '/blacklist?id=eq.' + encodeURIComponent(e.id), {
         method: 'PATCH',
@@ -487,28 +484,20 @@ function searchPlayer(): void {
   setText('bl-search-btn', t(inProgressKey));
   ($('bl-search-btn') as HTMLButtonElement).disabled = true;
 
-  fetch(REDEEM_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'player', fid: id }),
-  })
-    .then((r) => r.json())
-    .then((json) => {
-      if (json.code !== 0 || !json.data) throw new Error(json.msg || t('blacklist.msg.apiSearchFailed'));
+  lookupPlayer(id)
+    .then((data) => {
       lookupResult = {
-        kingshot_id: String(json.data.fid),
-        nickname: json.data.nickname,
-        avatar_url: json.data.avatar_image ?? null,
-        kingdom: json.data.kid ?? null,
-        // stove_lv = city center level. members.ts 패턴 따라 stove_lv_content fallback.
-        level: parseInt(String(json.data.stove_lv ?? json.data.stove_lv_content ?? ''), 10) || null,
+        kingshot_id: data.kingshotId,
+        nickname: data.nickname,
+        avatar_url: data.avatarUrl,
+        kingdom: data.kingdom !== null ? Number(data.kingdom) : null,
+        level: data.level || null,
       };
       renderPreview(lookupResult);
     })
     .catch((err: Error) => {
       // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
-      const isNotFound = /not.*exist|not.*found/i.test(err.message);
-      appAlert(t(isNotFound ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
+      appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
     })
     .finally(() => {
       const idleKey = editingId ? 'blacklist.modal.refreshButton' : 'blacklist.modal.searchButton';
@@ -517,7 +506,7 @@ function searchPlayer(): void {
     });
 }
 
-function renderPreview(p: PlayerLookup): void {
+function renderPreview(p: LookupResult): void {
   const img = $<HTMLImageElement>('bl-preview-img')!;
   if (p.avatar_url) {
     img.src = p.avatar_url;

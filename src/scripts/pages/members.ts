@@ -18,21 +18,13 @@ import { membersStore, fetchMembers } from '@/lib/stores/members';
 import { patchList, patchText } from '@/lib/dom-diff';
 import { appAlert, appConfirm } from '@/lib/dialog';
 import type { Member, AllianceRank } from '@/lib/types';
+import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
 import { t, onLangChange } from '@/i18n';
 import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
 
-const REDEEM_API = SUPABASE_URL + '/functions/v1/redeem-coupon';
 const FN_ECONOMY_URL = SUPABASE_URL + '/functions/v1/economy';
 const BATCH_SIZE = 5;
 const DELAY_BETWEEN_BATCHES = 500;
-
-interface PlayerInfo {
-  playerId: string;
-  name: string;
-  level: number;
-  kingdom: string | null;
-  profilePhoto: string | null;
-}
 
 interface RefreshStats {
   success: number;
@@ -50,32 +42,6 @@ function $<T extends HTMLElement = HTMLElement>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`#${id} not found`);
   return el as T;
-}
-
-// ===== 플레이어 조회 (외부 API) =====
-
-function fetchPlayerInfo(playerId: string): Promise<PlayerInfo> {
-  return fetch(REDEEM_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'player', fid: playerId }),
-  })
-    .then((r) => {
-      if (!r.ok) throw new Error(t('members.errors.apiError', { status: r.status }));
-      return r.json();
-    })
-    .then((json) => {
-      if (json.code !== 0 || !json.data) {
-        throw new Error(json.msg || t('members.errors.apiSearchFailed'));
-      }
-      return {
-        playerId: String(json.data.fid),
-        name: json.data.nickname,
-        level: json.data.stove_lv || json.data.stove_lv_content || 0,
-        kingdom: json.data.kid || null,
-        profilePhoto: json.data.avatar_image || null,
-      } satisfies PlayerInfo;
-    });
 }
 
 // ===== view-model =====
@@ -414,15 +380,15 @@ function refreshMembersByIds(memberIds: string[]): void {
 }
 
 function refreshSingleMember(m: Member, stats: RefreshStats): Promise<void> {
-  return fetchPlayerInfo(m.kingshot_id)
+  return lookupPlayer(m.kingshot_id)
     .then((data) =>
       sb
         .from('members')
         .update({
-          nickname: data.name,
-          level: parseInt(String(data.level), 10) || 0,
-          kingdom: data.kingdom || null,
-          profile_photo: data.profilePhoto || null,
+          nickname: data.nickname,
+          level: data.level,
+          kingdom: data.kingdom,
+          profile_photo: data.avatarUrl,
         })
         .eq('id', m.id)
         .then((res) => {
@@ -553,15 +519,15 @@ function initPage(): void {
     const btn = $<HTMLButtonElement>('md-refresh');
     btn.disabled = true;
 
-    fetchPlayerInfo(m.kingshot_id)
+    lookupPlayer(m.kingshot_id)
       .then((data) =>
         sb
           .from('members')
           .update({
-            nickname: data.name,
-            level: parseInt(String(data.level), 10) || 0,
-            kingdom: data.kingdom || null,
-            profile_photo: data.profilePhoto || null,
+            nickname: data.nickname,
+            level: data.level,
+            kingdom: data.kingdom,
+            profile_photo: data.avatarUrl,
           })
           .eq('id', currentDialogId!)
           .then((res) => {
@@ -570,10 +536,10 @@ function initPage(): void {
             // 갱신된 필드만 m 에 적용 후 openManageDialog 로 전체 재렌더 —
             // 직접 textContent 만 채우면 power/alliance_rank_pos 등 게임 API 가
             // 주지 않는 필드가 화면에서 사라지는 회귀 발생.
-            m.nickname = data.name;
-            m.level = parseInt(String(data.level), 10) || 0;
-            m.kingdom = data.kingdom || null;
-            m.profile_photo = data.profilePhoto || null;
+            m.nickname = data.nickname;
+            m.level = data.level;
+            m.kingdom = data.kingdom;
+            m.profile_photo = data.avatarUrl;
             renderDialog(m);
             btn.innerHTML =
               '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
@@ -657,14 +623,14 @@ function initPage(): void {
     btn.disabled = true;
     $('search-result').style.display = 'none';
 
-    fetchPlayerInfo(kingshotId)
+    lookupPlayer(kingshotId)
       .then((data) => {
         searchData = {
-          kingshot_id: data.playerId,
-          nickname: data.name,
-          level: parseInt(String(data.level), 10) || 0,
-          kingdom: data.kingdom || null,
-          profile_photo: data.profilePhoto || null,
+          kingshot_id: data.kingshotId,
+          nickname: data.nickname,
+          level: data.level,
+          kingdom: data.kingdom,
+          profile_photo: data.avatarUrl,
         };
         $('res-nickname').textContent = searchData.nickname;
         $('res-level').textContent = String(searchData.level);
@@ -681,9 +647,7 @@ function initPage(): void {
       })
       .catch((err: Error) => {
         // 외부 API 의 raw msg ("Sign Error", "Player Not Existed" 등) 노출 금지.
-        // not-found 만 별도 메시지로 분기, 나머지는 generic friendly.
-        const isNotFound = /not.*exist|not.*found/i.test(err.message);
-        appAlert(t(isNotFound ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
+        appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
         searchData = null;
         $<HTMLButtonElement>('btn-modal-save').disabled = true;
       })
