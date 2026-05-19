@@ -36,9 +36,17 @@
         href="https://qr.kakaopay.com/281006011000024387843562"
         target="_blank"
         rel="noopener noreferrer"
-        data-i18n="header.supportLink"
       >
-        바로가기
+        <span data-i18n="header.supportLink">바로가기</span>
+        <span class="support-dialog-link-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" focusable="false">
+            <path
+              d="M12 3C6.48 3 2 6.48 2 10.8c0 2.76 1.92 5.16 4.8 6.6L5.4 22l4.92-2.88c.54.12 1.14.18 1.68.18 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"
+              fill="#1a1a1a"
+            />
+          </svg>
+          Pay
+        </span>
       </a>
       <button
         class="btn btn-secondary support-dialog-close"
@@ -57,17 +65,19 @@
 </script>
 
 <style>
-  /* === 헤더 버튼 — margin-left:auto 로 우측 끝까지 떠밀려 LoginedUserInfo 와 인접.
-         LoginedUserInfo 의 margin-left 는 0 으로 설정되어 본 버튼과 자연스럽게 붙음.
-         높이는 .hu-trigger (avatar 26px + padding 3+3 = 32px) 와 시각 정렬. === */
+  /* === 헤더 버튼 — Amber Glow ===
+     margin-left:auto 로 우측 끝까지 떠밀려 LoginedUserInfo 와 인접.
+     LoginedUserInfo 의 margin-left 는 0 으로 설정되어 본 버튼과 자연스럽게 붙음.
+     높이는 .hu-trigger (avatar 26px + padding 3+3 = 32px) 와 시각 정렬.
+     은은한 amber glow 가 2.4s 주기로 깜박 — 후원 트리거임을 부담 없이 시각 강조. */
   .support-btn {
     margin-left: auto;
     display: inline-flex;
     align-items: center;
     height: 32px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    color: #fff;
+    background: rgba(184, 115, 51, 0.18);
+    border: 1px solid rgba(184, 115, 51, 0.5);
+    color: #fff7ec;
     border-radius: 999px;
     padding: 0 12px;
     font-size: 13px;
@@ -78,10 +88,22 @@
     transition: background 0.15s, border-color 0.15s;
     white-space: nowrap;
     flex-shrink: 0;
+    box-shadow: 0 0 0 0 rgba(184, 115, 51, 0.2);
+    animation: support-btn-glow 2.4s ease-in-out infinite;
   }
   .support-btn:hover {
-    background: rgba(255, 255, 255, 0.16);
-    border-color: rgba(255, 255, 255, 0.32);
+    background: rgba(184, 115, 51, 0.32);
+    border-color: rgba(184, 115, 51, 0.7);
+  }
+  @keyframes support-btn-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(184, 115, 51, 0.2); }
+    50% { box-shadow: 0 0 10px 0 rgba(184, 115, 51, 0.3); }
+  }
+  /* 접근성 — 사용자가 reduced motion 켜놨으면 깜박임 disable. */
+  @media (prefers-reduced-motion: reduce) {
+    .support-btn {
+      animation: none;
+    }
   }
 
   /* PC: 긴 라벨, 모바일: 짧은 라벨 */
@@ -177,8 +199,10 @@
     min-width: 110px;
   }
   /* <a class="btn"> 시 기본 underline / 색 제거. button 과 시각 일치.
-     primary 그라데이션은 cozy 톤에 맞춰 커피 브라운 으로 override (기본 orange→red 보다 톤 일관). */
+     primary 그라데이션은 cozy 톤에 맞춰 커피 브라운 으로 override (기본 orange→red 보다 톤 일관).
+     position:relative — 좌측 상단 카카오페이 배지 absolute 기준. */
   .support-dialog-link {
+    position: relative;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -188,6 +212,31 @@
   }
   .support-dialog-link:hover {
     background: linear-gradient(135deg, #a06129 0%, #5a3a1c 100%);
+  }
+
+  /* 카카오페이 배지 — 좌측 상단, 노란 알약 (카카오톡 말풍선 + Pay). */
+  .support-dialog-link-badge {
+    position: absolute;
+    top: -8px;
+    left: -10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px 4px 6px;
+    background: #fee500;
+    color: #1a1a1a;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .support-dialog-link-badge svg {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    display: block;
   }
 
   @media (max-width: 480px) {
