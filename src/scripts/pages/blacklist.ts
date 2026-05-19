@@ -19,7 +19,8 @@ import { patchList, patchText } from '@/lib/dom-diff';
 import { esc } from '@/lib/utils';
 import { bindRefreshButton } from '@/lib/refresh-button';
 import { appAlert, appConfirm } from '@/lib/dialog';
-import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
+import { lookupPlayer } from '@/lib/api/centurygame';
+import { bindPlayerSearchModal } from '@/lib/player-search-modal';
 import { REST_BASE, STORAGE_BASE, restHeaders, restJsonHeaders } from '@/lib/supabase-rest';
 import { runBatched } from '@/lib/batch';
 
@@ -78,10 +79,7 @@ export function initBlacklist(): void {
   $('bl-modal-cancel')?.addEventListener('click', closeModal);
   $('bl-modal-submit')?.addEventListener('click', submitForm);
   $('bl-modal-delete')?.addEventListener('click', handleDelete);
-  $('bl-search-btn')?.addEventListener('click', searchPlayer);
-  $<HTMLInputElement>('bl-input-id')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') searchPlayer();
-  });
+  bindSearchModal();
   $('bl-copy-id-btn')?.addEventListener('click', copyKingshotId);
   $<HTMLInputElement>('bl-input-image')?.addEventListener('change', onImageSelected);
   $('bl-image-remove')?.addEventListener('click', clearPendingImage);
@@ -449,27 +447,34 @@ async function copyKingshotId(): Promise<void> {
   }, 1000);
 }
 
-// ===== player 조회 =====
+// ===== player 조회 — bindPlayerSearchModal 컨트롤러 사용 =====
+//
+// blacklist 는 등록/수정 양쪽 모드를 같은 모달이 공유 — 버튼 라벨이 모드별 분기.
+// modal 컨트롤러는 클릭 흐름만 흡수, 저장은 별도 (submitForm). saveBtnId 미지정.
+// 모드 전환 시 button text 는 openAddModal/openEditModal 에서 직접 set.
 
-function searchPlayer(): void {
-  const id = $<HTMLInputElement>('bl-input-id')!.value.trim();
-  if (!/^\d{4,15}$/.test(id)) {
-    appAlert(t('blacklist.msg.needSearch'));
-    return;
-  }
-  // 중복 체크 (등록 모드에서만)
-  if (!editingId && entries.some((e) => e.kingshot_id === id)) {
-    appAlert(t('blacklist.msg.duplicate'));
-    return;
-  }
-
-  // 라벨은 모드별 분기 — 등록: 조회/조회중, 수정: 갱신/갱신중.
-  const inProgressKey = editingId ? 'blacklist.modal.refreshingButton' : 'blacklist.modal.searchingButton';
-  setText('bl-search-btn', t(inProgressKey));
-  ($('bl-search-btn') as HTMLButtonElement).disabled = true;
-
-  lookupPlayer(id)
-    .then((data) => {
+function bindSearchModal(): void {
+  bindPlayerSearchModal({
+    overlayId: 'bl-modal-overlay',
+    inputId: 'bl-input-id',
+    searchBtnId: 'bl-search-btn',
+    searchingButtonText: () =>
+      t(editingId ? 'blacklist.modal.refreshingButton' : 'blacklist.modal.searchingButton'),
+    searchButtonText: () =>
+      t(editingId ? 'blacklist.modal.refreshButton' : 'blacklist.modal.searchButton'),
+    beforeSearch: (id) => {
+      if (!/^\d{4,15}$/.test(id)) {
+        appAlert(t('blacklist.msg.needSearch'));
+        return false;
+      }
+      // 중복 체크 (등록 모드에서만)
+      if (!editingId && entries.some((e) => e.kingshot_id === id)) {
+        appAlert(t('blacklist.msg.duplicate'));
+        return false;
+      }
+      return true;
+    },
+    onPreview: (data) => {
       lookupResult = {
         kingshot_id: data.kingshotId,
         nickname: data.nickname,
@@ -478,16 +483,11 @@ function searchPlayer(): void {
         level: data.level || null,
       };
       renderPreview(lookupResult);
-    })
-    .catch((err: Error) => {
-      // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
-      appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
-    })
-    .finally(() => {
-      const idleKey = editingId ? 'blacklist.modal.refreshButton' : 'blacklist.modal.searchButton';
-      setText('bl-search-btn', t(idleKey));
-      ($('bl-search-btn') as HTMLButtonElement).disabled = false;
-    });
+    },
+    onReset: () => {
+      // resetModal() 이 별도로 lookupResult 와 preview 처리 — 여기선 no-op
+    },
+  });
 }
 
 function renderPreview(p: LookupResult): void {

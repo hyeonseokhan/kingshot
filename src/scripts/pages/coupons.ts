@@ -25,7 +25,8 @@ import {
 import { patchList, patchText } from '@/lib/dom-diff';
 import { membersStore, fetchMembers } from '@/lib/stores/members';
 import type { ActiveCoupon, RedeemAccount, RedeemBatchResponse, Member } from '@/lib/types';
-import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
+import { lookupPlayer, type PlayerLookup } from '@/lib/api/centurygame';
+import { bindPlayerSearchModal } from '@/lib/player-search-modal';
 import { runBatched } from '@/lib/batch';
 import { t, onLangChange } from '@/i18n';
 import { appAlert, appConfirm } from '@/lib/dialog';
@@ -51,20 +52,11 @@ let completedRedeemTasks = 0;
 
 let selectedCouponCode: string | null = null;
 let searchKeyword = '';
-let couponSearchData: SearchData | null = null;
 let historyCurrentPage = 1;
 let historyTotalCount = 0;
 let historySearch = '';
 let historySearchDebounce: number | null = null;
 let nicknameMap: Record<string, string> = {};
-
-interface SearchData {
-  kingshot_id: string;
-  nickname: string;
-  level: number;
-  kingdom: string | null;
-  profile_photo: string | null;
-}
 
 // ===== SVG 아이콘 =====
 
@@ -1242,11 +1234,34 @@ function initRowDelegation(): void {
 }
 
 function initAddModal(): void {
-  // 추가 계정 등록 모달 — 열기/닫기
+  const modal = bindPlayerSearchModal({
+    overlayId: 'coupon-modal-overlay',
+    inputId: 'coupon-input-id',
+    searchBtnId: 'coupon-btn-search',
+    saveBtnId: 'coupon-modal-save',
+    searchingButtonText: () => t('coupons.modal.searchingButton'),
+    searchButtonText: () => t('coupons.modal.searchButton'),
+    onPreview: (data) => {
+      $('coupon-res-nickname').textContent = data.nickname;
+      $('coupon-res-level').textContent = String(data.level);
+      $('coupon-res-kingdom').textContent = data.kingdom || '-';
+      const photo = $<HTMLImageElement>('coupon-res-photo');
+      if (data.avatarUrl) {
+        photo.src = data.avatarUrl;
+        photo.style.display = '';
+      } else {
+        photo.style.display = 'none';
+      }
+      $('coupon-search-result').style.display = '';
+    },
+    onReset: () => {
+      $('coupon-search-result').style.display = 'none';
+    },
+    onSave: handleAddSave,
+  });
+
   $('btn-add-coupon-account').addEventListener('click', () => {
-    $<HTMLInputElement>('coupon-input-id').value = '';
-    $('coupon-search-result').style.display = 'none';
-    $<HTMLButtonElement>('coupon-modal-save').disabled = true;
+    modal.reset();
     const ov = maybe('coupon-modal-overlay');
     if (ov) ov.classList.add('open');
   });
@@ -1255,58 +1270,12 @@ function initAddModal(): void {
   $('coupon-modal-overlay').addEventListener('click', (e) => {
     if (e.target === $('coupon-modal-overlay')) closeCouponModal();
   });
-
-  // 조회 + 저장
-  $('coupon-btn-search').addEventListener('click', handleAddSearch);
-  $('coupon-modal-save').addEventListener('click', handleAddSave);
 }
 
-function handleAddSearch(): void {
-  const id = $<HTMLInputElement>('coupon-input-id').value.trim();
-  if (!id) return;
-  const btn = $<HTMLButtonElement>('coupon-btn-search');
-  btn.textContent = t('coupons.modal.searchingButton');
-  btn.disabled = true;
-
-  lookupPlayer(id)
-    .then((data) => {
-      couponSearchData = {
-        kingshot_id: data.kingshotId,
-        nickname: data.nickname,
-        level: data.level,
-        kingdom: data.kingdom,
-        profile_photo: data.avatarUrl,
-      };
-      $('coupon-res-nickname').textContent = couponSearchData.nickname;
-      $('coupon-res-level').textContent = String(couponSearchData.level);
-      $('coupon-res-kingdom').textContent = couponSearchData.kingdom || '-';
-      const photo = $<HTMLImageElement>('coupon-res-photo');
-      if (couponSearchData.profile_photo) {
-        photo.src = couponSearchData.profile_photo;
-        photo.style.display = '';
-      } else {
-        photo.style.display = 'none';
-      }
-      $('coupon-search-result').style.display = '';
-      $<HTMLButtonElement>('coupon-modal-save').disabled = false;
-    })
-    .catch((err: Error) => {
-      // 외부 API 의 raw msg ("Sign Error" 등) 노출 금지 — 사용자 친화 메시지로 매핑.
-      appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
-      couponSearchData = null;
-    })
-    .finally(() => {
-      btn.textContent = t('coupons.modal.searchButton');
-      btn.disabled = false;
-    });
-}
-
-function handleAddSave(): void {
-  if (!couponSearchData) return;
-  const data = couponSearchData;
+function handleAddSave(data: PlayerLookup): void {
   sb.from('members')
     .select('kingshot_id')
-    .eq('kingshot_id', data.kingshot_id)
+    .eq('kingshot_id', data.kingshotId)
     .then((res) => {
       if (res.data && res.data.length > 0) {
         appAlert(t('coupons.msg.memberAlreadyRegistered'));
@@ -1314,11 +1283,11 @@ function handleAddSave(): void {
       }
       sb.from('coupon_accounts')
         .insert({
-          kingshot_id: data.kingshot_id,
+          kingshot_id: data.kingshotId,
           nickname: data.nickname,
           level: data.level,
           kingdom: data.kingdom,
-          profile_photo: data.profile_photo,
+          profile_photo: data.avatarUrl,
         })
         .then((res2) => {
           if (res2.error) {
@@ -1332,7 +1301,6 @@ function handleAddSave(): void {
             }
             return;
           }
-          couponSearchData = null;
           invalidateAccountsCache();
           closeCouponModal();
           initPage();

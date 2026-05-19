@@ -19,7 +19,8 @@ import { membersStore, fetchMembers } from '@/lib/stores/members';
 import { patchList, patchText } from '@/lib/dom-diff';
 import { appAlert, appConfirm } from '@/lib/dialog';
 import type { Member, AllianceRank } from '@/lib/types';
-import { lookupPlayer, PlayerNotFoundError } from '@/lib/api/centurygame';
+import { lookupPlayer, type PlayerLookup } from '@/lib/api/centurygame';
+import { bindPlayerSearchModal } from '@/lib/player-search-modal';
 import { runBatched } from '@/lib/batch';
 import { t, onLangChange } from '@/i18n';
 import { getSession, isAdminSession } from '@/scripts/pages/tile-match-auth';
@@ -295,15 +296,6 @@ function closeDialog(): void {
 }
 
 // ===== 등록 모달 =====
-
-interface SearchData {
-  kingshot_id: string;
-  nickname: string;
-  level: number;
-  kingdom: string | null;
-  profile_photo: string | null;
-}
-let searchData: SearchData | null = null;
 
 function closeModal(): void {
   toggleOverlay('modal-overlay', false);
@@ -610,11 +602,34 @@ async function handleManageDelete(): Promise<void> {
 }
 
 function initAddModal(): void {
-  // 등록 모달 열기/닫기
+  const modal = bindPlayerSearchModal({
+    overlayId: 'modal-overlay',
+    inputId: 'input-kingshot-id',
+    searchBtnId: 'btn-search-id',
+    saveBtnId: 'btn-modal-save',
+    searchingButtonText: () => t('members.modal.searchingButton'),
+    searchButtonText: () => t('members.modal.searchButton'),
+    onPreview: (data) => {
+      $('res-nickname').textContent = data.nickname;
+      $('res-level').textContent = String(data.level);
+      $('res-kingdom').textContent = data.kingdom || '-';
+      const photo = $<HTMLImageElement>('res-photo');
+      if (data.avatarUrl) {
+        photo.src = data.avatarUrl;
+        photo.style.display = '';
+      } else {
+        photo.style.display = 'none';
+      }
+      $('search-result').style.display = '';
+    },
+    onReset: () => {
+      $('search-result').style.display = 'none';
+    },
+    onSave: handleAddSave,
+  });
+
   $('btn-add-member').addEventListener('click', () => {
-    $<HTMLInputElement>('input-kingshot-id').value = '';
-    $('search-result').style.display = 'none';
-    $<HTMLButtonElement>('btn-modal-save').disabled = true;
+    modal.reset();
     toggleOverlay('modal-overlay', true);
   });
   $('modal-close').addEventListener('click', closeModal);
@@ -622,67 +637,16 @@ function initAddModal(): void {
   $('modal-overlay').addEventListener('click', (e) => {
     if (e.target === $('modal-overlay')) closeModal();
   });
-
-  // 조회 + 저장
-  $('btn-search-id').addEventListener('click', handleAddSearch);
-  $('btn-modal-save').addEventListener('click', handleAddSave);
 }
 
-function handleAddSearch(): void {
-  const kingshotId = $<HTMLInputElement>('input-kingshot-id').value.trim();
-  if (!kingshotId) return;
-  const btn = $<HTMLButtonElement>('btn-search-id');
-  btn.textContent = t('members.modal.searchingButton');
-  btn.disabled = true;
-  $('search-result').style.display = 'none';
-
-  lookupPlayer(kingshotId)
-    .then((data) => {
-      searchData = {
-        kingshot_id: data.kingshotId,
-        nickname: data.nickname,
-        level: data.level,
-        kingdom: data.kingdom,
-        profile_photo: data.avatarUrl,
-      };
-      $('res-nickname').textContent = searchData.nickname;
-      $('res-level').textContent = String(searchData.level);
-      $('res-kingdom').textContent = searchData.kingdom || '-';
-      const photo = $<HTMLImageElement>('res-photo');
-      if (searchData.profile_photo) {
-        photo.src = searchData.profile_photo;
-        photo.style.display = '';
-      } else {
-        photo.style.display = 'none';
-      }
-      $('search-result').style.display = '';
-      $<HTMLButtonElement>('btn-modal-save').disabled = false;
-    })
-    .catch((err: Error) => {
-      // 외부 API 의 raw msg ("Sign Error", "Player Not Existed" 등) 노출 금지.
-      appAlert(t(err instanceof PlayerNotFoundError ? 'common.playerLookupNotFound' : 'common.playerLookupFailed'));
-      searchData = null;
-      $<HTMLButtonElement>('btn-modal-save').disabled = true;
-    })
-    .finally(() => {
-      btn.textContent = t('members.modal.searchButton');
-      btn.disabled = false;
-    });
-}
-
-function handleAddSave(): void {
-  if (!searchData) {
-    appAlert(t('members.errors.needSearch'));
-    return;
-  }
-  const data = searchData;
+function handleAddSave(data: PlayerLookup): void {
   sb.from('members')
     .insert({
-      kingshot_id: data.kingshot_id,
+      kingshot_id: data.kingshotId,
       nickname: data.nickname,
       level: data.level,
       kingdom: data.kingdom,
-      profile_photo: data.profile_photo,
+      profile_photo: data.avatarUrl,
     })
     .then((res) => {
       if (res.error) {
@@ -699,10 +663,9 @@ function handleAddSave(): void {
       // coupon_accounts 에 동일 ID 가 있으면 자동 정리 (연맹원 우선)
       sb.from('coupon_accounts')
         .delete()
-        .eq('kingshot_id', data.kingshot_id)
+        .eq('kingshot_id', data.kingshotId)
         .then(() => {
           invalidateAccountsCache();
-          searchData = null;
           closeModal();
           refreshFromStore(true);
         });
