@@ -15,7 +15,6 @@
 export interface OptimizeOptions {
   maxWidth?: number;       // 기본 1080. 원본이 더 작으면 enlarge 안 함
   quality?: number;        // 0.0 ~ 1.0, 기본 0.80
-  mimeType?: 'image/webp' | 'image/jpeg';  // 기본 webp
 }
 
 export interface OptimizeResult {
@@ -29,18 +28,18 @@ export interface OptimizeResult {
 const DEFAULT_OPTIONS: Required<OptimizeOptions> = {
   maxWidth: 1080,
   quality: 0.80,
-  mimeType: 'image/webp',
 };
 
 /**
- * File 또는 Blob 을 받아 resize + WebP 변환된 Blob 반환.
+ * File 또는 Blob 을 받아 resize + WebP (불가 시 JPEG) 변환된 Blob 반환.
  * 실패 시 throw.
  *
  * 인코딩 경로:
- *   1. 네이티브 canvas.toBlob(image/webp) 시도 (Chrome/Edge/Firefox, Safari 18+ 빠름)
- *   2. 결과가 WebP 가 아니면 (iOS Safari 17 이하 등) — @jsquash/webp (WASM) 동적 로드 후 재인코딩
+ *   1. 네이티브 canvas.toBlob(image/webp) — Chrome/Edge/Firefox, Safari 14.1+
+ *   2. blob.type 이 webp 가 아니면 (iOS Safari 14 이하 등) → JPEG 재인코딩
  *
- * 결과는 항상 WebP 보장 (storage bucket policy 가 'image/webp' 만 허용하기 때문).
+ * storage bucket policy 는 webp + jpeg 둘 다 허용. 호출자는 결과 Blob 의 mimeType
+ * 으로 Content-Type 을 결정해야 한다.
  */
 export async function optimizeImage(
   source: File | Blob,
@@ -63,20 +62,15 @@ export async function optimizeImage(
   if (!ctx) throw new Error('canvas 2d context unavailable');
   ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-  // 3) 인코딩 — 네이티브 우선, 미지원 시 WASM 폴백
-  let blob: Blob;
-  if (opts.mimeType === 'image/webp') {
-    blob = await encodeWebP(canvas, ctx, targetWidth, targetHeight, opts.quality);
-  } else {
-    blob = await encodeToBlob(canvas, opts.mimeType, opts.quality);
-  }
+  // 3) WebP 인코딩 — 네이티브 우선, 미지원 환경은 JPEG 폴백
+  const blob = await encodeWebP(canvas, opts.quality);
 
   return {
     blob,
     width: targetWidth,
     height: targetHeight,
     bytes: blob.size,
-    mimeType: blob.type || opts.mimeType,
+    mimeType: blob.type || 'image/webp',
   };
 }
 
@@ -84,14 +78,9 @@ export async function optimizeImage(
  * WebP 인코딩 — 네이티브 toBlob 먼저, 미지원이면 JPEG 폴백.
  * iOS Safari 14 이하는 toBlob('image/webp') 가 조용히 PNG 로 반환 →
  * blob.type 으로 감지 후 JPEG 로 재인코딩 (storage bucket 은 webp/jpeg 모두 허용).
- * WASM(@jsquash/webp) 경로는 정적 호스팅(GitHub Pages)에서 WASM URL 해석 실패가
- * 발생하므로 제거. iOS 15+ 는 네이티브 WebP 인코딩 지원.
  */
 async function encodeWebP(
   canvas: HTMLCanvasElement,
-  _ctx: CanvasRenderingContext2D,
-  _width: number,
-  _height: number,
   quality: number,
 ): Promise<Blob> {
   const native = await encodeToBlob(canvas, 'image/webp', quality);

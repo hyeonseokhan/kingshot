@@ -1422,19 +1422,6 @@ function bindEventListeners(): void {
   });
 }
 
-// 전역 노출 — 인라인 onclick 패턴 유지
-declare global {
-  interface Window {
-    Coupons: {
-      redeemOne: (fid: string, nickname: string) => void;
-      removeAccount: (id: string) => void;
-      initPage: () => void;
-      invalidateAccountsCache: () => void;
-    };
-  }
-}
-window.Coupons = { redeemOne, removeAccount, initPage, invalidateAccountsCache };
-
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     bindEventListeners();

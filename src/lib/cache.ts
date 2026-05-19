@@ -13,13 +13,11 @@ const KEY_FAILED_REFRESH = 'members_failed_refresh_v1';
 interface GiftCodesCache {
   codes: ActiveCoupon[];
   fetchedAt: number;
-  total: number;
 }
 
 interface FailedRefresh {
   ids: string[];
   names: string[];
-  ts: number;
 }
 
 // ===== 활성 쿠폰 =====
@@ -42,7 +40,7 @@ export function setGiftCodesCache(codes: ActiveCoupon[]): void {
   try {
     sessionStorage.setItem(
       KEY_GIFT_CODES,
-      JSON.stringify({ codes, fetchedAt: Date.now(), total: codes.length }),
+      JSON.stringify({ codes, fetchedAt: Date.now() }),
     );
   } catch {
     /* quota / disabled storage */
@@ -101,7 +99,7 @@ export function saveFailedRefresh(ids: string[], names: string[]): void {
   try {
     sessionStorage.setItem(
       KEY_FAILED_REFRESH,
-      JSON.stringify({ ids, names, ts: Date.now() }),
+      JSON.stringify({ ids, names }),
     );
   } catch {
     /* */

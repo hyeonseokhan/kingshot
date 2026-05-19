@@ -6,8 +6,7 @@
  * row 내부도 patchText/photo swap 으로 부분 갱신 — 같은 사진은 재로드 X.
  */
 
-import { supabase as sb, SUPABASE_URL } from '@/lib/supabase';
-import { SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { supabase as sb, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
 import { esc, getLevelClass, formatPower, delay, toggleOverlay } from '@/lib/utils';
 import {
   invalidateAccountsCache,
@@ -892,17 +891,6 @@ function initAdminGrant(): void {
     if (e.target === dlg) closeGrantDialog();
   });
 }
-
-// 외부 노출 — 다른 페이지에서 reload 호출용 (현재는 사용 X 지만 보존)
-declare global {
-  interface Window {
-    Members: {
-      openDialog: (id: string) => void;
-      reload: () => Promise<Member[]>;
-    };
-  }
-}
-window.Members = { openDialog, reload: refreshFromStore };
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initPage);

@@ -118,7 +118,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, fid, cdk, captcha_code, cdks } = await req.json();
+    const { action, fid, captcha_code, cdks } = await req.json();
     const time = Date.now();
     let result;
 
@@ -126,38 +126,6 @@ serve(async (req) => {
       case "player": {
         const r = await postAPI("/player", { fid, time });
         result = r.json;
-        break;
-      }
-      case "captcha": {
-        const r = await postAPI("/captcha", { fid, time });
-        result = r.json;
-        break;
-      }
-      case "redeem": {
-        if (!captcha_code || !cdk) {
-          return new Response(
-            JSON.stringify({ code: -1, msg: "captcha_code and cdk are required" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        // 1단계: player 호출로 세션 쿠키 획득
-        const playerRes = await postAPI("/player", { fid, time });
-        if (playerRes.json.code !== 0) {
-          result = playerRes.json;
-          break;
-        }
-        // 2단계: 세션 쿠키로 redeem 호출
-        const timeRedeem = Date.now();
-        const redeemRes = await postAPI(
-          "/gift_code",
-          { captcha_code, cdk, fid, time: timeRedeem },
-          playerRes.cookie
-        );
-        result = redeemRes.json;
-        // 만료 코드(40007) 자동 등록 — 다음부터 list 에서 제외됨
-        if (Number(redeemRes.json?.err_code) === 40007) {
-          await recordExpiredCoupon(String(cdk), 40007, redeemRes.json?.msg, fid);
-        }
         break;
       }
       case "redeem_batch": {
@@ -198,7 +166,7 @@ serve(async (req) => {
       }
       default:
         return new Response(
-          JSON.stringify({ code: -1, msg: "Invalid action. Use: player, captcha, redeem, redeem_batch" }),
+          JSON.stringify({ code: -1, msg: "Invalid action. Use: player, redeem_batch" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }

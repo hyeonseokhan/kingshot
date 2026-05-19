@@ -248,37 +248,6 @@
     rgba(205, 70, 70, 0.3) 100%
   );
 }
-.mc-rank-badge {
-  display: inline-block;
-  width: 36px;
-  padding: 3px 0;
-  border-radius: 4px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-align: center;
-}
-.mc-rank-badge.rank-R1 {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
-}
-.mc-rank-badge.rank-R2 {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-}
-.mc-rank-badge.rank-R3 {
-  background: rgba(139, 92, 246, 0.12);
-  color: #7c3aed;
-}
-.mc-rank-badge.rank-R4 {
-  background: rgba(212, 175, 55, 0.15);
-  color: #a16207;
-}
-.mc-rank-badge.rank-R5 {
-  background: rgba(139, 0, 0, 0.15);
-  color: #8b0000;
-}
-
 /* ===== 레벨별 프로필 테두리 (Lv.28~30) — minigame 랭킹에서도 사용 ===== */
 .mc-photo-wrap {
   position: relative;
@@ -1050,25 +1019,6 @@
   color: #059669;
 }
 
-.mc-gift-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--text2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: all 0.12s;
-}
-.mc-gift-btn:hover {
-  background: var(--bg3);
-  color: var(--accent);
-}
-
 .coupon-account-row {
   display: grid;
   grid-template-columns: 40px 1fr 80px;
@@ -1134,15 +1084,6 @@
   color: var(--red);
   border-color: var(--red);
 }
-.mc-gift-done {
-  opacity: 0.7;
-  cursor: default;
-}
-.mc-gift-done:hover {
-  background: none;
-  color: inherit;
-}
-
 /* ===== 수령 진행 ===== */
 .redeem-progress {
   padding: 10px 16px;
@@ -1237,8 +1178,7 @@
     gap: 2px;
     margin-left: auto;
   }
-  .mc-manage-btn,
-  .mc-gift-btn {
+  .mc-manage-btn {
     width: 28px;
     height: 28px;
     font-size: 15px;

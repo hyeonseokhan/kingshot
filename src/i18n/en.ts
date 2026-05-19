@@ -74,7 +74,6 @@ export const en: Translations = {
     crystalAria: 'Crystal balance',
   },
   members: {
-    pageDescription: 'Manage PNX alliance member information',
     heading: 'Member Management',
     addButton: '+ Register Member',
     intro: {
@@ -176,7 +175,6 @@ export const en: Translations = {
     },
   },
   coupons: {
-    pageDescription: 'Auto-redeem coupons for PNX alliance members',
     heading: 'Coupons',
     addButton: '+ Add Account',
     intro: {
@@ -261,7 +259,6 @@ export const en: Translations = {
       duplicate: 'This account is already registered.',
       memberAlreadyRegistered:
         'This account is already registered as an alliance member.\nEnable "Auto Coupon" on the Member Management page.',
-      searchFailed: 'Lookup failed: {message}',
       networkError: 'Network error',
       onePersonAlready: '{name}: {code} has already been redeemed.',
       onePersonAllAlready: '{name}: all coupons have already been redeemed.',
@@ -308,7 +305,6 @@ export const en: Translations = {
     empty: 'No results yet',
   },
   blacklist: {
-    pageDescription: 'Track hostile players in-game',
     heading: 'Blacklist',
     addButton: '+ Add to Blacklist',
     intro: {

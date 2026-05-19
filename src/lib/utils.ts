@@ -60,12 +60,6 @@ export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** 숫자에 천 단위 쉼표 */
-export function formatNum(n: number | null | undefined): string {
-  if (!n) return '-';
-  return Number(n).toLocaleString();
-}
-
 /** 레벨에 해당하는 프로필 테두리 CSS 클래스 ('', ' lv-28', ' lv-29', ' lv-30') */
 export function getLevelClass(level: number | null | undefined): string {
   const lv = Number(level) || 0;
@@ -73,12 +67,6 @@ export function getLevelClass(level: number | null | undefined): string {
     if (lv >= min) return cls;
   }
   return '';
-}
-
-/** 메모/이름 말줄임 */
-export function truncate(text: string | null | undefined, limit: number): string {
-  if (!text) return '';
-  return text.length > limit ? text.slice(0, limit) + '…' : text;
 }
 
 /** centurygame 응답이 "이미 수령됨" 인지 판별 */

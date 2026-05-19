@@ -76,7 +76,6 @@ export const ko = {
     crystalAria: '크리스탈 잔액',
   },
   members: {
-    pageDescription: 'PNX 연맹원 정보 관리',
     heading: '연맹원 관리',
     addButton: '+ 연맹원 등록',
     intro: {
@@ -177,7 +176,6 @@ export const ko = {
     },
   },
   coupons: {
-    pageDescription: 'PNX 연맹원 쿠폰 자동 수령',
     heading: '쿠폰 받기',
     addButton: '+ 계정 등록',
     intro: {
@@ -260,7 +258,6 @@ export const ko = {
       duplicate: '이미 등록된 계정입니다.',
       memberAlreadyRegistered:
         '이 계정은 이미 연맹원으로 등록되어 있습니다.\n연맹원 관리 페이지에서 "쿠폰 자동 받기"를 활성화하세요.',
-      searchFailed: '조회 실패: {message}',
       networkError: '네트워크 오류',
       onePersonAlready: '{name}: {code} 쿠폰을 이미 수령했습니다.',
       onePersonAllAlready: '{name}: 모든 쿠폰이 이미 수령되었습니다.',
@@ -306,7 +303,6 @@ export const ko = {
     empty: '아직 집계된 결과가 없습니다',
   },
   blacklist: {
-    pageDescription: '게임 내 적대관계 사용자 관리',
     heading: '블랙리스트',
     addButton: '+ 블랙리스트 등록',
     intro: {

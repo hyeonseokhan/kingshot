@@ -538,7 +538,7 @@ async function onImageSelected(ev: Event): Promise<void> {
   if (!file) return;
   pendingImageOriginalSize = file.size;
   try {
-    const result = await optimizeImage(file, { maxWidth: 1080, quality: 0.80, mimeType: 'image/webp' });
+    const result = await optimizeImage(file, { maxWidth: 1080, quality: 0.80 });
     pendingImageBlob = result.blob;
     showImageStatus(result.bytes);
     // 새 파일을 골랐다는 건 기존 이미지를 교체할 의도 → 기존 영역 숨김. 저장 시 옛 storage 삭제는 submitForm 이 처리.
@@ -686,15 +686,18 @@ async function handleDelete(): Promise<void> {
 // ===== Storage 업로드 =====
 
 async function uploadImage(blob: Blob, kingshotId: string): Promise<string> {
-  // 파일명: {kingshot_id}-{timestamp}.webp — 충돌 방지 + 디버깅 용이.
-  // optimizeImage 가 모든 환경에서 WebP 보장 (네이티브 미지원 시 WASM 폴백).
-  const path = kingshotId + '-' + Date.now() + '.webp';
+  // 파일명: {kingshot_id}-{timestamp}.{webp|jpg} — 충돌 방지 + 디버깅 용이.
+  // 네이티브 WebP 인코딩 미지원 환경 (iOS 14 이하) 은 JPEG 폴백 → blob.type 으로 분기.
+  const isJpeg = blob.type === 'image/jpeg';
+  const ext = isJpeg ? 'jpg' : 'webp';
+  const contentType = isJpeg ? 'image/jpeg' : 'image/webp';
+  const path = kingshotId + '-' + Date.now() + '.' + ext;
   const url = STORAGE_BASE + '/object/' + BUCKET + '/' + encodeURIComponent(path);
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       ...restHeaders,
-      'Content-Type': 'image/webp',
+      'Content-Type': contentType,
       'Cache-Control': 'public, max-age=31536000',
     },
     body: blob,
