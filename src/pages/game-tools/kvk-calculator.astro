@@ -75,10 +75,12 @@ const navItems = gameTools.submenus!.map((s) => ({
       <fieldset class="kvk-group">
         <legend data-i18n="gameTools.kvkCalculator.groupBuilding">건설 상태</legend>
         <div class="kvk-grid">
-          <label class="kvk-field">
+          <label class="kvk-field kvk-field-wide">
             <span data-i18n="gameTools.kvkCalculator.labelEmbassyRemaining">대사관 28→29 잔여(분)</span>
             <input type="text" name="embassyRemaining" inputmode="numeric" data-kvk-number value="8967" />
+            <input type="hidden" name="embassyMeasuredAt" value="2026-05-20T16:01:00+09:00" />
             <small class="kvk-dhm" data-dhm-for="embassyRemaining"></small>
+            <small class="kvk-embassy-hint" data-i18n="gameTools.kvkCalculator.embassyHint">실시간 자동 차감 — 게임에서 재확인 시 새 값 입력</small>
           </label>
         </div>
       </fieldset>

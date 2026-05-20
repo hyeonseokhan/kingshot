@@ -406,11 +406,28 @@
 .kvk-field-wide {
   grid-column: span 2;
 }
+.kvk-field-output output {
+  display: block;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+  min-height: 30px;
+}
 .kvk-dhm {
   font-size: 11px;
   color: var(--text2);
   min-height: 1em;
   font-variant-numeric: tabular-nums;
+}
+.kvk-embassy-hint {
+  font-size: 11px;
+  color: var(--accent);
+  font-style: italic;
 }
 
 .kvk-result-grid {

@@ -77,6 +77,16 @@ function formatNumberInput(el: HTMLInputElement): void {
   }
 }
 
+/** 표시 입력값(snapshot) + 측정 시각 → 현재 실시간 잔여(분). 음수 elapsed 는 clamp. */
+function computeEmbassyCurrentMin(fd: FormData): number {
+  const snapshot = parseNumber(fd.get('embassyRemaining'));
+  const measuredAt = String(fd.get('embassyMeasuredAt') ?? '');
+  const measuredMs = Date.parse(measuredAt);
+  if (!Number.isFinite(measuredMs)) return snapshot;
+  const elapsedMin = Math.max(0, (Date.now() - measuredMs) / 60000);
+  return Math.max(0, Math.round(snapshot - elapsedMin));
+}
+
 function readForm(form: HTMLFormElement): KvkInputs {
   const fd = new FormData(form);
   return {
@@ -90,7 +100,7 @@ function readForm(form: HTMLFormElement): KvkInputs {
       training: parseNumber(fd.get('accelTraining')),
       building: parseNumber(fd.get('accelBuilding')),
     },
-    embassyRemaining: parseNumber(fd.get('embassyRemaining')),
+    embassyRemaining: computeEmbassyCurrentMin(fd),
     deadline: toKstIso(String(fd.get('deadline') ?? '')),
     bonus: {
       h3: parseNumber(fd.get('bonusH3')),
@@ -302,6 +312,32 @@ function renderConstants(): void {
 
 let lastInputs: KvkInputs | null = null;
 
+/**
+ * 대사관 표시 입력값을 실시간 현재값으로 동기화.
+ * - snapshot 과 measuredAt 으로 현재값 계산 → 입력값에 반영
+ * - measuredAt 도 now 로 리셋 (다음 호출 시 누적 차감되도록)
+ * - 사용자가 입력 중이면 건드리지 않음
+ */
+function syncEmbassyDisplay(form: HTMLFormElement): void {
+  const visible = form.querySelector<HTMLInputElement>('input[name="embassyRemaining"]');
+  const hidden = form.querySelector<HTMLInputElement>('input[name="embassyMeasuredAt"]');
+  if (!visible || !hidden) return;
+  if (document.activeElement === visible) return;
+
+  const snapshot = parseNumber(visible.value);
+  const measuredMs = Date.parse(hidden.value);
+  if (!Number.isFinite(measuredMs)) {
+    hidden.value = new Date().toISOString();
+    return;
+  }
+  const elapsedMin = Math.max(0, (Date.now() - measuredMs) / 60000);
+  if (elapsedMin < 1) return;
+
+  const current = Math.max(0, Math.round(snapshot - elapsedMin));
+  visible.value = current.toLocaleString('ko-KR');
+  hidden.value = new Date().toISOString();
+}
+
 function recompute(form: HTMLFormElement): void {
   const inputs = readForm(form);
   lastInputs = inputs;
@@ -336,12 +372,20 @@ function init(): void {
     formatNumberInput(el);
   });
 
+  // 페이지 진입 시 한 번 sync — 직전 저장 이후 경과한 분만큼 차감 반영
+  syncEmbassyDisplay(form);
+
   recompute(form);
 
   form.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
     if (target.matches('[data-kvk-number]')) {
       formatNumberInput(target);
+    }
+    // 대사관 잔여 직접 수정 시 측정 시각도 now 로 리셋 (사용자가 게임에서 재확인한 시점).
+    if (target.name === 'embassyRemaining') {
+      const hidden = form.querySelector<HTMLInputElement>('input[name="embassyMeasuredAt"]');
+      if (hidden) hidden.value = new Date().toISOString();
     }
     recompute(form);
     scheduleSave(form);
@@ -356,6 +400,13 @@ function init(): void {
       renderConstants();
     }
   });
+
+  // 대사관 잔여시간 실시간 갱신 — 60초마다 sync + 재계산.
+  window.setInterval(() => {
+    syncEmbassyDisplay(form);
+    recompute(form);
+    scheduleSave(form);
+  }, 60_000);
 }
 
 if (document.readyState === 'loading') {

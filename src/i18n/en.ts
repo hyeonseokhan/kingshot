@@ -682,6 +682,7 @@ export const en: Translations = {
 
       groupBuilding: 'Building State',
       labelEmbassyRemaining: 'Embassy 28→29 remaining (min)',
+      embassyHint: 'Auto-decrements in real-time — re-enter the value when checking in-game',
 
       groupDeadline: 'Deadline · Expected Gains',
       labelDeadline: 'Deadline (KST)',

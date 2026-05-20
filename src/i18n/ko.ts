@@ -680,6 +680,7 @@ export const ko = {
 
       groupBuilding: '건설 상태',
       labelEmbassyRemaining: '대사관 28→29 잔여(분)',
+      embassyHint: '실시간 자동 차감 — 게임에서 재확인 시 새 값 입력',
 
       groupDeadline: '마감 · 추가 획득',
       labelDeadline: '마감 일시 (KST)',
