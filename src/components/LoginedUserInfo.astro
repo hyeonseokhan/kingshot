@@ -324,9 +324,16 @@
       padding: 4px 12px;
       font-size: 12px;
     }
-    .hu {
-      /* 모바일은 컴팩트 — 로그인 버튼 / 카드 폭 차이가 작아서 reserve 적게 */
-      min-width: 90px;
+    .hu,
+    .hu[data-state='loggedin'] {
+      /* 모바일은 컴팩트 — 240px reserve 가 메뉴 버튼을 밀어내는 문제 회피 */
+      min-width: 0;
+    }
+    .hu-crystal-value {
+      min-width: unset;
+    }
+    .hu-crystal {
+      padding-left: 4px;
     }
   }
 </style>
