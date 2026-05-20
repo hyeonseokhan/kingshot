@@ -44,6 +44,7 @@ export const en: Translations = {
       equipment: 'Equipment',
       pvp: 'Arena',
       troopsCalculator: 'Troops Calculator',
+      kvkCalculator: 'KvK Calculator',
     },
   },
   langSwitcher: {
@@ -659,6 +660,83 @@ export const en: Translations = {
       errCap: 'Capacity must be at least 1.',
       vikingsHint: 'Vikings Calculator · coming soon',
       noPermission: 'This tool is only available to authorized users.',
+    },
+    kvkCalculator: {
+      heading: 'KvK Calculator',
+      modeBadge: '🏰 30T · 5:2:3',
+      noPermission: 'This tool is only available to authorized users.',
+
+      sectionInputs: '📥 Inputs',
+      sectionResults: '📊 Results',
+      sectionConstants: '🔒 Constants (reference)',
+
+      groupTroops: 'Troops',
+      labelInfantry: 'Infantry',
+      labelCavalry: 'Cavalry',
+      labelArchers: 'Archers',
+
+      groupAccel: 'Speedups (minutes)',
+      labelAccelCommon: 'Universal',
+      labelAccelTraining: 'Training',
+      labelAccelBuilding: 'Construction',
+
+      groupBuilding: 'Building State',
+      labelEmbassyRemaining: 'Embassy 28→29 remaining (min)',
+
+      groupDeadline: 'Deadline · Expected Gains',
+      labelDeadline: 'Deadline (KST)',
+      labelBonus3h: '3h items',
+      labelBonus1h: '1h items',
+      labelBonus5m: '5m items',
+      labelBonus1m: '1m items',
+
+      cardTraining: 'Troop Training (5:2:3)',
+      cardBuilding: 'Building 30T (single-slot instant)',
+      cardFeasibility: '30T Feasibility',
+
+      thMetric: 'Metric',
+      thValue: 'Value',
+      thType: 'Type',
+      thHave: 'Have',
+      thUse: 'Use',
+      thRemain: 'Remain',
+
+      mTargetInf: 'Target Infantry',
+      mTargetCav: 'Target Cavalry',
+      mTargetArc: 'Target Archers',
+      mExtraTroops: 'Extra to train',
+      mTrainDays: 'Required training days',
+      mTrainMin: 'Required training minutes',
+
+      accelTraining: 'Training',
+      accelCommon: 'Universal',
+      accelBuilding: 'Construction',
+
+      bTotalWork: 'Phase 1 total work',
+      bBreakdown: 'Breakdown',
+
+      fDeadline: 'Deadline',
+      fRefTime: 'Reference time',
+      fRealtime: 'Real-time available',
+      fBonusGain: 'Bonus speedups (Thu·Fri·Sat)',
+      fNeeded: 'Required speedups',
+      fAvailable: 'Available speedups',
+      fShortage: 'Shortage',
+      fShortageOk: 'Surplus',
+
+      constTrainingSpeed: 'Training speed',
+      constBuildSpeed: 'Build time factor',
+      constRefTime: 'Reference time',
+      constTier: 'Training tier',
+      constDailyTroops: 'Troops / day',
+      constRatio: 'Target ratio',
+      constArcheryUp: 'Archer 28→29',
+      constTcUp: 'TC 29→30',
+      constInfantryUp: 'Infantry 29→30',
+      constArcheryUp2: 'Archer 29→30',
+
+      footerNote: 'Inputs are auto-saved to your browser. Site calculator: ',
+      siteCalcLink: 'kingshotdata.kr',
     },
   },
   survey: {

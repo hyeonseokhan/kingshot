@@ -45,6 +45,7 @@ export const ko = {
       equipment: '장비 강화',
       pvp: '매칭 대결',
       troopsCalculator: '부대 계산기',
+      kvkCalculator: 'KvK 계산기',
     },
   },
   langSwitcher: {
@@ -657,6 +658,83 @@ export const ko = {
       errCap: '출정 상한 값은 1 이상이어야 합니다.',
       vikingsHint: 'Vikings 부대 계산기 · 추후 업데이트',
       noPermission: '이 도구는 권한이 있는 사용자만 사용할 수 있습니다.',
+    },
+    kvkCalculator: {
+      heading: 'KvK 계산기',
+      modeBadge: '🏰 30T · 5:2:3',
+      noPermission: '이 도구는 권한이 있는 사용자만 사용할 수 있습니다.',
+
+      sectionInputs: '📥 입력',
+      sectionResults: '📊 결과',
+      sectionConstants: '🔒 상수 (참고)',
+
+      groupTroops: '보유 병사',
+      labelInfantry: '보병',
+      labelCavalry: '기병',
+      labelArchers: '궁병',
+
+      groupAccel: '가속권 보유 (분)',
+      labelAccelCommon: '공용',
+      labelAccelTraining: '병사훈련',
+      labelAccelBuilding: '건설',
+
+      groupBuilding: '건설 상태',
+      labelEmbassyRemaining: '대사관 28→29 잔여(분)',
+
+      groupDeadline: '마감 · 추가 획득',
+      labelDeadline: '마감 일시 (KST)',
+      labelBonus3h: '3시간권 (개)',
+      labelBonus1h: '1시간권 (개)',
+      labelBonus5m: '5분권 (개)',
+      labelBonus1m: '1분권 (개)',
+
+      cardTraining: '병사 훈련 (5:2:3 달성)',
+      cardBuilding: '건물 30T (단일 슬롯 즉시완료)',
+      cardFeasibility: '30T 가능여부',
+
+      thMetric: '항목',
+      thValue: '값',
+      thType: '종류',
+      thHave: '보유',
+      thUse: '사용',
+      thRemain: '잔여',
+
+      mTargetInf: '목표 보병',
+      mTargetCav: '목표 기병',
+      mTargetArc: '목표 궁병',
+      mExtraTroops: '추가 훈련 필요',
+      mTrainDays: '필요 훈련 일수',
+      mTrainMin: '필요 훈련 분',
+
+      accelTraining: '병사훈련',
+      accelCommon: '공용',
+      accelBuilding: '건설',
+
+      bTotalWork: 'Phase 1 총 작업량',
+      bBreakdown: '구성',
+
+      fDeadline: '마감',
+      fRefTime: '기준 시간',
+      fRealtime: '실시간 여유',
+      fBonusGain: '추가 가속권 (목·금·토)',
+      fNeeded: '필요 가속권',
+      fAvailable: '가용 가속권',
+      fShortage: '부족분',
+      fShortageOk: '여유',
+
+      constTrainingSpeed: '훈련속도',
+      constBuildSpeed: '건설속도 시간배율',
+      constRefTime: '기준 시간',
+      constTier: '훈련 티어',
+      constDailyTroops: '하루 훈련량',
+      constRatio: '목표 비율',
+      constArcheryUp: '궁병대 28→29',
+      constTcUp: '도시센터 29→30',
+      constInfantryUp: '보병대 29→30',
+      constArcheryUp2: '궁병대 29→30',
+
+      footerNote: '입력값은 브라우저에 자동 저장됩니다. 사이트 계산기: ',
+      siteCalcLink: 'kingshotdata.kr',
     },
   },
   survey: {

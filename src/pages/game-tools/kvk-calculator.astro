@@ -1,0 +1,172 @@
+---
+import AppLayout from '@/layouts/AppLayout.astro';
+import { tabs, findActiveSubmenu } from '@/data/navigation';
+import '@/styles/game-tools.css';
+
+const gameTools = tabs.find((t) => t.id === 'game-tools')!;
+const active = findActiveSubmenu(gameTools, Astro.url.pathname);
+const navItems = gameTools.submenus!.map((s) => ({
+  title: s.title,
+  titleKey: s.titleKey,
+  path: s.path,
+  active: active?.id === s.id,
+}));
+---
+
+<AppLayout
+  title="KvK 계산기 — PNX 연맹"
+  description="30T 달성을 위한 병사 5:2:3 + 건물 가속권 종합 계산"
+  navHeader={gameTools.title}
+  navHeaderKey={gameTools.titleKey}
+  navItems={navItems}
+>
+  <div
+    class="manage-page kvk-page"
+    id="page-kvk-calculator"
+    data-gated-kingshot-id="270680423"
+  >
+    <div class="members-header">
+      <h1 data-i18n="gameTools.kvkCalculator.heading">KvK 계산기</h1>
+      <span class="tc-mode-badge" data-i18n="gameTools.kvkCalculator.modeBadge">🏰 30T · 5:2:3</span>
+    </div>
+
+    <form class="kvk-form" id="kvk-form" autocomplete="off" novalidate>
+      <h2 class="kvk-section-title" data-i18n="gameTools.kvkCalculator.sectionInputs">📥 입력</h2>
+
+      <fieldset class="kvk-group">
+        <legend data-i18n="gameTools.kvkCalculator.groupTroops">보유 병사</legend>
+        <div class="kvk-grid">
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelInfantry">보병</span>
+            <input type="text" name="infantry" inputmode="numeric" data-kvk-number value="140043" />
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelCavalry">기병</span>
+            <input type="text" name="cavalry" inputmode="numeric" data-kvk-number value="102670" />
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelArchers">궁병</span>
+            <input type="text" name="archers" inputmode="numeric" data-kvk-number value="131579" />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="kvk-group">
+        <legend data-i18n="gameTools.kvkCalculator.groupAccel">가속권 보유 (분)</legend>
+        <div class="kvk-grid">
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelAccelCommon">공용</span>
+            <input type="text" name="accelCommon" inputmode="numeric" data-kvk-number value="62742" />
+            <small class="kvk-dhm" data-dhm-for="accelCommon"></small>
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelAccelTraining">병사훈련</span>
+            <input type="text" name="accelTraining" inputmode="numeric" data-kvk-number value="34412" />
+            <small class="kvk-dhm" data-dhm-for="accelTraining"></small>
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelAccelBuilding">건설</span>
+            <input type="text" name="accelBuilding" inputmode="numeric" data-kvk-number value="4005" />
+            <small class="kvk-dhm" data-dhm-for="accelBuilding"></small>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="kvk-group">
+        <legend data-i18n="gameTools.kvkCalculator.groupBuilding">건설 상태</legend>
+        <div class="kvk-grid">
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelEmbassyRemaining">대사관 28→29 잔여(분)</span>
+            <input type="text" name="embassyRemaining" inputmode="numeric" data-kvk-number value="8967" />
+            <small class="kvk-dhm" data-dhm-for="embassyRemaining"></small>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="kvk-group">
+        <legend data-i18n="gameTools.kvkCalculator.groupDeadline">마감 · 추가 획득</legend>
+        <div class="kvk-grid">
+          <label class="kvk-field kvk-field-wide">
+            <span data-i18n="gameTools.kvkCalculator.labelDeadline">마감 일시 (KST)</span>
+            <input type="datetime-local" name="deadline" value="2026-05-23T15:00" />
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelBonus3h">3시간권 (개)</span>
+            <input type="text" name="bonusH3" inputmode="numeric" data-kvk-number value="36" />
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelBonus1h">1시간권 (개)</span>
+            <input type="text" name="bonusH1" inputmode="numeric" data-kvk-number value="30" />
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelBonus5m">5분권 (개)</span>
+            <input type="text" name="bonusM5" inputmode="numeric" data-kvk-number value="216" />
+          </label>
+          <label class="kvk-field">
+            <span data-i18n="gameTools.kvkCalculator.labelBonus1m">1분권 (개)</span>
+            <input type="text" name="bonusM1" inputmode="numeric" data-kvk-number value="180" />
+          </label>
+        </div>
+      </fieldset>
+    </form>
+
+    <h2 class="kvk-section-title" data-i18n="gameTools.kvkCalculator.sectionResults">📊 결과</h2>
+
+    <section class="kvk-result-grid">
+      <article class="kvk-card" id="kvk-card-training">
+        <h3 data-i18n="gameTools.kvkCalculator.cardTraining">병사 훈련 (5:2:3 달성)</h3>
+        <table class="kvk-table">
+          <tbody id="kvk-training-target"></tbody>
+        </table>
+        <table class="kvk-table kvk-table-accel">
+          <thead>
+            <tr>
+              <th data-i18n="gameTools.kvkCalculator.thType">종류</th>
+              <th data-i18n="gameTools.kvkCalculator.thHave">보유</th>
+              <th data-i18n="gameTools.kvkCalculator.thUse">사용</th>
+              <th data-i18n="gameTools.kvkCalculator.thRemain">잔여</th>
+            </tr>
+          </thead>
+          <tbody id="kvk-training-accel"></tbody>
+        </table>
+      </article>
+
+      <article class="kvk-card" id="kvk-card-building">
+        <h3 data-i18n="gameTools.kvkCalculator.cardBuilding">건물 30T (단일 슬롯 즉시완료)</h3>
+        <table class="kvk-table">
+          <tbody id="kvk-building-rows"></tbody>
+        </table>
+      </article>
+
+      <article class="kvk-card kvk-card-feasibility" id="kvk-card-feasibility">
+        <h3 data-i18n="gameTools.kvkCalculator.cardFeasibility">30T 가능여부</h3>
+        <table class="kvk-table">
+          <tbody id="kvk-feasibility-rows"></tbody>
+        </table>
+      </article>
+    </section>
+
+    <h2 class="kvk-section-title" data-i18n="gameTools.kvkCalculator.sectionConstants">🔒 상수 (참고)</h2>
+    <section class="kvk-card kvk-card-constants">
+      <table class="kvk-table">
+        <tbody id="kvk-constants-rows"></tbody>
+      </table>
+    </section>
+
+    <p class="kvk-footer">
+      <span data-i18n="gameTools.kvkCalculator.footerNote">입력값은 브라우저에 자동 저장됩니다. 사이트 계산기: </span>
+      <a href="https://kingshotdata.kr/calc-training" target="_blank" rel="noopener noreferrer" data-i18n="gameTools.kvkCalculator.siteCalcLink">kingshotdata.kr</a>
+    </p>
+
+    <div class="gt-no-permission" id="kvk-no-permission" hidden>
+      <p data-i18n="gameTools.kvkCalculator.noPermission">
+        이 도구는 권한이 있는 사용자만 사용할 수 있습니다.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    import '@/scripts/pages/game-tools-guard';
+    import '@/scripts/pages/game-tools-kvk-calculator';
+  </script>
+</AppLayout>
