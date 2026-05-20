@@ -711,13 +711,13 @@ export const ko = {
       accelCommon: '공용',
       accelBuilding: '건설',
 
-      bTotalWork: 'Phase 1 총 작업량',
+      bTotalWork: '총 건설 작업량',
       bBreakdown: '구성',
 
       fDeadline: '마감',
       fRefTime: '기준 시간',
       fRealtime: '실시간 여유',
-      fBonusGain: '추가 가속권 (목·금·토)',
+      fBonusGain: '추가 가속권',
       fNeeded: '필요 가속권',
       fAvailable: '가용 가속권',
       fShortage: '부족분',

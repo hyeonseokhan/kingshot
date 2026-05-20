@@ -80,8 +80,9 @@
     align-items: center;
     justify-content: flex-end;
     position: relative;
-    /* 로그인/비로그인/로딩 상태가 같은 폭을 점유하도록 reserve.
-       로그인 카드 (avatar + 닉네임 + 크리스탈 + 로그아웃) 의 자연 폭 기준. */
+  }
+  /* 로그인 상태일 때만 카드 폭 reserve — 비로그인/로딩 시엔 자연 폭으로. */
+  .hu[data-state='loggedin'] {
     min-width: 240px;
   }
 

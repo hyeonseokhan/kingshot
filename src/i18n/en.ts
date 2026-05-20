@@ -713,13 +713,13 @@ export const en: Translations = {
       accelCommon: 'Universal',
       accelBuilding: 'Construction',
 
-      bTotalWork: 'Phase 1 total work',
+      bTotalWork: 'Total construction work',
       bBreakdown: 'Breakdown',
 
       fDeadline: 'Deadline',
       fRefTime: 'Reference time',
       fRealtime: 'Real-time available',
-      fBonusGain: 'Bonus speedups (Thu·Fri·Sat)',
+      fBonusGain: 'Bonus speedups',
       fNeeded: 'Required speedups',
       fAvailable: 'Available speedups',
       fShortage: 'Shortage',

@@ -152,7 +152,7 @@ function renderDhmHints(form: HTMLFormElement): void {
     const input = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
     if (!input) return;
     const min = parseNumber(input.value);
-    el.textContent = min > 0 ? `= ${dhm(min)}` : '';
+    el.textContent = min > 0 ? `ㄴ ${dhm(min)}` : '';
   });
 }
 
@@ -312,30 +312,23 @@ function renderConstants(): void {
 
 let lastInputs: KvkInputs | null = null;
 
-/**
- * 대사관 표시 입력값을 실시간 현재값으로 동기화.
- * - snapshot 과 measuredAt 으로 현재값 계산 → 입력값에 반영
- * - measuredAt 도 now 로 리셋 (다음 호출 시 누적 차감되도록)
- * - 사용자가 입력 중이면 건드리지 않음
- */
+/** 대사관 hidden input → #kvk-embassy-display span 을 실시간 잔여값으로 갱신. */
 function syncEmbassyDisplay(form: HTMLFormElement): void {
-  const visible = form.querySelector<HTMLInputElement>('input[name="embassyRemaining"]');
-  const hidden = form.querySelector<HTMLInputElement>('input[name="embassyMeasuredAt"]');
-  if (!visible || !hidden) return;
-  if (document.activeElement === visible) return;
+  const snapshotEl = form.querySelector<HTMLInputElement>('input[name="embassyRemaining"]');
+  const measuredEl = form.querySelector<HTMLInputElement>('input[name="embassyMeasuredAt"]');
+  const displayEl = document.getElementById('kvk-embassy-display');
+  if (!snapshotEl || !measuredEl) return;
 
-  const snapshot = parseNumber(visible.value);
-  const measuredMs = Date.parse(hidden.value);
+  const snapshot = parseNumber(snapshotEl.value);
+  const measuredMs = Date.parse(measuredEl.value);
   if (!Number.isFinite(measuredMs)) {
-    hidden.value = new Date().toISOString();
+    measuredEl.value = new Date().toISOString();
+    if (displayEl) displayEl.textContent = dhm(snapshot);
     return;
   }
   const elapsedMin = Math.max(0, (Date.now() - measuredMs) / 60000);
-  if (elapsedMin < 1) return;
-
   const current = Math.max(0, Math.round(snapshot - elapsedMin));
-  visible.value = current.toLocaleString('ko-KR');
-  hidden.value = new Date().toISOString();
+  if (displayEl) displayEl.textContent = dhm(current);
 }
 
 function recompute(form: HTMLFormElement): void {
@@ -393,6 +386,8 @@ function init(): void {
 
   // 언어 변경 → 결과 라벨 재렌더
   onLangChange(() => {
+    syncEmbassyDisplay(form);
+    renderDhmHints(form);
     if (lastResults) {
       renderTraining(lastResults.training);
       renderBuilding(lastResults.building);
