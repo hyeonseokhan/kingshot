@@ -35,6 +35,25 @@ const navItems = gameTools.submenus!.map((s) => ({
       <!-- ── 왼쪽: 입력 사이드바 ── -->
       <div class="kvk-sidebar">
 
+        <!-- 저장/새로고침 액션 바 (8:2) -->
+        <div class="kvk-action-bar">
+          <button type="button" class="kvk-btn kvk-btn-save" id="kvk-save-btn" data-action="save">
+            <svg class="kvk-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span class="kvk-btn-label" data-i18n="gameTools.kvkCalculator.btnSave">저장하기</span>
+            <span class="kvk-unsaved-dot" id="kvk-save-dot" hidden aria-label="저장 안 된 변경 사항" data-i18n-attr-aria-label="gameTools.kvkCalculator.unsavedAria"></span>
+          </button>
+          <button type="button" class="kvk-btn kvk-btn-refresh" id="kvk-refresh-btn" data-action="refresh" title="새로고침" data-i18n-attr-title="gameTools.kvkCalculator.btnRefresh">
+            <svg class="kvk-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+        </div>
+
         <!-- 병사 + 가속권: 한 박스 2컬럼 -->
         <div class="kvk-sidebar-section">
           <div class="kvk-2col-header">
@@ -188,6 +207,9 @@ const navItems = gameTools.submenus!.map((s) => ({
         이 도구는 권한이 있는 사용자만 사용할 수 있습니다.
       </p>
     </div>
+
+    <!-- 화면 가운데 토스트 — 저장/새로고침 결과 안내 -->
+    <div class="kvk-toast" id="kvk-toast" role="status" aria-live="polite"></div>
   </div>
 
   <script>

@@ -3,7 +3,14 @@
  *
  * 모든 입력은 [data-kvk-number] 마커로 천단위 쉼표 자동 포맷.
  * 결과 카드 3종: 병사 훈련 / 건물 30T / 30T 가능여부 + 상수 참고 카드.
- * 영속화: 입력값을 localStorage 에 자동 저장 (debounce 200ms).
+ *
+ * 영속화: kvk_calculator_state 테이블 (kingshot_id PK + fields JSONB).
+ *   - 진입 시 DB 에서 자동 로드 (없으면 HTML 기본값 사용)
+ *   - 저장하기 버튼 → upsert. 자동 저장 안 함.
+ *   - 새로고침 버튼 → DB 재조회 → form 새로 채움.
+ *   - 미저장 변경: 사용자 input 이벤트로 dirty=true → 버튼 우측 상단 dot 표시.
+ *
+ * 대사관 잔여(snapshot + measuredAt) 는 클라 상수라 DB 저장 대상 외.
  */
 
 import {
@@ -15,13 +22,28 @@ import {
   type KvkResults,
 } from '@/lib/kvk-calculator';
 import { onLangChange, t, getLang } from '@/i18n';
+import { supabase } from '@/lib/supabase';
+import { getSession, onSessionChange } from '@/scripts/pages/tile-match-auth';
+
+/** DB fields JSONB 에 들어가는 입력 필드 키. 대사관 관련 hidden 은 제외. */
+const DB_FIELDS = [
+  'infantry',
+  'cavalry',
+  'archers',
+  'accelCommon',
+  'accelTraining',
+  'accelBuilding',
+  'deadline',
+  'bonusH3',
+  'bonusH1',
+  'bonusM5',
+  'bonusM1',
+] as const;
 
 /** 언어에 맞는 D/H/M 포맷. */
 function dhm(min: number): string {
   return getLang() === 'ko' ? formatDhm(min) : formatDhmEn(min);
 }
-
-const STORAGE_KEY = 'pnx-kvk-calc-v1';
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -77,7 +99,7 @@ function formatNumberInput(el: HTMLInputElement): void {
   }
 }
 
-/** 표시 입력값(snapshot) + 측정 시각 → 현재 실시간 잔여(분). 음수 elapsed 는 clamp. */
+/** 대사관 표시 입력값(snapshot) + 측정 시각 → 현재 실시간 잔여(분). 음수 elapsed 는 clamp. */
 function computeEmbassyCurrentMin(fd: FormData): number {
   const snapshot = parseNumber(fd.get('embassyRemaining'));
   const measuredAt = String(fd.get('embassyMeasuredAt') ?? '');
@@ -111,40 +133,101 @@ function readForm(form: HTMLFormElement): KvkInputs {
   };
 }
 
-interface StoredInputs {
+// ===== DB 영속화 =====
+
+interface KvkDbRow {
+  kingshot_id: string;
   fields: Record<string, string>;
 }
 
-function saveState(form: HTMLFormElement): void {
-  const fields: Record<string, string> = {};
-  form.querySelectorAll<HTMLInputElement>('input[name]').forEach((el) => {
-    fields[el.name] = el.value;
-  });
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ fields }));
-  } catch {
-    /* */
-  }
+function getKingshotId(): string | null {
+  return getSession()?.player_id ?? null;
 }
 
-function loadState(form: HTMLFormElement): void {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const obj = JSON.parse(raw) as StoredInputs;
-    if (!obj?.fields) return;
-    Object.entries(obj.fields).forEach(([name, value]) => {
-      const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
-      if (el) el.value = value;
-    });
-  } catch {
-    /* */
+/** DB → form. 데이터 없으면 HTML 기본값 유지. */
+async function loadFromDb(form: HTMLFormElement): Promise<boolean> {
+  const id = getKingshotId();
+  if (!id) return false;
+
+  const { data, error } = await supabase
+    .from('kvk_calculator_state')
+    .select('fields')
+    .eq('kingshot_id', id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[kvk-calc] DB load error', error);
+    return false;
   }
+  if (!data) return true; // row 없음 — HTML 기본값으로 진행
+
+  const fields = (data as Pick<KvkDbRow, 'fields'>).fields ?? {};
+  DB_FIELDS.forEach((name) => {
+    const value = fields[name];
+    if (value == null) return;
+    const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+    if (el) el.value = String(value);
+  });
+  // 천단위 쉼표 재적용 (DB 값은 plain 숫자일 수 있음)
+  form.querySelectorAll<HTMLInputElement>('[data-kvk-number]').forEach((el) => {
+    formatNumberInput(el);
+  });
+  return true;
+}
+
+/** form → DB upsert. */
+async function saveToDb(form: HTMLFormElement): Promise<boolean> {
+  const id = getKingshotId();
+  if (!id) return false;
+
+  const fields: Record<string, string> = {};
+  DB_FIELDS.forEach((name) => {
+    const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+    fields[name] = el?.value ?? '';
+  });
+
+  const { error } = await supabase
+    .from('kvk_calculator_state')
+    .upsert({ kingshot_id: id, fields } satisfies KvkDbRow);
+
+  if (error) {
+    console.error('[kvk-calc] DB save error', error);
+    return false;
+  }
+  return true;
+}
+
+// ===== Dirty 추적 =====
+
+let dirty = false;
+
+function setDirty(v: boolean): void {
+  dirty = v;
+  const dot = $('kvk-save-dot');
+  if (!dot) return;
+  if (v) dot.removeAttribute('hidden');
+  else dot.setAttribute('hidden', '');
+}
+
+// ===== 토스트 =====
+
+let _toastTimer: number | null = null;
+function showToast(msg: string): void {
+  const el = $('kvk-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('kvk-toast-show');
+  if (_toastTimer !== null) window.clearTimeout(_toastTimer);
+  _toastTimer = window.setTimeout(() => {
+    el.classList.remove('kvk-toast-show');
+    _toastTimer = null;
+  }, 1500);
 }
 
 // ===== 렌더 =====
 
 let lastResults: KvkResults | null = null;
+let lastInputs: KvkInputs | null = null;
 
 function renderDhmHints(form: HTMLFormElement): void {
   form.querySelectorAll<HTMLElement>('[data-dhm-for]').forEach((el) => {
@@ -240,7 +323,6 @@ function renderFeasibility(r: KvkResults['feasibility']): void {
   const fmtIso = (iso: string): string => {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    // KST 표기 — toLocaleString 'Asia/Seoul'
     return d.toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US', {
       timeZone: 'Asia/Seoul',
       year: 'numeric',
@@ -310,25 +392,23 @@ function renderConstants(): void {
   );
 }
 
-let lastInputs: KvkInputs | null = null;
-
-/** 대사관 hidden input → #kvk-embassy-display span 을 실시간 잔여값으로 갱신. */
+/** 대사관 hidden input → #kvk-embassy-display span 을 실시간 잔여값으로 갱신.
+ *  form 값은 안 건드림 — 표시만 변경. */
 function syncEmbassyDisplay(form: HTMLFormElement): void {
   const snapshotEl = form.querySelector<HTMLInputElement>('input[name="embassyRemaining"]');
   const measuredEl = form.querySelector<HTMLInputElement>('input[name="embassyMeasuredAt"]');
-  const displayEl = document.getElementById('kvk-embassy-display');
-  if (!snapshotEl || !measuredEl) return;
+  const displayEl = $('kvk-embassy-display');
+  if (!snapshotEl || !measuredEl || !displayEl) return;
 
   const snapshot = parseNumber(snapshotEl.value);
   const measuredMs = Date.parse(measuredEl.value);
   if (!Number.isFinite(measuredMs)) {
-    measuredEl.value = new Date().toISOString();
-    if (displayEl) displayEl.textContent = dhm(snapshot);
+    displayEl.textContent = dhm(snapshot);
     return;
   }
   const elapsedMin = Math.max(0, (Date.now() - measuredMs) / 60000);
   const current = Math.max(0, Math.round(snapshot - elapsedMin));
-  if (displayEl) displayEl.textContent = dhm(current);
+  displayEl.textContent = dhm(current);
 }
 
 function recompute(form: HTMLFormElement): void {
@@ -344,30 +424,63 @@ function recompute(form: HTMLFormElement): void {
   renderConstants();
 }
 
-// ===== init =====
-let _saveTimer: number | null = null;
-function scheduleSave(form: HTMLFormElement): void {
-  if (_saveTimer !== null) window.clearTimeout(_saveTimer);
-  _saveTimer = window.setTimeout(() => {
-    saveState(form);
-    _saveTimer = null;
-  }, 200);
+// ===== 핸들러 =====
+
+async function handleSave(form: HTMLFormElement): Promise<void> {
+  const btn = $('kvk-save-btn') as HTMLButtonElement | null;
+  if (!btn) return;
+  if (btn.disabled) return;
+
+  btn.disabled = true;
+  const label = btn.querySelector<HTMLElement>('.kvk-btn-label');
+  const origLabel = label?.textContent ?? '';
+  if (label) label.textContent = t('gameTools.kvkCalculator.btnSaving');
+
+  const ok = await saveToDb(form);
+
+  if (label) label.textContent = origLabel;
+  btn.disabled = false;
+
+  if (ok) {
+    setDirty(false);
+    showToast(t('gameTools.kvkCalculator.toastSaved'));
+  } else {
+    showToast(t('gameTools.kvkCalculator.toastSaveFail'));
+  }
 }
 
-function init(): void {
-  const form = $('kvk-form') as HTMLFormElement | null;
-  if (!form) return;
+async function handleRefresh(form: HTMLFormElement): Promise<void> {
+  const btn = $('kvk-refresh-btn') as HTMLButtonElement | null;
+  if (!btn) return;
+  if (btn.disabled) return;
 
-  loadState(form);
+  btn.disabled = true;
+  btn.classList.add('kvk-spinning');
 
+  const ok = await loadFromDb(form);
+
+  btn.classList.remove('kvk-spinning');
+  btn.disabled = false;
+
+  if (ok) {
+    setDirty(false);
+    syncEmbassyDisplay(form);
+    recompute(form);
+    showToast(t('gameTools.kvkCalculator.toastLoaded'));
+  } else {
+    showToast(t('gameTools.kvkCalculator.toastLoadFail'));
+  }
+}
+
+// ===== init =====
+
+function bootForm(form: HTMLFormElement): void {
   // 천단위 쉼표 자동 포맷
   form.querySelectorAll<HTMLInputElement>('[data-kvk-number]').forEach((el) => {
     formatNumberInput(el);
   });
 
-  // 페이지 진입 시 한 번 sync — 직전 저장 이후 경과한 분만큼 차감 반영
   syncEmbassyDisplay(form);
-
   recompute(form);
 
   form.addEventListener('input', (e) => {
@@ -375,14 +488,37 @@ function init(): void {
     if (target.matches('[data-kvk-number]')) {
       formatNumberInput(target);
     }
-    // 대사관 잔여 직접 수정 시 측정 시각도 now 로 리셋 (사용자가 게임에서 재확인한 시점).
-    if (target.name === 'embassyRemaining') {
-      const hidden = form.querySelector<HTMLInputElement>('input[name="embassyMeasuredAt"]');
-      if (hidden) hidden.value = new Date().toISOString();
-    }
+    setDirty(true);
     recompute(form);
-    scheduleSave(form);
   });
+}
+
+function bindActions(form: HTMLFormElement): void {
+  const saveBtn = $('kvk-save-btn');
+  const refreshBtn = $('kvk-refresh-btn');
+  saveBtn?.addEventListener('click', () => void handleSave(form));
+  refreshBtn?.addEventListener('click', () => void handleRefresh(form));
+}
+
+async function init(): Promise<void> {
+  const form = $('kvk-form') as HTMLFormElement | null;
+  if (!form) return;
+
+  bootForm(form);
+  bindActions(form);
+
+  // 세션 준비된 시점에 DB 로드 시도. 이미 있으면 즉시, 아니면 onSessionChange 로 첫 변경 후.
+  const trySync = async (): Promise<void> => {
+    if (!getKingshotId()) return;
+    await loadFromDb(form);
+    setDirty(false);
+    syncEmbassyDisplay(form);
+    recompute(form);
+  };
+  if (getKingshotId()) {
+    void trySync();
+  }
+  onSessionChange(() => void trySync());
 
   // 언어 변경 → 결과 라벨 재렌더
   onLangChange(() => {
@@ -396,16 +532,15 @@ function init(): void {
     }
   });
 
-  // 대사관 잔여시간 실시간 갱신 — 60초마다 sync + 재계산.
+  // 대사관 잔여 실시간 갱신 — 60초마다 표시 + 재계산. DB 안 건드림. dirty 변경 없음.
   window.setInterval(() => {
     syncEmbassyDisplay(form);
     recompute(form);
-    scheduleSave(form);
   }, 60_000);
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => void init());
 } else {
-  init();
+  void init();
 }

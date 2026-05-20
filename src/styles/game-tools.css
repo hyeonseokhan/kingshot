@@ -346,6 +346,101 @@
   gap: 10px;
 }
 
+/* 액션 바 — 저장(80%) + 새로고침(20%) */
+.kvk-action-bar {
+  display: grid;
+  grid-template-columns: 8fr 2fr;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 10px;
+}
+.kvk-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.kvk-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.kvk-btn:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+.kvk-btn-save {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.kvk-btn-save:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+  color: #fff;
+}
+.kvk-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.kvk-btn-refresh.kvk-spinning .kvk-icon {
+  animation: kvk-spin 0.7s linear infinite;
+}
+@keyframes kvk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 미저장 dot — 버튼 우측 상단 */
+.kvk-unsaved-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.kvk-unsaved-dot[hidden] {
+  display: none;
+}
+
+/* 토스트 — 화면 가운데 pill */
+.kvk-toast {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, calc(-50% + 12px));
+  background: rgba(20, 20, 24, 0.94);
+  color: #ffffff;
+  padding: 14px 26px;
+  border-radius: 26px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.45);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  white-space: nowrap;
+}
+.kvk-toast.kvk-toast-show {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
 .kvk-section-title {
   font-size: 15px;
   font-weight: 700;

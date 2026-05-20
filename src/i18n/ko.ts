@@ -664,6 +664,16 @@ export const ko = {
       modeBadge: '🏰 30T · 5:2:3',
       noPermission: '이 도구는 권한이 있는 사용자만 사용할 수 있습니다.',
 
+      btnSave: '저장하기',
+      btnRefresh: '새로고침',
+      btnSaving: '저장 중...',
+      btnRefreshing: '불러오는 중...',
+      toastSaved: '저장되었습니다.',
+      toastLoaded: '서버 데이터로 새로고침했습니다.',
+      toastSaveFail: '저장 실패. 잠시 후 다시 시도해 주세요.',
+      toastLoadFail: '불러오기 실패. 페이지를 새로 고쳐 주세요.',
+      unsavedAria: '저장 안 된 변경 사항',
+
       sectionInputs: '📥 입력',
       sectionResults: '📊 결과',
       sectionConstants: '🔒 상수 (참고)',

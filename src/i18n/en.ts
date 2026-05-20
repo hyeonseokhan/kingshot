@@ -666,6 +666,16 @@ export const en: Translations = {
       modeBadge: '🏰 30T · 5:2:3',
       noPermission: 'This tool is only available to authorized users.',
 
+      btnSave: 'Save',
+      btnRefresh: 'Refresh',
+      btnSaving: 'Saving...',
+      btnRefreshing: 'Loading...',
+      toastSaved: 'Saved successfully.',
+      toastLoaded: 'Refreshed from server.',
+      toastSaveFail: 'Save failed. Please try again.',
+      toastLoadFail: 'Load failed. Please refresh the page.',
+      unsavedAria: 'Unsaved changes',
+
       sectionInputs: '📥 Inputs',
       sectionResults: '📊 Results',
       sectionConstants: '🔒 Constants (reference)',
