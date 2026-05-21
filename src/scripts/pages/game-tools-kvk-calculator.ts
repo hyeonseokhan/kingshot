@@ -288,19 +288,15 @@ function buildLabel(key: string): string {
 }
 
 function renderTraining(r: KvkResults['training']): void {
-  const lang = getLang();
   const labels = {
     targetInf: t('gameTools.kvkCalculator.mTargetInf'),
     targetCav: t('gameTools.kvkCalculator.mTargetCav'),
     targetArc: t('gameTools.kvkCalculator.mTargetArc'),
     extra: t('gameTools.kvkCalculator.mExtraTroops'),
-    days: t('gameTools.kvkCalculator.mTrainDays'),
     min: t('gameTools.kvkCalculator.mTrainMin'),
   };
   const trainingLabel = t('gameTools.kvkCalculator.accelTraining');
   const commonLabel = t('gameTools.kvkCalculator.accelCommon');
-
-  const daysText = (r.neededMinutes / 1440).toFixed(2) + (lang === 'ko' ? '일' : 'd');
 
   setRows(
     'kvk-training-target',
@@ -309,7 +305,6 @@ function renderTraining(r: KvkResults['training']): void {
     <tr><th>${labels.targetCav}</th><td>${fmt(r.targetCavalry)}</td></tr>
     <tr><th>${labels.targetArc}</th><td>${fmt(r.targetArchers)} <span class="kvk-extra">(+${fmt(r.extraArchers)})</span></td></tr>
     <tr><th>${labels.extra}</th><td><strong>${fmt(r.totalExtra)}</strong></td></tr>
-    <tr><th>${labels.days}</th><td>${daysText}</td></tr>
     <tr><th>${labels.min}</th><td>${fmt(r.neededMinutes)} <span class="kvk-extra">(${dhm(r.neededMinutes)})</span></td></tr>
   `,
   );

@@ -715,7 +715,6 @@ export const en: Translations = {
       mTargetCav: 'Target Cavalry',
       mTargetArc: 'Target Archers',
       mExtraTroops: 'Extra to train',
-      mTrainDays: 'Required training days',
       mTrainMin: 'Required training minutes',
 
       accelTraining: 'Training',
