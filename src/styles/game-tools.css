@@ -762,15 +762,21 @@
   box-sizing: border-box;
 }
 
-/* 마감일 = 날짜 + 시각 2개 input 가로 배치 (3:2) */
-.kvk-datetime-row {
-  display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 6px;
-  width: 100%;
+/* flatpickr — 사이트 톤에 맞게 minor tweak (기본 테마 유지) */
+.flatpickr-input[readonly] {
+  cursor: pointer;
+  background: var(--bg);
 }
-.kvk-datetime-row input {
-  min-width: 0;
+.flatpickr-calendar {
+  font-family: var(--font);
+  font-size: 13px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .kvk-field input:focus {

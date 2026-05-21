@@ -110,10 +110,7 @@ const navItems = gameTools.submenus!.map((s) => ({
               <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.groupDeadline">마감 · 추가 획득</div>
               <div class="kvk-field">
                 <label class="kvk-field-label"><span data-i18n="gameTools.kvkCalculator.labelDeadline">마감 일시 (KST)</span></label>
-                <div class="kvk-datetime-row">
-                  <input type="date" name="deadlineDate" value="2026-05-23" lang="en-GB" />
-                  <input type="time" name="deadlineTime" value="15:00" lang="en-GB" step="900" />
-                </div>
+                <input type="text" name="deadline" id="kvk-deadline" value="2026-05-23 15:00" placeholder="YYYY-MM-DD HH:MM" />
               </div>
               <div class="kvk-2col-grid kvk-2col-grid-sm">
                 <div class="kvk-field">

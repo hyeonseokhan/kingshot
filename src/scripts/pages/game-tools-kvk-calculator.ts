@@ -24,6 +24,10 @@ import {
 import { onLangChange, t, getLang } from '@/i18n';
 import { supabase } from '@/lib/supabase';
 import { getSession, onSessionChange } from '@/scripts/pages/tile-match-auth';
+import flatpickr from 'flatpickr';
+import type { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
+import { Korean } from 'flatpickr/dist/l10n/ko.js';
+import 'flatpickr/dist/flatpickr.min.css';
 
 /** DB fields JSONB 에 들어가는 입력 필드 키. 대사관 관련 hidden 은 제외. */
 const DB_FIELDS = [
@@ -60,25 +64,28 @@ function parseNumber(raw: FormDataEntryValue | null): number {
   return Number(digits);
 }
 
-/** 마감일 input (date + time) → ISO 8601 KST. 누락 시 refTime fallback. */
+/** flatpickr 표시 포맷("YYYY-MM-DD HH:MM") → ISO 8601 KST. 잘못된 값이면 refTime fallback. */
 function combineDeadlineIso(fd: FormData): string {
-  const date = String(fd.get('deadlineDate') ?? '').trim();
-  const time = String(fd.get('deadlineTime') ?? '').trim() || '00:00';
-  if (!date) return KVK_CONSTANTS.refTime;
-  // time 은 "HH:MM" 또는 "HH:MM:SS" 둘 다 가능
-  const t = time.length === 5 ? `${time}:00` : time;
-  return `${date}T${t}+09:00`;
+  const v = String(fd.get('deadline') ?? '').trim();
+  if (!v) return KVK_CONSTANTS.refTime;
+  const m = v.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{2}):(\d{2})/);
+  if (!m) return KVK_CONSTANTS.refTime;
+  return `${m[1]}T${m[2]}:${m[3]}:00+09:00`;
 }
 
-/** ISO 8601 → date + time UI 입력으로 분리. 잘못된 값이면 무시. */
+/** ISO 8601 → flatpickr 표시 포맷. flatpickr 인스턴스 있으면 setDate, 없으면 raw set. */
 function applyDeadlineIsoToInputs(form: HTMLFormElement, iso: string): void {
   const m = iso.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
   if (!m) return;
-  const [, date, hh, mm] = m;
-  const dateEl = form.querySelector<HTMLInputElement>('input[name="deadlineDate"]');
-  const timeEl = form.querySelector<HTMLInputElement>('input[name="deadlineTime"]');
-  if (dateEl) dateEl.value = date;
-  if (timeEl) timeEl.value = `${hh}:${mm}`;
+  const display = `${m[1]} ${m[2]}:${m[3]}`;
+  const input = form.querySelector<HTMLInputElement>('input[name="deadline"]');
+  if (!input) return;
+  const fp = (input as HTMLInputElement & { _flatpickr?: FlatpickrInstance })._flatpickr;
+  if (fp) {
+    fp.setDate(display, false);
+  } else {
+    input.value = display;
+  }
 }
 
 /** 입력 필드 천단위 쉼표 즉시 적용. 캐럿 위치 보존. */
@@ -493,17 +500,37 @@ async function handleRefresh(form: HTMLFormElement): Promise<void> {
 
 // ===== init =====
 
+function initDeadlinePicker(form: HTMLFormElement): void {
+  const input = form.querySelector<HTMLInputElement>('input[name="deadline"]');
+  if (!input) return;
+  flatpickr(input, {
+    enableTime: true,
+    time_24hr: true,
+    dateFormat: 'Y-m-d H:i',
+    locale: Korean,
+    minuteIncrement: 15,
+    onChange: () => {
+      setDirty(true);
+      recompute(form);
+    },
+  });
+}
+
 function bootForm(form: HTMLFormElement): void {
   // 천단위 쉼표 자동 포맷
   form.querySelectorAll<HTMLInputElement>('[data-kvk-number]').forEach((el) => {
     formatNumberInput(el);
   });
 
+  initDeadlinePicker(form);
+
   syncEmbassyDisplay(form);
   recompute(form);
 
   form.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
+    // 마감일은 flatpickr onChange 가 처리 — 중복 처리 방지
+    if (target.name === 'deadline') return;
     if (target.matches('[data-kvk-number]')) {
       formatNumberInput(target);
     }
