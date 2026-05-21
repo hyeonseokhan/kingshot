@@ -98,7 +98,7 @@ const navItems = gameTools.submenus!.map((s) => ({
             <div class="kvk-sidebar-section kvk-sidebar-section-inner">
               <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.groupBuilding">건설 상태</div>
               <div class="kvk-static-row">
-                <span data-i18n="gameTools.kvkCalculator.labelEmbassyRemaining">대사관 28→29 잔여(분)</span>
+                <span data-i18n="gameTools.kvkCalculator.labelEmbassyRemaining">대사관 28→29 잔여 (마감 시점)</span>
                 <span class="kvk-static-value" id="kvk-embassy-display"></span>
               </div>
               <input type="hidden" name="embassyRemaining" value="8967" />
@@ -110,7 +110,10 @@ const navItems = gameTools.submenus!.map((s) => ({
               <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.groupDeadline">마감 · 추가 획득</div>
               <div class="kvk-field">
                 <label class="kvk-field-label"><span data-i18n="gameTools.kvkCalculator.labelDeadline">마감 일시 (KST)</span></label>
-                <input type="datetime-local" name="deadline" value="2026-05-23T15:00" />
+                <div class="kvk-datetime-row">
+                  <input type="date" name="deadlineDate" value="2026-05-23" lang="en-GB" />
+                  <input type="time" name="deadlineTime" value="15:00" lang="en-GB" step="900" />
+                </div>
               </div>
               <div class="kvk-2col-grid kvk-2col-grid-sm">
                 <div class="kvk-field">

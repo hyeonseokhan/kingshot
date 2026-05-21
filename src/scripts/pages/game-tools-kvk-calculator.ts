@@ -60,10 +60,25 @@ function parseNumber(raw: FormDataEntryValue | null): number {
   return Number(digits);
 }
 
-/** datetime-local 값 (KST 가정) → ISO 8601 with +09:00. */
-function toKstIso(local: string): string {
-  if (!local) return KVK_CONSTANTS.refTime;
-  return local.length === 16 ? `${local}:00+09:00` : `${local}+09:00`;
+/** 마감일 input (date + time) → ISO 8601 KST. 누락 시 refTime fallback. */
+function combineDeadlineIso(fd: FormData): string {
+  const date = String(fd.get('deadlineDate') ?? '').trim();
+  const time = String(fd.get('deadlineTime') ?? '').trim() || '00:00';
+  if (!date) return KVK_CONSTANTS.refTime;
+  // time 은 "HH:MM" 또는 "HH:MM:SS" 둘 다 가능
+  const t = time.length === 5 ? `${time}:00` : time;
+  return `${date}T${t}+09:00`;
+}
+
+/** ISO 8601 → date + time UI 입력으로 분리. 잘못된 값이면 무시. */
+function applyDeadlineIsoToInputs(form: HTMLFormElement, iso: string): void {
+  const m = iso.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return;
+  const [, date, hh, mm] = m;
+  const dateEl = form.querySelector<HTMLInputElement>('input[name="deadlineDate"]');
+  const timeEl = form.querySelector<HTMLInputElement>('input[name="deadlineTime"]');
+  if (dateEl) dateEl.value = date;
+  if (timeEl) timeEl.value = `${hh}:${mm}`;
 }
 
 /** 입력 필드 천단위 쉼표 즉시 적용. 캐럿 위치 보존. */
@@ -99,13 +114,17 @@ function formatNumberInput(el: HTMLInputElement): void {
   }
 }
 
-/** 대사관 표시 입력값(snapshot) + 측정 시각 → 현재 실시간 잔여(분). 음수 elapsed 는 clamp. */
-function computeEmbassyCurrentMin(fd: FormData): number {
+/** 대사관 snapshot + measuredAt + 마감 → 마감 시점에 자연 진행 후 남는 잔여(분).
+ *  전략: "단일 슬롯 즉시완료" execute 시점 = 마감 → 그 전까지 자연 감소를 최대 활용.
+ *  음수 elapsed 는 clamp (마감이 measuredAt 이전인 경우). */
+function computeEmbassyAtDeadline(fd: FormData): number {
   const snapshot = parseNumber(fd.get('embassyRemaining'));
   const measuredAt = String(fd.get('embassyMeasuredAt') ?? '');
+  const deadlineIso = combineDeadlineIso(fd);
   const measuredMs = Date.parse(measuredAt);
-  if (!Number.isFinite(measuredMs)) return snapshot;
-  const elapsedMin = Math.max(0, (Date.now() - measuredMs) / 60000);
+  const deadlineMs = Date.parse(deadlineIso);
+  if (!Number.isFinite(measuredMs) || !Number.isFinite(deadlineMs)) return snapshot;
+  const elapsedMin = Math.max(0, (deadlineMs - measuredMs) / 60000);
   return Math.max(0, Math.round(snapshot - elapsedMin));
 }
 
@@ -122,8 +141,8 @@ function readForm(form: HTMLFormElement): KvkInputs {
       training: parseNumber(fd.get('accelTraining')),
       building: parseNumber(fd.get('accelBuilding')),
     },
-    embassyRemaining: computeEmbassyCurrentMin(fd),
-    deadline: toKstIso(String(fd.get('deadline') ?? '')),
+    embassyRemaining: computeEmbassyAtDeadline(fd),
+    deadline: combineDeadlineIso(fd),
     bonus: {
       h3: parseNumber(fd.get('bonusH3')),
       h1: parseNumber(fd.get('bonusH1')),
@@ -144,7 +163,8 @@ function getKingshotId(): string | null {
   return getSession()?.player_id ?? null;
 }
 
-/** DB → form. 데이터 없으면 HTML 기본값 유지. */
+/** DB → form. 데이터 없으면 HTML 기본값 유지.
+ *  deadline 은 ISO 한 줄로 저장돼 있어 → date + time 두 input 으로 분해. */
 async function loadFromDb(form: HTMLFormElement): Promise<boolean> {
   const id = getKingshotId();
   if (!id) return false;
@@ -165,6 +185,10 @@ async function loadFromDb(form: HTMLFormElement): Promise<boolean> {
   DB_FIELDS.forEach((name) => {
     const value = fields[name];
     if (value == null) return;
+    if (name === 'deadline') {
+      applyDeadlineIsoToInputs(form, String(value));
+      return;
+    }
     const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
     if (el) el.value = String(value);
   });
@@ -175,13 +199,18 @@ async function loadFromDb(form: HTMLFormElement): Promise<boolean> {
   return true;
 }
 
-/** form → DB upsert. */
+/** form → DB upsert. deadline 은 date + time 합쳐 ISO 로 저장. */
 async function saveToDb(form: HTMLFormElement): Promise<boolean> {
   const id = getKingshotId();
   if (!id) return false;
 
+  const fd = new FormData(form);
   const fields: Record<string, string> = {};
   DB_FIELDS.forEach((name) => {
+    if (name === 'deadline') {
+      fields[name] = combineDeadlineIso(fd);
+      return;
+    }
     const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
     fields[name] = el?.value ?? '';
   });
@@ -392,23 +421,12 @@ function renderConstants(): void {
   );
 }
 
-/** 대사관 hidden input → #kvk-embassy-display span 을 실시간 잔여값으로 갱신.
- *  form 값은 안 건드림 — 표시만 변경. */
+/** 대사관 (마감 시점 잔여) 를 #kvk-embassy-display 에 표시. form 값 안 건드림. */
 function syncEmbassyDisplay(form: HTMLFormElement): void {
-  const snapshotEl = form.querySelector<HTMLInputElement>('input[name="embassyRemaining"]');
-  const measuredEl = form.querySelector<HTMLInputElement>('input[name="embassyMeasuredAt"]');
   const displayEl = $('kvk-embassy-display');
-  if (!snapshotEl || !measuredEl || !displayEl) return;
-
-  const snapshot = parseNumber(snapshotEl.value);
-  const measuredMs = Date.parse(measuredEl.value);
-  if (!Number.isFinite(measuredMs)) {
-    displayEl.textContent = dhm(snapshot);
-    return;
-  }
-  const elapsedMin = Math.max(0, (Date.now() - measuredMs) / 60000);
-  const current = Math.max(0, Math.round(snapshot - elapsedMin));
-  displayEl.textContent = dhm(current);
+  if (!displayEl) return;
+  const fd = new FormData(form);
+  displayEl.textContent = dhm(computeEmbassyAtDeadline(fd));
 }
 
 function recompute(form: HTMLFormElement): void {
@@ -417,6 +435,7 @@ function recompute(form: HTMLFormElement): void {
   const results = calculate(inputs);
   lastResults = results;
 
+  syncEmbassyDisplay(form);
   renderDhmHints(form);
   renderTraining(results.training);
   renderBuilding(results.building);
@@ -531,12 +550,6 @@ async function init(): Promise<void> {
       renderConstants();
     }
   });
-
-  // 대사관 잔여 실시간 갱신 — 60초마다 표시 + 재계산. DB 안 건드림. dirty 변경 없음.
-  window.setInterval(() => {
-    syncEmbassyDisplay(form);
-    recompute(form);
-  }, 60_000);
 }
 
 if (document.readyState === 'loading') {

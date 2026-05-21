@@ -749,7 +749,8 @@
 }
 
 .kvk-field input[type="text"],
-.kvk-field input[type="datetime-local"] {
+.kvk-field input[type="date"],
+.kvk-field input[type="time"] {
   width: 100%;
   padding: 5px 8px;
   font-size: 12.5px;
@@ -759,6 +760,17 @@
   color: var(--text);
   font-variant-numeric: tabular-nums;
   box-sizing: border-box;
+}
+
+/* 마감일 = 날짜 + 시각 2개 input 가로 배치 (3:2) */
+.kvk-datetime-row {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 6px;
+  width: 100%;
+}
+.kvk-datetime-row input {
+  min-width: 0;
 }
 
 .kvk-field input:focus {
