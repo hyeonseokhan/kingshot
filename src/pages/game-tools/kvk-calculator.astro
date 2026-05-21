@@ -112,7 +112,9 @@ const navItems = gameTools.submenus!.map((s) => ({
 
             <hr class="kvk-divider" />
 
-            <!-- 추가 가속권 — 분 단위 단일 입력 + 자동 dhm 표시 -->
+            <!-- 추가 가속권 — 마감까지 더 획득할 예상 분 (분 단위, 단일 입력).
+                 DB 저장 X — 보유 가속권을 다음 날 갱신할 때 누적/이중 적용을
+                 막기 위해 매 페이지 로드마다 0 부터 시작. -->
             <div class="kvk-sidebar-section kvk-sidebar-section-inner">
               <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.labelBonusMinutes">추가 가속권</div>
               <div class="kvk-field-with-suffix">
@@ -122,10 +124,14 @@ const navItems = gameTools.submenus!.map((s) => ({
                   id="kvk-bonus-minutes"
                   inputmode="numeric"
                   data-kvk-number
-                  value="2420"
+                  value="0"
                   placeholder="0"
+                  data-i18n-attr-placeholder="gameTools.kvkCalculator.bonusMinutesPlaceholder"
                 />
                 <span class="kvk-field-suffix" data-i18n="gameTools.kvkCalculator.unitMinutes">분</span>
+              </div>
+              <div class="kvk-bonus-hint" data-i18n="gameTools.kvkCalculator.bonusMinutesHint">
+                마감까지 더 획득할 예상 가속권 (구매 / 이벤트 보상 등). 저장되지 않음 — 보유 가속권 갱신 시 이중 합산 방지.
               </div>
               <div class="kvk-bonus-dhm" id="kvk-bonus-dhm-row">
                 ㄴ <span id="kvk-bonus-dhm"></span>

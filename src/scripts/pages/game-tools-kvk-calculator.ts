@@ -29,7 +29,9 @@ import type { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instanc
 import { Korean } from 'flatpickr/dist/l10n/ko.js';
 import 'flatpickr/dist/flatpickr.min.css';
 
-/** DB fields JSONB 에 들어가는 입력 필드 키. 대사관 관련 hidden 은 제외. */
+/** DB fields JSONB 에 들어가는 입력 필드 키. 대사관 관련 hidden 은 제외.
+ *  bonusMinutes (추가 가속권) 도 제외 — 보유 가속권 갱신 시 이중 누적되는 모델
+ *  버그 방지. 매 페이지 로드마다 0 부터 시작, 사용자가 그 세션에서만 입력. */
 const DB_FIELDS = [
   'infantry',
   'cavalry',
@@ -38,7 +40,6 @@ const DB_FIELDS = [
   'accelTraining',
   'accelBuilding',
   'deadline',
-  'bonusMinutes',
 ] as const;
 
 /** 언어에 맞는 D/H/M 포맷. */

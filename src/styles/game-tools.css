@@ -742,10 +742,18 @@
   flex-shrink: 0;
 }
 
+/* 추가 가속권 안내 — 입력 의미 명확화 (저장 안 됨 / 누적 방지). */
+.kvk-bonus-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text3);
+}
+
 /* 추가 가속권 분 입력 옆 자동 계산 D/H/M 표시.
    visibility 토글로 layout shift 차단 (값 0 일 때도 자리 보존). */
 .kvk-bonus-dhm {
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 12px;
   color: var(--text2);
   padding-left: 2px;

@@ -696,6 +696,9 @@ export const en: Translations = {
       labelDeadline: 'Deadline (KST)',
       labelBonusMinutes: 'Bonus speed-ups',
       unitMinutes: 'min',
+      bonusMinutesPlaceholder: 'e.g. 2,420',
+      bonusMinutesHint:
+        'Speed-ups you expect to gain before the deadline (purchases / event rewards). Not saved — prevents double-counting on next day refresh.',
 
       cardTraining: 'Troop Training (5:2:3)',
       cardBuilding: 'Building 30T (single-slot instant)',

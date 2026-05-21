@@ -694,6 +694,9 @@ export const ko = {
       labelDeadline: '마감 일시 (KST)',
       labelBonusMinutes: '추가 가속권',
       unitMinutes: '분',
+      bonusMinutesPlaceholder: '예: 2420',
+      bonusMinutesHint:
+        '마감까지 더 획득할 예상 가속권 (구매 / 이벤트 보상 등). 저장되지 않음 — 보유 가속권 갱신 시 이중 합산 방지.',
 
       cardTraining: '병사 훈련 (5:2:3 달성)',
       cardBuilding: '건물 30T (단일 슬롯 즉시완료)',
