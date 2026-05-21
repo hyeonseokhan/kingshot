@@ -690,8 +690,7 @@ export const en: Translations = {
       labelAccelTraining: 'Training',
       labelAccelBuilding: 'Construction',
 
-      groupBuilding: 'Building State',
-      labelEmbassyRemaining: 'Embassy 28→29 remaining (at deadline)',
+      labelEmbassyRemaining: 'Embassy remaining (at deadline)',
       embassyHint: 'After natural decay until deadline',
 
       groupDeadline: 'Deadline · Expected Gains',

@@ -94,13 +94,11 @@ const navItems = gameTools.submenus!.map((s) => ({
               </div>
             </div>
 
-            <!-- 건설 상태 -->
+            <!-- 대사관 잔여시간(마감 시점) — 다른 sidebar 섹션과 동일한 .kvk-section-label
+                 타이틀 스타일. 시간 값은 그 아랫줄에 단독 표시. -->
             <div class="kvk-sidebar-section kvk-sidebar-section-inner">
-              <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.groupBuilding">건설 상태</div>
-              <div class="kvk-static-row">
-                <span data-i18n="gameTools.kvkCalculator.labelEmbassyRemaining">대사관 28→29 잔여 (마감 시점)</span>
-                <span class="kvk-static-value" id="kvk-embassy-display"></span>
-              </div>
+              <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.labelEmbassyRemaining">대사관 잔여시간(마감 시점)</div>
+              <div class="kvk-static-value" id="kvk-embassy-display"></div>
               <input type="hidden" name="embassyRemaining" value="8967" />
               <input type="hidden" name="embassyMeasuredAt" value="2026-05-20T16:01:00+09:00" />
             </div>

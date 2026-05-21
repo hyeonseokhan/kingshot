@@ -688,8 +688,7 @@ export const ko = {
       labelAccelTraining: '병사훈련',
       labelAccelBuilding: '건설',
 
-      groupBuilding: '건설 상태',
-      labelEmbassyRemaining: '대사관 28→29 잔여 (마감 시점)',
+      labelEmbassyRemaining: '대사관 잔여시간(마감 시점)',
       embassyHint: '마감 시각 기준 자연 진행 후 잔여',
 
       groupDeadline: '마감 · 추가 획득',
