@@ -9,6 +9,7 @@ import {
   esc,
   formatDate,
   isAlreadyRedeemed,
+  isPermanentlyInvalidCode,
   describeRedeemError,
   REDEEM_STATUS,
   formatDateTime,
@@ -732,15 +733,16 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
           showProgress(
             t('coupons.progress.couponFailed', { name: nickname, code, label }),
           );
-          // err_code=40007 (만료): 현재 세션의 active list 와 캐시에서 즉시 제거
-          // → 다음 사용자/다음 시도 안 함. 서버 측은 redeem-coupon Edge Function 이
-          //   같은 시점에 expired_coupon_codes 에 영구 등록 (다음 page load 보장).
-          if (Number(r.err_code) === 40007) expiredDetected = true;
+          // 영구 무효 코드 (40005 존재하지 않음 / 40007 만료): 현재 세션의 active list 와
+          // 캐시에서 즉시 제거 → 같은 batch 내 다른 사용자 / 다음 시도 안 함.
+          // 서버 측은 redeem-coupon Edge Function 이 같은 시점에 expired_coupon_codes 에
+          // 영구 등록 (다음 page load 보장).
+          if (isPermanentlyInvalidCode(r.err_code)) expiredDetected = true;
         }
       });
       if (expiredDetected) {
         const expiredCodes = new Set(
-          json.results.filter((r) => Number(r.err_code) === 40007).map((r) => r.cdk),
+          json.results.filter((r) => isPermanentlyInvalidCode(r.err_code)).map((r) => r.cdk),
         );
         activeCoupons = activeCoupons.filter((c) => !expiredCodes.has(c.code));
         invalidateGiftCodesCache();

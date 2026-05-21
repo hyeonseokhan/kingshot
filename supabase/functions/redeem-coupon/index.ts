@@ -16,13 +16,25 @@ const corsHeaders = {
 };
 
 /**
- * centurygame 가 err_code=40007 (만료) 응답한 코드를 expired_coupon_codes 에 영구 등록.
+ * centurygame 가 영구 무효 err_code 응답한 코드를 expired_coupon_codes 에 영구 등록.
  * gift-codes Edge Function 이 다음 list 호출부터 자동 필터링.
+ *
+ * 영구 무효 코드:
+ *   - 40005: 존재하지 않는 쿠폰 코드 (잘못 등록 / 오타 / 사용 불가)
+ *   - 40007: 만료된 쿠폰 코드
+ * (40008 이미 수령 / 40017 자격 필요 등은 사용자별이라 영구 등록 대상 아님)
  *
  * - service_role 로 직접 INSERT. RLS 우회.
  * - ON CONFLICT DO NOTHING (Prefer: resolution=ignore-duplicates) → 멱등.
  * - 실패해도 silently 무시 — 본 함수의 main path (쿠폰 redeem) 영향 없게 함.
  */
+
+const PERMANENTLY_INVALID_ERR_CODES = new Set<number>([40005, 40007]);
+function isPermanentlyInvalid(errCode: unknown): boolean {
+  if (errCode == null) return false;
+  const n = Number(errCode);
+  return Number.isFinite(n) && PERMANENTLY_INVALID_ERR_CODES.has(n);
+}
 async function recordExpiredCoupon(
   code: string,
   errCode: number,
@@ -156,9 +168,11 @@ serve(async (req) => {
             msg: r.json.msg,
             err_code: r.json.err_code,
           });
-          // 만료 코드(40007) 자동 등록 — 같은 batch 의 나머지엔 영향 없음 (다음 list 호출부터 제외)
-          if (Number(r.json?.err_code) === 40007) {
-            await recordExpiredCoupon(String(code), 40007, r.json?.msg, fid);
+          // 영구 무효 코드 (40005 존재하지 않음 / 40007 만료) 자동 등록 — 같은 batch 의
+          // 나머지엔 영향 없음 (다음 list 호출부터 제외).
+          const errCode = r.json?.err_code;
+          if (isPermanentlyInvalid(errCode)) {
+            await recordExpiredCoupon(String(code), Number(errCode), r.json?.msg, fid);
           }
         }
         result = { code: 0, results };

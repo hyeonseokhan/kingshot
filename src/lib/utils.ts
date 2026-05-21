@@ -25,6 +25,21 @@ const REDEEM_ERR_CODES: Record<number, string> = {
   40017: '영주 상담원 전속 코드 (카카오톡 채널 자격 필요)',
 };
 
+/** 모든 사용자에게 영구 무효인 err_code (=expired_coupon_codes 영구 등록 대상).
+ *  - 40005: 존재하지 않는 쿠폰 코드
+ *  - 40007: 만료된 쿠폰 코드
+ *  40008(이미 수령) / 40017(자격 필요) 는 사용자별 — 영구 무효 아님. */
+const PERMANENTLY_INVALID_ERR_CODES = new Set<number>([40005, 40007]);
+
+/** 해당 err_code 가 영구 무효 (모든 사용자 사용 불가) 인지 판별. */
+export function isPermanentlyInvalidCode(
+  errCode: number | string | null | undefined,
+): boolean {
+  if (errCode == null) return false;
+  const n = Number(errCode);
+  return Number.isFinite(n) && PERMANENTLY_INVALID_ERR_CODES.has(n);
+}
+
 /** 레벨별 프로필 테두리 CSS 클래스 매핑 (임계값 내림차순) */
 const LEVEL_CLASSES: Array<{ min: number; cls: string }> = [
   { min: 30, cls: ' lv-30' },
