@@ -712,8 +712,9 @@ export const ko = {
       mTargetInf: '목표 보병',
       mTargetCav: '목표 기병',
       mTargetArc: '목표 궁병',
-      mExtraTroops: '추가 훈련 필요',
-      mTrainMin: '필요 훈련 분',
+      mExtraTroops: '추가된 병가',
+      mTrainMin: '필요 가속권',
+      unitTroops: '명',
 
       accelTraining: '병사훈련',
       accelCommon: '공용',

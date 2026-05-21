@@ -295,6 +295,8 @@ function renderTraining(r: KvkResults['training']): void {
     extra: t('gameTools.kvkCalculator.mExtraTroops'),
     min: t('gameTools.kvkCalculator.mTrainMin'),
   };
+  const unitTroops = t('gameTools.kvkCalculator.unitTroops');
+  const unitMinutes = t('gameTools.kvkCalculator.unitMinutes');
   const trainingLabel = t('gameTools.kvkCalculator.accelTraining');
   const commonLabel = t('gameTools.kvkCalculator.accelCommon');
 
@@ -304,8 +306,8 @@ function renderTraining(r: KvkResults['training']): void {
     <tr><th>${labels.targetInf}</th><td>${fmt(r.targetInfantry)} <span class="kvk-extra">(+${fmt(r.extraInfantry)})</span></td></tr>
     <tr><th>${labels.targetCav}</th><td>${fmt(r.targetCavalry)}</td></tr>
     <tr><th>${labels.targetArc}</th><td>${fmt(r.targetArchers)} <span class="kvk-extra">(+${fmt(r.extraArchers)})</span></td></tr>
-    <tr><th>${labels.extra}</th><td><strong>${fmt(r.totalExtra)}</strong></td></tr>
-    <tr><th>${labels.min}</th><td>${fmt(r.neededMinutes)} <span class="kvk-extra">(${dhm(r.neededMinutes)})</span></td></tr>
+    <tr><th>${labels.extra}</th><td><strong>${fmt(r.totalExtra)}</strong> ${unitTroops}</td></tr>
+    <tr><th>${labels.min}</th><td>${fmt(r.neededMinutes)} ${unitMinutes} <span class="kvk-extra">(${dhm(r.neededMinutes)})</span></td></tr>
   `,
   );
 
