@@ -691,12 +691,9 @@ export const ko = {
       labelEmbassyRemaining: '대사관 잔여시간(마감 시점)',
       embassyHint: '마감 시각 기준 자연 진행 후 잔여',
 
-      groupDeadline: '마감 · 추가 획득',
       labelDeadline: '마감 일시 (KST)',
-      labelBonus3h: '3시간권 (개)',
-      labelBonus1h: '1시간권 (개)',
-      labelBonus5m: '5분권 (개)',
-      labelBonus1m: '1분권 (개)',
+      labelBonusMinutes: '추가 가속권',
+      unitMinutes: '분',
 
       cardTraining: '병사 훈련 (5:2:3 달성)',
       cardBuilding: '건물 30T (단일 슬롯 즉시완료)',

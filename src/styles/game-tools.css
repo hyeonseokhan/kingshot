@@ -711,6 +711,53 @@
   letter-spacing: 0.04em;
 }
 
+/* 두 sidebar 섹션 사이 명시 구분선 — 자체 border-top 보다 시각 강조.
+   다음 .kvk-sidebar-section-inner 의 기본 border-top/padding-top 은 hr 와 중복되므로 제거. */
+.kvk-divider {
+  border: 0;
+  height: 1px;
+  background: var(--border2);
+  margin: 16px 0;
+}
+.kvk-divider + .kvk-sidebar-section-inner {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* input + 우측 단위 ("분" 등) 표시용 row. */
+.kvk-field-with-suffix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kvk-field-with-suffix > input {
+  flex: 1;
+  min-width: 0;
+}
+.kvk-field-suffix {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* 추가 가속권 분 입력 옆 자동 계산 D/H/M 표시.
+   visibility 토글로 layout shift 차단 (값 0 일 때도 자리 보존). */
+.kvk-bonus-dhm {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text2);
+  padding-left: 2px;
+  visibility: hidden;
+  min-height: 1.4em;
+}
+.kvk-bonus-dhm span {
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .kvk-2col-header {
   display: grid;
   grid-template-columns: 1fr 1fr;

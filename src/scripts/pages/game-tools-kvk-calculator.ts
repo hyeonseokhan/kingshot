@@ -38,10 +38,7 @@ const DB_FIELDS = [
   'accelTraining',
   'accelBuilding',
   'deadline',
-  'bonusH3',
-  'bonusH1',
-  'bonusM5',
-  'bonusM1',
+  'bonusMinutes',
 ] as const;
 
 /** 언어에 맞는 D/H/M 포맷. */
@@ -150,12 +147,7 @@ function readForm(form: HTMLFormElement): KvkInputs {
     },
     embassyRemaining: computeEmbassyAtDeadline(fd),
     deadline: combineDeadlineIso(fd),
-    bonus: {
-      h3: parseNumber(fd.get('bonusH3')),
-      h1: parseNumber(fd.get('bonusH1')),
-      m5: parseNumber(fd.get('bonusM5')),
-      m1: parseNumber(fd.get('bonusM1')),
-    },
+    bonusMinutes: parseNumber(fd.get('bonusMinutes')),
   };
 }
 
@@ -436,6 +428,22 @@ function syncEmbassyDisplay(form: HTMLFormElement): void {
   displayEl.textContent = dhm(computeEmbassyAtDeadline(fd));
 }
 
+/** 추가 가속권 입력값을 D/H/M 으로 변환해 #kvk-bonus-dhm 에 표시.
+ *  0 이면 row 자체 숨김 (시각 노이즈 차단). */
+function syncBonusDhm(form: HTMLFormElement): void {
+  const displayEl = $('kvk-bonus-dhm');
+  const rowEl = $('kvk-bonus-dhm-row');
+  if (!displayEl || !rowEl) return;
+  const minutes = parseNumber(new FormData(form).get('bonusMinutes'));
+  if (minutes > 0) {
+    displayEl.textContent = dhm(minutes);
+    rowEl.style.visibility = 'visible';
+  } else {
+    displayEl.textContent = '';
+    rowEl.style.visibility = 'hidden';
+  }
+}
+
 function recompute(form: HTMLFormElement): void {
   const inputs = readForm(form);
   lastInputs = inputs;
@@ -443,6 +451,7 @@ function recompute(form: HTMLFormElement): void {
   lastResults = results;
 
   syncEmbassyDisplay(form);
+  syncBonusDhm(form);
   renderDhmHints(form);
   renderTraining(results.training);
   renderBuilding(results.building);

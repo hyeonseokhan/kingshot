@@ -693,12 +693,9 @@ export const en: Translations = {
       labelEmbassyRemaining: 'Embassy remaining (at deadline)',
       embassyHint: 'After natural decay until deadline',
 
-      groupDeadline: 'Deadline · Expected Gains',
       labelDeadline: 'Deadline (KST)',
-      labelBonus3h: '3h items',
-      labelBonus1h: '1h items',
-      labelBonus5m: '5m items',
-      labelBonus1m: '1m items',
+      labelBonusMinutes: 'Bonus speed-ups',
+      unitMinutes: 'min',
 
       cardTraining: 'Troop Training (5:2:3)',
       cardBuilding: 'Building 30T (single-slot instant)',

@@ -104,29 +104,31 @@ const navItems = gameTools.submenus!.map((s) => ({
             </div>
 
             <!-- 마감 · 추가 획득 -->
+            <!-- 마감 일시 (KST) — 섹션 타이틀 + 단독 input -->
             <div class="kvk-sidebar-section kvk-sidebar-section-inner">
-              <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.groupDeadline">마감 · 추가 획득</div>
-              <div class="kvk-field">
-                <label class="kvk-field-label"><span data-i18n="gameTools.kvkCalculator.labelDeadline">마감 일시 (KST)</span></label>
-                <input type="text" name="deadline" id="kvk-deadline" value="2026-05-23 15:00" placeholder="YYYY-MM-DD HH:MM" />
+              <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.labelDeadline">마감 일시 (KST)</div>
+              <input type="text" name="deadline" id="kvk-deadline" value="2026-05-23 15:00" placeholder="YYYY-MM-DD HH:MM" />
+            </div>
+
+            <hr class="kvk-divider" />
+
+            <!-- 추가 가속권 — 분 단위 단일 입력 + 자동 dhm 표시 -->
+            <div class="kvk-sidebar-section kvk-sidebar-section-inner">
+              <div class="kvk-section-label" data-i18n="gameTools.kvkCalculator.labelBonusMinutes">추가 가속권</div>
+              <div class="kvk-field-with-suffix">
+                <input
+                  type="text"
+                  name="bonusMinutes"
+                  id="kvk-bonus-minutes"
+                  inputmode="numeric"
+                  data-kvk-number
+                  value="2420"
+                  placeholder="0"
+                />
+                <span class="kvk-field-suffix" data-i18n="gameTools.kvkCalculator.unitMinutes">분</span>
               </div>
-              <div class="kvk-2col-grid kvk-2col-grid-sm">
-                <div class="kvk-field">
-                  <label class="kvk-field-label"><span data-i18n="gameTools.kvkCalculator.labelBonus3h">3시간권 (개)</span></label>
-                  <input type="text" name="bonusH3" inputmode="numeric" data-kvk-number value="36" />
-                </div>
-                <div class="kvk-field">
-                  <label class="kvk-field-label"><span data-i18n="gameTools.kvkCalculator.labelBonus1h">1시간권 (개)</span></label>
-                  <input type="text" name="bonusH1" inputmode="numeric" data-kvk-number value="30" />
-                </div>
-                <div class="kvk-field">
-                  <label class="kvk-field-label"><span data-i18n="gameTools.kvkCalculator.labelBonus5m">5분권 (개)</span></label>
-                  <input type="text" name="bonusM5" inputmode="numeric" data-kvk-number value="216" />
-                </div>
-                <div class="kvk-field">
-                  <label class="kvk-field-label"><span data-i18n="gameTools.kvkCalculator.labelBonus1m">1분권 (개)</span></label>
-                  <input type="text" name="bonusM1" inputmode="numeric" data-kvk-number value="180" />
-                </div>
+              <div class="kvk-bonus-dhm" id="kvk-bonus-dhm-row">
+                ㄴ <span id="kvk-bonus-dhm"></span>
               </div>
             </div>
 

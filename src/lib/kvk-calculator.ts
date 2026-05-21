@@ -39,7 +39,8 @@ export interface KvkInputs {
   /** 마감 일시 (ISO 8601, 예: 2026-05-23T15:00:00+09:00). */
   deadline: string;
   /** 추가 획득 예상 가속권 (개수). */
-  bonus: { h3: number; h1: number; m5: number; m1: number };
+  /** 추가 가속권 합계 (분). UI 는 단일 분-입력 필드로 단순화. */
+  bonusMinutes: number;
 }
 
 export interface TrainingResult {
@@ -153,8 +154,7 @@ function computeFeasibility(
     ? Math.round((deadlineMs - refMs) / 60000)
     : 0;
 
-  const bonusGainMin =
-    inputs.bonus.h3 * 180 + inputs.bonus.h1 * 60 + inputs.bonus.m5 * 5 + inputs.bonus.m1 * 1;
+  const bonusGainMin = inputs.bonusMinutes;
 
   const needed = building.totalMinutes;
   const available = training.remaining.common + bonusGainMin + inputs.accel.building;
