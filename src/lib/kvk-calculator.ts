@@ -27,9 +27,11 @@ export const KVK_CONSTANTS = {
     infantry29to30: 3392,
     archery29to30: 3392,
   },
-  /** 최강왕국(준비전) 훈련 1명당 점수 — kingshotdata.kr/data/ks_training_promotion_per_troop.json
-   *  governor_points_per_troop 기준. 사이트 리버싱 출처. */
-  governorPointsPerTroop: { 9: 30, 10: 39 } as Record<9 | 10, number>,
+  /** 최강왕국(준비전) 훈련 1명당 점수.
+   *  사이트 JSON 의 `kvk_points_per_troop` 값과 일치 — 사이트는 컬럼 라벨이 뒤바뀐 듯
+   *  (`governor_points_per_troop` 30/39 가 라벨상 최강왕국 으로 매핑돼 있지만 실제 게임 값은 45/60).
+   *  CLAUDE.md / kvk-score.ts 의 4일차 점수와도 일치. */
+  governorPointsPerTroop: { 9: 45, 10: 60 } as Record<9 | 10, number>,
 } as const;
 
 export interface KvkInputs {
