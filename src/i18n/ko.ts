@@ -724,13 +724,13 @@ export const ko = {
       bBreakdown: '구성',
 
       fDeadline: '마감',
-      fRefTime: '기준 시간',
-      fRealtime: '실시간 여유',
-      fBonusGain: '추가 가속권',
+      fRealtime: '기준 시간 기준 잔여시간',
+      fRealtimeNow: '현재 시간 기준 잔여시간',
       fNeeded: '필요 가속권',
       fAvailable: '가용 가속권',
       fShortage: '부족분',
       fShortageOk: '여유',
+      fDeadlinePassed: '마감 지남',
 
       constTrainingSpeed: '훈련속도',
       constBuildSpeed: '건설속도 시간배율',

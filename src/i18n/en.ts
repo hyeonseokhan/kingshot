@@ -726,13 +726,13 @@ export const en: Translations = {
       bBreakdown: 'Breakdown',
 
       fDeadline: 'Deadline',
-      fRefTime: 'Reference time',
-      fRealtime: 'Real-time available',
-      fBonusGain: 'Bonus speedups',
+      fRealtime: 'Remaining (from ref time)',
+      fRealtimeNow: 'Remaining (from now)',
       fNeeded: 'Required speedups',
       fAvailable: 'Available speedups',
       fShortage: 'Shortage',
       fShortageOk: 'Surplus',
+      fDeadlinePassed: 'Past deadline',
 
       constTrainingSpeed: 'Training speed',
       constBuildSpeed: 'Build time factor',

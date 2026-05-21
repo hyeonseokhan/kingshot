@@ -362,9 +362,8 @@ function renderFeasibility(r: KvkResults['feasibility']): void {
 
   const labels = {
     deadline: t('gameTools.kvkCalculator.fDeadline'),
-    refTime: t('gameTools.kvkCalculator.fRefTime'),
     realtime: t('gameTools.kvkCalculator.fRealtime'),
-    bonus: t('gameTools.kvkCalculator.fBonusGain'),
+    realtimeNow: t('gameTools.kvkCalculator.fRealtimeNow'),
     needed: t('gameTools.kvkCalculator.fNeeded'),
     available: t('gameTools.kvkCalculator.fAvailable'),
     shortage: t(r.shortage > 0 ? 'gameTools.kvkCalculator.fShortage' : 'gameTools.kvkCalculator.fShortageOk'),
@@ -372,19 +371,36 @@ function renderFeasibility(r: KvkResults['feasibility']): void {
 
   const shortageVal = Math.abs(r.shortage);
   const shortageClass = r.shortage > 0 ? 'kvk-shortage-bad' : 'kvk-shortage-ok';
+  const unitMinutes = t('gameTools.kvkCalculator.unitMinutes');
 
   setRows(
     'kvk-feasibility-rows',
     `
-    <tr><th>${labels.refTime}</th><td>${fmtIso(r.refTime)}</td></tr>
     <tr><th>${labels.deadline}</th><td>${fmtIso(r.deadline)}</td></tr>
-    <tr><th>${labels.realtime}</th><td>${dhm(r.realtimeAvailableMin)}</td></tr>
-    <tr><th>${labels.bonus}</th><td>${fmt(r.bonusGainMin)} <span class="kvk-extra">(${dhm(r.bonusGainMin)})</span></td></tr>
-    <tr><th>${labels.needed}</th><td>${fmt(r.needed)} <span class="kvk-extra">(${dhm(r.needed)})</span></td></tr>
-    <tr><th>${labels.available}</th><td>${fmt(r.available)} <span class="kvk-extra">(${dhm(r.available)})</span></td></tr>
-    <tr class="${shortageClass}"><th>${labels.shortage}</th><td><strong>${fmt(shortageVal)}</strong> <span class="kvk-extra">(${dhm(shortageVal)})</span></td></tr>
+    <tr class="kvk-sub-row"><th>ㄴ ${labels.realtime}</th><td>${dhm(r.realtimeAvailableMin)}</td></tr>
+    <tr class="kvk-sub-row"><th>ㄴ ${labels.realtimeNow}</th><td id="kvk-current-remaining">${currentRemainingText(r.deadline)}</td></tr>
+    <tr><th>${labels.needed}</th><td>${fmt(r.needed)} ${unitMinutes} <span class="kvk-extra">(${dhm(r.needed)})</span></td></tr>
+    <tr class="kvk-sub-row"><th>ㄴ ${labels.available}</th><td>${fmt(r.available)} ${unitMinutes} <span class="kvk-extra">(${dhm(r.available)})</span></td></tr>
+    <tr class="kvk-sub-row ${shortageClass}"><th>ㄴ ${labels.shortage}</th><td><strong>${fmt(shortageVal)}</strong> ${unitMinutes} <span class="kvk-extra">(${dhm(shortageVal)})</span></td></tr>
   `,
   );
+}
+
+/** 현재 KST 기준 마감까지 남은 시간 (dhm). 마감 지나면 'fDeadlinePassed' 라벨.
+ *  setInterval 로 매 분 갱신 — recompute 호출과 무관하게 시계가 흐름. */
+function currentRemainingText(deadlineIso: string): string {
+  const deadlineMs = Date.parse(deadlineIso);
+  if (!Number.isFinite(deadlineMs)) return '-';
+  const diffMin = Math.round((deadlineMs - Date.now()) / 60000);
+  if (diffMin <= 0) return t('gameTools.kvkCalculator.fDeadlinePassed');
+  return dhm(diffMin);
+}
+
+function syncCurrentRemaining(): void {
+  if (!lastResults) return;
+  const el = $('kvk-current-remaining');
+  if (!el) return;
+  el.textContent = currentRemainingText(lastResults.feasibility.deadline);
 }
 
 function renderConstants(): void {
@@ -584,6 +600,10 @@ async function init(): Promise<void> {
       renderConstants();
     }
   });
+
+  // 현재 시간 기준 잔여 — 매 분 자동 갱신 (시계는 입력과 무관하게 흐름).
+  // 페이지 진입 후 lastResults 가 채워질 때까지는 no-op.
+  setInterval(syncCurrentRemaining, 60_000);
 }
 
 if (document.readyState === 'loading') {

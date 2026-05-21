@@ -742,6 +742,14 @@
   flex-shrink: 0;
 }
 
+/* 결과 카드의 sub-row — 부모 항목의 세부 / 파생 값. 톤 다운 + indent.
+   th 의 "ㄴ " prefix 와 함께 시각적으로 들여쓰기 효과. */
+.kvk-results tr.kvk-sub-row th {
+  font-weight: 500;
+  color: var(--text2);
+  padding-left: 16px;
+}
+
 /* 추가 가속권 안내 — 입력 의미 명확화 (저장 안 됨 / 누적 방지). */
 .kvk-bonus-hint {
   margin-top: 6px;
