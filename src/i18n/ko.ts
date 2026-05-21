@@ -714,7 +714,9 @@ export const ko = {
       mTargetArc: '목표 궁병',
       mExtraTroops: '추가된 병가',
       mTrainMin: '필요 가속권',
+      mPrepScore: '최강왕국(준비전) 점수',
       unitTroops: '명',
+      unitPoints: '점',
 
       accelTraining: '병사훈련',
       accelCommon: '공용',

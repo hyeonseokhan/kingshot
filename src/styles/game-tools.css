@@ -634,6 +634,16 @@
   padding-top: 8px;
 }
 
+/* 최강왕국 (준비전) 점수 — 훈련 섹션 최종 결과 강조 */
+.kvk-row-prep th,
+.kvk-row-prep td {
+  border-top: 1px solid var(--border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 700;
+  padding-top: 8px;
+}
+
 .kvk-shortage-bad {
   color: #b42318;
 }

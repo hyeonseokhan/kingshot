@@ -716,7 +716,9 @@ export const en: Translations = {
       mTargetArc: 'Target Archers',
       mExtraTroops: 'Additional troops',
       mTrainMin: 'Required speed-ups',
+      mPrepScore: 'Strongest Kingdom (Prep) Score',
       unitTroops: 'troops',
+      unitPoints: 'pts',
 
       accelTraining: 'Training',
       accelCommon: 'Universal',

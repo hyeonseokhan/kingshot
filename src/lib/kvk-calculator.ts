@@ -27,6 +27,9 @@ export const KVK_CONSTANTS = {
     infantry29to30: 3392,
     archery29to30: 3392,
   },
+  /** 최강왕국(준비전) 훈련 1명당 점수 — kingshotdata.kr/data/ks_training_promotion_per_troop.json
+   *  governor_points_per_troop 기준. 사이트 리버싱 출처. */
+  governorPointsPerTroop: { 9: 30, 10: 39 } as Record<9 | 10, number>,
 } as const;
 
 export interface KvkInputs {
@@ -55,6 +58,8 @@ export interface TrainingResult {
   /** 사용량 / 잔여 (분). */
   used: { training: number; common: number };
   remaining: { training: number; common: number };
+  /** 최강왕국(준비전) 점수 — totalExtra × per-tier 점수. */
+  prepKingdomScore: number;
 }
 
 export interface BuildingResult {
@@ -111,6 +116,9 @@ function computeTraining(inputs: KvkInputs): TrainingResult {
   const usedTraining = Math.min(accel.training, neededMinutes);
   const usedCommon = Math.max(0, neededMinutes - usedTraining);
 
+  const ptsPerTroop = KVK_CONSTANTS.governorPointsPerTroop[KVK_CONSTANTS.tier] ?? 0;
+  const prepKingdomScore = Math.round(totalExtra * ptsPerTroop);
+
   return {
     targetInfantry,
     targetCavalry,
@@ -124,6 +132,7 @@ function computeTraining(inputs: KvkInputs): TrainingResult {
       training: Math.max(0, accel.training - usedTraining),
       common: Math.max(0, accel.common - usedCommon),
     },
+    prepKingdomScore,
   };
 }
 

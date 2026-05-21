@@ -294,9 +294,11 @@ function renderTraining(r: KvkResults['training']): void {
     targetArc: t('gameTools.kvkCalculator.mTargetArc'),
     extra: t('gameTools.kvkCalculator.mExtraTroops'),
     min: t('gameTools.kvkCalculator.mTrainMin'),
+    prep: t('gameTools.kvkCalculator.mPrepScore'),
   };
   const unitTroops = t('gameTools.kvkCalculator.unitTroops');
   const unitMinutes = t('gameTools.kvkCalculator.unitMinutes');
+  const unitPoints = t('gameTools.kvkCalculator.unitPoints');
   const trainingLabel = t('gameTools.kvkCalculator.accelTraining');
   const commonLabel = t('gameTools.kvkCalculator.accelCommon');
 
@@ -308,6 +310,7 @@ function renderTraining(r: KvkResults['training']): void {
     <tr><th>${labels.targetArc}</th><td>${fmt(r.targetArchers)} <span class="kvk-extra">(+${fmt(r.extraArchers)})</span></td></tr>
     <tr><th>${labels.extra}</th><td><strong>${fmt(r.totalExtra)}</strong> ${unitTroops}</td></tr>
     <tr><th>${labels.min}</th><td>${fmt(r.neededMinutes)} ${unitMinutes} <span class="kvk-extra">(${dhm(r.neededMinutes)})</span></td></tr>
+    <tr class="kvk-row-prep"><th>${labels.prep}</th><td><strong>${fmt(r.prepKingdomScore)}</strong> ${unitPoints}</td></tr>
   `,
   );
 
