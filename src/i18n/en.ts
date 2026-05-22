@@ -44,7 +44,6 @@ export const en: Translations = {
       equipment: 'Equipment',
       pvp: 'Arena',
       troopsCalculator: 'Troops Calculator',
-      kvkCalculator: 'KvK Calculator',
     },
   },
   langSwitcher: {
@@ -660,95 +659,6 @@ export const en: Translations = {
       errCap: 'Capacity must be at least 1.',
       vikingsHint: 'Vikings Calculator · coming soon',
       noPermission: 'This tool is only available to authorized users.',
-    },
-    kvkCalculator: {
-      heading: 'KvK Calculator',
-      modeBadge: '🏰 30T · 5:2:3',
-      noPermission: 'This tool is only available to authorized users.',
-
-      btnSave: 'Save',
-      btnRefresh: 'Refresh',
-      btnSaving: 'Saving...',
-      btnRefreshing: 'Loading...',
-      toastSaved: 'Saved successfully.',
-      toastLoaded: 'Refreshed from server.',
-      toastSaveFail: 'Save failed. Please try again.',
-      toastLoadFail: 'Load failed. Please refresh the page.',
-      unsavedAria: 'Unsaved changes',
-
-      sectionInputs: '📥 Inputs',
-      sectionResults: '📊 Results',
-      sectionConstants: '🔒 Constants (reference)',
-
-      groupTroops: 'Troops',
-      labelInfantry: 'Infantry',
-      labelCavalry: 'Cavalry',
-      labelArchers: 'Archers',
-
-      groupAccel: 'Speedups (minutes)',
-      labelAccelCommon: 'Universal',
-      labelAccelTraining: 'Training',
-      labelAccelBuilding: 'Construction',
-
-      labelEmbassyRemaining: 'Embassy remaining (at deadline)',
-      embassyHint: 'After natural decay until deadline',
-
-      labelDeadline: 'Deadline (KST)',
-      labelBonusMinutes: 'Bonus speed-ups',
-      unitMinutes: 'min',
-      bonusMinutesPlaceholder: 'e.g. 2,420',
-      bonusMinutesHint:
-        'Speed-ups you expect to gain before the deadline (purchases / event rewards). Not saved — prevents double-counting on next day refresh.',
-
-      cardTraining: 'Troop Training (5:2:3)',
-      cardBuilding: 'Building 30T (single-slot instant)',
-      cardFeasibility: '30T Feasibility',
-
-      thMetric: 'Metric',
-      thValue: 'Value',
-      thType: 'Type',
-      thHave: 'Have',
-      thUse: 'Use',
-      thRemain: 'Remain',
-
-      mTargetInf: 'Target Infantry',
-      mTargetCav: 'Target Cavalry',
-      mTargetArc: 'Target Archers',
-      mExtraTroops: 'Additional troops',
-      mTrainMin: 'Required speed-ups',
-      mPrepScore: 'Strongest Kingdom (Prep) Score',
-      unitTroops: 'troops',
-      unitPoints: 'pts',
-
-      accelTraining: 'Training',
-      accelCommon: 'Universal',
-      accelBuilding: 'Construction',
-
-      bTotalWork: 'Total construction work',
-      bBreakdown: 'Breakdown',
-
-      fDeadline: 'Deadline',
-      fRealtime: 'Remaining (from ref time)',
-      fRealtimeNow: 'Remaining (from now)',
-      fNeeded: 'Required speedups',
-      fAvailable: 'Available speedups',
-      fShortage: 'Shortage',
-      fShortageOk: 'Surplus',
-      fDeadlinePassed: 'Past deadline',
-
-      constTrainingSpeed: 'Training speed',
-      constBuildSpeed: 'Build time factor',
-      constRefTime: 'Reference time',
-      constTier: 'Training tier',
-      constDailyTroops: 'Troops / day',
-      constRatio: 'Target ratio',
-      constArcheryUp: 'Archer 28→29',
-      constTcUp: 'TC 29→30',
-      constInfantryUp: 'Infantry 29→30',
-      constArcheryUp2: 'Archer 29→30',
-
-      footerNote: 'Inputs are auto-saved to your browser. Site calculator: ',
-      siteCalcLink: 'kingshotdata.kr',
     },
   },
   survey: {

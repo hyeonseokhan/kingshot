@@ -114,12 +114,6 @@ export const tabs: NavTab[] = [
         titleKey: 'nav.submenu.troopsCalculator',
         path: '/game-tools/troops-calculator/',
       },
-      {
-        id: 'kvk-calculator',
-        title: ko.nav.submenu.kvkCalculator,
-        titleKey: 'nav.submenu.kvkCalculator',
-        path: '/game-tools/kvk-calculator/',
-      },
     ],
   },
 ];

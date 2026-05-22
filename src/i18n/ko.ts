@@ -45,7 +45,6 @@ export const ko = {
       equipment: '장비 강화',
       pvp: '매칭 대결',
       troopsCalculator: '부대 계산기',
-      kvkCalculator: 'KvK 계산기',
     },
   },
   langSwitcher: {
@@ -658,95 +657,6 @@ export const ko = {
       errCap: '출정 상한 값은 1 이상이어야 합니다.',
       vikingsHint: 'Vikings 부대 계산기 · 추후 업데이트',
       noPermission: '이 도구는 권한이 있는 사용자만 사용할 수 있습니다.',
-    },
-    kvkCalculator: {
-      heading: 'KvK 계산기',
-      modeBadge: '🏰 30T · 5:2:3',
-      noPermission: '이 도구는 권한이 있는 사용자만 사용할 수 있습니다.',
-
-      btnSave: '저장하기',
-      btnRefresh: '새로고침',
-      btnSaving: '저장 중...',
-      btnRefreshing: '불러오는 중...',
-      toastSaved: '저장되었습니다.',
-      toastLoaded: '서버 데이터로 새로고침했습니다.',
-      toastSaveFail: '저장 실패. 잠시 후 다시 시도해 주세요.',
-      toastLoadFail: '불러오기 실패. 페이지를 새로 고쳐 주세요.',
-      unsavedAria: '저장 안 된 변경 사항',
-
-      sectionInputs: '📥 입력',
-      sectionResults: '📊 결과',
-      sectionConstants: '🔒 상수 (참고)',
-
-      groupTroops: '보유 병사',
-      labelInfantry: '보병',
-      labelCavalry: '기병',
-      labelArchers: '궁병',
-
-      groupAccel: '가속권 보유 (분)',
-      labelAccelCommon: '공용',
-      labelAccelTraining: '병사훈련',
-      labelAccelBuilding: '건설',
-
-      labelEmbassyRemaining: '대사관 잔여시간(마감 시점)',
-      embassyHint: '마감 시각 기준 자연 진행 후 잔여',
-
-      labelDeadline: '마감 일시 (KST)',
-      labelBonusMinutes: '추가 가속권',
-      unitMinutes: '분',
-      bonusMinutesPlaceholder: '예: 2420',
-      bonusMinutesHint:
-        '마감까지 더 획득할 예상 가속권 (구매 / 이벤트 보상 등). 저장되지 않음 — 보유 가속권 갱신 시 이중 합산 방지.',
-
-      cardTraining: '병사 훈련 (5:2:3 달성)',
-      cardBuilding: '건물 30T (단일 슬롯 즉시완료)',
-      cardFeasibility: '30T 가능여부',
-
-      thMetric: '항목',
-      thValue: '값',
-      thType: '종류',
-      thHave: '보유',
-      thUse: '사용',
-      thRemain: '잔여',
-
-      mTargetInf: '목표 보병',
-      mTargetCav: '목표 기병',
-      mTargetArc: '목표 궁병',
-      mExtraTroops: '추가된 병가',
-      mTrainMin: '필요 가속권',
-      mPrepScore: '최강왕국(준비전) 점수',
-      unitTroops: '명',
-      unitPoints: '점',
-
-      accelTraining: '병사훈련',
-      accelCommon: '공용',
-      accelBuilding: '건설',
-
-      bTotalWork: '총 건설 작업량',
-      bBreakdown: '구성',
-
-      fDeadline: '마감',
-      fRealtime: '기준 시간 기준 잔여시간',
-      fRealtimeNow: '현재 시간 기준 잔여시간',
-      fNeeded: '필요 가속권',
-      fAvailable: '가용 가속권',
-      fShortage: '부족분',
-      fShortageOk: '여유',
-      fDeadlinePassed: '마감 지남',
-
-      constTrainingSpeed: '훈련속도',
-      constBuildSpeed: '건설속도 시간배율',
-      constRefTime: '기준 시간',
-      constTier: '훈련 티어',
-      constDailyTroops: '하루 훈련량',
-      constRatio: '목표 비율',
-      constArcheryUp: '궁병대 28→29',
-      constTcUp: '도시센터 29→30',
-      constInfantryUp: '보병대 29→30',
-      constArcheryUp2: '궁병대 29→30',
-
-      footerNote: '입력값은 브라우저에 자동 저장됩니다. 사이트 계산기: ',
-      siteCalcLink: 'kingshotdata.kr',
     },
   },
   survey: {
