@@ -1,17 +1,18 @@
 /**
- * 부대 계산기 — 분배 모드 2종.
+ * 부대 계산기 — 분배 모드 3종.
  *
  * 입력: 출정 상한, 각 병과(보병/기병/궁병) × T9/T10 보유량, 운영 편대 수 N, 분배 모드
  * 출력: 편대별 병과 분배(T10/T9 분해) + 잔류 + 비율 정보
  *
  * 분배 모드:
- *   - 'bear' (곰 사냥, 1:1:8): 궁병 8 / 보병+기병 자리 2(=1:1 균등). 기병 부족 시 보병이 메움.
+ *   - 'bear' (권장값 1:1:8): 모든 편대 동일 분배. 궁병 8 / 보병+기병 2(1:1, 기병 부족 시 보병 메움)
+ *   - 'bear-stack' (몰빵형 1:1:8): 편대1부터 풀 1:1:8 우선 완성. 자원 줄어들면 후속 편대가 부족.
+ *     T10 우선 + 기병 부족 → 보병 흡수 정책은 'bear' 와 동일.
  *   - 'even' (보유 비율 그대로): 편대당 = 보유/N. 합이 cap 초과면 비례 축소.
  *
- * 티어 분해(전 편대 공통):
- *   병과별 perSquad 분배 총량은 모든 편대 동일하지만, 그 안의 T10/T9 비중은
- *   1편대부터 T10 을 우선 소진 → 부족분은 그 편대부터 T9 보충 → T10 잔고 모두 소진되면
- *   이후 편대는 T9 위주. "강한 T10 병사는 선두 편대에 집중" 이 게임 효율적이라 따름.
+ * 티어 분해 (T10 우선 소진):
+ *   병과별 분배량을 채울 때 보유 T10 부터 차감 → 부족분은 T9. 'bear' 모드는 1편대가 T10 을
+ *   몰빵해 가져가고 후속 편대는 T9 위주. 'bear-stack' 도 자연스럽게 1편대 T10 풀 → 후속 T9 위주.
  *
  * 모든 출력은 floor 정수. 게임 내 배치는 정수 단위.
  *
@@ -58,17 +59,25 @@ export interface RatioBreakdown {
   archers: number;
 }
 
-/** 분배 모드. 'bear' = 곰 사냥 1:1:8, 'even' = 보유 비율 그대로 N편대 분배. */
-export type DistributionMode = 'bear' | 'even';
+/** 분배 모드. */
+export type DistributionMode = 'bear' | 'bear-stack' | 'even';
 
 export interface TroopsResult {
   /**
-   *  - bear-full    : cap 전체 채움 (궁병 풀 + 보병/기병 자리 충족)
-   *  - bear-partial : cap 못 채움 (궁병 부족 또는 보병+기병 합쳐도 자리 부족)
-   *  - even-fits    : 균등(보유 비율) — cap 안에 들어옴
-   *  - even-capped  : 균등(보유 비율) — cap 초과로 비례 축소됨
+   *  - bear-full        : 권장값 — 모든 편대 cap 풀 채움
+   *  - bear-partial     : 권장값 — cap 못 채움 (전 편대 동일하게 부족)
+   *  - bear-stack-full  : 몰빵형 — 모든 편대 풀 1:1:8 (자원 충분)
+   *  - bear-stack-partial : 몰빵형 — 일부 편대 부족 (1편대 우선 풀, 후순위 부족)
+   *  - even-fits        : 균등(보유 비율) — cap 안에 들어옴
+   *  - even-capped      : 균등(보유 비율) — cap 초과로 비례 축소됨
    */
-  mode: 'bear-full' | 'bear-partial' | 'even-fits' | 'even-capped';
+  mode:
+    | 'bear-full'
+    | 'bear-partial'
+    | 'bear-stack-full'
+    | 'bear-stack-partial'
+    | 'even-fits'
+    | 'even-capped';
   /** 편대 수 N. */
   squadCount: number;
   /**
@@ -278,6 +287,87 @@ export function calculateBearHunt(input: TroopsInput): TroopsResult {
 }
 
 /**
+ * 곰 사냥 — 몰빵형. 편대1부터 풀 1:1:8 을 만드는 것을 우선.
+ *
+ * 알고리즘 (편대 순서대로 그리디 차감):
+ *   for i in 1..N:
+ *     1) 궁병 자리(cap*8/10) — 남은 보유에서 T10 → T9 순으로 가능한 만큼
+ *     2) 보병/기병 자리(cap - 궁병사용) — 1:1 균등 (홀수면 보병 +1)
+ *        - 기병: 남은 보유에서 T10 → T9 (자리 한도까지)
+ *        - 기병 부족분 → 보병이 흡수
+ *        - 보병: 자기 자리 + 기병 부족분 한도, 남은 보유에서 T10 → T9
+ *     3) 사용량 차감 → 다음 편대로
+ *
+ * 결과적으로 1편대가 가장 풀 편성, 후순위로 갈수록 자원 부족 시 빈 자리 발생.
+ */
+export function calculateBearStack(input: TroopsInput): TroopsResult {
+  const { cap, squadCount: N } = input;
+  const archerSlotMax = Math.floor((cap * RATIO.archers) / RATIO_SUM);
+
+  let leftInfT10 = input.infantryT10, leftInfT9 = input.infantryT9;
+  let leftCavT10 = input.cavalryT10, leftCavT9 = input.cavalryT9;
+  let leftArcT10 = input.archersT10, leftArcT9 = input.archersT9;
+
+  const perSquad: SquadAllocation[] = [];
+  let allFull = true;
+
+  for (let i = 0; i < N; i++) {
+    // 1) 궁병
+    const arcWant = archerSlotMax;
+    const arcT10 = Math.min(arcWant, leftArcT10);
+    const arcT9 = Math.min(arcWant - arcT10, leftArcT9);
+    const arcUsed = arcT10 + arcT9;
+    leftArcT10 -= arcT10; leftArcT9 -= arcT9;
+
+    // 2) 보병/기병 자리
+    const infCavSlot = cap - arcUsed;
+    const cavTarget = Math.floor(infCavSlot / 2);
+    const infTarget = infCavSlot - cavTarget;
+
+    // 기병
+    const cavT10 = Math.min(cavTarget, leftCavT10);
+    const cavT9 = Math.min(cavTarget - cavT10, leftCavT9);
+    const cavUsed = cavT10 + cavT9;
+    const cavShortage = cavTarget - cavUsed;
+    leftCavT10 -= cavT10; leftCavT9 -= cavT9;
+
+    // 보병 (자기 자리 + 기병 부족분)
+    const infWant = infTarget + cavShortage;
+    const infT10 = Math.min(infWant, leftInfT10);
+    const infT9 = Math.min(infWant - infT10, leftInfT9);
+    const infUsed = infT10 + infT9;
+    leftInfT10 -= infT10; leftInfT9 -= infT9;
+
+    const squadTotal = arcUsed + cavUsed + infUsed;
+    if (squadTotal < cap) allFull = false;
+
+    perSquad.push({
+      infantry: { t10: infT10, t9: infT9, total: infUsed },
+      cavalry: { t10: cavT10, t9: cavT9, total: cavUsed },
+      archers: { t10: arcT10, t9: arcT9, total: arcUsed },
+      total: squadTotal,
+    });
+  }
+
+  // 실제 비율은 전체 사용량 합 기준 (편대별 분배가 다르므로 평균)
+  let sumInf = 0, sumCav = 0, sumArc = 0;
+  for (const s of perSquad) { sumInf += s.infantry.total; sumCav += s.cavalry.total; sumArc += s.archers.total; }
+
+  return {
+    mode: allFull ? 'bear-stack-full' : 'bear-stack-partial',
+    squadCount: N,
+    perSquad,
+    remaining: {
+      infantry: { t10: leftInfT10, t9: leftInfT9, total: leftInfT10 + leftInfT9 },
+      cavalry: { t10: leftCavT10, t9: leftCavT9, total: leftCavT10 + leftCavT9 },
+      archers: { t10: leftArcT10, t9: leftArcT9, total: leftArcT10 + leftArcT9 },
+    },
+    targetRatio: { infantry: 1, cavalry: 1, archers: 8 },
+    actualRatio: toRatio(sumInf, sumCav, sumArc),
+  };
+}
+
+/**
  * 균등 분배 — 보유 비율 그대로 N편대에 나눔. 합이 cap 초과면 비례 축소.
  * "균등"은 "보유 비율 유지" 라는 의미로, 1:1:1 강제가 아님.
  */
@@ -314,6 +404,7 @@ export function calculateEven(input: TroopsInput): TroopsResult {
 /** 분배 모드 디스패치. 호출자가 mode 를 결정해서 전달. */
 export function calculate(input: TroopsInput, mode: DistributionMode): TroopsResult {
   if (mode === 'even') return calculateEven(input);
+  if (mode === 'bear-stack') return calculateBearStack(input);
   return calculateBearHunt(input);
 }
 

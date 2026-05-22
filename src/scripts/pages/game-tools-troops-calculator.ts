@@ -76,7 +76,7 @@ function loadState(): StoredState | null {
             archersT10: src.archersT10,
             squadCount: src.squadCount,
           },
-          distribution: obj.distribution === 'even' ? 'even' : 'bear',
+          distribution: parseDistribution(obj.distribution as string | undefined),
         };
       }
     }
@@ -107,7 +107,7 @@ function loadState(): StoredState | null {
             archersT10: 0,
             squadCount: src.squadCount,
           },
-          distribution: obj.distribution === 'even' ? 'even' : 'bear',
+          distribution: parseDistribution(obj.distribution as string | undefined),
         };
       }
     }
@@ -138,9 +138,15 @@ function parseNumber(raw: FormDataEntryValue | null, allowEmptyAsZero = false): 
   return Number(digits);
 }
 
+function parseDistribution(raw: FormDataEntryValue | null | string | undefined): DistributionMode {
+  if (raw === 'even') return 'even';
+  if (raw === 'bear-stack') return 'bear-stack';
+  return 'bear';
+}
+
 function readForm(form: HTMLFormElement): { input: TroopsInput; distribution: DistributionMode } {
   const fd = new FormData(form);
-  const distribution: DistributionMode = fd.get('distribution') === 'even' ? 'even' : 'bear';
+  const distribution: DistributionMode = parseDistribution(fd.get('distribution'));
   // 병과 입력은 비워두면 0 으로 간주 (T10/T9 한쪽만 입력하는 케이스 자연 지원)
   return {
     input: {
@@ -219,6 +225,8 @@ let lastResult: TroopsResult | null = null;
 const MODE_KEYS: Record<TroopsResult['mode'], string> = {
   'bear-full': 'gameTools.troopsCalculator.modeFull',
   'bear-partial': 'gameTools.troopsCalculator.modePartial',
+  'bear-stack-full': 'gameTools.troopsCalculator.modeStackFull',
+  'bear-stack-partial': 'gameTools.troopsCalculator.modeStackPartial',
   'even-fits': 'gameTools.troopsCalculator.modeEvenFits',
   'even-capped': 'gameTools.troopsCalculator.modeEvenCapped',
 };
@@ -232,7 +240,7 @@ function ratioInlineKey(mode: TroopsResult['mode']): string {
 
 /** mode → CSS dataset 값. 풀 편성 계열은 'full', 그 외는 'partial' (도트 색상). */
 function modeDot(mode: TroopsResult['mode']): 'full' | 'partial' {
-  if (mode === 'bear-full' || mode === 'even-fits') return 'full';
+  if (mode === 'bear-full' || mode === 'bear-stack-full' || mode === 'even-fits') return 'full';
   return 'partial';
 }
 
