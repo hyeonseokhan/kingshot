@@ -98,17 +98,64 @@
   margin-bottom: 16px;
 }
 
-/* 2열 × 3행 — PC/모바일 동일 패턴.
-   row-by-row 흐름이라 DOM 순서대로:
-   row1: 보병 | 출정상한
-   row2: 기병 | 편대수
-   row3: 궁병 | 분배비율
-   액션은 grid 밖 한 줄. */
-.tc-grid {
+/* 병과 입력 그리드 — 3열(라벨 + T10 + T9) × 4행(헤더 + 보병/기병/궁병).
+   T10 을 좌측에 두는 이유: 더 강한 병사라 우선순위가 높음 (시각적 first-class). */
+.tc-troops-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(54px, auto) 1fr 1fr;
+  gap: 8px 10px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.tc-troops-head {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tc-troops-head-label {
+  text-align: left;
+}
+.tc-troops-label {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.tc-troops-grid input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  box-sizing: border-box;
+}
+.tc-troops-grid input:focus {
+  outline: 2px solid var(--accent-light);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+/* 설정 그리드 — 출정상한 / 편대수 / 분배비율. 3열 균등, 모바일에서는 1열. */
+.tc-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 12px;
   margin-bottom: 12px;
+}
+@media (max-width: 520px) {
+  .tc-settings-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tc-settings-grid .tc-field:nth-child(3) {
+    grid-column: 1 / -1;
+  }
 }
 
 .tc-field {
@@ -233,31 +280,88 @@
   font-weight: 700;
   color: var(--text);
 }
-.tc-table tbody tr.tc-row-squad:hover {
-  background: var(--accent-bg);
-}
 .tc-table tbody tr:last-child td {
   border-bottom: none;
 }
 
 /* 숫자 셀 — 클릭/터치 시 raw 숫자 복사. 피드백은 화면 가운데 토스트(.tc-toast).
-   PC/모바일 완전 일관: :hover/:active 안 씀.
-   - :hover: 모바일 sticky-hover 회피
-   - :active: iOS 짧은 탭(50ms) 에서 효과가 거의 안 보이는 한계
-   대신 JS 가 pointerdown 에서 .tc-tap 클래스 추가, 항상 최소 120ms 강조 보장. */
-.tc-table td.tc-num {
+   - .tc-tap : JS 가 pointerdown 에서 추가 (최소 120ms 강조, PC/모바일 일관)
+   - :hover  : PC (hover 가능 + 정밀 포인터) 환경에서만 — "이 줄이 복사 대상" 시각 단서.
+               모바일 sticky-hover 회피 위해 @media 가드.
+   행 전체 hover 강조는 제거됨: 사용자가 셀 하나만 복사되는데 행이 강조되면 헷갈림. */
+.tc-table .tc-num {
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   transition: background-color 0.12s, color 0.12s;
 }
-.tc-table td.tc-num.tc-tap {
+.tc-table .tc-num.tc-tap {
   background: var(--accent-bg);
   color: var(--accent);
 }
-.tc-table td.tc-num:focus-visible {
+.tc-table .tc-num:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tc-table .tc-num:hover {
+    background: var(--accent-bg);
+  }
+  /* hover 시 라벨/값 둘 다 accent 색 — "이 한 줄이 복사 단위" 임을 강조 */
+  .tc-table .tc-num:hover .tc-tier-label,
+  .tc-table .tc-num:hover .tc-tier-val {
+    color: var(--accent);
+  }
+}
+
+/* T10/T9 분해 셀 — 한 셀 안에 두 줄. 각 줄이 독립 클릭 영역(.tc-num).
+   T10 줄을 위, T9 줄을 아래. 두 줄 사이 간격은 미세. */
+.tc-table td.tc-cell-tier {
+  padding: 4px 6px;
+  text-align: right;
+}
+.tc-tier-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.tc-tier-row + .tc-tier-row {
+  margin-top: 2px;
+}
+.tc-tier-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+.tc-tier-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+.tc-tier-zero {
+  color: var(--text3);
+  opacity: 0.6;
+}
+.tc-tier-zero .tc-tier-val {
+  font-weight: 500;
+  color: var(--text3);
+}
+
+/* 결과 표 헤더 — T9/T10 안내 (잘 보이게) */
+.tc-tier-hint {
+  margin: 0;
+  padding: 8px 14px 10px;
+  font-size: 11.5px;
+  color: var(--text3);
+  text-align: center;
+  letter-spacing: 0.01em;
 }
 
 /* 화면 가운데 토스트 — 타일매치의 .tm-toast 와 동일 패턴 (어두운 pill, fade in/out). */
@@ -326,7 +430,17 @@
   }
   .tc-table th,
   .tc-table td {
-    padding: 8px 10px;
+    padding: 8px 8px;
+    font-size: 12.5px;
+  }
+  .tc-table td.tc-cell-tier {
+    padding: 4px 4px;
+  }
+  .tc-tier-row {
+    padding: 3px 6px;
+    gap: 4px;
+  }
+  .tc-tier-val {
     font-size: 12.5px;
   }
   .tc-mode-badge {

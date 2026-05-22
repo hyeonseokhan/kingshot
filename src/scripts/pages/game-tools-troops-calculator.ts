@@ -3,9 +3,11 @@
  * 입력 → 계산 → DOM 갱신. 외부 통신 0회 (순수 클라계산).
  *
  * 입력 필드는 [data-tc-number] 마커로 천단위 쉼표 자동 포맷.
- * 결과 표는 N개 편대 + 마지막 잔류 행(.tc-row-remaining).
+ * 결과 표는 N개 편대(각 셀에 T10/T9 두 줄) + 잔류 행 + 합계 행.
+ * 숫자 셀(.tc-num)은 클릭 시 raw 숫자 클립보드 복사.
  *
  * 영속화: 계산 성공 시 입력값을 localStorage 에 저장. 페이지 재진입 시 복원 + 자동 재계산.
+ * v1(보병/기병/궁병 단일 입력) 데이터는 T9 로 마이그레이션 (T10=0).
  */
 
 import {
@@ -13,6 +15,7 @@ import {
   formatRatio,
   validate,
   type DistributionMode,
+  type TierBreakdown,
   type TroopsInput,
   type TroopsResult,
   type ValidationError,
@@ -24,7 +27,9 @@ function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
 }
 
 // ===== 영속화 =====
-const STORAGE_KEY = 'pnx-troops-calc-bear-v1';
+// v2 — T9/T10 분리 모델. v1 형식은 폴드해서 T9 로 마이그레이션.
+const STORAGE_KEY = 'pnx-troops-calc-bear-v2';
+const LEGACY_KEY_V1 = 'pnx-troops-calc-bear-v1';
 
 interface StoredState {
   input: TroopsInput;
@@ -39,38 +44,74 @@ function saveState(state: StoredState): void {
   }
 }
 
-/** 저장 데이터 로드. v1(분배 모드 없음) 도 호환 — distribution 없으면 'bear' 기본. */
+/**
+ * 저장 데이터 로드.
+ *   v2 (T9/T10 분리) 우선 → 없으면 v1 (단일 입력) → T9 로 마이그레이션.
+ */
 function loadState(): StoredState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const obj = JSON.parse(raw) as Partial<TroopsInput> & {
-      distribution?: DistributionMode;
-      input?: Partial<TroopsInput>;
-    };
-    // v1.5 (StoredState 형식) 또는 v1 (raw TroopsInput) 모두 수용
-    const src = obj.input ?? obj;
-    if (
-      typeof src.cap !== 'number' ||
-      typeof src.infantry !== 'number' ||
-      typeof src.cavalry !== 'number' ||
-      typeof src.archers !== 'number' ||
-      typeof src.squadCount !== 'number'
-    ) {
-      return null;
+    if (raw) {
+      const obj = JSON.parse(raw) as { input?: Partial<TroopsInput>; distribution?: DistributionMode };
+      const src = obj.input;
+      if (
+        src &&
+        typeof src.cap === 'number' &&
+        typeof src.infantryT9 === 'number' &&
+        typeof src.infantryT10 === 'number' &&
+        typeof src.cavalryT9 === 'number' &&
+        typeof src.cavalryT10 === 'number' &&
+        typeof src.archersT9 === 'number' &&
+        typeof src.archersT10 === 'number' &&
+        typeof src.squadCount === 'number'
+      ) {
+        return {
+          input: {
+            cap: src.cap,
+            infantryT9: src.infantryT9,
+            infantryT10: src.infantryT10,
+            cavalryT9: src.cavalryT9,
+            cavalryT10: src.cavalryT10,
+            archersT9: src.archersT9,
+            archersT10: src.archersT10,
+            squadCount: src.squadCount,
+          },
+          distribution: obj.distribution === 'even' ? 'even' : 'bear',
+        };
+      }
     }
-    const distribution: DistributionMode =
-      obj.distribution === 'even' ? 'even' : 'bear';
-    return {
-      input: {
-        cap: src.cap,
-        infantry: src.infantry,
-        cavalry: src.cavalry,
-        archers: src.archers,
-        squadCount: src.squadCount,
-      },
-      distribution,
-    };
+    // v1 마이그레이션 — 보유량을 T9 로 매핑
+    const legacy = localStorage.getItem(LEGACY_KEY_V1);
+    if (legacy) {
+      const obj = JSON.parse(legacy) as {
+        input?: { cap?: number; infantry?: number; cavalry?: number; archers?: number; squadCount?: number };
+        distribution?: DistributionMode;
+        cap?: number; infantry?: number; cavalry?: number; archers?: number; squadCount?: number;
+      };
+      const src = obj.input ?? obj;
+      if (
+        typeof src.cap === 'number' &&
+        typeof src.infantry === 'number' &&
+        typeof src.cavalry === 'number' &&
+        typeof src.archers === 'number' &&
+        typeof src.squadCount === 'number'
+      ) {
+        return {
+          input: {
+            cap: src.cap,
+            infantryT9: src.infantry,
+            infantryT10: 0,
+            cavalryT9: src.cavalry,
+            cavalryT10: 0,
+            archersT9: src.archers,
+            archersT10: 0,
+            squadCount: src.squadCount,
+          },
+          distribution: obj.distribution === 'even' ? 'even' : 'bear',
+        };
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -79,6 +120,7 @@ function loadState(): StoredState | null {
 function clearStoredState(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_KEY_V1);
   } catch {
     /* */
   }
@@ -88,23 +130,27 @@ function fmt(n: number): string {
   return n.toLocaleString('ko-KR');
 }
 
-/** raw 숫자 추출 — 입력 필드에 쉼표/공백 섞여있어도 숫자만 파싱. */
-function parseNumber(raw: FormDataEntryValue | null): number {
+/** raw 숫자 추출 — 입력 필드에 쉼표/공백 섞여있어도 숫자만 파싱. 빈 값은 0 으로 간주. */
+function parseNumber(raw: FormDataEntryValue | null, allowEmptyAsZero = false): number {
   if (raw == null) return Number.NaN;
   const digits = String(raw).replace(/[^\d]/g, '');
-  if (digits === '') return Number.NaN;
+  if (digits === '') return allowEmptyAsZero ? 0 : Number.NaN;
   return Number(digits);
 }
 
 function readForm(form: HTMLFormElement): { input: TroopsInput; distribution: DistributionMode } {
   const fd = new FormData(form);
   const distribution: DistributionMode = fd.get('distribution') === 'even' ? 'even' : 'bear';
+  // 병과 입력은 비워두면 0 으로 간주 (T10/T9 한쪽만 입력하는 케이스 자연 지원)
   return {
     input: {
       cap: parseNumber(fd.get('cap')),
-      infantry: parseNumber(fd.get('infantry')),
-      cavalry: parseNumber(fd.get('cavalry')),
-      archers: parseNumber(fd.get('archers')),
+      infantryT9: parseNumber(fd.get('infantryT9'), true),
+      infantryT10: parseNumber(fd.get('infantryT10'), true),
+      cavalryT9: parseNumber(fd.get('cavalryT9'), true),
+      cavalryT10: parseNumber(fd.get('cavalryT10'), true),
+      archersT9: parseNumber(fd.get('archersT9'), true),
+      archersT10: parseNumber(fd.get('archersT10'), true),
       squadCount: parseNumber(fd.get('squadCount')),
     },
     distribution,
@@ -190,6 +236,38 @@ function modeDot(mode: TroopsResult['mode']): 'full' | 'partial' {
   return 'partial';
 }
 
+/**
+ * 병과 셀 — T10/T9 두 줄. 각 줄은 .tc-num 으로 클릭 시 그 티어 raw 만 복사.
+ * 보유/배분이 모두 0 이면 그 줄 숨김(시각적 노이즈 제거).
+ */
+function tierCell(b: TierBreakdown): string {
+  const lines: string[] = [];
+  if (b.t10 > 0) {
+    lines.push(
+      `<span class="tc-num tc-tier-row" data-raw="${b.t10}" tabindex="0" role="button" title="${t('gameTools.troopsCalculator.copyHint')}">` +
+        `<span class="tc-tier-label">T10</span><span class="tc-tier-val">${fmt(b.t10)}</span>` +
+      `</span>`,
+    );
+  }
+  if (b.t9 > 0) {
+    lines.push(
+      `<span class="tc-num tc-tier-row" data-raw="${b.t9}" tabindex="0" role="button" title="${t('gameTools.troopsCalculator.copyHint')}">` +
+        `<span class="tc-tier-label">T9</span><span class="tc-tier-val">${fmt(b.t9)}</span>` +
+      `</span>`,
+    );
+  }
+  if (lines.length === 0) {
+    // 0 인 셀은 "0" 한 줄 — 시각적 빈 셀 회피
+    lines.push(`<span class="tc-tier-row tc-tier-zero"><span class="tc-tier-val">0</span></span>`);
+  }
+  return `<td class="tc-cell-tier">${lines.join('')}</td>`;
+}
+
+/** 합계 셀 — 단일 라인. 클릭 시 raw 복사. */
+function totalCell(n: number): string {
+  return `<td class="tc-num" data-raw="${n}" tabindex="0" role="button" title="${t('gameTools.troopsCalculator.copyHint')}">${fmt(n)}</td>`;
+}
+
 function renderResult(result: TroopsResult): void {
   lastResult = result;
 
@@ -214,56 +292,64 @@ function renderResult(result: TroopsResult): void {
   }
 
   // 표 본체 — N행 편대 + 잔류 + 합계.
-  // 숫자 셀(.tc-num) 은 클릭 시 data-raw 의 raw 숫자가 클립보드로 복사됨 (게임 인풋용).
   const tbody = $('tc-table-body');
-  if (tbody) {
-    const numCell = (n: number) =>
-      `<td class="tc-num" data-raw="${n}" tabindex="0" role="button" title="${t('gameTools.troopsCalculator.copyHint')}">${fmt(n)}</td>`;
+  if (!tbody) return;
 
-    tbody.innerHTML = '';
-    for (let i = 1; i <= result.squadCount; i++) {
-      const tr = document.createElement('tr');
-      tr.className = 'tc-row-squad';
-      tr.innerHTML = `
-        <td>${i}</td>
-        ${numCell(result.perSquad.infantry)}
-        ${numCell(result.perSquad.cavalry)}
-        ${numCell(result.perSquad.archers)}
-        ${numCell(result.perSquad.total)}
-      `;
-      tbody.appendChild(tr);
-    }
-
-    // 잔류 행 (노란색 배경)
-    const r = result.remaining;
-    const remTotal = r.infantry + r.cavalry + r.archers;
-    const remTr = document.createElement('tr');
-    remTr.className = 'tc-row-remaining';
-    remTr.innerHTML = `
-      <td data-i18n="gameTools.troopsCalculator.tableRemaining">${t('gameTools.troopsCalculator.tableRemaining')}</td>
-      ${numCell(r.infantry)}
-      ${numCell(r.cavalry)}
-      ${numCell(r.archers)}
-      ${numCell(remTotal)}
+  tbody.innerHTML = '';
+  for (let i = 1; i <= result.squadCount; i++) {
+    const tr = document.createElement('tr');
+    tr.className = 'tc-row-squad';
+    tr.innerHTML = `
+      <td>${i}</td>
+      ${tierCell(result.perSquad.infantry)}
+      ${tierCell(result.perSquad.cavalry)}
+      ${tierCell(result.perSquad.archers)}
+      ${totalCell(result.perSquad.total)}
     `;
-    tbody.appendChild(remTr);
-
-    // 합계 행 (회색 배경) — 편대 사용량 + 잔류 = 보유 총량
-    const sumInf = result.perSquad.infantry * result.squadCount + r.infantry;
-    const sumCav = result.perSquad.cavalry * result.squadCount + r.cavalry;
-    const sumArc = result.perSquad.archers * result.squadCount + r.archers;
-    const sumAll = sumInf + sumCav + sumArc;
-    const sumTr = document.createElement('tr');
-    sumTr.className = 'tc-row-total';
-    sumTr.innerHTML = `
-      <td data-i18n="gameTools.troopsCalculator.tableSumRow">${t('gameTools.troopsCalculator.tableSumRow')}</td>
-      ${numCell(sumInf)}
-      ${numCell(sumCav)}
-      ${numCell(sumArc)}
-      ${numCell(sumAll)}
-    `;
-    tbody.appendChild(sumTr);
+    tbody.appendChild(tr);
   }
+
+  // 잔류 행 (노란색 배경)
+  const r = result.remaining;
+  const remTotal = r.infantry.total + r.cavalry.total + r.archers.total;
+  const remTr = document.createElement('tr');
+  remTr.className = 'tc-row-remaining';
+  remTr.innerHTML = `
+    <td data-i18n="gameTools.troopsCalculator.tableRemaining">${t('gameTools.troopsCalculator.tableRemaining')}</td>
+    ${tierCell(r.infantry)}
+    ${tierCell(r.cavalry)}
+    ${tierCell(r.archers)}
+    ${totalCell(remTotal)}
+  `;
+  tbody.appendChild(remTr);
+
+  // 합계 행 (회색 배경) — 편대 사용량 + 잔류 = 보유 총량. 티어별 합계 분리 표시.
+  const sumInf: TierBreakdown = {
+    t10: result.perSquad.infantry.t10 * result.squadCount + r.infantry.t10,
+    t9: result.perSquad.infantry.t9 * result.squadCount + r.infantry.t9,
+    total: result.perSquad.infantry.total * result.squadCount + r.infantry.total,
+  };
+  const sumCav: TierBreakdown = {
+    t10: result.perSquad.cavalry.t10 * result.squadCount + r.cavalry.t10,
+    t9: result.perSquad.cavalry.t9 * result.squadCount + r.cavalry.t9,
+    total: result.perSquad.cavalry.total * result.squadCount + r.cavalry.total,
+  };
+  const sumArc: TierBreakdown = {
+    t10: result.perSquad.archers.t10 * result.squadCount + r.archers.t10,
+    t9: result.perSquad.archers.t9 * result.squadCount + r.archers.t9,
+    total: result.perSquad.archers.total * result.squadCount + r.archers.total,
+  };
+  const sumAll = sumInf.total + sumCav.total + sumArc.total;
+  const sumTr = document.createElement('tr');
+  sumTr.className = 'tc-row-total';
+  sumTr.innerHTML = `
+    <td data-i18n="gameTools.troopsCalculator.tableSumRow">${t('gameTools.troopsCalculator.tableSumRow')}</td>
+    ${tierCell(sumInf)}
+    ${tierCell(sumCav)}
+    ${tierCell(sumArc)}
+    ${totalCell(sumAll)}
+  `;
+  tbody.appendChild(sumTr);
 }
 
 /**
@@ -320,7 +406,7 @@ function flashCell(cell: HTMLElement): void {
   window.setTimeout(() => cell.classList.remove('tc-tap'), 120);
 }
 
-/** pointerdown 위임 — .tc-num 이면 짧은 강조 시작 (PC down + 모바일 touch 모두). */
+/** pointerdown 위임 — .tc-num 이면 짧은 강조 시작. */
 function onCellPointerDown(e: PointerEvent): void {
   const target = e.target as HTMLElement;
   const cell = target.closest('.tc-num') as HTMLElement | null;
@@ -334,7 +420,6 @@ function onCellActivate(e: Event): void {
   if (!cell) return;
   if (e instanceof KeyboardEvent) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    // 키보드 활성화 시에도 같은 강조 (마우스/터치 일관)
     flashCell(cell);
   }
   e.preventDefault();
@@ -351,18 +436,27 @@ function resetResult(): void {
   if (root) root.setAttribute('hidden', '');
 }
 
+const TIER_FIELD_NAMES = [
+  'infantryT10',
+  'infantryT9',
+  'cavalryT10',
+  'cavalryT9',
+  'archersT10',
+  'archersT9',
+] as const;
+
 /** 저장된 상태(입력값 + 분배 모드) 를 폼에 복원. 폼이 비어있는 상태일 때만 사용. */
 function restoreFormFromStorage(form: HTMLFormElement): StoredState | null {
   const stored = loadState();
   if (!stored) return null;
   const setText = (name: string, value: number) => {
     const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
-    if (el) el.value = value.toLocaleString('ko-KR');
+    if (el) el.value = value > 0 ? value.toLocaleString('ko-KR') : '';
   };
   setText('cap', stored.input.cap);
-  setText('infantry', stored.input.infantry);
-  setText('cavalry', stored.input.cavalry);
-  setText('archers', stored.input.archers);
+  for (const name of TIER_FIELD_NAMES) {
+    setText(name, stored.input[name]);
+  }
   const squad = form.querySelector<HTMLSelectElement>('select[name="squadCount"]');
   if (squad) squad.value = String(stored.input.squadCount);
   const dist = form.querySelector<HTMLSelectElement>('select[name="distribution"]');
@@ -382,9 +476,6 @@ function init(): void {
   });
 
   // 결과 표 숫자 셀 — 클릭/터치 시 클립보드 복사. (이벤트 위임으로 tbody 재렌더 후에도 유지)
-  // - pointerdown : 손가락/마우스 닿는 순간 짧은 시각 강조 (.tc-tap 120ms)
-  // - click       : 복사 + 토스트
-  // - keydown     : Enter/Space 키보드 활성화도 같은 동작
   const tableBody = $('tc-table-body');
   tableBody?.addEventListener('pointerdown', onCellPointerDown);
   tableBody?.addEventListener('click', onCellActivate);
@@ -406,8 +497,6 @@ function init(): void {
 
   resetBtn?.addEventListener('click', () => {
     form.reset();
-    // form.reset() 으로 input.value 가 초기 빈 문자열로 돌아감. [data-tc-number] 포맷터는
-    // input 이벤트가 안 와서 그대로 빈 채 유지 — OK. select 는 default selected 옵션으로 복귀.
     clearError();
     resetResult();
     clearStoredState();
@@ -419,7 +508,6 @@ function init(): void {
   });
 
   // 저장된 입력 복원 + 자동 재계산 (validate 통과 시).
-  // 권한 없는 사용자는 가드가 form 자체를 숨기므로 여기까지 와도 시각적 영향 없음.
   const restored = restoreFormFromStorage(form);
   if (restored && validate(restored.input) === null) {
     renderResult(calculate(restored.input, restored.distribution));
