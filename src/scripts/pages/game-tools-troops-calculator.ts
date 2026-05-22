@@ -296,15 +296,16 @@ function renderResult(result: TroopsResult): void {
   if (!tbody) return;
 
   tbody.innerHTML = '';
-  for (let i = 1; i <= result.squadCount; i++) {
+  for (let i = 0; i < result.squadCount; i++) {
+    const squad = result.perSquad[i];
     const tr = document.createElement('tr');
     tr.className = 'tc-row-squad';
     tr.innerHTML = `
-      <td>${i}</td>
-      ${tierCell(result.perSquad.infantry)}
-      ${tierCell(result.perSquad.cavalry)}
-      ${tierCell(result.perSquad.archers)}
-      ${totalCell(result.perSquad.total)}
+      <td>${i + 1}</td>
+      ${tierCell(squad.infantry)}
+      ${tierCell(squad.cavalry)}
+      ${tierCell(squad.archers)}
+      ${totalCell(squad.total)}
     `;
     tbody.appendChild(tr);
   }
@@ -324,21 +325,15 @@ function renderResult(result: TroopsResult): void {
   tbody.appendChild(remTr);
 
   // 합계 행 (회색 배경) — 편대 사용량 + 잔류 = 보유 총량. 티어별 합계 분리 표시.
-  const sumInf: TierBreakdown = {
-    t10: result.perSquad.infantry.t10 * result.squadCount + r.infantry.t10,
-    t9: result.perSquad.infantry.t9 * result.squadCount + r.infantry.t9,
-    total: result.perSquad.infantry.total * result.squadCount + r.infantry.total,
-  };
-  const sumCav: TierBreakdown = {
-    t10: result.perSquad.cavalry.t10 * result.squadCount + r.cavalry.t10,
-    t9: result.perSquad.cavalry.t9 * result.squadCount + r.cavalry.t9,
-    total: result.perSquad.cavalry.total * result.squadCount + r.cavalry.total,
-  };
-  const sumArc: TierBreakdown = {
-    t10: result.perSquad.archers.t10 * result.squadCount + r.archers.t10,
-    t9: result.perSquad.archers.t9 * result.squadCount + r.archers.t9,
-    total: result.perSquad.archers.total * result.squadCount + r.archers.total,
-  };
+  // 편대마다 T10/T9 분포가 달라서(T10 1편대부터 몰빵) Σ perSquad[i] 누적 필요.
+  const sumInf: TierBreakdown = { t10: r.infantry.t10, t9: r.infantry.t9, total: r.infantry.total };
+  const sumCav: TierBreakdown = { t10: r.cavalry.t10, t9: r.cavalry.t9, total: r.cavalry.total };
+  const sumArc: TierBreakdown = { t10: r.archers.t10, t9: r.archers.t9, total: r.archers.total };
+  for (const squad of result.perSquad) {
+    sumInf.t10 += squad.infantry.t10; sumInf.t9 += squad.infantry.t9; sumInf.total += squad.infantry.total;
+    sumCav.t10 += squad.cavalry.t10; sumCav.t9 += squad.cavalry.t9; sumCav.total += squad.cavalry.total;
+    sumArc.t10 += squad.archers.t10; sumArc.t9 += squad.archers.t9; sumArc.total += squad.archers.total;
+  }
   const sumAll = sumInf.total + sumCav.total + sumArc.total;
   const sumTr = document.createElement('tr');
   sumTr.className = 'tc-row-total';

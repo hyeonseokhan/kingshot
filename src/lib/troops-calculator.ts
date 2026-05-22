@@ -2,14 +2,16 @@
  * 부대 계산기 — 분배 모드 2종.
  *
  * 입력: 출정 상한, 각 병과(보병/기병/궁병) × T9/T10 보유량, 운영 편대 수 N, 분배 모드
- * 출력: 편대당 병과별 분배(T10/T9 분해) + 잔류 + 비율 정보
+ * 출력: 편대별 병과 분배(T10/T9 분해) + 잔류 + 비율 정보
  *
  * 분배 모드:
  *   - 'bear' (곰 사냥, 1:1:8): 궁병 8 / 보병+기병 자리 2(=1:1 균등). 기병 부족 시 보병이 메움.
  *   - 'even' (보유 비율 그대로): 편대당 = 보유/N. 합이 cap 초과면 비례 축소.
  *
- * 티어 분해: 병과별 perSquad 분배량이 정해지면 그 안에서 T10 우선 채우고 T9 가 보충.
- * (T10 이 더 강한 병사라 우선 투입)
+ * 티어 분해(전 편대 공통):
+ *   병과별 perSquad 분배 총량은 모든 편대 동일하지만, 그 안의 T10/T9 비중은
+ *   1편대부터 T10 을 우선 소진 → 부족분은 그 편대부터 T9 보충 → T10 잔고 모두 소진되면
+ *   이후 편대는 T9 위주. "강한 T10 병사는 선두 편대에 집중" 이 게임 효율적이라 따름.
  *
  * 모든 출력은 floor 정수. 게임 내 배치는 정수 단위.
  *
@@ -67,14 +69,18 @@ export interface TroopsResult {
    *  - even-capped  : 균등(보유 비율) — cap 초과로 비례 축소됨
    */
   mode: 'bear-full' | 'bear-partial' | 'even-fits' | 'even-capped';
-  /** 편대 수 N. 모든 편대 동일 분배라 squadCount 만 반환. */
+  /** 편대 수 N. */
   squadCount: number;
-  /** 1편대 (=모든 편대 동일) 분배량 */
-  perSquad: SquadAllocation;
+  /**
+   * 편대별 분배(0-based index, length === squadCount).
+   * 병과 총량은 모든 편대 동일하지만 T10/T9 비중은 편대마다 다를 수 있음
+   * (T10 우선 소진 → 후속 편대 T9 보충).
+   */
+  perSquad: SquadAllocation[];
   remaining: RemainingTroops;
   /** 목표 비율 (10 합 기준) — 곰 사냥은 1:1:8, 균등은 보유 비율 정규화. */
   targetRatio: RatioBreakdown;
-  /** 실제 분배 비율 (10 합 기준, 소수 1자리) */
+  /** 실제 분배 비율 (10 합 기준, 소수 1자리). 모든 편대 동일하므로 1개 값. */
   actualRatio: RatioBreakdown;
 }
 
@@ -117,68 +123,72 @@ function totals(input: TroopsInput) {
 }
 
 /**
- * 편대당 분배량(병과 단위) 을 T10 우선 + T9 보충 으로 분해.
- *   - t10PerSquad = min(perSquad, floor(t10Total / N))
- *   - t9PerSquad  = perSquad - t10PerSquad
+ * 편대별 분배 총량(perSquadTotal — 모든 편대 동일)을 T10/T9 로 분해.
+ * 1편대부터 T10 을 가능한 만큼 다 소진 → 부족하면 그 편대부터 T9 로 보충.
  *
- * 결과적으로 한 편대당 동일 분배(=복사 편의성 유지). 마지막 편대만 다르게 만들지 않음.
- * 잔여 T9/T10 는 잔류 행에 표시됨.
+ * 예: perSquadTotal = 34,643, totalT10 = 50,000, totalT9 = 200,000, N = 3
+ *   편대1: T10 34,643 / T9 0          (T10 잔고 15,357)
+ *   편대2: T10 15,357 / T9 19,286     (T10 잔고 0)
+ *   편대3: T10 0      / T9 34,643
+ *
+ * 결과적으로 1편대가 가장 강한 병사 비중을 갖고, 마지막 편대가 가장 약함.
  */
-function splitTier(perSquadAmount: number, t10Total: number, t9Total: number, N: number): TierBreakdown {
-  if (perSquadAmount <= 0) return { t9: 0, t10: 0, total: 0 };
-  const t10Available = Math.floor(t10Total / N);
-  const t9Available = Math.floor(t9Total / N);
-  const t10 = Math.min(perSquadAmount, t10Available);
-  // T9 가 부족하면 T10 보유분 안에서 더 끌어와 채울 수 있도록 보정
-  // (사실 perSquadAmount = min(보유총량/N, 자리) 라 도달 가능한 합이지만 floor 절단으로 1~2 차이 가능)
-  let t9 = Math.min(perSquadAmount - t10, t9Available);
-  // T9 가 남는데 perSquadAmount 미달이면 T10 으로 더 채움 (자리는 보유로 차있을 때)
-  const filled = t10 + t9;
-  if (filled < perSquadAmount && t10 < t10Available) {
-    const extra = Math.min(perSquadAmount - filled, t10Available - t10);
-    return { t10: t10 + extra, t9, total: t10 + extra + t9 };
+function distributeTierAcrossSquads(
+  perSquadTotal: number,
+  totalT10: number,
+  totalT9: number,
+  N: number,
+): TierBreakdown[] {
+  const result: TierBreakdown[] = [];
+  let leftT10 = totalT10;
+  let leftT9 = totalT9;
+  for (let i = 0; i < N; i++) {
+    if (perSquadTotal <= 0) {
+      result.push({ t10: 0, t9: 0, total: 0 });
+      continue;
+    }
+    const t10 = Math.min(perSquadTotal, Math.max(0, leftT10));
+    const t9 = Math.min(perSquadTotal - t10, Math.max(0, leftT9));
+    result.push({ t10, t9, total: t10 + t9 });
+    leftT10 -= t10;
+    leftT9 -= t9;
   }
-  // 반대로 T10 만으로 부족하지만 t9 추가 후에도 미달이면 그대로 (보유 한계)
-  return { t10, t9, total: t10 + t9 };
+  return result;
 }
 
 /**
- * Case A — 곰 사냥 분배 핵심 로직 (T9/T10 통합 → 분배 → 분해).
+ * 곰 사냥 — 편대당 분배 "총량" 계산.
  *
  * 그리디 cap 채움. 1:1:8 은 "최대 자리" 의미로만 쓰고, 부족하면 다른 병종이 메워 cap 을 최대한 채움.
  *   1) 궁병: 한 부대당 보유/N 또는 cap*8/10 중 작은 값까지 (궁병은 1:1:8 의 8 자리가 상한)
  *   2) 남은 자리 = cap - 궁병분배 (궁병이 자기 자리 못 채우면 그 자리까지 보병/기병이 흡수)
  *   3) 기병: min(보유/N, 남은자리/2). 보병/기병 1:1 균등 시도, 기병이 한도.
  *   4) 보병: min(보유/N, 남은자리 - 기병분배). 기병 부족분까지 흡수.
+ *
+ * @returns { infantry, cavalry, archers } — 각 편대별 분배 "총량" (T10/T9 합).
  */
-function bearAllocate(input: TroopsInput): SquadAllocation {
+function bearAllocateTotals(input: TroopsInput): {
+  infantry: number;
+  cavalry: number;
+  archers: number;
+} {
   const { cap, squadCount: N } = input;
   const T = totals(input);
 
-  // 1) 궁병 — 자기 자리(cap*8/10) 한도까지만. 그 이상은 안 채움(궁병 우위 자체는 게임 메커닉이라 비율 유지).
   const archerSlotMax = Math.floor((cap * RATIO.archers) / RATIO_SUM);
   const archerPerSquad = Math.min(Math.floor(T.archers / N), archerSlotMax);
 
-  // 2) 보병/기병 자리 = cap - 궁병분배. 궁병이 못 채운 archer 자리도 흡수.
   const infCavSlot = cap - archerPerSquad;
-  // 1:1 균등 분배. 홀수면 보병이 1 더(약한 쪽 백업).
   const cavTarget = Math.floor(infCavSlot / 2);
   const infTarget = infCavSlot - cavTarget;
 
-  // 3) 기병
   const cavPerSquad = Math.min(Math.floor(T.cavalry / N), cavTarget);
-  const cavShortage = cavTarget - cavPerSquad; // 기병 부족분 → 보병이 메움
+  const cavShortage = cavTarget - cavPerSquad;
 
-  // 4) 보병 (자기 자리 + 기병 부족분)
   const infMaxPossible = infTarget + cavShortage;
   const infPerSquad = Math.min(Math.floor(T.infantry / N), infMaxPossible);
 
-  return {
-    infantry: splitTier(infPerSquad, input.infantryT10, input.infantryT9, N),
-    cavalry: splitTier(cavPerSquad, input.cavalryT10, input.cavalryT9, N),
-    archers: splitTier(archerPerSquad, input.archersT10, input.archersT9, N),
-    total: infPerSquad + cavPerSquad + archerPerSquad,
-  };
+  return { infantry: infPerSquad, cavalry: cavPerSquad, archers: archerPerSquad };
 }
 
 /** 편대 분배 → 비율 정규화 (10 합 기준, 소수 1자리). */
@@ -194,55 +204,76 @@ function toRatio(inf: number, cav: number, arc: number): RatioBreakdown {
 }
 
 /**
- * 부대 편성 계산 — 곰 사냥. 입력 검증 후 분배.
- * 사전 검증 함수 validate() 로 호출자가 에러 분기를 먼저 처리해야 함.
+ * 편대당 분배 총량 + 보유 T10/T9 → 편대별 SquadAllocation 배열로 조립.
+ * 잔류 정보(remaining)는 분배 후 실제 사용량을 차감해서 계산.
  */
-export function calculateBearHunt(input: TroopsInput): TroopsResult {
-  const perSquad = bearAllocate(input);
+function assembleSquads(
+  input: TroopsInput,
+  perSquadTotals: { infantry: number; cavalry: number; archers: number },
+): { perSquad: SquadAllocation[]; remaining: RemainingTroops } {
   const N = input.squadCount;
+  const infList = distributeTierAcrossSquads(perSquadTotals.infantry, input.infantryT10, input.infantryT9, N);
+  const cavList = distributeTierAcrossSquads(perSquadTotals.cavalry, input.cavalryT10, input.cavalryT9, N);
+  const arcList = distributeTierAcrossSquads(perSquadTotals.archers, input.archersT10, input.archersT9, N);
 
-  // cap 을 전부 채웠는지(=full) vs 미달(=partial)
-  const isFull = perSquad.total >= input.cap;
-
-  const T = totals(input);
-  const usedInf = perSquad.infantry.total * N;
-  const usedCav = perSquad.cavalry.total * N;
-  const usedArc = perSquad.archers.total * N;
-
-  const usedInfT10 = perSquad.infantry.t10 * N;
-  const usedInfT9 = perSquad.infantry.t9 * N;
-  const usedCavT10 = perSquad.cavalry.t10 * N;
-  const usedCavT9 = perSquad.cavalry.t9 * N;
-  const usedArcT10 = perSquad.archers.t10 * N;
-  const usedArcT9 = perSquad.archers.t9 * N;
-
+  const perSquad: SquadAllocation[] = [];
+  let usedInfT10 = 0, usedInfT9 = 0;
+  let usedCavT10 = 0, usedCavT9 = 0;
+  let usedArcT10 = 0, usedArcT9 = 0;
+  for (let i = 0; i < N; i++) {
+    perSquad.push({
+      infantry: infList[i],
+      cavalry: cavList[i],
+      archers: arcList[i],
+      total: infList[i].total + cavList[i].total + arcList[i].total,
+    });
+    usedInfT10 += infList[i].t10;
+    usedInfT9 += infList[i].t9;
+    usedCavT10 += cavList[i].t10;
+    usedCavT9 += cavList[i].t9;
+    usedArcT10 += arcList[i].t10;
+    usedArcT9 += arcList[i].t9;
+  }
   return {
-    mode: isFull ? 'bear-full' : 'bear-partial',
-    squadCount: N,
     perSquad,
     remaining: {
       infantry: {
         t10: input.infantryT10 - usedInfT10,
         t9: input.infantryT9 - usedInfT9,
-        total: T.infantry - usedInf,
+        total: input.infantryT10 + input.infantryT9 - usedInfT10 - usedInfT9,
       },
       cavalry: {
         t10: input.cavalryT10 - usedCavT10,
         t9: input.cavalryT9 - usedCavT9,
-        total: T.cavalry - usedCav,
+        total: input.cavalryT10 + input.cavalryT9 - usedCavT10 - usedCavT9,
       },
       archers: {
         t10: input.archersT10 - usedArcT10,
         t9: input.archersT9 - usedArcT9,
-        total: T.archers - usedArc,
+        total: input.archersT10 + input.archersT9 - usedArcT10 - usedArcT9,
       },
     },
+  };
+}
+
+/**
+ * 부대 편성 계산 — 곰 사냥. 입력 검증 후 분배.
+ * 사전 검증 함수 validate() 로 호출자가 에러 분기를 먼저 처리해야 함.
+ */
+export function calculateBearHunt(input: TroopsInput): TroopsResult {
+  const perSquadTotals = bearAllocateTotals(input);
+  const totalPerSquad = perSquadTotals.infantry + perSquadTotals.cavalry + perSquadTotals.archers;
+  const isFull = totalPerSquad >= input.cap;
+
+  const { perSquad, remaining } = assembleSquads(input, perSquadTotals);
+
+  return {
+    mode: isFull ? 'bear-full' : 'bear-partial',
+    squadCount: input.squadCount,
+    perSquad,
+    remaining,
     targetRatio: { infantry: 1, cavalry: 1, archers: 8 },
-    actualRatio: toRatio(
-      perSquad.infantry.total,
-      perSquad.cavalry.total,
-      perSquad.archers.total,
-    ),
+    actualRatio: toRatio(perSquadTotals.infantry, perSquadTotals.cavalry, perSquadTotals.archers),
   };
 }
 
@@ -260,7 +291,6 @@ export function calculateEven(input: TroopsInput): TroopsResult {
   let capped = false;
 
   if (total > cap) {
-    // cap 초과 — 비례 축소. ratio 보존을 위해 (값 * cap / total) 사용.
     inf = Math.floor((inf * cap) / total);
     cav = Math.floor((cav * cap) / total);
     arc = Math.floor((arc * cap) / total);
@@ -268,41 +298,16 @@ export function calculateEven(input: TroopsInput): TroopsResult {
     capped = true;
   }
 
-  const perSquad: SquadAllocation = {
-    infantry: splitTier(inf, input.infantryT10, input.infantryT9, N),
-    cavalry: splitTier(cav, input.cavalryT10, input.cavalryT9, N),
-    archers: splitTier(arc, input.archersT10, input.archersT9, N),
-    total,
-  };
+  const { perSquad, remaining } = assembleSquads(input, { infantry: inf, cavalry: cav, archers: arc });
 
   return {
     mode: capped ? 'even-capped' : 'even-fits',
     squadCount: N,
     perSquad,
-    remaining: {
-      infantry: {
-        t10: input.infantryT10 - perSquad.infantry.t10 * N,
-        t9: input.infantryT9 - perSquad.infantry.t9 * N,
-        total: T.infantry - perSquad.infantry.total * N,
-      },
-      cavalry: {
-        t10: input.cavalryT10 - perSquad.cavalry.t10 * N,
-        t9: input.cavalryT9 - perSquad.cavalry.t9 * N,
-        total: T.cavalry - perSquad.cavalry.total * N,
-      },
-      archers: {
-        t10: input.archersT10 - perSquad.archers.t10 * N,
-        t9: input.archersT9 - perSquad.archers.t9 * N,
-        total: T.archers - perSquad.archers.total * N,
-      },
-    },
+    remaining,
     // 균등 모드의 "목표" 는 보유량 정규화 (보유 비율 자체가 목표). 합이 0 이면 0:0:0.
     targetRatio: toRatio(T.infantry, T.cavalry, T.archers),
-    actualRatio: toRatio(
-      perSquad.infantry.total,
-      perSquad.cavalry.total,
-      perSquad.archers.total,
-    ),
+    actualRatio: toRatio(inf, cav, arc),
   };
 }
 
@@ -316,4 +321,3 @@ export function calculate(input: TroopsInput, mode: DistributionMode): TroopsRes
 export function formatRatio(r: RatioBreakdown): string {
   return `${r.infantry.toFixed(1)} : ${r.cavalry.toFixed(1)} : ${r.archers.toFixed(1)}`;
 }
-
