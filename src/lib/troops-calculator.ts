@@ -5,9 +5,10 @@
  * 출력: 편대별 병과 분배(T10/T9 분해) + 잔류 + 비율 정보
  *
  * 분배 모드:
- *   - 'bear' (권장값 1:1:8): 모든 편대 동일 분배. 궁병 8 / 보병+기병 2(1:1, 기병 부족 시 보병 메움)
- *   - 'bear-stack' (몰빵형 1:1:8): 편대1부터 풀 1:1:8 우선 완성. 자원 줄어들면 후속 편대가 부족.
- *     T10 우선 + 기병 부족 → 보병 흡수 정책은 'bear' 와 동일.
+ *   - 'bear' (권장값 1:1:8): 모든 편대 동일 분배. 궁병 8 / 보병+기병 2(1:1, 기병 부족 시 보병 메움).
+ *     자원 부족 시 전 편대가 동일하게 부족한 형태.
+ *   - 'bear-stack' (몰빵형): 풀 1:1:8 가능한 만큼 앞 편대 풀로 채움 → 부족 시점부터 남은
+ *     편대수로 평탄(균등) 분배. 앞 편대는 풀, 뒷 편대들도 화력 균형.
  *   - 'even' (보유 비율 그대로): 편대당 = 보유/N. 합이 cap 초과면 비례 축소.
  *
  * 티어 분해 (T10 우선 소진):
@@ -287,22 +288,43 @@ export function calculateBearHunt(input: TroopsInput): TroopsResult {
 }
 
 /**
- * 곰 사냥 — 몰빵형. 편대1부터 풀 1:1:8 을 만드는 것을 우선.
+ * 곰 사냥 — 몰빵형. 앞 편대를 풀 1:1:8 로 채우고, 풀이 부족해지는 시점부터
+ * 남은 편대에 평탄(균등) 분배.
  *
- * 알고리즘 (편대 순서대로 그리디 차감):
- *   for i in 1..N:
- *     1) 궁병 자리(cap*8/10) — 남은 보유에서 T10 → T9 순으로 가능한 만큼
- *     2) 보병/기병 자리(cap - 궁병사용) — 1:1 균등 (홀수면 보병 +1)
- *        - 기병: 남은 보유에서 T10 → T9 (자리 한도까지)
- *        - 기병 부족분 → 보병이 흡수
- *        - 보병: 자기 자리 + 기병 부족분 한도, 남은 보유에서 T10 → T9
- *     3) 사용량 차감 → 다음 편대로
+ * "1,2 편대 풀 → 3 편대부터 자원 모자라면 남은 편대수로 균등" 이라는 요청 반영.
+ * 단순 그리디 몰빵보다 마지막 편대도 어느 정도 화력 유지 가능.
  *
- * 결과적으로 1편대가 가장 풀 편성, 후순위로 갈수록 자원 부족 시 빈 자리 발생.
+ * 알고리즘:
+ *   1) "풀 가능 편대 수" 사전 계산:
+ *      - 풀 1편대 비용 = (궁:cap*8/10, 기:(cap-궁)/2, 보:(cap-궁) - 기)
+ *      - fullSquads = min(궁/궁비용, 기/기비용, 보/보비용, N)
+ *      - 단 기/보 비용이 0 이면(=궁이 cap 전체) 0 분모 회피
+ *   2) 1..fullSquads 편대: 풀 1:1:8 정확히. 자원 차감.
+ *   3) fullSquads+1..N 편대: 매 편대마다
+ *      - 궁병 = floor(남은궁/남은편대수), 자기자리 한도
+ *      - 보병/기병 자리 = cap - 궁병사용, 1:1 균등
+ *      - 기병 = floor(남은기/남은편대수), 자기자리 한도
+ *      - 기병 부족분 → 보병이 흡수 (보병 한도 = 자기자리 + 기병부족분)
+ *      - 보병 = floor(남은보/남은편대수), 한도 안
+ *      이렇게 하면 남은 편대들이 자원을 동등하게 나눠 가짐.
  */
 export function calculateBearStack(input: TroopsInput): TroopsResult {
   const { cap, squadCount: N } = input;
   const archerSlotMax = Math.floor((cap * RATIO.archers) / RATIO_SUM);
+  // 풀 1편대의 보병/기병 자리 = 1:1 균등 (홀수면 보병 +1)
+  const fullInfCavSlot = cap - archerSlotMax;
+  const cavSlotFull = Math.floor(fullInfCavSlot / 2);
+  const infSlotFull = fullInfCavSlot - cavSlotFull;
+
+  const totalArc = input.archersT10 + input.archersT9;
+  const totalCav = input.cavalryT10 + input.cavalryT9;
+  const totalInf = input.infantryT10 + input.infantryT9;
+
+  // 풀 가능 편대 수 — 세 병종 모두 풀이 가능해야 한 편대 풀. 분모 0 회피.
+  const fullByArc = archerSlotMax > 0 ? Math.floor(totalArc / archerSlotMax) : Infinity;
+  const fullByCav = cavSlotFull > 0 ? Math.floor(totalCav / cavSlotFull) : Infinity;
+  const fullByInf = infSlotFull > 0 ? Math.floor(totalInf / infSlotFull) : Infinity;
+  const fullSquads = Math.min(N, fullByArc, fullByCav, fullByInf);
 
   let leftInfT10 = input.infantryT10, leftInfT9 = input.infantryT9;
   let leftCavT10 = input.cavalryT10, leftCavT9 = input.cavalryT9;
@@ -311,40 +333,68 @@ export function calculateBearStack(input: TroopsInput): TroopsResult {
   const perSquad: SquadAllocation[] = [];
   let allFull = true;
 
-  for (let i = 0; i < N; i++) {
-    // 1) 궁병
-    const arcWant = archerSlotMax;
-    const arcT10 = Math.min(arcWant, leftArcT10);
-    const arcT9 = Math.min(arcWant - arcT10, leftArcT9);
-    const arcUsed = arcT10 + arcT9;
-    leftArcT10 -= arcT10; leftArcT9 -= arcT9;
+  /** T10 우선 소진 — 분배량을 받아서 T10/T9 분해 + 좌측 잔량 갱신. */
+  const consume = (
+    want: number,
+    leftT10: number,
+    leftT9: number,
+  ): { t10: number; t9: number; used: number; leftT10: number; leftT9: number } => {
+    const t10 = Math.min(want, leftT10);
+    const t9 = Math.min(want - t10, leftT9);
+    return { t10, t9, used: t10 + t9, leftT10: leftT10 - t10, leftT9: leftT9 - t9 };
+  };
 
-    // 2) 보병/기병 자리
-    const infCavSlot = cap - arcUsed;
+  // 1단계: 풀 편대 — 정확히 1:1:8 풀
+  for (let i = 0; i < fullSquads; i++) {
+    const arc = consume(archerSlotMax, leftArcT10, leftArcT9);
+    leftArcT10 = arc.leftT10; leftArcT9 = arc.leftT9;
+    const cav = consume(cavSlotFull, leftCavT10, leftCavT9);
+    leftCavT10 = cav.leftT10; leftCavT9 = cav.leftT9;
+    const inf = consume(infSlotFull, leftInfT10, leftInfT9);
+    leftInfT10 = inf.leftT10; leftInfT9 = inf.leftT9;
+    perSquad.push({
+      infantry: { t10: inf.t10, t9: inf.t9, total: inf.used },
+      cavalry: { t10: cav.t10, t9: cav.t9, total: cav.used },
+      archers: { t10: arc.t10, t9: arc.t9, total: arc.used },
+      total: arc.used + cav.used + inf.used,
+    });
+  }
+
+  // 2단계: 평탄 편대 — 남은 자원을 남은 편대수로 균등 분배
+  for (let i = fullSquads; i < N; i++) {
+    const remainingSquads = N - i;
+
+    // 궁병 — 평탄 분배, 자기자리 한도
+    const arcShare = Math.floor((leftArcT10 + leftArcT9) / remainingSquads);
+    const arcWant = Math.min(arcShare, archerSlotMax);
+    const arc = consume(arcWant, leftArcT10, leftArcT9);
+    leftArcT10 = arc.leftT10; leftArcT9 = arc.leftT9;
+
+    // 보병/기병 자리 = cap - 궁병 사용. 궁병 못 채운 자리도 보/기가 흡수.
+    const infCavSlot = cap - arc.used;
     const cavTarget = Math.floor(infCavSlot / 2);
     const infTarget = infCavSlot - cavTarget;
 
-    // 기병
-    const cavT10 = Math.min(cavTarget, leftCavT10);
-    const cavT9 = Math.min(cavTarget - cavT10, leftCavT9);
-    const cavUsed = cavT10 + cavT9;
-    const cavShortage = cavTarget - cavUsed;
-    leftCavT10 -= cavT10; leftCavT9 -= cavT9;
+    // 기병 — 평탄 분배, 자기자리 한도
+    const cavShare = Math.floor((leftCavT10 + leftCavT9) / remainingSquads);
+    const cavWant = Math.min(cavShare, cavTarget);
+    const cav = consume(cavWant, leftCavT10, leftCavT9);
+    leftCavT10 = cav.leftT10; leftCavT9 = cav.leftT9;
+    const cavShortage = cavTarget - cav.used;
 
-    // 보병 (자기 자리 + 기병 부족분)
-    const infWant = infTarget + cavShortage;
-    const infT10 = Math.min(infWant, leftInfT10);
-    const infT9 = Math.min(infWant - infT10, leftInfT9);
-    const infUsed = infT10 + infT9;
-    leftInfT10 -= infT10; leftInfT9 -= infT9;
+    // 보병 — 평탄 분배, (자기자리 + 기병부족분) 한도
+    const infShare = Math.floor((leftInfT10 + leftInfT9) / remainingSquads);
+    const infWant = Math.min(infShare, infTarget + cavShortage);
+    const inf = consume(infWant, leftInfT10, leftInfT9);
+    leftInfT10 = inf.leftT10; leftInfT9 = inf.leftT9;
 
-    const squadTotal = arcUsed + cavUsed + infUsed;
+    const squadTotal = arc.used + cav.used + inf.used;
     if (squadTotal < cap) allFull = false;
 
     perSquad.push({
-      infantry: { t10: infT10, t9: infT9, total: infUsed },
-      cavalry: { t10: cavT10, t9: cavT9, total: cavUsed },
-      archers: { t10: arcT10, t9: arcT9, total: arcUsed },
+      infantry: { t10: inf.t10, t9: inf.t9, total: inf.used },
+      cavalry: { t10: cav.t10, t9: cav.t9, total: cav.used },
+      archers: { t10: arc.t10, t9: arc.t9, total: arc.used },
       total: squadTotal,
     });
   }
