@@ -138,6 +138,8 @@ export const en: Translations = {
     },
     dialog: {
       rank: 'Rank',
+      power: 'Power',
+      powerPlaceholder: 'e.g. 12,345,678',
       autoCoupon: 'Auto Coupon',
       save: 'Save',
       delete: 'Delete',
@@ -177,6 +179,7 @@ export const en: Translations = {
       duplicate: 'This Kingshot ID is already registered.',
       apiError: 'API error ({status})',
       apiSearchFailed: 'API lookup failed',
+      invalidPower: 'Power must be a non-negative integer.',
     },
   },
   coupons: {

@@ -762,6 +762,19 @@
 .md-form-value input[type='text']::placeholder {
   color: var(--border);
 }
+.md-form-value input#md-power {
+  width: 120px;
+  padding: 3px 8px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  background: var(--bg);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.md-form-value input#md-power:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 .md-select {
   padding: 3px 22px 3px 8px;
   border: 1px solid var(--border2);

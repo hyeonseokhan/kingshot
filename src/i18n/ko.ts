@@ -139,6 +139,8 @@ export const ko = {
     },
     dialog: {
       rank: '등급',
+      power: '전투력',
+      powerPlaceholder: '예: 12,345,678',
       autoCoupon: '쿠폰 자동 수령',
       save: '저장',
       delete: '삭제',
@@ -178,6 +180,7 @@ export const ko = {
       duplicate: '이미 등록된 킹샷 ID입니다.',
       apiError: 'API 오류 ({status})',
       apiSearchFailed: 'API 조회 실패',
+      invalidPower: '전투력은 0 이상의 정수만 입력 가능합니다.',
     },
   },
   coupons: {

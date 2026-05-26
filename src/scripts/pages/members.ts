@@ -278,6 +278,7 @@ function renderDialog(m: Member): void {
   if (m.kingdom) metaParts.push(t('members.metaKingdom', { n: m.kingdom }));
   $('md-meta').textContent = metaParts.join(' · ');
   $<HTMLSelectElement>('md-rank').value = rank;
+  $<HTMLInputElement>('md-power').value = m.power != null ? m.power.toLocaleString('ko-KR') : '';
   $<HTMLInputElement>('md-auto-coupon').checked = m.auto_coupon !== false;
 
   // 관리자 버튼 — 로그인 세션의 is_admin 만 노출
@@ -512,6 +513,13 @@ function initManageDialog(): void {
   $('md-refresh').addEventListener('click', handleManageRefresh);
   $('md-save').addEventListener('click', handleManageSave);
   $('md-delete').addEventListener('click', handleManageDelete);
+
+  // 전투력 입력 — 천단위 콤마 자동 포매팅 (커서는 항상 끝으로 이동)
+  $<HTMLInputElement>('md-power').addEventListener('input', (e) => {
+    const el = e.target as HTMLInputElement;
+    const digits = el.value.replace(/[^0-9]/g, '');
+    el.value = digits ? Number(digits).toLocaleString('ko-KR') : '';
+  });
 }
 
 function handleManageRefresh(): void {
@@ -561,10 +569,23 @@ function handleManageRefresh(): void {
 
 function handleManageSave(): void {
   if (!currentDialogId) return;
+  const powerInput = $<HTMLInputElement>('md-power');
+  const powerDigits = powerInput.value.replace(/[^0-9]/g, '');
+  let power: number | null = null;
+  if (powerDigits) {
+    const n = Number(powerDigits);
+    if (!Number.isInteger(n) || n < 0) {
+      appAlert(t('members.errors.invalidPower'));
+      powerInput.focus();
+      return;
+    }
+    power = n;
+  }
   sb.from('members')
     .update({
       alliance_rank: $<HTMLSelectElement>('md-rank').value,
       auto_coupon: $<HTMLInputElement>('md-auto-coupon').checked,
+      power,
     })
     .eq('id', currentDialogId)
     .then((res) => {

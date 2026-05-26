@@ -158,6 +158,20 @@ const navItems = manage.submenus!.map((s) => ({
             </div>
           </div>
           <div class="md-form-row">
+            <span class="md-form-label" data-i18n="members.dialog.power">전투력</span>
+            <div class="md-form-value">
+              <input
+                type="text"
+                id="md-power"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="off"
+                placeholder="예: 12,345,678"
+                data-i18n-attr-placeholder="members.dialog.powerPlaceholder"
+              />
+            </div>
+          </div>
+          <div class="md-form-row">
             <span class="md-form-label" data-i18n="members.dialog.autoCoupon">쿠폰 자동 수령</span>
             <div class="md-form-value">
               <label class="md-toggle">
