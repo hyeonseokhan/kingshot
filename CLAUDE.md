@@ -41,6 +41,29 @@
 
 ---
 
+## 🔗 분리 사이트 (kingshot-1767)
+
+KvK 설문/버프예약 도메인은 **별도 repo + 인프라**로 분리됨 (2026-05).
+
+| 항목 | 값 |
+|------|----|
+| Repo | `hyeonseokhan/kingshot-1767` |
+| 도메인 | `1767.kingshot.co.kr` |
+| Supabase project ref | `qbcpohhzfhaxzbuncsne` |
+| 대상 | 1767 서버 전체 (~400명) — PNX 와 회원 풀 독립 |
+
+**공통 lib 동기화 룰** — 두 사이트가 공유하는 자산은 **양쪽 repo 에 복붙** 패턴:
+- `src/lib/supabase.ts`, `dialog.ts`, `dom-diff.ts`, `store.ts`, `utils.ts`, `image-optimize.ts`, `refresh-button.ts`
+- `src/i18n/*` (현재 전체 복사, 추후 도메인별 분리)
+- `src/components/{LangSwitcher,AuthDialog}.astro`
+- `supabase/functions/tile-match-auth/` (PIN 인증 공유)
+
+**둘 중 한 쪽에서 위 자산 변경 시 → 반드시 다른 쪽도 같이 갱신.** npm 패키지/submodule X — 운영 단순성 우선.
+
+신규 repo 의 아키텍처는 **feature-based modular monolith** (`src/lib/shared/` + `src/lib/<domain>/`). 자세한 cookbook 은 kingshot-1767 의 CLAUDE.md 참고.
+
+---
+
 ## 재사용 자산 인덱스
 
 > 📌 작업 시작 전 반드시 스캔. 누락된 자산이 있으면 본 인덱스도 함께 갱신.
@@ -49,7 +72,7 @@
 
 | 컴포넌트 | 용도 | 사용처 |
 |---------|------|--------|
-| `AuthDialog.astro` + `scripts/pages/tile-match-auth.ts` | PIN 4자리 인증 다이얼로그 (kingshot_id + PIN) | 미니게임 4종, kvk-survey |
+| `AuthDialog.astro` + `scripts/pages/tile-match-auth.ts` | PIN 4자리 인증 다이얼로그 (kingshot_id + PIN) | 미니게임 4종 |
 | `Header.astro` | 상단 헤더 (로고 + 메뉴 + LoginedUserInfo + LangSwitcher) | BaseLayout 자동 |
 | `LoginedUserInfo.astro` | 인증 위젯 (아바타 + 닉네임 + 💎 잔액 + 로그아웃) | Header 안 자동 |
 | `LangSwitcher.astro` | 🌐 KOR/ENG 토글 — 클라이언트 swap | Header 안 자동 |
@@ -71,7 +94,6 @@
 | `image-optimize.ts` | `optimizeImage(file, {maxWidth, quality, mimeType})`, `formatBytes` | 사용자 업로드 PNG/JPEG → WebP resize. iOS Safari 17 이하 WASM 폴백 |
 | `balance.ts` | `rewardForStage`, `enhanceCostFor`, `accumulatedPower`, `tierForLevel`, `TIER_LABEL`, `EQUIPMENT_SLOTS`, `SLOT_LABEL` | 크리스탈/강화 (서버 mirror — 변경 시 양쪽 동시) |
 | `equipment-tier-fx.ts` | `applyStageTier(stageEl, tier)`, `lowestStageTier(rows)` | 장비 stage 배경 + 모션 효과 |
-| `kvk-score.ts` | `estimateKvKScore({construction, training, general, cityLevel})` | KvK 1일차/4일차 예상 점수 |
 | `ranking-table.ts` | `renderRankingTable({bodyId, columns, items, clickable})`, `setActiveSortPill` | RankingTable.astro 짝꿍 |
 | `refresh-button.ts` | `bindRefreshButton(id, fn)` | RefreshButton.astro 짝꿍 |
 | `troops-calculator.ts` | `calculate(input, mode)`, `validate(input)`, `formatRatio` | 부대 분배 — 순수 함수 |
@@ -98,9 +120,9 @@
 
 ## 프로젝트 개요
 
-- **목적**: PNX 연맹(Kingshot 게임) 사이트 — 가이드 + 멤버 관리 + 쿠폰 + 미니게임 + 관리도구 + KvK 설문
+- **목적**: PNX 연맹(Kingshot 게임) 사이트 — 가이드 + 멤버 관리 + 쿠폰 + 미니게임 + 관리도구
 - **스택**: Astro 5 + TypeScript + Tailwind v4 + Supabase
-- **호스팅**: GitHub Pages (정적 배포, `kingshot.wooju-home.org`)
+- **호스팅**: GitHub Pages (정적 배포, `pnx.kingshot.co.kr`)
 - **배포 자동화**: `main` push → `.github/workflows/deploy.yml` 자동 트리거
 - **인증**: 멤버 로스터 PIN 4자리 (Supabase Auth 사용 안 함)
 - **사용자 식별자**: `members.kingshot_id` (TEXT, 모든 도메인 테이블의 FK)
@@ -112,18 +134,17 @@
 ```
 src/
   components/    # 재사용 자산 인덱스 참고
-  layouts/       # AppLayout, BaseLayout, GuideLayout, SurveyLayout
+  layouts/       # AppLayout, BaseLayout, GuideLayout
   pages/
     manage/      # members, blacklist, coupons
     minigame/    # tile-match, partner-draw, equipment, pvp
     game-tools/  # troops-calculator (관리자 전용)
-    survey/      # kvk (가속권 설문 + 버프 예약)
     beginner/    # 가이드 (Content Collection)
     events/      # 이벤트 가이드
   scripts/
     components/  # lang-switcher, logined-user-info, weekly-rankings-panel
     pages/       # 각 페이지 클라 로직
-  styles/        # global, components, manage, minigame, game-tools, survey-kvk
+  styles/        # global, components, manage, minigame, game-tools
   lib/           # 재사용 자산 인덱스 참고
   i18n/          # ko / en / index (다국어 사전 + 헬퍼)
   content/       # Astro Content Collection (가이드 마크다운, ko/en pair)
@@ -173,7 +194,6 @@ supabase/
 | 장비 강화 | `/minigame/equipment` | `equipment.ts` | `equipment_levels` + `equipment` EF (`enhance`) |
 | PvP | `/minigame/pvp` | `pvp.ts` | `pvp_battles`, `pvp_daily_state` + `pvp` EF |
 | 부대 계산기 | `/game-tools/troops-calculator` | `game-tools-troops-calculator.ts` (+ `game-tools-guard.ts`) | 순수 클라 (관리자 한정 — `kingshot_id == '270680423'`) |
-| KvK 설문/버프예약 | `/survey/kvk` | `survey-kvk.ts`, `survey-kvk-buff.ts` | `kvk_speedup_survey`, `kvk_buff_state`, `kvk_buff_participants` + `kvk-survey`, `kvk-buff` EF |
 
 **Edge Function 디스패치 패턴**: 모든 함수는 action 디스패치 방식. 레퍼런스 = `supabase/functions/tile-match-auth/index.ts` (PIN 검증), `economy/index.ts` (stage→reward + RPC), `pvp/index.ts` (서버측 데미지 + 멱등 보상).
 
@@ -198,16 +218,6 @@ supabase/
 - 데미지 서버 계산 (share-based + chip floor + 격돌 메커닉), 클라는 카드 선택만 전송
 - `is_ranked` 분리: ranked (일일 5회 안) / 연습 (자유) — 보상/승수는 ranked 만
 
-### KvK 점수 추정 (`kvk-score.ts`)
-- 1일차: 건설 가속권 1분 = 30P
-- 4일차: 티어 9 (45P/병, baseTrainSec 131) 또는 티어 10 (60P/병, baseTrainSec 152, cityLevel ≥ 30)
-- 가속 버프 190% multiplier 2.9 (현재 고정값)
-- 오차 ±5%
-
-### KvK 버프 슬롯 예약 (`kvk-buff` EF + `kvk_buff_state` / `_participants`)
-- 슬롯 holder/empty 우측 정렬, admin 6명 (270680423, Raducanu, SsungBi, Pirate King, ISU, 271728683) skip/swap 권한
-- 가속권 페이지 안 다이얼로그 통합 (`/survey/kvk-buff/` 페이지는 다이얼로그 진입점만)
-
 ---
 
 ## 운영 함정 (영구 가치)
@@ -220,8 +230,7 @@ supabase/
 - **store force=true 누락** — Mutation 후 `store.refresh(fetcher, true)` 안 부르면 freshness 체크에 막혀 stale. `members.ts` 의 5곳 레퍼런스 패턴
 - **모달 결과 토스트** — native `<dialog>` 가 top layer 라 외부 fixed 토스트는 backdrop 에 가려짐. dialog 내부 absolute 로 두기
 - **i18n 동적 텍스트** — JS 가 `textContent` 로 박은 곳은 `onLangChange(() => 재렌더)` 콜백 필수. 정적 마크업만 자동 swap. 새 키는 `ko.ts` + `en.ts` 둘 다 채워야 `astro check` 통과
-- **이미지 dialog src 교체 잔상** — `<img>` src 만 바꾸면 새 이미지 디코드 전까지 이전 이미지 그대로 보임. src 교체 직전 `img.src = ''` 또는 명시 hide → 새 src 로 (블랙리스트/KvK 인증샷 lightbox 레퍼런스)
-- **speedup-stats Blob URL 매초 refetch 회귀** — 이미지 캐시 안 되는 endpoint 는 매초 refetch 가 비용 큼. 한 번 fetch 후 Blob URL 로 메모리 캐시
+- **이미지 dialog src 교체 잔상** — `<img>` src 만 바꾸면 새 이미지 디코드 전까지 이전 이미지 그대로 보임. src 교체 직전 `img.src = ''` 또는 명시 hide → 새 src 로 (블랙리스트 인증샷 lightbox 레퍼런스)
 
 ---
 
@@ -229,8 +238,7 @@ supabase/
 
 종료 시 정리해야 하는 일회성 가지. 작업 시 인지 + 종료 절차 메모리에 기록.
 
-- **KvK buff TEST_MODE** (2026-05-14 도입) — `?test=1` URL → `_test` 테이블/RPC 격리. 운영 buff 와 분리해 관리자 실증 테스트용.
-  종료 절차: `TEST_MODE` grep 으로 4 위치 + ROLLBACK SQL 실행. 자세한 절차는 [memory `project_kvk_buff_test_mode.md`](~/.claude/projects/-Users-toycode-Documents-00-Private-05-github-kingshot/memory/project_kvk_buff_test_mode.md)
+- **사이트 도메인 분리 작업** (2026-05-27~) — KvK 설문이 `hyeonseokhan/kingshot-1767` 로 분리됨. PNX 측 코드/EF/i18n 정리는 완료, 남은 잔여 작업 (PNX Supabase 의 `kvk_*` 테이블 drop, Secret 삭제, 구 repo archive 등) 은 [SITE_SEPARATION_PROGRESS.md](SITE_SEPARATION_PROGRESS.md) 참조. **분리 작업 종료 시 본 행 + 진행 파일 동시 삭제**.
 
 ---
 
@@ -246,15 +254,13 @@ supabase/
 - **트랙 3** (2026-04): DB 정리 — dead column/index 4+2 개 삭제 + pvp 자동청소 포기 결정
 - **트랙 4** (2026-05): KOR/ENG 다국어 — `src/i18n/{ko,en}.ts` + 가이드 pair + LangSwitcher
 - **블랙리스트** (2026-05): `/manage/blacklist` + `blacklist` 테이블
-- **KvK 설문** (2026-05): `/survey/kvk` + `kvk_speedup_survey` + 인증샷 업로드 + 평일/주말 정렬
-- **KvK 버프 예약** (2026-05): 가속권 페이지 안 다이얼로그 + `kvk_buff_*` 테이블 + admin skip/swap
 
 ---
 
 ## 코딩 컨벤션
 
 - 컴포넌트: `.astro`, 클라 로직: `src/scripts/{components,pages}/<name>.ts` (짝꿍)
-- 스타일: 도메인별 CSS 파일 분리 (`global`, `components`, `manage`, `minigame`, `game-tools`, `survey-kvk` 등)
+- 스타일: 도메인별 CSS 파일 분리 (`global`, `components`, `manage`, `minigame`, `game-tools` 등)
 - 한국어 식별자(키) 사용 시 주석으로 의미 부연 (예: `kingshot_id` = 게임 ID)
 - Edge Function: Deno + TS, action 디스패치 패턴 (`tile-match-auth/index.ts` 레퍼런스)
 - 마이그레이션: `YYYYMMDDHHMMSS_<verb>_<subject>.sql` + 파일 상단 ROLLBACK SQL 주석
@@ -263,11 +269,11 @@ supabase/
 
 ## 참고 문서
 
-- `supabase/migrations/` — DB 스키마 (최신: `20260515000400_reset_kvk_buff_production_data.sql`)
+- `supabase/migrations/` — DB 스키마 (최신은 `git log -- supabase/migrations/` 로 확인)
 - `supabase/functions/tile-match-auth/index.ts` — Edge Function 패턴 레퍼런스 (PIN 검증)
 - `supabase/functions/economy/index.ts` — stage→reward 매핑 + RPC 호출 패턴
 - `supabase/functions/pvp/index.ts` — 서버측 데미지 + 멱등 보상 패턴
-- `~/.claude/projects/.../memory/` — 사용자 메모리 (TEST_MODE 절차 등)
+- `~/.claude/projects/.../memory/` — 사용자 메모리
 
 ---
 
