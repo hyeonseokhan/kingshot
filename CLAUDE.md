@@ -234,14 +234,6 @@ supabase/
 
 ---
 
-## 운영 중 임시 분기
-
-종료 시 정리해야 하는 일회성 가지. 작업 시 인지 + 종료 절차 메모리에 기록.
-
-- **사이트 도메인 분리 작업** (2026-05-27~) — KvK 설문이 `hyeonseokhan/kingshot-1767` 로 분리됨. PNX 측 코드/EF/i18n 정리는 완료, 남은 잔여 작업 (PNX Supabase 의 `kvk_*` 테이블 drop, Secret 삭제, 구 repo archive 등) 은 [SITE_SEPARATION_PROGRESS.md](SITE_SEPARATION_PROGRESS.md) 참조. **분리 작업 종료 시 본 행 + 진행 파일 동시 삭제**.
-
----
-
 ## 완료된 마일스톤
 
 진행 이력 — 자세한 변경은 `git log` 로 추적.
@@ -254,6 +246,7 @@ supabase/
 - **트랙 3** (2026-04): DB 정리 — dead column/index 4+2 개 삭제 + pvp 자동청소 포기 결정
 - **트랙 4** (2026-05): KOR/ENG 다국어 — `src/i18n/{ko,en}.ts` + 가이드 pair + LangSwitcher
 - **블랙리스트** (2026-05): `/manage/blacklist` + `blacklist` 테이블
+- **사이트 도메인 분리** (2026-05): KvK 설문 → `kingshot-1767` repo + `1767.kingshot.co.kr` 로 완전 분리. PNX 측 KvK 자산 (테이블/RPC/Storage/i18n/코드) 일괄 정리. 공유 lib 동기화 룰 신설
 
 ---
 
