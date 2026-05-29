@@ -39,6 +39,22 @@ interface RefreshStats {
 
 const RANK_WEIGHT: Record<AllianceRank, number> = { R5: 5, R4: 4, R3: 3, R2: 2, R1: 1 };
 
+// ===== 정렬 상태 =====
+
+type SortKey = 'nickname' | 'rank' | 'level' | 'position' | 'power';
+type SortDir = 'asc' | 'desc';
+
+const DEFAULT_SORT_DIR: Record<SortKey, SortDir> = {
+  nickname: 'asc',
+  rank: 'desc',
+  level: 'desc',
+  position: 'asc',
+  power: 'desc',
+};
+
+let sortKey: SortKey = 'rank';
+let sortDir: SortDir = 'desc';
+
 // ===== DOM 핸들 =====
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -161,6 +177,43 @@ function syncPhoto(wrap: HTMLElement, m: Member): void {
 // 검색 키워드 — 닉네임 또는 kingshot_id 부분 매칭. 빈 문자열이면 필터 X.
 let searchKeyword = '';
 
+/**
+ * 컬럼 헤더 클릭으로 결정된 sortKey/sortDir 기준 비교.
+ * - 등급(rank): 등급 동률 시 power desc → level desc tie-break (기존 기본 정렬 호환)
+ * - 그 외: 단일 필드. 동률 시 닉네임 asc 로 안정 정렬
+ */
+function compareMembers(a: Member, b: Member): number {
+  const dir = sortDir === 'asc' ? 1 : -1;
+  switch (sortKey) {
+    case 'nickname': {
+      const cmp = (a.nickname || '').localeCompare(b.nickname || '', 'ko');
+      return cmp * dir;
+    }
+    case 'rank': {
+      const ra = a.alliance_rank ? RANK_WEIGHT[a.alliance_rank] : 0;
+      const rb = b.alliance_rank ? RANK_WEIGHT[b.alliance_rank] : 0;
+      if (ra !== rb) return (ra - rb) * dir;
+      if ((a.power || 0) !== (b.power || 0)) return (b.power || 0) - (a.power || 0);
+      return (b.level || 0) - (a.level || 0);
+    }
+    case 'level': {
+      const cmp = (a.level || 0) - (b.level || 0);
+      if (cmp !== 0) return cmp * dir;
+      return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
+    }
+    case 'position': {
+      const pa = a.alliance_rank_pos || 0;
+      const pb = b.alliance_rank_pos || 0;
+      return (pa - pb) * dir;
+    }
+    case 'power': {
+      const cmp = (a.power || 0) - (b.power || 0);
+      if (cmp !== 0) return cmp * dir;
+      return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
+    }
+  }
+}
+
 function matchesSearch(m: Member, keyword: string): boolean {
   if (!keyword) return true;
   const k = keyword.toLowerCase();
@@ -190,13 +243,7 @@ function renderMembers(): void {
   const filtered = positioned
     .filter((m) => (m.level || 0) >= minLevel)
     .filter((m) => matchesSearch(m, searchKeyword))
-    .sort((a, b) => {
-      const ra = a.alliance_rank ? RANK_WEIGHT[a.alliance_rank] : 0;
-      const rb = b.alliance_rank ? RANK_WEIGHT[b.alliance_rank] : 0;
-      if (ra !== rb) return rb - ra;
-      if ((b.power || 0) !== (a.power || 0)) return (b.power || 0) - (a.power || 0);
-      return (b.level || 0) - (a.level || 0);
-    });
+    .sort(compareMembers);
 
   $('member-count').textContent =
     minLevel > 0
@@ -462,6 +509,7 @@ function syncRefreshBanner(): void {
 
 function initPage(): void {
   initFilters();
+  initSortHeaders();
   initRowDelegation();
   initManageDialog();
   initAddModal();
@@ -469,6 +517,40 @@ function initPage(): void {
   initAdminGrant();
   initEscapeKey();
   initStoreBinding();
+}
+
+function initSortHeaders(): void {
+  const thead = document.getElementById('members-thead');
+  if (!thead) return;
+  thead.addEventListener('click', (e) => {
+    const cell = (e.target as HTMLElement).closest<HTMLElement>('[data-sort-key]');
+    if (!cell) return;
+    const key = cell.dataset.sortKey as SortKey;
+    if (sortKey === key) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey = key;
+      sortDir = DEFAULT_SORT_DIR[key];
+    }
+    updateSortIndicators();
+    renderMembers();
+  });
+  updateSortIndicators();
+}
+
+function updateSortIndicators(): void {
+  const thead = document.getElementById('members-thead');
+  if (!thead) return;
+  thead.querySelectorAll<HTMLElement>('[data-sort-key]').forEach((el) => {
+    const isActive = el.dataset.sortKey === sortKey;
+    el.classList.toggle('is-sort-active', isActive);
+    el.classList.toggle('is-sort-asc', isActive && sortDir === 'asc');
+    el.classList.toggle('is-sort-desc', isActive && sortDir === 'desc');
+    el.setAttribute(
+      'aria-sort',
+      isActive ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none',
+    );
+  });
 }
 
 function initFilters(): void {

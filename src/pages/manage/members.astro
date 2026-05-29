@@ -107,13 +107,38 @@ const navItems = manage.submenus!.map((s) => ({
       </div>
     </div>
     <div class="members-list" id="members-list">
-      <div class="members-thead">
+      <div class="members-thead" id="members-thead">
         <div></div>
-        <div data-i18n="members.thead.nickname">닉네임</div>
-        <div data-i18n="members.thead.rank">등급</div>
-        <div data-i18n="members.thead.level">레벨</div>
-        <div data-i18n="members.thead.position">랭킹</div>
-        <div data-i18n="members.thead.power">전투력</div>
+        <div>
+          <button type="button" class="th-cell" data-sort-key="nickname">
+            <span data-i18n="members.thead.nickname">닉네임</span>
+            <span class="sort-indicator" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div>
+          <button type="button" class="th-cell" data-sort-key="rank">
+            <span data-i18n="members.thead.rank">등급</span>
+            <span class="sort-indicator" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div>
+          <button type="button" class="th-cell" data-sort-key="level">
+            <span data-i18n="members.thead.level">레벨</span>
+            <span class="sort-indicator" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div>
+          <button type="button" class="th-cell" data-sort-key="position">
+            <span data-i18n="members.thead.position">랭킹</span>
+            <span class="sort-indicator" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div>
+          <button type="button" class="th-cell" data-sort-key="power">
+            <span data-i18n="members.thead.power">전투력</span>
+            <span class="sort-indicator" aria-hidden="true"></span>
+          </button>
+        </div>
         <div></div>
       </div>
       <div class="members-rows" id="members-rows"></div>

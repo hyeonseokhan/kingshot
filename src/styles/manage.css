@@ -408,6 +408,46 @@
 .members-thead > div:nth-child(n + 3):nth-child(-n + 6) {
   text-align: center;
 }
+.members-thead .th-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  user-select: none;
+  transition: color 120ms ease;
+}
+.members-thead .th-cell:hover {
+  color: var(--text);
+}
+.members-thead .th-cell .sort-indicator {
+  display: inline-block;
+  width: 8px;
+  font-size: 10px;
+  opacity: 0.3;
+  line-height: 1;
+}
+.members-thead .th-cell .sort-indicator::before {
+  content: '↕';
+}
+.members-thead .th-cell.is-sort-active {
+  color: var(--accent);
+}
+.members-thead .th-cell.is-sort-active .sort-indicator {
+  opacity: 1;
+}
+.members-thead .th-cell.is-sort-asc .sort-indicator::before {
+  content: '▲';
+}
+.members-thead .th-cell.is-sort-desc .sort-indicator::before {
+  content: '▼';
+}
 .member-row {
   border-bottom: 1px solid var(--border2);
 }
