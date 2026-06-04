@@ -5,6 +5,17 @@
 
 ---
 
+## 🔒 절대 룰 — UI
+
+본 섹션의 항목은 **모든 신규 UI 작업에 예외 없이 적용**. 위반 발견 시 즉시 수정.
+
+- **다이얼로그는 항상 화면 중앙에 위치한다.**
+  - native `<dialog>` 의 UA 기본 센터링이 dialog 자체에 `display: flex` 등 표시 속성을 걸 때 깨질 수 있음
+  - 해결: dialog 에 `position: fixed; inset: 0; margin: auto;` 명시 (또는 flex 레이아웃은 inner wrapper 로 분리)
+  - 적용 대상: 신규 native `<dialog>` 전체. `appAlert`/`appConfirm` 은 `dialog.ts` 가 이미 보장
+
+---
+
 ## ⚠️ 작업 시작 전 필독 — 재사용 우선 룰
 
 **신규 기능/페이지/유틸 작성 전 반드시 아래 절차 수행. 사본 코드/중복 컴포넌트 방지의 1차 방어선.**
