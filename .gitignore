@@ -43,3 +43,4 @@ Gemfile.lock
 # ===== 브랜드 자산 변환 source (sharp 변환 후 public/ 의 결과물만 commit) =====
 /logo.png
 /로고.png
+kingshot.code-workspace
