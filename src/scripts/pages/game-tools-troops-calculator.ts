@@ -21,6 +21,8 @@ import {
   type ValidationError,
 } from '@/lib/troops-calculator';
 import { onLangChange, t } from '@/i18n';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase';
+import { appConfirm } from '@/lib/dialog';
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -448,23 +450,192 @@ const TIER_FIELD_NAMES = [
   'archersT9',
 ] as const;
 
-/** 저장된 상태(입력값 + 분배 모드) 를 폼에 복원. 폼이 비어있는 상태일 때만 사용. */
-function restoreFormFromStorage(form: HTMLFormElement): StoredState | null {
-  const stored = loadState();
-  if (!stored) return null;
+/** 입력값 + 분배 모드를 폼 필드에 주입 (storage 복원 / 프로필 불러오기 공용). */
+function setFormState(form: HTMLFormElement, state: StoredState): void {
   const setText = (name: string, value: number) => {
     const el = form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
     if (el) el.value = value > 0 ? value.toLocaleString('ko-KR') : '';
   };
-  setText('cap', stored.input.cap);
+  setText('cap', state.input.cap);
   for (const name of TIER_FIELD_NAMES) {
-    setText(name, stored.input[name]);
+    setText(name, state.input[name]);
   }
   const squad = form.querySelector<HTMLSelectElement>('select[name="squadCount"]');
-  if (squad) squad.value = String(stored.input.squadCount);
+  if (squad) squad.value = String(state.input.squadCount);
   const dist = form.querySelector<HTMLSelectElement>('select[name="distribution"]');
-  if (dist) dist.value = stored.distribution;
+  if (dist) dist.value = state.distribution;
+}
+
+/** 저장된 상태(입력값 + 분배 모드) 를 폼에 복원. 폼이 비어있는 상태일 때만 사용. */
+function restoreFormFromStorage(form: HTMLFormElement): StoredState | null {
+  const stored = loadState();
+  if (!stored) return null;
+  setFormState(form, stored);
   return stored;
+}
+
+// ===== 프로필 (DB 영속 — troops_profiles 테이블 + troops-profiles Edge Function) =====
+// 여러 계정 보유 병력/설정을 슬롯 1~5 에 저장. 이 도구는 관리자 전용이라 전역 슬롯.
+
+const PROFILE_SLOTS = 5;
+const FN_PROFILES_URL = SUPABASE_URL + '/functions/v1/troops-profiles';
+
+interface Profile {
+  slot: number;
+  label: string;
+  input: TroopsInput;
+  distribution: DistributionMode;
+  updated_at: string | null;
+}
+
+interface ProfilesResponse {
+  ok: boolean;
+  error?: string;
+  profiles?: Profile[];
+  profile?: Profile;
+}
+
+/** slot index(1-based) → Profile | null. list 응답으로 채워짐. */
+const profileCache = new Map<number, Profile>();
+
+function callProfiles(action: string, body: Record<string, unknown> = {}): Promise<ProfilesResponse> {
+  return fetch(FN_PROFILES_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(Object.assign({ action }, body)),
+  })
+    .then((r) => r.json() as Promise<ProfilesResponse>)
+    .catch((err: Error) => ({ ok: false, error: String(err.message || err) }));
+}
+
+/** 슬롯 5개 렌더 — 채워진 슬롯은 label(없으면 cap 요약) + ✕ 삭제, 빈 슬롯은 점선 + "빈 슬롯". */
+function renderProfileSlots(): void {
+  const box = $('tc-profile-slots');
+  if (!box) return;
+  box.innerHTML = '';
+  for (let slot = 1; slot <= PROFILE_SLOTS; slot++) {
+    const prof = profileCache.get(slot) ?? null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tc-profile-slot';
+    btn.dataset.slot = String(slot);
+    if (prof) {
+      btn.classList.add('tc-profile-slot-filled');
+      const name = prof.label?.trim() || t('gameTools.troopsCalculator.saveDialogSlot', { slot });
+      btn.innerHTML =
+        `<span class="tc-profile-slot-num">${slot}</span>` +
+        `<span class="tc-profile-slot-name">${escapeHtml(name)}</span>` +
+        `<span class="tc-profile-slot-del" data-del="${slot}" role="button" aria-label="delete" title="삭제">✕</span>`;
+    } else {
+      btn.classList.add('tc-profile-slot-empty');
+      btn.innerHTML =
+        `<span class="tc-profile-slot-num">${slot}</span>` +
+        `<span class="tc-profile-slot-name">${escapeHtml(t('gameTools.troopsCalculator.profileEmpty'))}</span>`;
+    }
+    box.appendChild(btn);
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => {
+    const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+    return map[c]!;
+  });
+}
+
+/** EF 에서 프로필 목록 로드 → 캐시 + 렌더. 실패해도 빈 슬롯 5개는 그림. */
+async function loadProfiles(): Promise<void> {
+  renderProfileSlots(); // 즉시 빈 슬롯 표시 (네트워크 대기 동안 빈 UI 회피)
+  const res = await callProfiles('list');
+  if (res.ok && res.profiles) {
+    profileCache.clear();
+    for (const p of res.profiles) profileCache.set(p.slot, p);
+    renderProfileSlots();
+  } else if (!res.ok) {
+    showToast(t('gameTools.troopsCalculator.profileLoadFailed', { error: res.error || '' }));
+  }
+}
+
+/** 슬롯 불러오기 → 폼 주입 + 자동 재계산. */
+function loadProfileIntoForm(form: HTMLFormElement, slot: number): void {
+  const prof = profileCache.get(slot);
+  if (!prof) return;
+  setFormState(form, { input: prof.input, distribution: prof.distribution });
+  clearError();
+  const error = validate(prof.input);
+  if (error === null) {
+    renderResult(calculate(prof.input, prof.distribution));
+    saveState({ input: prof.input, distribution: prof.distribution });
+  } else {
+    resetResult();
+  }
+  showToast(t('gameTools.troopsCalculator.profileLoadedToast', { slot }));
+}
+
+/** 현재 폼 입력을 지정 슬롯에 저장 (EF save). */
+async function saveProfileToSlot(form: HTMLFormElement, slot: number, label: string): Promise<void> {
+  const { input, distribution } = readForm(form);
+  const res = await callProfiles('save', { slot, label, input, distribution });
+  if (res.ok && res.profile) {
+    profileCache.set(slot, res.profile);
+    renderProfileSlots();
+    showToast(t('gameTools.troopsCalculator.profileSavedToast', { slot }));
+  } else {
+    showToast(t('gameTools.troopsCalculator.profileSaveFailed', { error: res.error || '' }));
+  }
+}
+
+/** 슬롯 삭제 (확인 후 EF delete). */
+async function deleteProfileSlot(slot: number): Promise<void> {
+  const prof = profileCache.get(slot);
+  if (!prof) return;
+  const name = prof.label?.trim() ? ` "${prof.label.trim()}"` : '';
+  const ok = await appConfirm(t('gameTools.troopsCalculator.profileDeleteConfirm', { slot, name }), {
+    variant: 'danger',
+  });
+  if (!ok) return;
+  const res = await callProfiles('delete', { slot });
+  if (res.ok) {
+    profileCache.delete(slot);
+    renderProfileSlots();
+    showToast(t('gameTools.troopsCalculator.profileDeletedToast', { slot }));
+  } else {
+    showToast(t('gameTools.troopsCalculator.profileSaveFailed', { error: res.error || '' }));
+  }
+}
+
+/** 저장 다이얼로그 — 슬롯 선택 picker 렌더 + open. 선택 시 그 슬롯에 저장. */
+function openSaveDialog(form: HTMLFormElement): void {
+  const dialog = $<HTMLDialogElement>('tc-profile-dialog');
+  const picker = $('tc-profile-slot-picker');
+  const nameInput = $<HTMLInputElement>('tc-profile-name');
+  if (!dialog || !picker) return;
+  if (nameInput) nameInput.value = '';
+
+  picker.innerHTML = '';
+  for (let slot = 1; slot <= PROFILE_SLOTS; slot++) {
+    const prof = profileCache.get(slot) ?? null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tc-profile-pick' + (prof ? ' tc-profile-pick-filled' : '');
+    const sub = prof
+      ? prof.label?.trim() || t('gameTools.troopsCalculator.saveDialogSlot', { slot })
+      : t('gameTools.troopsCalculator.profileEmpty');
+    btn.innerHTML =
+      `<span class="tc-profile-pick-num">${slot}</span>` +
+      `<span class="tc-profile-pick-sub">${escapeHtml(sub)}</span>`;
+    btn.addEventListener('click', () => {
+      const label = nameInput?.value?.trim() || (prof?.label ?? '');
+      void saveProfileToSlot(form, slot, label);
+      if (dialog.open) dialog.close();
+    });
+    picker.appendChild(btn);
+  }
+  if (!dialog.open) dialog.showModal();
 }
 
 function init(): void {
@@ -505,10 +676,48 @@ function init(): void {
     clearStoredState();
   });
 
-  // 언어 변경 시 — 마지막 결과의 라벨을 다시 그림
+  // ===== 프로필 슬롯 — 불러오기/삭제 (이벤트 위임) =====
+  const slotsBox = $('tc-profile-slots');
+  slotsBox?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    // ✕ 삭제 — 슬롯 불러오기보다 우선 처리
+    const del = target.closest<HTMLElement>('[data-del]');
+    if (del) {
+      e.stopPropagation();
+      const slot = Number(del.dataset.del);
+      if (slot >= 1) void deleteProfileSlot(slot);
+      return;
+    }
+    const slotEl = target.closest<HTMLElement>('.tc-profile-slot');
+    if (!slotEl) return;
+    const slot = Number(slotEl.dataset.slot);
+    if (!(slot >= 1)) return;
+    if (profileCache.has(slot)) {
+      loadProfileIntoForm(form, slot); // 채워진 슬롯 → 불러오기
+    } else {
+      openSaveDialog(form); // 빈 슬롯 → 저장 다이얼로그 (슬롯 선택)
+    }
+  });
+
+  // 프로필 저장 버튼 → 슬롯 선택 다이얼로그
+  $('tc-save-profile')?.addEventListener('click', () => openSaveDialog(form));
+
+  // 저장 다이얼로그 취소 / backdrop 클릭
+  const profileDialog = $<HTMLDialogElement>('tc-profile-dialog');
+  $('tc-profile-cancel')?.addEventListener('click', () => profileDialog?.close());
+  profileDialog?.addEventListener('click', (e) => {
+    // backdrop(다이얼로그 자체) 클릭 시 닫기 — inner 클릭은 무시
+    if (e.target === profileDialog) profileDialog.close();
+  });
+
+  // 언어 변경 시 — 마지막 결과의 라벨 + 프로필 슬롯 다시 그림
   onLangChange(() => {
     if (lastResult) renderResult(lastResult);
+    renderProfileSlots();
   });
+
+  // 프로필 목록 로드 (DB)
+  void loadProfiles();
 
   // 저장된 입력 복원 + 자동 재계산 (validate 통과 시).
   const restored = restoreFormFromStorage(form);

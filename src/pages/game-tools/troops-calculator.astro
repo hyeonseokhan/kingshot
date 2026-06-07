@@ -30,6 +30,16 @@ const navItems = gameTools.submenus!.map((s) => ({
       <span class="tc-mode-badge">🐻 Bear Hunt · 1 : 1 : 8</span>
     </div>
 
+    <!-- 프로필 슬롯 1~5 — 여러 계정 보유 병력/설정을 저장해두고 한 번에 불러오기.
+         슬롯 클릭: 불러오기(데이터 있으면) / 빈 슬롯이면 현재 입력을 그 슬롯에 저장.
+         long-press 또는 ✕ 로 삭제. DB(troops_profiles) 영속 — 브라우저 무관. -->
+    <div class="tc-profiles" id="tc-profiles">
+      <span class="tc-profiles-label" data-i18n="gameTools.troopsCalculator.profilesLabel">프로필</span>
+      <div class="tc-profile-slots" id="tc-profile-slots">
+        <!-- JS 가 5개 슬롯 렌더 -->
+      </div>
+    </div>
+
     <form class="tc-form" id="tc-form" autocomplete="off" novalidate>
       <!-- 병과별 T9/T10 분리 입력. 각 행: 라벨 + T10 + T9. (T10 이 더 강해서 좌측 우선) -->
       <div class="tc-troops-grid">
@@ -140,10 +150,43 @@ const navItems = gameTools.submenus!.map((s) => ({
         <button type="button" class="btn btn-secondary" id="tc-reset" data-i18n="gameTools.troopsCalculator.btnReset">
           초기화
         </button>
+        <button type="button" class="btn btn-secondary" id="tc-save-profile" data-i18n="gameTools.troopsCalculator.btnSaveProfile">
+          프로필 저장
+        </button>
       </div>
 
       <div class="tc-error" id="tc-error" role="alert" hidden></div>
     </form>
+
+    <!-- 프로필 저장 슬롯 선택 다이얼로그. native <dialog> — 절대 룰: 화면 중앙 고정. -->
+    <dialog class="tc-profile-dialog" id="tc-profile-dialog">
+      <div class="tc-profile-dialog-inner">
+        <h2 class="tc-profile-dialog-title" data-i18n="gameTools.troopsCalculator.saveDialogTitle">
+          어느 슬롯에 저장할까요?
+        </h2>
+        <p class="tc-profile-dialog-desc" data-i18n="gameTools.troopsCalculator.saveDialogDesc">
+          현재 입력값을 선택한 슬롯에 저장합니다. 이미 값이 있으면 덮어씁니다.
+        </p>
+        <label class="tc-profile-name-field">
+          <span data-i18n="gameTools.troopsCalculator.saveDialogNameLabel">프로필 이름 (선택)</span>
+          <input
+            type="text"
+            id="tc-profile-name"
+            maxlength="40"
+            data-i18n-attr-placeholder="gameTools.troopsCalculator.saveDialogNamePlaceholder"
+            placeholder="예: 본캐 / 부캐2"
+          />
+        </label>
+        <div class="tc-profile-slot-picker" id="tc-profile-slot-picker">
+          <!-- JS 가 슬롯 5개 버튼 렌더 -->
+        </div>
+        <div class="tc-profile-dialog-actions">
+          <button type="button" class="btn btn-secondary" id="tc-profile-cancel" data-i18n="gameTools.troopsCalculator.saveDialogCancel">
+            취소
+          </button>
+        </div>
+      </div>
+    </dialog>
 
     <section class="tc-result" id="tc-result" hidden>
       <div class="tc-result-head">

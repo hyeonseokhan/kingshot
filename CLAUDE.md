@@ -204,7 +204,7 @@ supabase/
 | 운명파트너 | `/minigame/partner-draw` | `partner-draw.ts` | `tile_match_records`, `members` |
 | 장비 강화 | `/minigame/equipment` | `equipment.ts` | `equipment_levels` + `equipment` EF (`enhance`) |
 | PvP | `/minigame/pvp` | `pvp.ts` | `pvp_battles`, `pvp_daily_state` + `pvp` EF |
-| 부대 계산기 | `/game-tools/troops-calculator` | `game-tools-troops-calculator.ts` (+ `game-tools-guard.ts`) | 순수 클라 (관리자 한정 — `kingshot_id == '270680423'`) |
+| 부대 계산기 | `/game-tools/troops-calculator` | `game-tools-troops-calculator.ts` (+ `game-tools-guard.ts`) | 계산은 순수 클라 + 프로필 슬롯 1~5 는 `troops_profiles` + `troops-profiles` EF (관리자 한정 — `kingshot_id == '270680423'`) |
 
 **Edge Function 디스패치 패턴**: 모든 함수는 action 디스패치 방식. 레퍼런스 = `supabase/functions/tile-match-auth/index.ts` (PIN 검증), `economy/index.ts` (stage→reward + RPC), `pvp/index.ts` (서버측 데미지 + 멱등 보상).
 
@@ -228,6 +228,12 @@ supabase/
 - 카드 3종 (공격/강화/방어) — 매 턴 3장 중 1택
 - 데미지 서버 계산 (share-based + chip floor + 격돌 메커닉), 클라는 카드 선택만 전송
 - `is_ranked` 분리: ranked (일일 5회 안) / 연습 (자유) — 보상/승수는 ranked 만
+
+### 부대 계산기 분배 (`troops-calculator.ts`)
+- 병종 강함 순서 = **궁병 > 기병 > 보병**. 분배는 강한 병종 우선 충원.
+- 몰빵형(`bear-stack`) fallback 편대: 궁병(자기자리 한도) → **기병 최대 충원** → 보병이 남은 자리. **기/보 1:1 균등 아님** (기병이 더 강함). 마지막 1개 fallback 편대는 기병 보유 전량, 여러 개면 평탄(floor) 분배로 뒤 편대도 화력 유지
+- 권장값(`bear`)은 기존 1:1 균등 유지 — 의도적. 몰빵형만 기병 우선
+- 프로필 슬롯: 전역 1~5 (player_id 무관 — 관리자 전용 도구라). 쓰기는 EF(service_role)만
 
 ---
 

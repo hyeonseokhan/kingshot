@@ -21,7 +21,7 @@ project_id = "kingshot"
 #   - redeem-coupon  (centurygame /gift_code 호출 — player/captcha/redeem/redeem_batch)
 #
 # 인증 보내는 함수 (등록 불필요):
-#   - economy, equipment, pvp, tile-match-auth, player-info
+#   - economy, equipment, pvp, tile-match-auth, player-info, troops-profiles
 
 [functions.gift-codes]
 verify_jwt = false

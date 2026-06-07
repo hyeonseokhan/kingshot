@@ -300,13 +300,15 @@ export function calculateBearHunt(input: TroopsInput): TroopsResult {
  *      - fullSquads = min(궁/궁비용, 기/기비용, 보/보비용, N)
  *      - 단 기/보 비용이 0 이면(=궁이 cap 전체) 0 분모 회피
  *   2) 1..fullSquads 편대: 풀 1:1:8 정확히. 자원 차감.
- *   3) fullSquads+1..N 편대: 매 편대마다
- *      - 궁병 = floor(남은궁/남은편대수), 자기자리 한도
- *      - 보병/기병 자리 = cap - 궁병사용, 1:1 균등
- *      - 기병 = floor(남은기/남은편대수), 자기자리 한도
- *      - 기병 부족분 → 보병이 흡수 (보병 한도 = 자기자리 + 기병부족분)
- *      - 보병 = floor(남은보/남은편대수), 한도 안
- *      이렇게 하면 남은 편대들이 자원을 동등하게 나눠 가짐.
+ *   3) fullSquads+1..N 편대: 매 편대마다 (강함 순 궁 > 기 > 보 — 강한 병종 우선 충원)
+ *      - 궁병 = floor(남은궁/남은편대수), 자기자리(cap*8/10) 한도
+ *      - 보병/기병 자리 = cap - 궁병사용 (궁병 못 채운 자리도 기/보가 흡수)
+ *      - 기병 = 남은 자리 안에서 보유 기병을 "최대한" 충원 (1:1 균등 X — 기병이 보병보다 강함).
+ *               마지막 fallback 편대(1개만 남았을 때)는 보유 전량 투입,
+ *               여러 편대가 남았으면 평탄 분배(floor(남은기/남은편대수))로 뒤 편대도 화력 유지.
+ *      - 보병 = 기병이 채우고 남은 자리를, 보유 보병으로 채움.
+ *      예) 잔여 기병 94,028 + 자리 충분 → 3편대 기병 94,028, 나머지 자리 보병.
+ *          (기존: 기/보 1:1 → 기병이 절반만 쓰이고 강한 병종이 잔류하던 문제 해결)
  */
 export function calculateBearStack(input: TroopsInput): TroopsResult {
   const { cap, squadCount: N } = input;
@@ -371,20 +373,22 @@ export function calculateBearStack(input: TroopsInput): TroopsResult {
     leftArcT10 = arc.leftT10; leftArcT9 = arc.leftT9;
 
     // 보병/기병 자리 = cap - 궁병 사용. 궁병 못 채운 자리도 보/기가 흡수.
+    // 기병이 보병보다 강하므로 1:1 균등이 아니라 "기병 우선 충원" → 남은 자리에 보병.
     const infCavSlot = cap - arc.used;
-    const cavTarget = Math.floor(infCavSlot / 2);
-    const infTarget = infCavSlot - cavTarget;
 
-    // 기병 — 평탄 분배, 자기자리 한도
-    const cavShare = Math.floor((leftCavT10 + leftCavT9) / remainingSquads);
-    const cavWant = Math.min(cavShare, cavTarget);
+    // 기병 — 자리 안에서 최대 충원. 뒤에도 fallback 편대가 남았으면 평탄(floor) 분배로
+    //        뒤 편대 화력 유지, 마지막 1개 편대면 보유 전량을 자리 한도까지 투입.
+    const leftCavTotal = leftCavT10 + leftCavT9;
+    const cavShare = remainingSquads > 1 ? Math.floor(leftCavTotal / remainingSquads) : leftCavTotal;
+    const cavWant = Math.min(cavShare, infCavSlot);
     const cav = consume(cavWant, leftCavT10, leftCavT9);
     leftCavT10 = cav.leftT10; leftCavT9 = cav.leftT9;
-    const cavShortage = cavTarget - cav.used;
 
-    // 보병 — 평탄 분배, (자기자리 + 기병부족분) 한도
-    const infShare = Math.floor((leftInfT10 + leftInfT9) / remainingSquads);
-    const infWant = Math.min(infShare, infTarget + cavShortage);
+    // 보병 — 기병이 채우고 남은 자리를 보병으로 채움 (기병 우선이므로 잔여 자리 전체가 보병 한도).
+    const infSlot = infCavSlot - cav.used;
+    const leftInfTotal = leftInfT10 + leftInfT9;
+    const infShare = remainingSquads > 1 ? Math.floor(leftInfTotal / remainingSquads) : leftInfTotal;
+    const infWant = Math.min(infShare, infSlot);
     const inf = consume(infWant, leftInfT10, leftInfT9);
     leftInfT10 = inf.leftT10; leftInfT9 = inf.leftT9;
 
