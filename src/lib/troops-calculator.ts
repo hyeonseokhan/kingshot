@@ -102,6 +102,13 @@ export type ValidationError =
 const RATIO = { infantry: 1, cavalry: 1, archers: 8 } as const;
 const RATIO_SUM = RATIO.infantry + RATIO.cavalry + RATIO.archers; // 10
 
+/**
+ * 병종 시너지 발동 최소 참여 비중 = 출정 상한의 10%.
+ * 한 편대에서 어떤 병종이 "참여(분배량 > 0)"하면 cap*10% 이상이어야 시너지가 켜짐.
+ * 몰빵형 fallback 편대에서 보병에 이 floor 를 먼저 확보 (보유량/자리가 부족하면 그만큼만).
+ */
+const SYNERGY_RATIO = 0.1;
+
 /** 입력 검증. ok=false 일 때 error 종류 반환. */
 export function validate(input: TroopsInput): ValidationError | null {
   const values = [
@@ -313,6 +320,8 @@ export function calculateBearHunt(input: TroopsInput): TroopsResult {
 export function calculateBearStack(input: TroopsInput): TroopsResult {
   const { cap, squadCount: N } = input;
   const archerSlotMax = Math.floor((cap * RATIO.archers) / RATIO_SUM);
+  // 병종 시너지 floor — fallback 편대 보병이 최소 이만큼 참여해야 시너지 발동.
+  const synergyFloor = Math.floor(cap * SYNERGY_RATIO);
   // 풀 1편대의 보병/기병 자리 = 1:1 균등 (홀수면 보병 +1)
   const fullInfCavSlot = cap - archerSlotMax;
   const cavSlotFull = Math.floor(fullInfCavSlot / 2);
@@ -366,31 +375,35 @@ export function calculateBearStack(input: TroopsInput): TroopsResult {
   for (let i = fullSquads; i < N; i++) {
     const remainingSquads = N - i;
 
-    // 궁병 — 평탄 분배, 자기자리 한도
-    const arcShare = Math.floor((leftArcT10 + leftArcT9) / remainingSquads);
-    const arcWant = Math.min(arcShare, archerSlotMax);
+    // 궁병 — 평탄 분배, 자기자리 한도. 단 궁병이 참여(보유>0)하면 시너지 floor 이상 보장
+    //        (평탄 share 가 floor 미만이어도 보유/슬롯 한도 안에서 floor 까지 끌어올림).
+    const leftArcTotal = leftArcT10 + leftArcT9;
+    const arcShare = Math.floor(leftArcTotal / remainingSquads);
+    const arcFloor = leftArcTotal > 0 ? Math.min(synergyFloor, leftArcTotal, archerSlotMax) : 0;
+    const arcWant = Math.min(Math.max(arcShare, arcFloor), archerSlotMax);
     const arc = consume(arcWant, leftArcT10, leftArcT9);
     leftArcT10 = arc.leftT10; leftArcT9 = arc.leftT9;
 
     // 보병/기병 자리 = cap - 궁병 사용. 궁병 못 채운 자리도 보/기가 흡수.
-    // 기병이 보병보다 강하므로 1:1 균등이 아니라 "기병 우선 충원" → 남은 자리에 보병.
+    // 기병이 보병보다 강하므로 "기병 우선 충원"이지만, 시너지 발동(병종별 cap*10% 참여)을
+    // 위해 보병에 synergyFloor(=cap*10%) 만큼 먼저 양보 → 나머지 자리를 기병이 채움.
     const infCavSlot = cap - arc.used;
 
-    // 기병 — 자리 안에서 최대 충원. 뒤에도 fallback 편대가 남았으면 평탄(floor) 분배로
-    //        뒤 편대 화력 유지, 마지막 1개 편대면 보유 전량을 자리 한도까지 투입.
-    const leftCavTotal = leftCavT10 + leftCavT9;
-    const cavShare = remainingSquads > 1 ? Math.floor(leftCavTotal / remainingSquads) : leftCavTotal;
-    const cavWant = Math.min(cavShare, infCavSlot);
-    const cav = consume(cavWant, leftCavT10, leftCavT9);
-    leftCavT10 = cav.leftT10; leftCavT9 = cav.leftT9;
-
-    // 보병 — 기병이 채우고 남은 자리를 보병으로 채움 (기병 우선이므로 잔여 자리 전체가 보병 한도).
-    const infSlot = infCavSlot - cav.used;
+    // 보병 — 시너지 floor 우선 확보. 보유량과 자리(infCavSlot)가 상한, floor 는 목표.
+    // (floor 만큼만 확보하고 나머지는 기병에 양보 — 기병이 더 강함.)
     const leftInfTotal = leftInfT10 + leftInfT9;
-    const infShare = remainingSquads > 1 ? Math.floor(leftInfTotal / remainingSquads) : leftInfTotal;
-    const infWant = Math.min(infShare, infSlot);
+    const infWant = Math.min(leftInfTotal, synergyFloor, infCavSlot);
     const inf = consume(infWant, leftInfT10, leftInfT9);
     leftInfT10 = inf.leftT10; leftInfT9 = inf.leftT9;
+
+    // 기병 — 보병 floor 확보 후 남은 자리를 최대 충원. 뒤에도 fallback 편대가 남았으면
+    //        평탄(floor) 분배로 뒤 편대 화력 유지, 마지막 1개 편대면 보유 전량을 자리 한도까지.
+    const cavSlot = infCavSlot - inf.used;
+    const leftCavTotal = leftCavT10 + leftCavT9;
+    const cavShare = remainingSquads > 1 ? Math.floor(leftCavTotal / remainingSquads) : leftCavTotal;
+    const cavWant = Math.min(cavShare, cavSlot);
+    const cav = consume(cavWant, leftCavT10, leftCavT9);
+    leftCavT10 = cav.leftT10; leftCavT9 = cav.leftT9;
 
     const squadTotal = arc.used + cav.used + inf.used;
     if (squadTotal < cap) allFull = false;
