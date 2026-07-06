@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import obfuscator from 'vite-plugin-javascript-obfuscator';
 
 export default defineConfig({
+  // 배포 대상: kingshot.wooju-home.org (GitHub Pages custom domain)
   site: 'https://kingshot.wooju-home.org',
   output: 'static',
   trailingSlash: 'always',
