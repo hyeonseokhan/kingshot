@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import obfuscator from 'vite-plugin-javascript-obfuscator';
 
 export default defineConfig({
-  site: 'https://kingshot.wooju-home.org',
+  site: 'https://hyeonseokhan.github.io',
   output: 'static',
   trailingSlash: 'always',
   markdown: {
