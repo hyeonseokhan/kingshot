@@ -101,7 +101,7 @@ KvK 설문/버프예약 도메인은 **별도 repo + 인프라**로 분리됨 (2
 | `stores/members.ts` | `membersStore`, `fetchMembers()` | 연맹원 로스터 (4 페이지 공유) — `members` 직접 fetch 금지 |
 | `dom-diff.ts` | `patchList({container,items,key,render,update})`, `patchText(el,val)` | **데이터 갱신 시 필수** — `innerHTML=''` 금지 |
 | `dialog.ts` | `appAlert(msg)`, `appConfirm(msg, {variant:'danger'})` | **window.alert/confirm 금지** — 사이트 토큰 디자인 |
-| `utils.ts` | `esc`, `formatDate`, `formatDateTime`, `formatRelativeTime`, `formatNum`, `formatPower`, `getLevelClass`, `truncate`, `delay`, `toggleOverlay`, `describeRedeemError`, `isAlreadyRedeemed` | 텍스트 포매팅 / HTML escape / 레벨 테두리 / 쿠폰 응답 해석 |
+| `utils.ts` | `esc`, `formatDate`, `formatDateTime`, `formatRelativeTime`, `formatNum`, `formatPower`, `getLevelClass`, `truncate`, `delay`, `toggleOverlay`, `describeRedeemError`, `isAlreadyRedeemed`, `isIneligibleRedeem`, `isPermanentlyInvalidCode`, `REDEEM_STATUS` | 텍스트 포매팅 / HTML escape / 레벨 테두리 / 쿠폰 응답 해석·분류 |
 | `image-optimize.ts` | `optimizeImage(file, {maxWidth, quality, mimeType})`, `formatBytes` | 사용자 업로드 PNG/JPEG → WebP resize. iOS Safari 17 이하 WASM 폴백 |
 | `balance.ts` | `rewardForStage`, `enhanceCostFor`, `accumulatedPower`, `tierForLevel`, `TIER_LABEL`, `EQUIPMENT_SLOTS`, `SLOT_LABEL` | 크리스탈/강화 (서버 mirror — 변경 시 양쪽 동시) |
 | `equipment-tier-fx.ts` | `applyStageTier(stageEl, tier)`, `lowestStageTier(rows)` | 장비 stage 배경 + 모션 효과 |

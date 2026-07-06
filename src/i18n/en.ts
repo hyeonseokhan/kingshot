@@ -255,6 +255,9 @@ export const en: Translations = {
       redeem: 'Redeem coupon',
       done: 'Already redeemed',
       delete: 'Delete',
+      ineligible: 'Ineligible',
+      ineligibleHint: 'Excluded from bulk redeem — eligibility condition not met (e.g. KakaoTalk channel required)',
+      retry: 'Retry (includes ineligible coupons)',
     },
     confirm: {
       deleteAccount: 'Delete this account?',
@@ -283,11 +286,13 @@ export const en: Translations = {
       onePersonNetError: '⚠️ {name} network error',
       couponDone: '✅ {name} — {code} redeemed',
       couponAlready: '✅ {name} — {code} already redeemed',
+      couponIneligible: '⏭️ {name} — {code} ineligible (excluded next time)',
       couponFailed: '⚠️ {name} — {code}: {label}',
     },
     summary: {
       success: '✅ Success {n}',
       already: '📋 Already {n}',
+      ineligible: '⏭️ Ineligible {n}',
       failed: '⚠️ Failed {n}',
       detailsHeader: 'Failure details:\n{details}',
     },

@@ -1137,6 +1137,24 @@
   color: var(--red);
   border-color: var(--red);
 }
+/* 자격 미달 배지 — 상시 표시 (전체 수령에서 제외됨을 알림). 옆의 재시도 버튼으로 수동 재시도 가능 */
+.cp-badge-ineligible {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text3);
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+}
+.cp-btn-retry:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 /* ===== 수령 진행 ===== */
 .redeem-progress {
   padding: 10px 16px;

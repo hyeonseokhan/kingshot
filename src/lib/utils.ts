@@ -9,6 +9,9 @@ import { t } from '@/i18n';
 export const REDEEM_STATUS = {
   SUCCESS: 'success',
   ALREADY: 'already_redeemed',
+  /** 조건 불충족 (사용자별 영구) — 예: 40017 카카오톡 채널 자격 필요.
+   *  전체 수령 대상에서 제외 (같은 실패 무한 재시도 방지). 개별 재시도는 허용. */
+  INELIGIBLE: 'ineligible',
 } as const;
 export type RedeemStatus = (typeof REDEEM_STATUS)[keyof typeof REDEEM_STATUS];
 
@@ -38,6 +41,36 @@ export function isPermanentlyInvalidCode(
   if (errCode == null) return false;
   const n = Number(errCode);
   return Number.isFinite(n) && PERMANENTLY_INVALID_ERR_CODES.has(n);
+}
+
+/** 사용자별 "조건 불충족" (영구, 재시도 불필요) err_code.
+ *  - 40017: 영주 상담원 전속 코드 (카카오톡 채널 자격 필요)
+ *  40008(이미 수령) 은 별도 ALREADY 로 취급 — 여기 포함 X. */
+const INELIGIBLE_ERR_CODES = new Set<number>([40017]);
+/** err_code 로 못 잡을 때의 방어선 — 응답 msg 에 등장하는 자격 관련 키워드. */
+const INELIGIBLE_KEYWORDS = ['자격', 'exclusive', 'channel'];
+
+/**
+ * 응답이 "조건 불충족(영구, 재시도 불필요)" 인지 판별.
+ * - 1차: err_code 화이트리스트 (40017)
+ * - 2차: msg 키워드 (API 가 err_code 를 안 줄 때 방어)
+ * 네트워크/서버 오류 (code<0, err_code 없음) 는 여기 걸리지 않음 → 일시적 오류로 재시도 대상.
+ */
+export function isIneligibleRedeem(resp: {
+  code?: number;
+  msg?: string;
+  err_code?: number | string | null;
+} | null | undefined): boolean {
+  if (!resp) return false;
+  if (resp.err_code != null) {
+    const n = Number(resp.err_code);
+    if (Number.isFinite(n) && INELIGIBLE_ERR_CODES.has(n)) return true;
+  }
+  if (resp.msg) {
+    const m = resp.msg.toLowerCase();
+    if (INELIGIBLE_KEYWORDS.some((kw) => m.indexOf(kw.toLowerCase()) !== -1)) return true;
+  }
+  return false;
 }
 
 /** 레벨별 프로필 테두리 CSS 클래스 매핑 (임계값 내림차순) */

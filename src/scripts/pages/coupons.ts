@@ -9,6 +9,7 @@ import {
   esc,
   formatDate,
   isAlreadyRedeemed,
+  isIneligibleRedeem,
   isPermanentlyInvalidCode,
   describeRedeemError,
   REDEEM_STATUS,
@@ -54,7 +55,7 @@ const HISTORY_PAGE_SIZE = 50;
 let activeCoupons: ActiveCoupon[] = [];
 const couponHistory: Record<string, string> = {};
 let allAccounts: RedeemAccount[] = [];
-let redeemStats = { success: 0, already: 0, failed: 0, errors: [] as string[] };
+let redeemStats = { success: 0, already: 0, ineligible: 0, failed: 0, errors: [] as string[] };
 let totalRedeemTasks = 0;
 let completedRedeemTasks = 0;
 
@@ -74,6 +75,8 @@ const SVG = {
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>',
   trash:
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  retry:
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
 };
 
 // ===== DOM 헬퍼 =====
@@ -330,39 +333,60 @@ function loadHistory(callback?: () => void): void {
   })();
 }
 
-function getRedeemStatus(kingshotId: string): 'done' | 'pending' | 'none' {
+type RowStatus = 'done' | 'ineligible' | 'pending' | 'none';
+
+/** (전체 쿠폰 기준) 행 상태.
+ *  - pending: 아직 실제로 시도 가능한 쿠폰이 하나라도 있음 (수령 버튼)
+ *  - ineligible: 남은 미수령이 전부 "조건 불충족" 뿐 (자격 미달 배지 + 재시도)
+ *  - done: 모든 활성 쿠폰 수령/이미수령 완료 */
+function getRedeemStatus(kingshotId: string): RowStatus {
   if (activeCoupons.length === 0) return 'none';
+  let anyIneligible = false;
   for (const c of activeCoupons) {
     const s = couponHistory[kingshotId + ':' + c.code];
-    if (s !== REDEEM_STATUS.SUCCESS && s !== REDEEM_STATUS.ALREADY) return 'pending';
+    if (s === REDEEM_STATUS.SUCCESS || s === REDEEM_STATUS.ALREADY) continue;
+    if (s === REDEEM_STATUS.INELIGIBLE) {
+      anyIneligible = true;
+      continue;
+    }
+    return 'pending'; // 시도 가능한 쿠폰 발견
   }
-  return 'done';
+  return anyIneligible ? 'ineligible' : 'done';
 }
 
-function getCodesToRedeem(kingshotId: string): string[] {
+/**
+ * 이 계정에게 실제로 요청 보낼 쿠폰 코드 목록.
+ * - 쿠폰 선택 모드: 선택 쿠폰 1개 (success/already 면 skip). 조건 불충족이어도 반환 → 개별 수동 재시도 허용.
+ * - 전체 모드: getUnredeemedCodes. includeIneligible=false 면 조건 불충족 제외 (전체 수령이 같은 실패 무한 재시도 안 하도록).
+ */
+function getCodesToRedeem(kingshotId: string, includeIneligible = false): string[] {
   const sel = getSelectedCoupon();
   if (sel) {
     const s = couponHistory[kingshotId + ':' + sel.code];
     if (s === REDEEM_STATUS.SUCCESS || s === REDEEM_STATUS.ALREADY) return [];
     return [sel.code];
   }
-  return getUnredeemedCodes(kingshotId);
+  return getUnredeemedCodes(kingshotId, includeIneligible);
 }
 
-function getEffectiveStatus(kingshotId: string): 'done' | 'pending' | 'none' {
+function getEffectiveStatus(kingshotId: string): RowStatus {
   const sel = getSelectedCoupon();
   if (sel) {
     const s = couponHistory[kingshotId + ':' + sel.code];
-    return s === REDEEM_STATUS.SUCCESS || s === REDEEM_STATUS.ALREADY ? 'done' : 'pending';
+    if (s === REDEEM_STATUS.SUCCESS || s === REDEEM_STATUS.ALREADY) return 'done';
+    if (s === REDEEM_STATUS.INELIGIBLE) return 'ineligible';
+    return 'pending';
   }
   return getRedeemStatus(kingshotId);
 }
 
-function getUnredeemedCodes(kingshotId: string): string[] {
+function getUnredeemedCodes(kingshotId: string, includeIneligible = false): string[] {
   return activeCoupons
     .filter((c) => {
       const s = couponHistory[kingshotId + ':' + c.code];
-      return s !== REDEEM_STATUS.SUCCESS && s !== REDEEM_STATUS.ALREADY;
+      if (s === REDEEM_STATUS.SUCCESS || s === REDEEM_STATUS.ALREADY) return false;
+      if (s === REDEEM_STATUS.INELIGIBLE) return includeIneligible;
+      return true;
     })
     .map((c) => c.code);
 }
@@ -468,18 +492,35 @@ function updateAccountRow(row: HTMLElement, a: RedeemAccount, canDelete: boolean
   const status = getEffectiveStatus(a.kingshot_id);
   const actions = row.querySelector<HTMLElement>('.coupon-row-actions')!;
   // 버튼 영역은 status / canDelete 에 따라 통째 다시 그림 (작은 영역, 깜박임 영향 미미)
-  const redeemBtn =
-    status === 'done'
-      ? '<button class="cp-btn cp-btn-done" disabled title="' +
-        esc(t('coupons.rowAction.done')) +
-        '">' +
-        SVG.check +
-        '</button>'
-      : '<button class="cp-btn cp-btn-redeem" data-action="redeem" title="' +
-        esc(t('coupons.rowAction.redeem')) +
-        '">' +
-        SVG.gift +
-        '</button>';
+  let redeemBtn: string;
+  if (status === 'done') {
+    redeemBtn =
+      '<button class="cp-btn cp-btn-done" disabled title="' +
+      esc(t('coupons.rowAction.done')) +
+      '">' +
+      SVG.check +
+      '</button>';
+  } else if (status === 'ineligible') {
+    // 자격 미달 배지 (상시 표시) + 재시도 버튼 (자격은 나중에 바뀔 수 있어 숨기지 않음)
+    redeemBtn =
+      '<span class="cp-badge-ineligible" title="' +
+      esc(t('coupons.rowAction.ineligibleHint')) +
+      '">' +
+      esc(t('coupons.rowAction.ineligible')) +
+      '</span>' +
+      '<button class="cp-btn cp-btn-retry" data-action="retry" title="' +
+      esc(t('coupons.rowAction.retry')) +
+      '">' +
+      SVG.retry +
+      '</button>';
+  } else {
+    redeemBtn =
+      '<button class="cp-btn cp-btn-redeem" data-action="redeem" title="' +
+      esc(t('coupons.rowAction.redeem')) +
+      '">' +
+      SVG.gift +
+      '</button>';
+  }
   const deleteBtn = canDelete
     ? '<button class="cp-btn cp-btn-delete" data-action="remove" title="' +
       esc(t('coupons.rowAction.delete')) +
@@ -666,8 +707,8 @@ async function removeAccount(id: string): Promise<void> {
 
 // ===== 쿠폰 수령 =====
 
-function redeemOne(fid: string, nickname: string): void {
-  const codes = getCodesToRedeem(fid);
+function redeemOne(fid: string, nickname: string, includeIneligible = false): void {
+  const codes = getCodesToRedeem(fid, includeIneligible);
   if (codes.length === 0) {
     const sel = getSelectedCoupon();
     appAlert(
@@ -677,18 +718,22 @@ function redeemOne(fid: string, nickname: string): void {
     );
     return;
   }
-  redeemStats = { success: 0, already: 0, failed: 0, errors: [] };
+  redeemStats = { success: 0, already: 0, ineligible: 0, failed: 0, errors: [] };
   totalRedeemTasks = codes.length;
   completedRedeemTasks = 0;
   showProgress(t('coupons.progress.onePersonStart', { name: nickname }));
-  redeemForMember(fid, nickname).then(() => {
+  redeemForMember(fid, nickname, includeIneligible).then(() => {
     showSummary();
     renderAccounts();
   });
 }
 
-function redeemForMember(fid: string, nickname: string): Promise<void> {
-  const codes = getCodesToRedeem(fid);
+function redeemForMember(
+  fid: string,
+  nickname: string,
+  includeIneligible = false,
+): Promise<void> {
+  const codes = getCodesToRedeem(fid, includeIneligible);
   if (codes.length === 0) return Promise.resolve();
 
   return fetch(REDEEM_API, {
@@ -726,6 +771,14 @@ function redeemForMember(fid: string, nickname: string): Promise<void> {
           redeemStats.already++;
           saveHistory(fid, code, REDEEM_STATUS.ALREADY, r.msg);
           showProgress(t('coupons.progress.couponAlready', { name: nickname, code }));
+        } else if (isIneligibleRedeem(fakeJson)) {
+          // 조건 불충족 (40017 자격 필요 등) — 사용자별 영구. DB 에 영구 저장하여
+          // 다음 전체 수령부터 요청 자체를 안 보냄. 일시적 오류 아니므로 실패 알림엔 안 넣음.
+          redeemStats.ineligible++;
+          saveHistory(fid, code, REDEEM_STATUS.INELIGIBLE, r.msg);
+          showProgress(
+            t('coupons.progress.couponIneligible', { name: nickname, code }),
+          );
         } else {
           const label = describeRedeemError(fakeJson);
           redeemStats.failed++;
@@ -788,7 +841,7 @@ async function startBulkRedeem(skipConfirm: boolean): Promise<void> {
     : t('coupons.confirm.redeemAll', { n: pending.length });
   if (!skipConfirm && !(await appConfirm(confirmMsg))) return;
 
-  redeemStats = { success: 0, already: 0, failed: 0, errors: [] };
+  redeemStats = { success: 0, already: 0, ineligible: 0, failed: 0, errors: [] };
   totalRedeemTasks = pending.reduce(
     (sum, a) => sum + getCodesToRedeem(a.kingshot_id).length,
     0,
@@ -919,6 +972,11 @@ function showSummary(): void {
       key: 'already',
       text: t('coupons.summary.already', { n: redeemStats.already }),
       show: redeemStats.already > 0,
+    },
+    {
+      key: 'ineligible',
+      text: t('coupons.summary.ineligible', { n: redeemStats.ineligible }),
+      show: redeemStats.ineligible > 0,
     },
     {
       key: 'failed',
@@ -1228,10 +1286,11 @@ function initRowDelegation(): void {
       const row = btn.closest<HTMLElement>('.coupon-account-row');
       if (!row) return;
       const action = btn.dataset.action;
-      if (action === 'redeem') {
+      if (action === 'redeem' || action === 'retry') {
         const kingshotId = row.dataset.kingshotId;
         const nickname = row.querySelector<HTMLElement>('.mc-name')?.textContent ?? '';
-        if (kingshotId) redeemOne(kingshotId, nickname);
+        // retry: 조건 불충족으로 스킵됐던 쿠폰까지 포함해 다시 시도 (자격이 바뀌었을 수 있음)
+        if (kingshotId) redeemOne(kingshotId, nickname, action === 'retry');
       } else if (action === 'remove') {
         const accountId = row.dataset.accountId;
         if (accountId) removeAccount(accountId);

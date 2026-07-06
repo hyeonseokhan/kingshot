@@ -254,6 +254,9 @@ export const ko = {
       redeem: '쿠폰 수령',
       done: '수령 완료',
       delete: '삭제',
+      ineligible: '자격 미달',
+      ineligibleHint: '자격 조건 미충족으로 전체 수령에서 제외됩니다 (예: 카카오톡 채널 자격 필요)',
+      retry: '다시 시도 (자격 미달 쿠폰 포함)',
     },
     confirm: {
       deleteAccount: '이 계정을 삭제하시겠습니까?',
@@ -282,11 +285,13 @@ export const ko = {
       onePersonNetError: '⚠️ {name} 네트워크 오류',
       couponDone: '✅ {name} — {code} 수령 완료',
       couponAlready: '✅ {name} — {code} 이미 수령됨',
+      couponIneligible: '⏭️ {name} — {code} 자격 미달 (다음부터 제외)',
       couponFailed: '⚠️ {name} — {code}: {label}',
     },
     summary: {
       success: '✅ 성공 {n}',
       already: '📋 이미 수령 {n}',
+      ineligible: '⏭️ 자격 미달 {n}',
       failed: '⚠️ 실패 {n}',
       detailsHeader: '실패 상세:\n{details}',
     },
